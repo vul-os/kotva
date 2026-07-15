@@ -1,15 +1,42 @@
 # 3. Naming & Directory (name → key)
 
-DNS names you; your key *is* you; the mesh finds you. This section covers the **stable**
+Your **key is your identity and the only root of trust**; a **`name@domain`** is the everyday,
+human-facing pointer to it; the mesh finds you by key. This section covers the **stable**
 binding: how `abc@def.com` resolves to an identity key, how that binding is made
 tamper-evident, and how it degrades safely.
 
-## 3.1 Roles
+**The layering (read this first).** Three layers, never conflated:
 
-- **DNS** (we do not run it — registrars/operators do) holds the stable `name → key`
-  pointer. It is static and cacheable; it MUST NOT hold location (that is the mesh, §4).
-- **Key transparency (KT)** makes the binding *auditable* — since DNS is a trusted third
-  party the owner does not control, KT lets a silent key swap be *detected* (§3.5).
+- **The key is identity and proof.** Authenticity is *always* the key (`IK`, §1.2) — nothing
+  else. A name is only a pointer to it.
+- **DNS (and any name backend) is *discovery*, never proof.** It tells you which key *claims* a
+  name; it does not attest it. A compromised registrar can lie about the pointer, so the pointer
+  is never trusted on its own.
+- **Key transparency (KT) makes the `name → key` binding tamper-evident**, so a silent key swap
+  by DNS/registrar/directory is *detectable* (§3.5).
+- **Pinning (TOFU) makes discovery a one-time event.** After first contact you route by the
+  pinned key via the mesh (§4); DNS is not consulted again unless the signed identity chain says
+  to. A later DNS/registrar compromise cannot redirect an existing relationship.
+
+**Stable anchor, rotatable keys (the real future-proofing).** The human name binds to a
+**stable identity anchor — the root identity key `IK` (§1.2)** — *not* to a rotatable
+operational key. Day-to-day signing/device keys rotate *under* the identity without changing the
+name; even `IK` itself can rotate, and the suite can migrate to post-quantum, without the name
+changing — bridged by the signed hash chain (§1.5) and, for a change of the anchor's name, by
+aliases + a signed `MoveRecord` (§1.6). So a `name@domain` **survives ordinary key rotation and
+PQ migration**: the `name → key` indirection is exactly what lets the key underneath change while
+the address people type stays the same. `IK` rotation is the rare migration event, not the
+common case.
+
+## 3.1 Roles (who holds what)
+
+- **The key (`IK`)** is the identity and the sole trust root. Everything below only *points* to
+  it; nothing below can prove authenticity on its own.
+- **DNS** (we do not run it — registrars/operators do) holds the stable `name → key` *pointer*.
+  It is discovery: static and cacheable. It MUST NOT hold location (that is the mesh, §4), and it
+  is **never** the proof — KT + pinning are.
+- **Key transparency (KT)** makes the pointer *auditable* — since DNS is a trusted third party
+  the owner does not control, KT lets a silent key swap be *detected* (§3.5).
 - **The mesh DHT** holds the dynamic `key → location` record (§4).
 
 ## 3.2 DNS records
@@ -61,7 +88,7 @@ v0 trust model:
 - On first resolution, **pin** `(name → ik, id)`.
 - Follow the signed `Identity` hash chain (§1.3–1.6) for rotations and migrations; accept a
   new key only via a valid chain from the pinned key.
-- Offer **out-of-band verification** (safety-number / QR comparison of `ik`) to upgrade a
+- Offer **out-of-band verification** (safety-number / QR comparison of `ik`, §3.4.1) to upgrade a
   TOFU pin to a verified pin.
 - A key that changes *without* a valid chain MUST raise a security warning, never silently
   update.
@@ -69,6 +96,29 @@ v0 trust model:
 **Honest limit:** a MITM at the *very first* contact (before KT is consulted or before OOB
 verification) can substitute a key. KT (§3.5) closes this; OOB verification closes it
 immediately for high-value contacts.
+
+### 3.4.1 Safety numbers (out-of-band key verification)
+
+Out-of-band verification compares the **key**, not the name — it is the strongest trust upgrade
+and the one thing that closes a first-contact MITM immediately.
+
+- A **safety number** (Signal-style) is a deterministic function of the parties' `IK`s (the
+  fingerprint of the identity keys). Two contacts confirm they see the same value out-of-band —
+  in person, over a trusted channel, or by scanning a **QR code**.
+- **This is verification, not an address.** A safety number / fingerprint is *never* used to
+  route or reach someone; it only confirms that the key you pinned is the key you meant. It does
+  not appear in `Identity.names` and cannot be typed at to send mail.
+- **Word rendering (optional).** Because digit strings are error-prone to compare aloud, a
+  fingerprint MAY be rendered as a **word sequence** for easier human comparison:
+  `words(fingerprint, wordlist)` over a curated **~1024-word, language-agnostic** list (short,
+  pronounceable across major languages, no homophones/confusables/offensive collisions), 10
+  bits/word, with a folded **checksum** so a misheard word fails closed rather than comparing as
+  a different key. **Proquints** (pronounceable 5-char syllables, 16 bits each) are an allowed
+  language-neutral alternative encoding of the same bits.
+- The word encoding exists **only** for this verification role — a comparison aid for confirming
+  a key. It is deliberately **not** an address: DMTAP does not name people by their key digits.
+  Because the safety number is taken over the full identity key, it carries the key's full
+  strength; there is no separate truncated-name address to grind.
 
 ## 3.5 Key transparency (KT)
 
@@ -109,13 +159,14 @@ heavier private-contact-discovery schemes for v0; stronger schemes are a v1 opti
 
 The identity is a **key**; DNS is a generated, auto-managed *projection* of it, never
 hand-edited. There are three onboarding tiers. A conformant client SHOULD default to Tier B
-and never require a user to author DNS.
+(a provider-issued `name@domain`) and never require a user to author DNS.
 
 ### Tier A — no domain (pure DMTAP)
 
-Identity = key; human name from a provider directory or a self-sovereign name backend (§3.6).
-**No DNS, no domain.** DMTAP↔DMTAP only (the legacy world cannot resolve the name). Setup:
-generate key → claim a directory name → join mesh.
+Identity = key; the human name is a provider directory name or a self-sovereign name backend
+(§3.6) that resolves directly to the key. **No DNS, no domain.** DMTAP↔DMTAP only (the legacy
+world cannot resolve the name). Setup: generate key → claim a directory name → join mesh. Most
+users instead pick Tier B so their address also works for legacy email.
 
 ### Tier B — gateway-owned domain (default; zero user DNS)
 
@@ -132,7 +183,8 @@ _dmarc.gw.example TXT     DMARC policy
 
 The **user touches zero DNS.** DMTAP-native delivery is key-based; legacy interop works
 immediately because the shared domain is pre-configured and its IPs are warmed. Per-user
-legacy setup = none. This is Gmail-grade onboarding: you get an address, not a domain.
+legacy setup = none. This is Gmail-grade onboarding: you get an address, not a domain — a
+provider-issued `you@gw.example` that is a full, first-class `name@domain` (§3.9.1).
 
 ### Tier C — vanity custom domain (auto-configured)
 
@@ -155,62 +207,99 @@ Exactly one thing is irreducible: **some** operator must configure **one** legac
 properly and **warm its sending IPs** (weeks). This is a one-time, per-domain operator task,
 amortized across all users on that domain — never a per-user task.
 
-## 3.9 Names & the naming ladder
+## 3.9 Names (one identity, many pointers)
 
-The identity is always the **keypair**; a name is a memorable pointer to it. DMTAP defines a
-*ladder* of name forms, from zero-authority to human-chosen, all resolving to the same key. A
-user MAY hold several at once.
+The identity is always the **key**; every name is a memorable pointer to it, and one identity
+MAY hold several names at once — all resolving to the same key. DMTAP has **one recommended,
+headline form** and a few optional extras. This is deliberately *not* a ladder of equals.
 
-| Form | Example | Authority | How uniqueness is achieved |
-|------|---------|-----------|----------------------------|
-| **Key-name** (default, zero-authority) | `maple-heron-otter-cabin-river-slate-amber-quill` | **none** | derived from the key — unique *by construction* |
-| **Fingerprint** | `k:7f2a9c1b…` (base32) | none | raw key hash |
-| **Handle** | `@thisismyname` | thin directory (§3.9.2) | first-come, KT-audited |
-| **name@domain** | `me@yourdomain` | DNS | domain namespacing (§3.2, §3.8) |
-| **Self-sovereign name** | `thisismyname` on a name-chain | consensus (§3.6) | chain ordering |
+**Zooko's triangle, stated plainly.** A name cannot be simultaneously *human-meaningful*,
+*global*, and *authority-free*. DMTAP's choice: names are human-meaningful and — through DNS
+federation — global, and it pays for that with an authority (DNS/registrar). But it
+**neutralizes** that authority by keeping the key the sole trust root, KT-auditing the binding
+(§3.5), and pinning on first use (§3.4): the authority can help you *discover* a key, it can
+never *forge* one undetected. The alternative corner (a flat authority-free name derived from
+the key) is not offered as an address — it is unwieldy, and it would name people by a rotatable
+artifact rather than the stable identity.
 
-### 3.9.1 Key-name (the zero-authority default)
+### 3.9.1 `name@domain` — the primary human address
 
-Every identity has a **key-name** computed deterministically from its identity key, requiring
-**no directory, no consensus, and no registration** — it exists the instant a key is generated,
-and two different keys yield different names by construction (uniqueness is cryptographic, not
-adjudicated). This is DMTAP's answer to "a memorable identifier with no authority."
+**`name@domain` is the everyday, recommended, headline address.** It comes in two flavours, one
+format:
 
-- **Encoding:** `key-name = words( truncate( hash(IK), 80 bits ), wordlist )` — **8 words**
-  from a curated **~1024-word, language-agnostic** list (short, pronounceable across major
-  languages, no homophones/confusables/offensive collisions), 10 bits/word = **2⁸⁰** address
-  space (~10²⁴; a trillion collision-free identities — unreachable for accidental collision).
-- A **checksum** is folded into the last word so a mistyped/misheard name fails closed rather
-  than resolving to a different key.
-- **Proquints** (pronounceable 5-char syllables, 16 bits each; 5 = 2⁸⁰) are an allowed
-  language-neutral alternative encoding of the same bits.
-- **Honest limit:** 80 bits resists *single-target* grinding but not cheap *multi-target*
-  grinding at massive scale; the key-name is a memorable **pointer/verifier**, and the **key
-  remains the security boundary** — contacts pin the key on first contact (§3.4) and high-value
-  identities display the full fingerprint/safety-number. Users wanting the name itself to be
-  adversary-proof-forever MAY use a **12-word (2¹²⁸)** key-name.
+- **Provider-issued** — `you@envoir.org` and the like (Bluesky-style): the majority who don't
+  own a domain get a familiar, handle-shaped address for free from a provider, with zero DNS work
+  (Tier B, §3.8).
+- **Your own domain** — `you@yourbrand.com`, for full sovereignty (Tier C, §3.8).
 
-### 3.9.2 Handle (human-chosen, thin directory)
+Why this is the headline:
 
-A user MAY additionally register a **chosen** handle `@name` in a DMTAP **directory** (a
-namespace). Because a *chosen, globally-unique* name requires arbitration (Zooko), the directory
-is a thin authority that:
+- **It survives key rotation and PQ migration.** The name binds to the stable anchor `IK`, not
+  to a rotatable key; the key underneath can rotate or migrate to a PQ suite and the address is
+  unchanged (`name → key` indirection, §1.5–1.6). This is the real future-proofing.
+- **It's federated — no global-namespace squatting.** Uniqueness is *per-domain*, so there is no
+  single global registry to squat or race: `alice@a.org` and `alice@b.org` are different people,
+  and neither had to win a landrush.
+- **One familiar format**, already understood by every human and every mail system.
+- **It interoperates with legacy email for free** — the shared or owned domain carries
+  MX/DKIM/DMARC (§3.8, §7), so `name@domain` is reachable from Gmail/Outlook on day one.
+
+Authenticity is still the key: a `name@domain` is resolved (§3.3), KT-audited (§3.5), and pinned
+(§3.4) — the domain only points, it never proves. For a name that cannot expire or be seized,
+the same pointer can live in a self-sovereign name backend instead of DNS (§3.6), with resolution
+unchanged.
+
+### 3.9.2 `@handle` — optional global registry (opt-in)
+
+A flat, global `@handle` namespace is **optional, not the headline.** For handle-like UX, DMTAP
+prefers the **provider-federated** `you@provider` form above, which gives the same short-name
+feel *without* a single global namespace to fight over.
+
+A conforming client MAY additionally offer an opt-in `@handle` directory. Because a *chosen,
+globally-unique* name requires arbitration (Zooko), the directory is a thin authority that:
 
 - assigns each handle once (first-come-first-served) with an **anti-squat cost** (a small fee or
-  proof-of-work, since consensus/assignment gives uniqueness but not scarcity);
+  proof-of-work, since assignment gives uniqueness but not scarcity);
 - publishes `handle → key` to a **key-transparency log** (§3.5), so it is *auditable, not
   trusted* — it cannot silently repoint a handle without detection;
 - **cannot hijack existing relationships** — contacts route by the pinned key (§1.6), so the
   handle is only an introduction.
 
 Handles are normalized (NFC, lowercase, collapse consecutive dots; dots allowed as cosmetic
-separators, e.g. `@this.is.my.name`) and confusables/homoglyphs are reserved. The directory MAY
-be a single operator (simplest), a **federated consortium running BFT consensus** (no single
-owner of the namespace, no chain), or a **name-chain** (§3.6) — the same ladder, decreasing
-authority for increasing cost.
+separators, e.g. `@this.is.my.name`) and confusables/homoglyphs are reserved. The directory
+SHOULD be a **federated consortium running BFT consensus** (no single owner of the namespace, no
+chain) rather than a single operator; a name-chain (§3.6) is a further option.
+
+**Honest limit (why it is not the default):** a single global namespace **reintroduces exactly
+the global squatting and impersonation that domain-federation avoids** — every desirable handle
+becomes a landrush and a phishing target (`@paypa1` vs `@paypal`). That is the unavoidable price
+of a flat global name, and it is why `name@domain` is the recommended form and `@handle` is an
+explicit opt-in.
 
 ### 3.9.3 Petnames (local)
 
 A user assigns **petnames** locally to contacts ("Mom" → a key). Petnames are human + zero-
 authority but *local-scope only* (not global), and never leave the device cluster (they are a
 social-graph artifact and MUST be stored encrypted at rest with the mailbox).
+
+### 3.9.4 Aliases & subaddressing (one identity, many addresses)
+
+For feature parity with legacy email, **one identity MAY hold multiple names** — all resolving
+to the same key — and support subaddressing:
+
+- **Aliases.** An identity's `Identity.names` (§1.3) is a *list*: a user can hold several
+  `name@domain` addresses (provider-issued and/or own-domain) at once, optionally an `@handle`,
+  all pointing to the same key. Mail to any of them arrives in the same mailbox.
+- **Retaining a legacy address.** Crucially, a **legacy email address you already own can be an
+  alias**: point that domain's MX/DKIM at a gateway (§7) and add the address to `Identity.names`,
+  so people who only know your old `you@oldprovider.com` still reach you (via the gateway →
+  MOTE), while you migrate. This is the practical migration path — you don't lose your old
+  address; it becomes one of your DMTAP aliases.
+- **Subaddressing (plus-addressing).** `you+tag@domain` (and, for handles, `@you+tag`) is
+  supported: the `+tag` is preserved for client-side filtering/labeling but resolves to the same
+  key. Catch-all (`*@yourdomain`) is a domain-owner option (tier C).
+- **Security:** every alias resolves to the *same key*, so an alias cannot be used to impersonate
+  — authenticity is always the key, not the name. Aliases are published/audited via the same KT
+  (§3.5); adding/removing an alias is a signed `Identity` version. A legacy-alias's inbound mail
+  is marked *legacy-origin* (not E2E before the gateway, §7.2), so the user sees which messages
+  came the old way.

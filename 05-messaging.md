@@ -166,3 +166,63 @@ always-on box is the anchor that guarantees receipt while other devices sleep.
 
 The one genuinely new component — the **MLS group** — unlocks all three. Real-time
 voice/video is **out of scope** (separate WebRTC/SFU architecture).
+
+## 5.8 Groups as addressable identities
+
+A group is an identity that has members. It has its **own keypair** and therefore its **own
+name** on the full naming ladder (§3.9): a group key-name, an `@handle` (e.g. `@team`), or a
+domain address (`team@company.com`). Sending to a group address delivers to all current members;
+membership is the group's MLS roster (§5.1). This single mechanism unifies mailing lists, chat
+channels, shared folders, and team inboxes — "a group with an address."
+
+### 5.8.1 Two posting models
+
+| Model | Behavior | Membership visibility |
+|-------|----------|-----------------------|
+| **Broadcast / list** | post to the address → every member receives a copy (distribution list, announce, team inbox) | typically hidden (subscribers don't see each other) |
+| **Collaborative / channel** | shared, ordered conversation + shared state (chat channel, shared folder) | typically member-visible |
+
+Both are MLS groups; they differ only in **posting policy** and **membership-visibility policy**,
+which are fields of the group state. A group MAY switch models by policy change (a Commit).
+
+### 5.8.2 Roles & management
+
+Group state carries **roles**: `owner` (≥1), `admin`, `member`, and optional `poster` (may send)
+vs `reader`. Management operations are **MLS Commits** ordered by the group committer (§5.1),
+authorized by role:
+
+- **Add / remove member** — Add uses the invitee's KeyPackage (§5.3) + Welcome; Remove triggers
+  file-key rotation for shared folders (§6.7). Requires `admin`.
+- **Role change / transfer ownership** — requires `admin`/`owner`.
+- **Policy change** (posting model, membership visibility, join policy) — requires `admin`.
+- **Join policy:** `closed` (invite only), `request` (request → admin approval), `open` (anyone
+  with the address may join, rate-limited + anti-abuse §9), or `vouch` (a member introduces).
+
+All membership/role/policy changes are signed and appear in the group's hash-chained handshake
+log (§5.1), so a member can audit "who added/removed whom" — the group analog of identity
+key-transparency (§3.5). A malicious/coerced committer can stall but not forge (every change is
+member-signed); forks are detectable.
+
+### 5.8.3 Membership privacy (subscriber-list)
+
+Broadcast lists MUST support **hidden membership**: members receive via per-member sealed
+delivery (§6) and do not learn the other members' keys. MLS's tree exposes members to *each
+other* by default, so hidden-membership lists use a **relay/committer fan-out** where the
+list identity re-seals to each member individually rather than a shared member-visible tree —
+at the cost of the shared-group efficiency. Channels (member-visible) use the normal MLS tree.
+This resolves the earlier mailing-list-privacy gap: choose the model per group, and disclose it.
+
+### 5.8.4 Delivery & scale
+
+- Small groups: standard MLS group message, fan-out to members over the mesh/mixnet.
+- Large lists: the committer's ordered log is the source of truth; delivery is **per-member**
+  (sealed to each), pull-or-push, so a 10k-member list is 10k individual sealed deliveries, not a
+  10k-member MLS tree. This trades cryptographic group-sharing for scalability and hidden
+  membership — the right trade for announce lists.
+
+### 5.8.5 Legacy interop
+
+A group MAY have a **legacy address** (`team@company.com`) served by the gateway (§7): inbound
+legacy mail to the address is fanned out to members as MOTEs; outbound from the list to legacy
+subscribers goes via the gateway. So a DMTAP group is reachable as an ordinary mailing-list
+address from the old world, while native members get the full encrypted/group experience.
