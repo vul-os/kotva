@@ -128,7 +128,7 @@ scale-to-zero**:
 - **Per-tenant isolation:** one logical app / sandbox (microVM, e.g. Firecracker) **per
   customer**, so a compromised tenant cannot read another's secrets or content; equivalently a
   namespace-per-tenant + sandboxed runtime on Kubernetes.
-- **Storage:** per-account **encrypted object-storage bucket** (§ Envoir Cloud uses R2/Tigris,
+- **Storage:** per-account **encrypted object-storage bucket** (Envoir Cloud uses R2/Tigris,
   free egress); isolation enforced at the app/bucket boundary, not the platform sandbox alone.
 - **Scale-to-zero + push-wake:** idle mailboxes cost only storage; a request/push cold-boots the
   cell (~sub-second). This fits mailboxes (idle most of the time) and the §14.3 push model.

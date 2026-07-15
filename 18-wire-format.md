@@ -444,9 +444,9 @@ Identity = {
 | `iks` | 2 | `{+ u8 => ik-pub}` | MUST | Map from each suite in `suites` to that suite's identity public key. Every suite in `suites` MUST have exactly one entry, and vice-versa. |
 | `version` | 3 | `u64` | MUST | Monotonic version. A verifier MUST reject a version ≤ the last one it pinned for this identity (rollback defense, §3.3). |
 | `devices` | 4 | `[* DeviceCert]` | MUST (MAY be empty) | The identity's device certificates (§18.4.2), each signed by IK. |
-| `keypkgs` | 5 | `KeyPackageBundleRef` | MUST | Location + hash of the current KeyPackage bundle (§18.4.3). ⚠ Named `keypkgs` here but referenced as `Identity.prekeys` in §5.3 (§18.11). |
+| `keypkgs` | 5 | `KeyPackageBundleRef` | MUST | Location + hash of the current KeyPackage bundle (§18.4.3). Named `keypkgs` throughout, matching §1.3 and §5.3 (the earlier `prekeys` name is retired; §18.11 item 1). |
 | `recovery` | 6 | `hash` (`RecoveryPolicyRef`) | MUST | Hash of the current `RecoveryPolicy` (§18.4.4). Resolved via the mesh/KT log. |
-| `names` | 7 | `[* tstr]` | MUST (MAY be empty) | Canonical human name(s), e.g. `"abc@def.com"`, `"@handle"` (§3.9). A list ⇒ aliases. All resolve to the same key. |
+| `names` | 7 | `[* tstr]` | MUST (MAY be empty) | Human name(s), e.g. `"abc@def.com"`, `"@handle"` (§3.9). A list ⇒ aliases. These are **self-asserted**: an identity MAY list any string, including a victim's address, so a listed name proves **nothing** on its own. A verifier MUST trust/display a name **only after** confirming the forward `name → ik` binding (DNS + KT, §3.3–3.5) resolves back to *this* key (§3.9.4); a name that does not verify back MUST be rendered as unverified, never as an authenticated address. Every *verified* alias resolves to the same key. |
 | `prev` | 8 | `hash` | OPTIONAL | Hash of the previous `Identity` version; absent only for the genesis version. Chains versions into the KT-mirrored history (§3.5). |
 | `ts` | 9 | `ts` | MUST | Publication timestamp. |
 | `sig` | 10 | `[+ sig-val]` | MUST | **One signature per suite in `suites`**, in the same order, each over the body preimage (§18.9.3). A verifier trusting either the classical or PQ key can validate; it MUST reject an Identity whose highest offered suite it cannot validate (§1.3). |
@@ -521,8 +521,14 @@ SocialMethod = { 0 => 3, 1 => [+ ik-pub], 2 => u8 } ; guardians, threshold (VSS/
 
 Threshold      = { 1 => [+ MethodPredicate] }       ; any_of — satisfied if ANY predicate holds
 MethodPredicate = { 1 => method-type, 2 => uint }   ; method + required count
-method-type    = "phrase" / "device" / "social"
+method-type    = "phrase" / "device" / "social" / "ik"
 ```
+
+`method-type` maps the §1.4 prose predicates onto factor kinds: `"phrase"` = `Phrase`,
+`"device"` = `Devices(n)`, `"social"` = `Guardians(n)` (guardian shares), and `"ik"` = `Ik` (the
+root key itself; `count` is `1`). The `"ik"` predicate has **no** corresponding entry in
+`methods` — it is satisfied by an `IK` signature directly, so it is the one predicate that does
+not name a `RecoveryMethod`.
 
 | Object | Field | Key | Type | Presence | Meaning & constraints |
 |--------|-------|----:|------|----------|-----------------------|
@@ -544,8 +550,8 @@ method-type    = "phrase" / "device" / "social"
 | | `guardians` | 1 | `[+ ik-pub]` | MUST | Guardian keys holding VSS shares. Changing this set MUST trigger **redistribution/resharing** (§1.4 rule 3), not proactive refresh. FROST (RFC 9591) RECOMMENDED so the secret is never reassembled. |
 | | `threshold` | 2 | `u8` | MUST | Number of guardian shares required (`M` of `N`). |
 | `Threshold` | `any_of` | 1 | `[+ MethodPredicate]` | MUST | Disjunction: satisfied if **any** listed predicate is met (e.g. 1 phrase OR 2 devices OR 2 guardians, §1.4). |
-| `MethodPredicate` | `method` | 1 | `method-type` | MUST | One of `"phrase"`, `"device"`, `"social"`. |
-| | `count` | 2 | `uint` | MUST | Number of factors of `method` required to satisfy this predicate (≥ 1). |
+| `MethodPredicate` | `method` | 1 | `method-type` | MUST | One of `"phrase"`, `"device"`, `"social"`, `"ik"` — mapping the §1.4 predicates `Phrase`/`Devices(n)`/`Guardians(n)`/`Ik`. `"ik"` is satisfied by an `IK` signature and names no `RecoveryMethod`. |
+| | `count` | 2 | `uint` | MUST | Number of factors of `method` required to satisfy this predicate (≥ 1; `1` for `"ik"`). |
 
 ### 18.4.5 `KeyRotation` (§1.5)
 
@@ -630,9 +636,10 @@ LocationRecord = {
 | `ts` | 6 | `ts` | MUST | Publication time. |
 | `sig` | 7 | `sig-val` | MUST | Signed by a **device key** (not necessarily IK) authorized in the current `Identity` (§18.9.3). Signing authenticates content only — it does NOT stop eclipse (§4.2). |
 
-> ⚠ **Divergence flagged (§18.11):** §4.2's inline CBOR omits an explicit `seq` field, yet §16.2
-> normatively requires a "Location seq-number | monotonic u64" for rollback defense. This
-> appendix adds `seq` (key 4) as REQUIRED, per §16.2, rather than overloading `ts`.
+> **Reconciled (§18.11 item 3):** `seq` (key 4) is REQUIRED here, per §16.2's "Location
+> seq-number | monotonic u64" rollback defense. §4.2's inline CBOR now carries the same `seq`
+> field, so appendix and prose agree; a resolver MUST reject any record whose `seq` is older-or-
+> equal to one already seen.
 
 ---
 
@@ -659,6 +666,7 @@ GroupState = {
   11 => u64,            ; version      monotonic
   12 => ts,             ; ts
   13 => sig-val,        ; committer_sig  by `committer` over the body (§18.9.6)
+  14 => hash,           ; group_identity  content addr of the group's own Identity (§5.8.6)
 }
 
 RosterEntry = {
@@ -688,6 +696,7 @@ role          = "owner" / "admin" / "member" / "poster" / "reader"
 | | `version` | 11 | `u64` | MUST | Monotonic; reject ≤ last pinned. |
 | | `ts` | 12 | `ts` | MUST | Snapshot time. |
 | | `committer_sig` | 13 | `sig-val` | MUST | Signature by `committer` over the body (§18.9.6). Members MUST also independently verify each underlying handshake is member-signed (a committer cannot forge membership changes). |
+| | `group_identity` | 14 | `hash` | MUST | Content address of the group's **own** `Identity` object (§18.4.1) — the group is an addressable identity with its own keypair (§5.8). That `Identity` carries the group's **threshold-held signing key** (`iks`, FROST-style over the `owner`/`admin` set) and its `recovery` → group `RecoveryPolicy` (§18.4.4), per §5.8.6. Changing the group's identity key or recovery is a **threshold act** requiring the group's `rotate_threshold` (weakening-quorum + veto rules of §1.4 apply) and MUST appear in key transparency (§3.5); the `committer` orders *handshakes* only and is **NOT** authorized to change it. `group_id` (key 1) is derived from this identity. |
 | `RosterEntry` | `member` | 1 | `ik-pub` | MUST | Member identity key. |
 | | `roles` | 2 | `[+ role]` | MUST | ≥ 1 role from `{owner, admin, member, poster, reader}` (§5.8.2). `owner`/`admin` gate management ops; `poster` may send, `reader` may not. |
 | | `joined` | 3 | `ts` | MUST | Join timestamp. |
@@ -758,8 +767,9 @@ Assertion = {
   3 => ts,              ; issued_at   echoed
   4 => ts,              ; exp         echoed
   5 => tstr,            ; aud         echoed
-  6 => ik-pub,          ; from        signer: session key or device key (per-RP, per-device)
-  7 => sig-val,         ; sig         over the origin-bound preimage (§18.9.8)
+  6 => ik-pub,          ; from        the identity-revealing login signer (IK-authorized device key)
+  7 => sig-val,         ; sig         over the origin-bound preimage incl. cnf (§18.9.8)
+  8 => hash,            ; cnf         H(session_pubkey): binds the fresh per-RP session key (§13.3)
 }
 ```
 
@@ -770,8 +780,9 @@ Assertion = {
 | `issued_at` | 3 | `ts` | MUST | Echo. |
 | `exp` | 4 | `ts` | MUST | Echo; RP MUST reject if now > `exp`. |
 | `aud` | 5 | `tstr` | MUST | Echo; MUST match the RP. |
-| `from` | 6 | `ik-pub` | MUST | The signing key: a **per-RP, per-device session key** authorized by a device key (§13.4), NOT `IK` itself. Enables granular revocation and prevents cross-site correlation. |
-| `sig` | 7 | `sig-val` | MUST | Signature by `from` over the origin-bound preimage (§18.9.8). Sessions are key-bound (DPoP/GNAP, §13.4); a stolen token without the key is useless. |
+| `from` | 6 | `ik-pub` | MUST | The user's **login signer**: an `IK`-authorized **device key** (or `IK` itself, §1.2) that the RP MUST verify resolves to the pinned `name → key` identity (§3.4, §13.3 step 6). This is the identity-revealing login signature; it is **NOT** the session key. The fresh per-RP session key is committed by `cnf` (key 8), not carried here; per-RP session keys (used for DPoP/GNAP thereafter) are what give cross-site unlinkability (§13.4, §13.7 limit 7), not this field. |
+| `sig` | 7 | `sig-val` | MUST | Signature by `from` over the origin-bound preimage **including `cnf`** (§18.9.8). A captured assertion cannot be replayed with an attacker-chosen session key because `cnf` is inside the signed preimage (session-hijack defense, §13.3). |
+| `cnf` | 8 | `hash` | MUST | Confirmation key = `H(session_pubkey)` (RFC 7800 style, §13.3 step 4). The client generates the per-RP, per-device session keypair **before** signing and commits it here; the RP MUST bind the session **only** to `cnf` (proof-of-possession, §13.4). Present on every native assertion, and embedded verbatim in a bridged ID Token (§13.6). |
 
 ---
 
@@ -915,17 +926,21 @@ signature of their own — an ARC presentation is verified by the ARC protocol
 
 ### 18.9.8 `Assertion.sig` (auth)
 
-Per §13.3 step 5 the signature is over the hash of the origin-bound fields:
+Per §13.3 step 5 the signature is over the hash of the origin-bound fields **including `cnf`**:
 
 ```
-auth_hash    = BLAKE3-256( det_cbor([ rp_origin, nonce, issued_at, exp, aud ]) )
+auth_hash    = BLAKE3-256( det_cbor([ rp_origin, nonce, issued_at, exp, aud, cnf ]) )
 preimage     = "DMTAP-v0/auth-assertion" ‖ 0x00 ‖ auth_hash
-Assertion.sig = Sign(sk_session, preimage)
+Assertion.sig = Sign(sk_device, preimage)          ; sk_device = the IK-authorized login signer
 ```
 
-The hashed array is a fixed 5-element CBOR array in exactly that order (echoing the `Challenge`
-fields), so the RP reconstructs it from its own issued `Challenge` and MUST reject any mismatch of
-`rp_origin`/`aud`. The signing key is the per-RP session key (§13.4), not `IK`.
+The hashed array is a fixed 6-element CBOR array in exactly that order — the five echoed
+`Challenge` fields followed by `cnf` (`Assertion` key 8) — matching §13.3 step 5's
+`H(rp_origin ‖ nonce ‖ issued_at ‖ exp ‖ aud ‖ cnf)`. The RP reconstructs it from its own issued
+`Challenge` plus the assertion's `cnf` and MUST reject any mismatch of `rp_origin`/`aud`, and MUST
+bind the session **only** to `cnf`. The signing key is the user's **`IK`-authorized device key**
+(`Assertion.from`), verified against the pinned `name → key` identity (§3.4) — **not** the session
+key (which `cnf` merely commits) and not `IK` used directly for routine logins.
 
 ---
 
@@ -1027,7 +1042,7 @@ DeviceMethod   = { 0 => 2, 1 => ik-pub, 2 => tstr }
 SocialMethod   = { 0 => 3, 1 => [+ ik-pub], 2 => u8 }
 Threshold      = { 1 => [+ MethodPredicate] }
 MethodPredicate = { 1 => method-type, 2 => uint }
-method-type    = "phrase" / "device" / "social"
+method-type    = "phrase" / "device" / "social" / "ik"
 
 KeyRotation = {
   1 => suite, 2 => ik-pub, 3 => ik-pub, 4 => tstr,
@@ -1050,6 +1065,7 @@ GroupState = {
   1 => bytes, 2 => suite, 3 => bytes, ? 4 => tstr, 5 => ik-pub,
   6 => posting-model, 7 => visibility, 8 => join-policy,
   9 => [+ RosterEntry], 10 => hash, 11 => u64, 12 => ts, 13 => sig-val,
+  14 => hash,
 }
 RosterEntry   = { 1 => ik-pub, 2 => [+ role], 3 => ts }
 posting-model = "broadcast" / "collaborative"
@@ -1067,7 +1083,7 @@ Challenge = {
 }
 Assertion = {
   1 => tstr, 2 => bytes, 3 => ts, 4 => ts, 5 => tstr,
-  6 => ik-pub, 7 => sig-val,
+  6 => ik-pub, 7 => sig-val, 8 => hash,
 }
 ```
 
@@ -1079,31 +1095,29 @@ While formalizing, the following discrepancies among §1/§2/§4/§5/§16 were f
 resolves each explicitly rather than picking one silently; each SHOULD be reconciled in the prose
 (§10.4):
 
-1. **`Identity.keypkgs` vs `Identity.prekeys`.** §1.3's object names the field `keypkgs` (type
-   `KeyPackageBundleRef`); §5.3 refers to the same field as `Identity.prekeys`. This appendix uses
-   **`keypkgs`** (§1.3, the authoritative object definition) — key 5 of `Identity`. Recommend
-   fixing §5.3's prose to say `keypkgs`.
+1. **`Identity.keypkgs` vs `Identity.prekeys`.** RECONCILED. §1.3's object names the field
+   `keypkgs` (type `KeyPackageBundleRef`) and §5.3's prose now uses `keypkgs` as well; the earlier
+   `prekeys` name is retired. This appendix uses **`keypkgs`** — key 5 of `Identity`.
 
 2. **Two distinct KeyPackage reference types.** §2.2's `Envelope.keypkg` is a `KeyPackageRef`
    (a single consumed package); §1.3's `Identity.keypkgs` is a `KeyPackageBundleRef` (the whole
    published bundle). The names are close enough to conflate. This appendix keeps them as two
    separate objects (§18.3.4, §18.4.3) and documents the distinction.
 
-3. **`LocationRecord` missing `seq`.** §4.2's inline CBOR has no explicit sequence number, but
-   §16.2 normatively requires a monotonic `Location seq-number (u64)` for rollback defense. This
-   appendix **adds `seq` as a REQUIRED field** (key 4, §18.5.1). Recommend adding it to §4.2's
-   CBOR.
+3. **`LocationRecord` missing `seq`.** RECONCILED. §16.2 normatively requires a monotonic
+   `Location seq-number (u64)` for rollback defense; §4.2's inline CBOR now carries it and this
+   appendix specifies it as a REQUIRED field (key 4, §18.5.1). Appendix and prose agree.
 
 4. **`chunks` means two different things.** In `ManifestRef` (§2.5) `chunks` is a `u32` **count**;
    in `Manifest` (§5.5) `chunks` is a `[+ bytes]` **list of hashes**. Both are retained with their
    source meanings and the collision is called out in §18.3.7/§18.3.8. Recommend renaming
    `ManifestRef.chunks` → `chunk_count` in a future revision to remove the overload.
 
-5. **`Threshold` predicate type undefined in prose.** §1.4 gives `Threshold = { any_of:
-   [+ MethodPredicate] }` but never defines `MethodPredicate`. This appendix defines it as
-   `{ method: ("phrase"/"device"/"social"), count: uint }` (§18.4.4), matching the prose example
-   "1 phrase OR 2 devices OR 2 guardians". ("guardian" in that example maps to method
-   `"social"`.) Recommend adding this definition to §1.4.
+5. **`Threshold` predicate type.** RECONCILED. §1.4 now defines `MethodPredicate` as naming a
+   satisfied factor — `Phrase` / `Devices(n)` / `Guardians(n)` / `Ik`. This appendix encodes it as
+   `{ method: ("phrase"/"device"/"social"/"ik"), count: uint }` (§18.4.4): `Guardians` → `"social"`
+   and `Ik` → `"ik"` (satisfied by an `IK` signature, naming no `RecoveryMethod`). Earlier drafts
+   of this appendix omitted `"ik"`; it is added here so every §1.4 predicate is expressible.
 
 6. **`RecoveryMethod` discriminator representation.** §1.4 tags variants by a string field
    `type:"phrase"|"device"|"social"`. For a uniform integer-keyed choice, this appendix encodes the
@@ -1118,8 +1132,11 @@ resolves each explicitly rather than picking one silently; each SHOULD be reconc
 
 8. **Group-state object was prose-only.** §5.8 describes roster/roles/join-policy/posting-model/
    membership-visibility/committer but gives no CBOR. This appendix constructs `GroupState` and
-   `RosterEntry` (§18.6.1) faithfully to that prose; being newly formalized, they SHOULD get a
-   review pass against any reference implementation.
+   `RosterEntry` (§18.6.1) faithfully to that prose, including the §5.8.6 hardening: a
+   `group_identity` field (key 14) pins the group's own `Identity` object, whose threshold-held
+   key and `recovery` policy govern group-authoritative acts (a `rotate_threshold` bar the
+   committer cannot meet). Being newly formalized, they SHOULD get a review pass against any
+   reference implementation.
 
 **Object count:** this appendix gives a normative CDDL rule and a per-field semantics table for
 **24 wire objects** — `Envelope`, `DeliveryTag`, `ChallengeResponse`, `KeyPackageRef`, `Payload`,

@@ -169,7 +169,7 @@ three paths, by size:
 | **normal** | > inline, ≤ 4 chunks (v0: ≤ 4 MiB) | manifest in MOTE; **chunks also routed via the mixnet** | full (like messages, §6.5) |
 | **large** | > normal | manifest in MOTE; **chunks via the fast/onion bulk path** (§4.5) | weaker — Tor-class (§6.5) |
 
-The v0 numeric thresholds (64 KiB / 4 MiB) are parameters (§ numeric appendix) and MAY be tuned;
+The v0 numeric thresholds (64 KiB / 4 MiB) are parameters (§16.4) and MAY be tuned;
 the three-tier model is normative. This removes the earlier binary small/large ambiguity.
 
 ## 2.6 Delivery semantics
@@ -225,7 +225,8 @@ To reconcile §2.7 and §9.2, the disposition is by *degree*:
   user-visible effect, do not `ack` (except a duplicate `id`, which is acked).
 - **Absent or below policy threshold** (a cold sender with no/weak proof) → **defer to a
   "requests" area** (not the inbox), rate-limited, never silently dropped and never surfaced as
-  a normal message. The user MAY promote the sender (which pins them as a contact).
+  a normal message. Deferred MOTEs are held for the **requests-area retention period** (30 days,
+  §16.5), then auto-cleaned. The user MAY promote the sender (which pins them as a contact).
 
 Implementations MUST NOT deliver an unproven cold MOTE to the inbox, and MUST NOT silently
 discard a well-formed-but-under-threshold one without the requests-area affordance.

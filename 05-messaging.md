@@ -223,7 +223,8 @@ authorized by role:
   file-key rotation for shared folders (§6.7). Requires `admin`.
 - **Role change / transfer ownership** — requires `admin`/`owner`.
 - **Policy change** (posting model, membership visibility, join policy) — requires `admin`.
-- **Join policy:** `closed` (invite only), `request` (request → admin approval), `open` (anyone
+- **Join policy:** `closed` (invite only), `request` (request → admin approval; a request with no
+  admin response auto-expires after the join-request expiry, 30 days, §16.8), `open` (anyone
   with the address may join, rate-limited + anti-abuse §9), or `vouch` (a member introduces).
 
 All membership/role/policy changes are signed and appear in the group's hash-chained handshake

@@ -154,5 +154,6 @@ anonymous."
   shared media where the cost outweighs the benefit), never the silent default; folders marked
   **confidential** MUST always re-key (opt-out forbidden). Without a re-key, a removed member
   retains indefinite read access to already-shared files. Clients MUST surface that pre-removal copies a
-  member already downloaded cannot be recalled (the un-share limit, § file-safety).
+  member already downloaded cannot be recalled — deletion/recall is cooperative-only, never a
+guarantee (the un-share limit, §17 #28).
 - Recovery custody (§1.4) governs how at-rest keys survive device loss.

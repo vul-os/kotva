@@ -517,7 +517,7 @@ session lifecycle (§13.4).
 | `NO_SESSION` | No authenticated session with this RP. |
 | `CHALLENGE_ISSUED` | RP's `Challenge{rp_origin, nonce, issued_at, exp, aud}` presented to the trusted client (§13.3 steps 3–4). |
 | `APPROVAL_GATE` | Remote-node-signing path only: a trusted approval surface displays the verified `rp_origin` and requires explicit per-login approval before the node signs (§13.3.1). |
-| `ASSERTION_VERIFIED` | Signature produced and verified by the RP: pinned key matches, `rp_origin` matches RP's own origin, nonce unused, not expired (§13.3 steps 5–6). |
+| `ASSERTION_VERIFIED` | Signature produced and verified by the RP: pinned key matches, `rp_origin` matches RP's own origin, nonce unused, not expired; the RP binds the session **only** to the assertion's `cnf = H(session_pubkey)` (§13.3 steps 4–6, proof-of-possession). |
 | `SESSION_ACTIVE` | Key-bound session established (DPoP/GNAP, per-RP per-device ephemeral key, §13.4). |
 | `REFRESHED` | Session key rotated while the logical session continues (§13.4). |
 | `REVOKED` | Terminal: explicit revocation, device-key rotation, or `IK` recovery (§13.4). |

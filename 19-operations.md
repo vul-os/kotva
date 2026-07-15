@@ -153,6 +153,13 @@ authorized per §1.2/§1.4). Responder: the KT log (append) and the mesh DHT/con
 4. For a `RecoveryPolicy` change carried transitively via `identity.recovery`: the *authorizing*
    principal is `IK` (proactive) or a satisfied `rotate_threshold` quorum (reactive) — never a
    single `admin`-capable device alone (§1.2, §1.4 rule 1–2).
+5. If that `RecoveryPolicy` change **removes or weakens** any recovery factor (drops a method,
+   lowers a threshold, evicts a guardian/device), it MUST satisfy `rotate_threshold` **even when
+   signed by `IK` alone** (§1.4 rule 3, compromise defense) and MUST NOT take effect until its
+   **veto/delay window** (72 h, §16.8) has elapsed (§1.4 rule 4). Additive, non-weakening changes
+   are exempt from both. A veto/abort published within the window MUST itself satisfy
+   `rotate_threshold` (asymmetric — a single prior factor cannot veto its own eviction, §1.4
+   rule 4, §16.8).
 
 **Procedure (normative).**
 1. Validate preconditions locally before publishing (a node MUST NOT publish an object it cannot
@@ -184,7 +191,9 @@ discoverable on the mesh by content hash; existing contacts notified if `announc
 | `version` is not exactly previous+1 | Reject | `VERSION_CONFLICT`; caller must re-fetch the current head and rebuild |
 | `prev` does not match the hash of the currently-published object | Reject | `CHAIN_MISMATCH` (concurrent-publish race — see idempotency below) |
 | Signature set does not cover every suite in `suites` | Reject | `INCOMPLETE_SIGNATURE`; publication refused, not partially accepted |
-| `RecoveryPolicy` change authorized by less than `rotate_threshold` | Reject | `INSUFFICIENT_QUORUM`; §1.4 rule 1 |
+| `RecoveryPolicy` change authorized by less than `rotate_threshold` | Reject | `INSUFFICIENT_QUORUM`; §1.4 rule 1 (`ERR_RECOVERY_POLICY_UNAUTHENTICATED`, §21) |
+| Factor-**weakening** `RecoveryPolicy` change signed by `IK` alone (no `rotate_threshold` quorum) | Reject | `ERR_RECOVERY_WEAKENING_UNQUORUMED`; §1.4 rule 3 — `IK` alone MUST NOT weaken recovery (stolen-`IK` takeover defense) |
+| Weakening change attempts to take effect before its 72 h veto window elapses, or a lesser-bar weakening is detected within the window | Reject / hold | `ERR_RECOVERY_VETO_WINDOW`; §1.4 rule 4, §16.8 — hold until the window elapses; a `rotate_threshold`-backed veto aborts it |
 | KT log operator unreachable | Defer | Publication is queued/retried; the DNS pointer (step 4) MUST NOT be updated until KT append succeeds, preserving the "never point past the log" invariant |
 | DHT publish fails (no reachable peers to store at) | Defer | Retry with backoff; KT entry already exists so the object is still eventually fetchable once any one peer re-publishes it from the owner's own copy |
 
@@ -701,7 +710,7 @@ initiate an encrypted session with a peer whose devices are all currently offlin
 separate PQXDH/X3DH protocol (§5.3).
 
 **Initiator / Responder.** Initiator: the node wishing to start a session (sender). Responder:
-the mesh (KeyPackages are located via `Identity.prekeys`/`keypkgs`, §1.3, and fetched from
+the mesh (KeyPackages are located via `Identity.keypkgs`, §1.3, and fetched from
 wherever the owner's node last published them — typically the mesh content store, republished
 by the owner's own node).
 
@@ -909,10 +918,12 @@ initial member set via `add-member`, §19.4.2, applied after creation).
 - `group_keypair` (generated, MUST) — the group's own identity keypair (§5.8); the group is
   published as an `Identity` (§1.3) exactly like a person's, with `names` optionally carrying a
   `@handle` or `name@domain` (§3.9).
-- `posting_model` (`"broadcast" | "channel"`, MUST) — §5.8.1.
-- `visibility` (`"hidden" | "member-visible"`, MUST) — membership-visibility policy (§5.8.1);
-  MUST be `"hidden"` if `posting_model="broadcast"` and the deployment wants subscriber-list
-  privacy (§5.8.3) — see the precondition below.
+- `posting_model` (`"broadcast" | "collaborative"`, MUST) — §5.8.1 (the `"collaborative"` value is
+  the "channel" model; these are the exact `posting-model` wire values, §18.6.1).
+- `visibility` (`"hidden" | "visible"`, MUST) — membership-visibility policy (§5.8.1; `"visible"`
+  is the "member-visible" model; exact `visibility` wire values, §18.6.1); MUST be `"hidden"` if
+  `posting_model="broadcast"` and the deployment wants subscriber-list privacy (§5.8.3) — see the
+  precondition below.
 - `join_policy` (`"closed" | "request" | "open" | "vouch"`, MUST) — §5.8.2.
 - `creator_role` (implicit `owner`, not a parameter) — the creator is always the initial
   `owner` (§5.8.2).
@@ -926,9 +937,17 @@ initial member set via `add-member`, §19.4.2, applied after creation).
    group's delivery mechanism (switching `posting_model`/policy via a Commit, §5.8.1, does not
    retroactively change how *already-delivered* membership information was exposed).
 2. `group_keypair` has not been previously published (a fresh identity).
+3. **Group-key custody (§5.8.6).** The group's signing key MUST be **threshold-held** across the
+   group's `owner`/`admin` set (FROST-style, reusing §1.4 machinery) so that no single admin — and
+   no committer — can sign as the group alone. At creation the sole owner trivially satisfies this;
+   as admins are added the key becomes threshold-held. The group publishes its own
+   `RecoveryPolicy` (§1.4); changes to the group `Identity`, its key, or its recovery MUST satisfy
+   the group's `rotate_threshold` (weakening-quorum + veto rules of §1.4 apply) and MUST appear in
+   KT (§3.5). The committer orders *handshakes* only and is **not** authorized to change the
+   group's identity key — that is a threshold act above the committer role.
 
 **Procedure (normative).**
-1. Generate `group_keypair`.
+1. Generate `group_keypair` (threshold-held per precondition 3).
 2. Initialize MLS group state with the creator as the sole member, role `owner`, and the
    requested `posting_model`/`visibility`/`join_policy` as signed fields of the group state
    (§5.8.2: "all membership/role/policy changes are signed and appear in the group's
@@ -936,7 +955,9 @@ initial member set via `add-member`, §19.4.2, applied after creation).
 3. Set the creator as the **initial committer** (§5.1: "the group creator is the initial
    committer. Committer identity is a signed field of the group state; every member knows it").
 4. Publish the group's `Identity` (§19.1.2, reused verbatim — a group identity publishes exactly
-   like a personal one) so `resolve("team@company.com")` or `resolve("@team")` finds it.
+   like a personal one, carrying its threshold-held key and `recovery` per precondition 3) so
+   `resolve("team@company.com")` or `resolve("@team")` finds it. The `GroupState` members pin
+   references this `Identity` by content hash in `group_identity` (key 14, §18.6.1).
 5. If `legacy_address` is set, configure the gateway (§7, §5.8.5) to fan out inbound legacy mail
    to the address as MOTEs to current members.
 6. Optionally, invite an initial member set via `add-member` (§19.4.2), applied as Commits
@@ -950,7 +971,7 @@ member/owner/committer, ready to accept `join`s (§19.5.4) or `add-member` invit
 | Condition | Class | Response |
 |---|---|---|
 | Requested name (`@handle` or `name@domain`) already claimed by another identity | Reject | `NAME_UNAVAILABLE`; same as any identity naming conflict (§3.9.2's anti-squat mechanism applies identically to group handles) |
-| `visibility="hidden"` requested with `posting_model="channel"` | Reject (policy, not protocol) | Implementations SHOULD warn/reject this combination since a member-visible ordered channel is in tension with hidden membership (§5.8.1's table pairs broadcast↔hidden and channel↔member-visible as the typical cases, though the fields are independently settable — an implementation MAY allow the unusual combination but MUST NOT silently drop the visibility guarantee if it does) |
+| `visibility="hidden"` requested with `posting_model="collaborative"` (channel) | Reject (policy, not protocol) | Implementations SHOULD warn/reject this combination since a member-visible ordered channel is in tension with hidden membership (§5.8.1's table pairs broadcast↔hidden and collaborative↔visible as the typical cases, though the fields are independently settable — an implementation MAY allow the unusual combination but MUST NOT silently drop the visibility guarantee if it does) |
 | `legacy_address` requested but no gateway configured/available for that domain | Defer | Group is created without legacy interop; `legacy_address` can be added later via `policy-change` once a gateway is available |
 
 **Idempotency / retry.** Not idempotent (each call mints a fresh `group_keypair`); a failed
@@ -960,14 +981,14 @@ publication.
 
 **Example trace.**
 ```
-A: create-group(posting_model="channel", visibility="member-visible", join_policy="request",
+A: create-group(posting_model="collaborative", visibility="visible", join_policy="request",
                 names=["@design-team"])
 A: generate group_keypair GK
 A: init MLS group, sole member A, role=owner, committer=A
 A: publish-identity(Identity{ iks:{1:GK_pub}, names:["@design-team"], version:1, ... })
 A → KT: append; A → DHT: put
-A: create-group() → GroupState{ group_ik: GK_pub, epoch:0, members:[A(owner)],
-                                 posting_model:"channel", join_policy:"request" }
+A: create-group() → GroupState{ group_identity: blake3(Identity{GK}), epoch:0, members:[A(owner)],
+                                 posting_model:"collaborative", join_policy:"request" }
 ```
 
 ### 19.5.2 `group-add` / `group-remove` / `group-role-change` / `group-policy-change`
@@ -1024,7 +1045,7 @@ the change, logged and auditable.
 | Initiator lacks the required role | Reject | `INSUFFICIENT_ROLE`; the committer (or, if using signature-gated proposals, any verifying member) refuses to apply an Update/Remove/Add not signed by a sufficiently-privileged member |
 | `group-remove` targets a member not currently in the roster | Reject | `NOT_A_MEMBER` |
 | `group-role-change` attempts to remove the **last** `owner` without designating a successor | Reject | `NO_OWNER_REMAINING`; a group MUST retain at least one `owner` at all times (analogous to the identity layer's requirement that recovery policy changes can't lock the owner out, §1.4) — implementations MUST enforce this as a group-state invariant |
-| `group-policy-change` sets `visibility="hidden"` on a group whose `posting_model="channel"` and members have already seen each other in the shared tree | Reject or warn | The exposure already happened for existing members (§5.8.3's per-member sealed re-fan-out only protects members added *after* the switch); implementations MUST surface that a policy switch is not retroactive |
+| `group-policy-change` sets `visibility="hidden"` on a group whose `posting_model="collaborative"` (channel) and members have already seen each other in the shared tree | Reject or warn | The exposure already happened for existing members (§5.8.3's per-member sealed re-fan-out only protects members added *after* the switch); implementations MUST surface that a policy switch is not retroactive |
 | Committer unreachable | Defer | §19.5.5 failover applies |
 | File-key rotation (step 4) fails to reach a remaining member (offline) | Defer | Queued like any other MOTE (sender retry, §19.3.3); the removed member's access is already cryptographically stale for new content regardless of rotation-delivery timing — the risk window is bounded by how quickly rotation completes, not eliminated by this operation alone |
 
@@ -1064,6 +1085,14 @@ groups, standard MLS fan-out) or the committer acting as fan-out relay (large li
 1. The initiator holds `poster` (or equivalent, per the group's role scheme) capability.
 2. The group's current `epoch` state is held by the initiator (it must encrypt to the current
    epoch's tree/keys).
+3. **Per-poster anti-abuse proof (§9.9).** Because fan-out is an amplification vector, the
+   **poster's** own anti-abuse proof (§9) MUST be carried on each fanned-out per-member delivery
+   and evaluated by each recipient against the **original poster**, not the group identity (no
+   accountability laundering). *Which* proof depends on the membership model: a **member-visible**
+   channel (§5.8.3) uses a per-member ARC token (one per recipient origin); a **hidden-membership**
+   list uses **postage or PoW scoped to the list address** (the committer/relay verifies it at
+   ingress and vouches it per-delivery, §9.9). Posting to a **large** list MUST carry postage/PoW
+   commensurate with the fan-out size.
 
 **Procedure (normative, branches on scale/model per §5.8.4).**
 1. **Small groups (standard MLS fan-out).** Encrypt one MLS application message under the
@@ -1087,6 +1116,7 @@ each acking independently per §19.3.2.
 | Condition | Class | Response |
 |---|---|---|
 | Initiator lacks `poster` capability (`reader`-only role attempting to post) | Reject | `INSUFFICIENT_ROLE`; the message is not accepted into the group's delivery path |
+| Poster exceeds the per-poster fan-out rate limit, or an `open`-join list post exceeds the amplification cap, or a large-list post lacks commensurate postage/PoW (§9.9) | Reject / throttle | Fan-out is rate-limited **per poster** and capped for `open` lists; the poster's proof is evaluated per-recipient against the original poster, so the amplification is bounded and attributable (§9.9, §5.8.4) |
 | Initiator's local `epoch` is behind the group's current `epoch` (missed a recent Commit) | Reject (local) | The initiator must first process pending Commits (sync to current epoch) before it can correctly encrypt; this is a client-side precondition failure, not a network error |
 | One member (of many, large-list fan-out) is offline | Defer (per-member) | That member's individual sealed delivery enters the ordinary sender-retry state machine (§19.3.3) independently of the others — one offline subscriber never blocks delivery to the rest |
 | A member has been removed but the sender's cached roster is stale | Reject (at the removed party, silently, per §19.3.1) | The stale send still goes out, but the removed member cannot decrypt it if key rotation (§19.5.2 step 4) has already run for confidential content; for non-confidential/ordinary application messages under a still-current epoch this is not applicable since a removed member is no longer a tree leaf at all post-Remove-Commit |
@@ -1411,12 +1441,16 @@ design). Responder: the RP, which verifies the result.
    (via the **PRF extension** over CTAP2 `hmac-secret`) derives the key that unlocks the node's
    signing key — the node signs only *after* this local, origin-bound user-verification
    succeeds; the identity key itself never leaves the node and never touches the RP.
-3. Sign `H(rp_origin ‖ nonce ‖ issued_at ‖ exp ‖ aud)` (canonical hash, §2) under the identity's
-   key (or a session-scoped device key).
-4. Return the `SignedAssertion{challenge, sig}` to the RP.
+3. **Before signing**, generate a fresh **per-RP, per-device session keypair** (§13.4) and compute
+   `cnf = H(session_pubkey)` (§13.3 step 4).
+4. Sign `H(rp_origin ‖ nonce ‖ issued_at ‖ exp ‖ aud ‖ cnf)` (canonical hash, §2) under the
+   user's **`IK`-authorized device key** (the identity-revealing login signer, `Assertion.from`) —
+   **not** the session key (which `cnf` commits) and not a bare relayed challenge.
+5. Return the `SignedAssertion{challenge, cnf, sig}` to the RP, which binds the session **only** to
+   `cnf` (proof-of-possession, §13.4).
 
 **Success result.** RP receives a `SignedAssertion` it can verify against the pinned key
-(`resolve`'s output, §19.1.1) for `alice@yourdomain`.
+(`resolve`'s output, §19.1.1) for `alice@yourdomain`, and binds the session to `cnf`.
 
 **Failure modes.**
 
@@ -1438,8 +1472,9 @@ trusted_client ← RP: Challenge{ rp_origin:"https://app.example.com", nonce:9f2
 trusted_client: observed origin = "https://app.example.com"                # MATCHES challenge
 trusted_client: WebAuthn ceremony — user-verification (biometric/PIN) via passkey
 trusted_client: PRF-derived key unlocks node signing key
-node: sign H(rp_origin ‖ nonce ‖ issued_at ‖ exp ‖ aud) under device key "phone-passkey"
-trusted_client → RP: SignedAssertion{ challenge, sig: Ed25519(...) }
+trusted_client: gen session keypair; cnf = H(session_pubkey)                # before signing
+node: sign H(rp_origin ‖ nonce ‖ issued_at ‖ exp ‖ aud ‖ cnf) under device key "phone-passkey"
+trusted_client → RP: SignedAssertion{ challenge, cnf, sig: Ed25519(...) }   # RP binds session to cnf
 ```
 
 ### 19.6.3 `session-establish(assertion) → Session`

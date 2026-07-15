@@ -96,6 +96,8 @@ fixed here once so the tables can cite them tersely without re-explaining each t
 | `0x010B` | `ERR_RECOVERY_POLICY_UNAUTHENTICATED` | `RecoveryPolicy` publish (§1.4 rule 1) | Not signed by `IK`, nor by a satisfied `rotate_threshold` quorum. | No | FAIL_CLOSED_BLOCK + HALT_ALERT (owner's monitoring devices must alert) |
 | `0x010C` | `ERR_RECOVERY_THRESHOLD_INVALID` | `RecoveryPolicy` publish (§1.4 rule 2) | `rotate_threshold` < `recover_threshold`. | No | FAIL_CLOSED_BLOCK — reject the policy object outright |
 | `0x010D` | `ERR_DEVICE_CERT_INVALID` | `DeviceCert` validation (§1.2) | Signature invalid, or `caps` claimed exceed what the signing `IK`/quorum authorized. | No | FAIL_CLOSED_BLOCK |
+| `0x010E` | `ERR_RECOVERY_WEAKENING_UNQUORUMED` | `RecoveryPolicy` publish (§1.4 rule 3) | A change that removes/weakens a recovery factor is signed by `IK` alone without satisfying `rotate_threshold` (stolen-`IK` takeover defense). | No | FAIL_CLOSED_BLOCK + HALT_ALERT (owner's monitoring devices must alert) |
+| `0x010F` | `ERR_RECOVERY_VETO_WINDOW` | `RecoveryPolicy` weakening effect (§1.4 rule 4, §16.8) | A factor-weakening change attempts to take effect before its 72 h veto/delay window elapses, or a non-conforming lesser-bar weakening is observed within the window. | Conditional (takes effect once the window elapses with no valid veto) | FAIL_CLOSED_BLOCK — hold until the window elapses; a `rotate_threshold`-backed veto aborts it |
 
 ## 21.4 Delivery & Validation — the MOTE object (`0x02xx`)
 
@@ -290,7 +292,7 @@ extension procedure in §21.23. Allocation policies use the standard terms of RF
 | **Registry name** | DMTAP Error/Status Codes |
 | **Reference** | §21.1–§21.11 (this document) |
 | **Allocation policy** | New subsystem byte (`0x09`–`0xEF`): Standards Action. New code point within an existing subsystem (`NN` = `0x01`–`0x7F`): Specification Required. `NN` = `0x80`–`0xFE` within any subsystem: Private Use (implementation-local diagnostics; MUST map to the nearest standard code's Responder Action, §21.2, for any behavior visible to another implementation). `SS`/`NN` = `0x00` or `0xFF`: Reserved. |
-| **Initial contents** | The 81 codes enumerated in §21.3–§21.11. |
+| **Initial contents** | The 83 codes enumerated in §21.3–§21.11. |
 | **Registry discipline** | Append-only. A retired code MUST be marked Deprecated, never deleted or reassigned to a different meaning (mirroring the append-only philosophy of the KT log, §3.5). |
 
 ## 21.15 Algorithm Suites Registry (`suite` u8)
@@ -428,7 +430,7 @@ fragmenting."
 
 ## 21.24 Summary
 
-- **Error/status codes defined:** 81 (`0x0101`–`0x010D`: 13; `0x0201`–`0x020E`: 14; `0x0301`–
+- **Error/status codes defined:** 83 (`0x0101`–`0x010F`: 15; `0x0201`–`0x020E`: 14; `0x0301`–
   `0x0309`: 9; `0x0401`–`0x040A`: 10; `0x0501`–`0x050A`: 10; `0x0601`–`0x0604`: 4, plus the
   informative SMTP mapping table of §21.9; `0x0701`–`0x070E`: 14; `0x0801`–`0x0807`: 7),
   spanning the 8 requested subsystems, with every code resolving to exactly one of the 13
