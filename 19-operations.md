@@ -1184,7 +1184,7 @@ subscriber_1..16,18..40: ack independently
 | Condition | Class | Response |
 |---|---|---|
 | `join_policy="closed"` | Reject | `JOIN_NOT_PERMITTED`; must be invited |
-| `join_policy="request"`, admin never responds | Defer | Request remains pending; implementations SHOULD expire stale pending requests after a policy-defined window (not fixed in v0 — an implementation gap, noted in §19.10) |
+| `join_policy="request"`, admin never responds | Defer | Request remains pending until the **join-request expiry = 30 days (§16.8)**, then auto-expired/cleaned up (mirrors requests-area retention, §16.5) |
 | `join_policy="vouch"`, voucher is not a current member (removed since issuing the vouch, or never was one) | Reject | `INVALID_VOUCH` |
 | `join_policy="vouch"`, voucher exceeds their own vouch rate limit | Reject | `VOUCH_RATE_LIMITED` (§9.7 anti-farming) |
 | `join_policy="open"`, requester exceeds the group's open-join rate limit | Reject | `RATE_LIMITED` (same as `external-commit`'s failure mode, §19.4.3) |
@@ -1220,9 +1220,11 @@ apply the same Commit to agree on the new committer.
 
 **Preconditions.**
 1. `new_committer_ik` is a current group member.
-2. For `reason="timeout"`: the current committer has been unreachable past the group's
-   configured liveness timeout (implementation-defined; not fixed numerically in v0, see
-   §19.10).
+2. For `reason="timeout"`: the current committer has been unreachable — or has withheld ordering
+   of a specific pending, member-signed proposal (selective censorship, §5.1) — past the
+   **committer-liveness timeout (5 min, §16.8)**, and this MUST have been observed as **2
+   consecutive misses** (takeover hysteresis, §16.8) so a transient NAT/relay blip does not
+   trigger churn.
 
 **Procedure (normative, §5.1).**
 1. **Committer identity is a signed field of the group state**; rotation is itself a Commit
@@ -1235,11 +1237,15 @@ apply the same Commit to agree on the new committer.
    authoritative for future ordering.
 3. **Failover rotation** (`reason="timeout"`, current committer unreachable): members hold
    pending Proposals and either (a) wait for the unreachable committer to return, or (b) elect a
-   new committer via a Commit that **references the last agreed log head** — since no ordering
-   authority is currently live, this election Commit is itself accepted by member **quorum
-   agreement** on the referenced log head (an implementation-defined quorum rule; the spec fixes
-   the *log-head-reference* requirement, not the quorum size — see §19.10) rather than by a
-   single committer's say-so.
+   new committer via a takeover Commit that **references the last agreed log head**. The
+   successor is **deterministic** — among live, non-faulted members the one with the **lowest
+   member signing key** in canonical byte order (earliest join epoch breaks a tie), per §5.1 —
+   so members do not negotiate *who* takes over. Since no ordering authority is currently live,
+   the takeover Commit takes effect **only when it carries a strict-majority roster quorum of
+   `> n/2` member signatures (⌈(n+1)/2⌉ of current members, §16.8)**, so two partitions cannot
+   each install a rival successor (split-brain prevention). A 2-member group whose one peer is
+   dead cannot meet `> n/2` and is resolved by leaving/recreating the group, not by takeover
+   (§5.1 edge case).
 4. Once `new_committer_ik` is agreed, it resumes ordering exactly as any committer would.
 
 **Success result.** The group has a single, agreed, live committer, with the transition itself
@@ -1260,11 +1266,12 @@ stale one.
 
 **Example trace (failover).**
 ```
-[committer carol_ik has been unreachable for 3x the group's configured liveness timeout]
+[committer carol_ik: 5-min liveness timeout (§16.8) exceeded on 2 consecutive misses]
+A: A holds the lowest member signing key among live members → A is the deterministic successor (§5.1)
 A: committer-rotate(new_committer_ik=A_ik, reason="timeout")
-A → other members (bob, dave): propose election, referencing last agreed log head = Commit_9
+A → other members (bob, dave): propose takeover, referencing last agreed log head = Commit_9
 bob, dave: agree Commit_9 is indeed the last one they've applied too
-A, bob, dave: quorum (3/4 members, meets this group's configured threshold) → accept
+A, bob, dave: 3/4 signatures ≥ ⌈(4+1)/2⌉ = 3 → > n/2 roster quorum met (§16.8) → accept
               Commit_10{committer-rotate(A_ik)} at position 10 (referencing Commit_9)
 A: becomes committer; resumes ordering
 [carol later returns, offline the whole time]
@@ -1319,7 +1326,7 @@ requiring member/administrator intervention.
 |---|---|---|
 | A fork is detected but a member's implementation does not halt (bug) | Reject (implementation MUST prevent) | Would silently diverge group state across members — an explicit MUST-NOT; the spec provides the detection signal but relies on conformant implementations to act on it |
 | Fork is actually a **stale duplicate** delivery of the *same* Commit (not a true fork) | N/A | Distinguished by comparing full Commit content, not just position+prev: identical Commits at the same position are a duplicate (dedup, harmless); only *differing* Commits at the same position+prev constitute a fork |
-| No resolution convention is agreed by the group after halting | Defer, indefinitely | The group remains halted for handshake purposes until members manually resolve it — v0 does not specify an automated recovery procedure beyond detection + alert (flagged as an open gap, §19.10) |
+| No resolution convention is agreed by the group after halting | Defer, until a quorum-backed recovery Commit | The group remains halted for handshake purposes until members run the §5.1 "Fork recovery (out of HALT)" procedure — roll back to the **last common epoch** and re-apply from an `admin`/`owner` recovery Commit carrying a **`> n/2` member-signature quorum**. This is the v0 out-of-band stopgap (Decentralized MLS is the eventual leaderless fix); already-decrypted messages under the last-agreed epoch keep rendering meanwhile |
 
 **Idempotency / retry.** N/A — this is a detection-and-halt procedure, not an invokable operation
 with retry semantics; it re-triggers identically every time a member re-observes the same
@@ -1570,7 +1577,7 @@ sessions/devices continue working.
 
 | Condition | Class | Response |
 |---|---|---|
-| RP has not yet observed the revocation (stale cache/status check) | Defer | A revoked session may work for a bounded window until the RP's next status check; implementations SHOULD keep this window short (not numerically fixed in v0 — noted as a gap, §19.10) |
+| RP has not yet observed the revocation (stale cache/status check) | Defer | A revoked session may work only until the RP's next status/KT re-check, bounded by the **RP delegation re-validation interval ≤ 15 min (§16.8)** — and never past the session TTL 24 h / idle 30 min in any case |
 | Revocation published but transparency log unreachable | Defer | Retry; until durable, revocation is not guaranteed visible to RPs relying on the log path (RPs using the short-lived status endpoint instead may see it sooner — the two channels have different latency/durability tradeoffs, both permitted) |
 | Owner attempts to revoke a session that never existed / already revoked | N/A | No-op; not an error |
 
@@ -1941,47 +1948,42 @@ invoke.
 ## 19.10 Gaps flagged (undefined behavior surfaced, not left implicit)
 
 Per this appendix's own rule ("every failure path must have a defined outcome"), the following
-points were surfaced. **Update:** gaps 1, 2, and 4 were subsequently RESOLVED by the security-
-hardening pass — committer failover quorum is now pinned at **> n/2** and the failover/liveness
-timeout + hysteresis in **§16.8**; fork resolution now has a defined last-common-epoch +
-quorum-recovery-Commit procedure in **§5.1**; and RP session-revocation propagation is bounded by
-the RP re-validation interval + grace window in **§13.4 / §16.8**. Only gaps 3 and 5 remain open
-(both minor, closeable by an extension header / a §16 parameter). The original list:
+points were surfaced. **Update — five of the original six are now RESOLVED** by the
+security-hardening pass; each is retained below with its resolution so the audit trail is intact,
+and only item 5 remains open (minor, closeable by one extension header). Where an operation above
+still reads "see §19.10," it now inherits the pinned §16.8/§5.1 values described here.
 
-1. **Committer election quorum size** (§19.5.5, §5.1). §5.1 specifies that failover election
-   Commits must reference the last agreed log head, but does not fix *what fraction of members*
-   constitutes a valid quorum for accepting a failover rotation. This appendix's procedure names
-   the requirement (log-head reference) without inventing a quorum threshold; §16 has no
-   corresponding parameter. **Recommend** a `16.x` addition (e.g. "committer failover quorum:
-   simple majority of current members, default").
-2. **Fork resolution procedure** (§19.5.6, §5.1/§6.6 item 7). Detection and halt are normative;
-   *how* a group recovers from a detected fork (which branch to keep, or how to re-key from a
-   pre-fork state) is not specified anywhere in §§0–16. This appendix's operation stops at "halt
-   and alert" because that is where the source material stops.
-3. **Join-request expiry** (§19.5.4, §5.8.2). A `request`-mode join with no admin response has no
-   stated expiry/cleanup window, unlike the requests-area retention for cold-sender MOTEs
-   (§16.5: 30 days). This appendix flags the asymmetry rather than inventing a number for a
-   structurally similar case.
-4. **Session-revocation propagation latency** (§19.6.4, §13.4). §13.4 requires revocation be
-   published to the transparency log and/or a status endpoint but does not bound how promptly an
-   RP must re-check it — unlike, e.g., the KT signed-tree-head poll interval (§16.2: ≤ 6 h),
-   which *is* fixed for the analogous identity-monitoring case. This appendix notes the gap by
-   analogy.
+1. **Committer election quorum size** (§19.5.5, §5.1). **RESOLVED.** A takeover/failover Commit is
+   valid only with a strict-majority **`> n/2` roster quorum** (⌈(n+1)/2⌉ of current members),
+   pinned in **§16.8** and normative in §5.1 — this is what prevents two partitions each electing
+   a rival successor. §19.5.5 step 3 now cites it directly.
+2. **Fork resolution procedure** (§19.5.6, §5.1/§6.6 item 7). **RESOLVED.** §5.1 "Fork recovery
+   (out of HALT)" now defines it: members identify the **last common epoch**, an `admin`/`owner`
+   proposes a recovery Commit on top of it, and that Commit is canonical only with the same
+   **`> n/2` member-signature quorum** as a takeover (denying any single admin unilateral
+   fork-selection); losing-fork members roll back to the last common epoch and re-apply, with
+   abandoned-fork application messages re-sent by sender retry (§2.6). Decentralized MLS
+   (`draft-kohbrok-mls-dmls`) remains the eventual leaderless fix.
+3. **Join-request expiry** (§19.5.4, §5.8.2). **RESOLVED.** §16.8 now fixes **Group join-request
+   expiry = 30 days** (mirroring the requests-area retention of §16.5), so a `request`-mode join
+   with no admin response is auto-expired/cleaned up.
+4. **Session-revocation propagation latency** (§19.6.4, §13.4). **RESOLVED.** §16.8 now bounds it
+   via the **RP delegation re-validation interval ≤ 15 min** (plus session TTL 24 h / idle 30 min),
+   so a revoked session cannot outlive the next RP status/KT re-check by more than that window.
+   §19.6.4's "stale cache" failure mode inherits this bound.
 5. **Auto-forward / delegate-attribution headers** (referenced from §17, not restated as an
-   operation here because no wire object exists for it yet) — out of this appendix's scope since
-   there is no operation to specify without the `Headers.ext` convention §17.6 recommends; not
-   double-counted in the operation total below.
+   operation here because no wire object exists for it yet) — **OPEN.** Out of this appendix's
+   scope since there is no operation to specify without the `Headers.ext` convention §17.6
+   recommends; not double-counted in the operation total below.
 6. **Node liveness timeout that triggers committer failover** (§19.5.5 precondition 2, §5.1).
-   §5.1 says rotation happens "on the current committer going offline past a timeout" without
-   giving the timeout a default value the way §16.1 fixes, e.g., the sender-retry deadline
-   (72 h). This is the same category of gap as item 1, worth resolving together in a future §16
-   revision.
+   **RESOLVED.** §16.8 now fixes the **committer-liveness timeout = 5 min** plus a
+   **takeover hysteresis of 2 consecutive misses** (avoiding churn on transient NAT/relay blips),
+   so rotation no longer depends on an unstated implementation timeout.
 
-None of these six gaps required inventing operation *behavior* to close (each operation above
-still has a fully-defined outcome — "defer, pending an implementation/future-spec-defined
-threshold" is itself a defined outcome, not silence); they are numeric-parameter or
-procedure-detail gaps inherited from the narrative sections, surfaced here rather than
-silently resolved by invention, per this appendix's own normative charter.
+Five of these six gaps are now closed by pinned §16.8 parameters and §5.1 procedure (none of
+which required inventing operation *behavior*); item 5 alone remains, awaiting the `Headers.ext`
+extension convention, and its operation still has a fully-defined "defer, pending the convention"
+outcome rather than silence — per this appendix's own normative charter.
 
 ## 19.11 Operation count
 

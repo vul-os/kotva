@@ -442,7 +442,8 @@ Formalizes group epoch advancement and the committer lifecycle of §5.1, converg
 | `COMMIT_APPLIED` | `apply_local_fail` | `RESYNCING` | **[fill]** §5.1 does not describe a member falling behind a validly-ordered Commit it cannot apply (e.g. missing key material); this machine routes it through §5.3's External Commit / `GroupInfo` mechanism, the tool the spec provides for exactly this recovery. |
 | `RESYNCING` | `external_commit_ok` | `STABLE` | Re-joined at current epoch via External Commit against `GroupInfo` (§5.3). |
 | `RESYNCING` | `external_commit_fail` | `RESYNCING` | **[fill]** Retry; §5 specifies no protocol-level deadline for this — bounded only by implementation policy. |
-| `HALT` | (any event) | `HALT` | **[gap]** §5.1 specifies "members MUST halt and alert" on fork detection but defines **no recovery transition out of `HALT`**. Group-fork recovery (re-forming the group, manual admin reconciliation) is left entirely to implementations/out of scope of this spec. |
+| `HALT` | `recovery_commit_agreed` | `STABLE` | §5.1 "Fork recovery (out of HALT)": members roll back to the **last common epoch** and re-apply from a recovery Commit that an `admin`/`owner` proposes on top of it, canonical only with a **`> n/2` member-signature quorum** (denying any single admin unilateral fork-selection). Abandoned-fork application messages are re-sent by sender retry (§2.6). This is the v0 out-of-band stopgap; Decentralized MLS (`draft-kohbrok-mls-dmls`) is the eventual leaderless elimination of the fork surface. |
+| `HALT` | (other events) | `HALT` | Remain halted for handshake purposes until a quorum-backed recovery Commit is agreed; already-decrypted application messages under the last-agreed epoch continue to render (§19.5.6). |
 
 ### 20.5.2 Committer lifecycle
 
@@ -455,11 +456,11 @@ re-enters `ACTIVE` under the new committer identity). `HALT` is shared with §20
 | State | Event | → State | Action |
 |---|---|---|---|
 | `ACTIVE` | `activity_seen` | `ACTIVE` | Self-loop; business as usual. |
-| `ACTIVE` | `liveness_timeout_exceeded` | `UNREACHABLE_TIMEOUT` | **[gap]** §5.1 requires rotation "on the current committer going offline past a timeout" but §16 lists no numeric committer-liveness-timeout parameter — the value itself is left to implementation policy. |
+| `ACTIVE` | `liveness_timeout_exceeded` | `UNREACHABLE_TIMEOUT` | The **committer-liveness timeout is 5 min (§16.8)**; it fires only after **2 consecutive misses** (takeover hysteresis, §16.8), so a transient NAT/relay blip does not move the machine. This applies equally to a silent committer and one that selectively withholds ordering of a specific member-signed proposal (§5.1). |
 | `ACTIVE` | `voluntary_step_down` | `ELECTION` | Member vote, or committer itself proposes rotation (§5.1). |
 | `UNREACHABLE_TIMEOUT` | `committer_returns` | `ACTIVE` | Old committer resumes; any Proposals queued during the gap are ordered now. |
-| `UNREACHABLE_TIMEOUT` | `election_triggered` | `ELECTION` | Continued absence, or explicit member vote. |
-| `ELECTION` | `election_commit_agreed` | `ROTATED` | A Commit promoting a new committer, referencing the last agreed log head, is validly ordered and applied — this Commit itself is processed through §20.5.1's `commit_received_valid` → `COMMIT_APPLIED` path; the two sub-machines couple exactly here. |
+| `UNREACHABLE_TIMEOUT` | `election_triggered` | `ELECTION` | Continued absence, or explicit member vote. The **deterministic successor** is the live member with the lowest signing key (§5.1). |
+| `ELECTION` | `election_commit_agreed` | `ROTATED` | A takeover Commit promoting the deterministic successor, referencing the last agreed log head **and carrying a `> n/2` roster quorum of member signatures (§16.8)**, is validly ordered and applied — processed through §20.5.1's `commit_received_valid` → `COMMIT_APPLIED` path; the two sub-machines couple exactly here. A quorum below `> n/2` MUST NOT rotate (split-brain prevention). |
 | `ELECTION` | `election_fork` | `HALT` | Two competing election-Commits at the same log position (general fork case, §5.1). |
 | `ROTATED` | (immediate) | `ACTIVE` | New committer identity bound and published as a signed field of group state (§5.1). |
 
@@ -475,7 +476,9 @@ re-enters `ACTIVE` under the new committer identity). `HALT` is shared with §20
 
 | Timer | Value | Cite |
 |---|---|---|
-| Committer liveness timeout | **[gap]** not numerically specified | §5.1 (qualitative only) |
+| Committer liveness timeout | **5 min** | §16.8 |
+| Committer-takeover hysteresis | **2 consecutive misses** | §16.8 |
+| Committer roster quorum (for takeover) | **> n/2** (⌈(n+1)/2⌉ of members) | §16.8, §5.1 |
 | (Group handshake channel itself has no retry/backoff parameter in §16 — ordering liveness is bounded by the committer-liveness timeout above, not a separate §16 entry.) | — | — |
 
 ### Diagram
@@ -554,7 +557,7 @@ session lifecycle (§13.4).
 | `SESSION_ACTIVE` | `revoke_requested` | `REVOKED` | Published to transparency log / short-lived status endpoint (§13.4); MUST NOT require rotating `IK`. |
 | `SESSION_ACTIVE` | `device_key_rotated` | `REVOKED` | Rotating the authorizing device key revokes all its sessions at once (§13.4). |
 | `SESSION_ACTIVE` | `ik_recovered` | `REVOKED` | §13.4: recovering `IK` (§1.4) MUST invalidate all prior session authorizations. |
-| `SESSION_ACTIVE` | `session_timeout` | `EXPIRED` | **[gap]** §16 defines no numeric session-TTL/idle-timeout parameter (only the *login-challenge* nonce window, §16.1, is numeric); absolute/idle session lifetime is left to implementation policy. |
+| `SESSION_ACTIVE` | `session_timeout` | `EXPIRED` | Fires at the **session TTL = 24 h** (absolute) or **idle timeout = 30 min**, whichever first (§16.8); an RP also re-validates delegation status at **≤ 15 min** (§16.8), so a revoked-but-not-yet-expired session is caught within that window. |
 | `REFRESHED` | (immediate) | `SESSION_ACTIVE` | New ephemeral session key now current; old one retired. |
 | `REVOKED` | (any event) | `REVOKED` | Terminal; a fresh `NO_SESSION → ...` ceremony is required. |
 | `EXPIRED` | (any event) | `EXPIRED` | Terminal; behaviorally identical to `REVOKED`, differing only in the audit-log reason recorded. |
@@ -577,7 +580,9 @@ session lifecycle (§13.4).
 | Challenge/nonce validity window | 120 s | §16.1 |
 | Replay cache retention | ≥ 300 s | §16.1 |
 | Clock-skew tolerance | ±120 s | §16.1 |
-| Session TTL / idle timeout | **[gap]** not specified in §16 | — |
+| Session TTL (absolute) | **24 h** | §16.8 |
+| Session idle timeout | **30 min** | §16.8 |
+| RP delegation re-validation interval | **≤ 15 min** | §16.8 |
 
 ### Diagram
 
@@ -725,17 +730,22 @@ papers over (matching the "honest limits" style of §6.6/§13.7/§14.2/§14.5).
    block?) are not specified; this appendix re-runs `resolve()` fresh each time. **[fill]**
 10. **§20.4** — the outcome of a failed DHT republish write is not specified by §4.2; this
     appendix keeps the existing connection alive and retries republish. **[fill]**
-11. **§20.5** — §5.1 specifies **no recovery transition out of `HALT`** on fork detection; group
-    recovery is genuinely left to implementations. **[gap]** (the single largest undefined
-    surface among all seven machines)
-12. **§20.5** — the numeric committer-liveness timeout that triggers rotation is not listed in
-    §16 (§5.1 states the requirement only qualitatively). **[gap]**
+11. **§20.5** — **RESOLVED.** §5.1 "Fork recovery (out of HALT)" now defines the recovery
+    transition: members identify the **last common epoch**, an `admin`/`owner` proposes a
+    recovery Commit on top of it that is canonical only with a **`> n/2` member-signature
+    quorum**, losing-fork members roll back and re-apply, and abandoned-fork messages are re-sent
+    by sender retry (§2.6). Decentralized MLS remains the eventual leaderless elimination of the
+    fork surface. (Was previously the largest undefined surface; now specified.)
+12. **§20.5** — **RESOLVED.** §16.8 pins the **committer-liveness timeout = 5 min** with a
+    **takeover hysteresis of 2 consecutive misses** and a **`> n/2` roster quorum**; §20.5.2's
+    timers table and transitions now cite these directly.
 13. **§20.5** — a member's response when it cannot apply a validly-ordered Commit (falls behind)
     is not described in §5.1; this appendix routes it through §5.3's External Commit. **[fill]**
 14. **§20.6** — whether a single failed DPoP proof tears down the whole session or only that
     request is not stated by §13.4; this appendix rejects the request only. **[fill]**
-15. **§20.6** — no numeric session TTL/idle-timeout parameter exists in §16 (only the login
-    challenge's 120 s nonce window is numeric). **[gap]**
+15. **§20.6** — **RESOLVED.** §16.8 now pins **session TTL = 24 h**, **idle timeout = 30 min**,
+    and **RP delegation re-validation ≤ 15 min**; §20.6's `session_timeout` transition and timers
+    table cite these.
 16. **§20.7** — peer-buffering (the non-hosted alternative to the relay-mailbox) has no fixed
     TTL at all — its honest-limit framing in §14.5 ties durability to the buffering peer's own
     uptime, which is explicitly *not* a fixed parameter. **[gap]**
