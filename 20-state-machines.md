@@ -704,17 +704,23 @@ stateDiagram-v2
 
 ## 20.8 Composition summary (non-normative)
 
-```
- §20.1 Outbound delivery ──fast tier──▶ §20.4 Reachability
-      │  └─private tier──▶ mixnet (§4.4, not a state machine in this appendix)
-      │
-      └─(resolve step)──▶ §20.3 Name resolution & pinning ◀──(login sig check)── §20.6 DMTAP-Auth
-
- §20.7 Node lifecycle ──DRAINING, per item──▶ §20.2 Inbound validation
-      └─RECONNECTING──▶ §20.4 Reachability
-
- §20.5 MLS group/committer: self-contained; Commits it applies may themselves be carried as
-      MOTEs validated by §20.2 (kind 0x06 group_event) before ever reaching the committer log.
+```mermaid
+flowchart TD
+  M201["§20.1 Outbound delivery"]
+  M204["§20.4 Reachability"]
+  M203["§20.3 Name resolution & pinning"]
+  M206["§20.6 DMTAP-Auth"]
+  M207["§20.7 Node lifecycle"]
+  M202["§20.2 Inbound validation"]
+  MIX["mixnet (§4.4)<br/><i>not a state machine here</i>"]
+  M205["§20.5 MLS group / committer<br/><i>self-contained</i>"]
+  M201 -->|fast tier| M204
+  M201 -->|private tier| MIX
+  M201 -->|resolve step| M203
+  M206 -->|login sig check| M203
+  M207 -->|"DRAINING, per item"| M202
+  M207 -->|RECONNECTING| M204
+  M205 -->|"Commits carried as MOTEs<br/>(kind 0x06 group_event)"| M202
 ```
 
 ## 20.9 Honest gaps & normative fills (meta)

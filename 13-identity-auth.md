@@ -62,6 +62,24 @@ DMTAP-Auth introduces almost no new cryptography — it reuses:
    named by cnf (proof-of-possession, §13.4)
 ```
 
+```mermaid
+sequenceDiagram
+  autonumber
+  participant RP as Relying Party
+  participant TC as Trusted client
+  participant K as User's key
+  RP->>TC: Sign in with DMTAP — user enters alice@yourdomain
+  Note over RP: resolve name → key + auth endpoint (§3, §13.6)
+  RP->>TC: Challenge { rp_origin, nonce, issued_at, exp, aud, [scope] }
+  Note over TC: bind + display VERIFIED rp_origin —<br/>WebAuthn/passkey user-verification (§13.3.1)
+  Note over TC: gen fresh per-RP session keypair — cnf = H(session_pubkey)
+  TC->>K: sign "DMTAP-v0/auth-assertion" ‖ 0x00 ‖ H(rp_origin ‖ nonce ‖ issued_at ‖ exp ‖ aud ‖ cnf)
+  K-->>TC: SignedAssertion { challenge, cnf, sig }
+  TC->>RP: SignedAssertion
+  Note over RP: verify sig vs alice's pinned key (§3.4) —<br/>rp_origin == own origin, nonce unused, not expired
+  RP->>RP: authenticated — bind session ONLY to key named by cnf (§13.4)
+```
+
 The signed statement is a structured, origin-scoped, nonce-bound challenge (the SIWE/CAIP-122
 pattern, hardened — see §13.7). The `aud` field binds the assertion to the intended RP. The
 `cnf` field (confirmation key, RFC 7800 style) binds the assertion to the session key the client

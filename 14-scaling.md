@@ -56,10 +56,13 @@ guaranteed** on both APNs and FCM. Therefore a phone is a **push-woken thin clie
 a queue it does not host** — never a durable node. When the user has no always-on box, the
 queue is a **hosted, content-blind relay-mailbox** (the Chatmail model):
 
-```
-sender → relay-mailbox (E2EE ciphertext, short TTL) → wake-push (content-free, ≤4KB) via
-         APNs/FCM through a notification proxy → phone wakes, opens its own authenticated
-         connection, DRAINS the queue, decrypts locally, then reconciles on foreground
+```mermaid
+flowchart LR
+  S["sender"] -->|"E2EE ciphertext,<br/>short TTL"| RM["relay-mailbox<br/><i>hosted, content-blind</i>"]
+  RM -->|"wake-push<br/>content-free, ≤4KB"| NP["notification proxy<br/>APNs / FCM"]
+  NP -->|"wake signal"| PH["phone wakes"]
+  PH -->|"own authenticated connection"| RM
+  PH -->|"drains queue,<br/>decrypts locally"| REC["reconciles on foreground"]
 ```
 
 Requirements:

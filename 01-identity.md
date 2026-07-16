@@ -30,13 +30,17 @@ An identity is rooted in a **root identity key** (`IK`), an offline-capable long
 signing keypair. `IK` signs everything authoritative but is used rarely; it SHOULD be held
 in cold form / recovery custody (§1.4).
 
-```
-IK  (root identity key, Ed25519[+ML-DSA])         ← the identity; rarely used
- │  signs ↓
- ├── DeviceKey_1  (per-device signing subkey)     ← day-to-day signing/auth
- ├── DeviceKey_2
- ├── KeyPackages   (MLS: identity/signature + HPKE-init + PQ-KEM keys)   ← async join (§5.3)
- └── RecoveryPolicy vN  (§1.4)                     ← how the identity is recovered
+```mermaid
+flowchart TD
+  IK["<b>IK</b> — root identity key<br/>Ed25519[+ML-DSA]<br/><i>the identity; held cold, rarely used</i>"]
+  DK1["DeviceKey_1<br/><i>per-device signing subkey</i>"]
+  DK2["DeviceKey_2"]
+  KP["KeyPackages<br/><i>MLS: signature + HPKE-init + PQ-KEM keys · §5.3</i>"]
+  RP["RecoveryPolicy vN<br/><i>§1.4</i>"]
+  IK -->|"signs · day-to-day signing/auth"| DK1
+  IK -->|signs| DK2
+  IK -->|"signs · async join"| KP
+  IK -->|"defines recovery"| RP
 ```
 
 - **Device keys** authorize a specific device (phone, laptop, the always-on box). Each is a

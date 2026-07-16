@@ -122,6 +122,24 @@ when real messages flow; **sealed sender** (§6.2) keeps the sender identity ins
 never in the outer packet; and **size padding** to the bucket ladder (§4.4.1, §16.3) means length
 leaks nothing.
 
+```mermaid
+flowchart LR
+  SND["Sender node<br/><i>sealed sender: IK inside payload</i>"]
+  L0["Entry mix<br/><i>layer 0</i>"]
+  L1["Middle mix<br/><i>layer 1</i>"]
+  L2["Exit mix<br/><i>layer 2</i>"]
+  RCP["Recipient node"]
+  SND -->|"Sphinx packet<br/>peel 1 layer + Poisson delay"| L0
+  L0 -->|"peel + delay + reorder"| L1
+  L1 -->|"peel + delay + reorder"| L2
+  L2 -->|deliver| RCP
+  SND -.->|"loop cover: full 3-hop path back to self"| SND
+  SND -.->|"drop cover: discarded at last hop"| L2
+```
+
+*One mix is drawn uniformly at random from each stratified layer (0→1→2); no single mix sees both
+sender and recipient. Loop and drop cover traffic hide when real messages flow.*
+
 ### 4.4.1 Sphinx packet format (profiled; parameters pinned)
 
 DMTAP uses the **Sphinx packet format** unchanged; this subsection states the profile a
@@ -584,9 +602,18 @@ traffic (§6).
 
 ## 4.7 Delivery state machine (sender)
 
-```
-QUEUED → SEALED (sealed sender + onion, §6) → IN_FLIGHT (mixnet/direct)
-       → ACKED (done)  |  RETRY (backoff)  |  EXPIRED (drop, notify user)
+```mermaid
+stateDiagram-v2
+  [*] --> QUEUED
+  QUEUED --> SEALED : sealed sender + onion (§6)
+  SEALED --> IN_FLIGHT : dispatch (mixnet / direct)
+  IN_FLIGHT --> ACKED : ack received (done)
+  IN_FLIGHT --> RETRY : no ack (backoff)
+  RETRY --> IN_FLIGHT : retry timer fires
+  IN_FLIGHT --> EXPIRED : deadline exceeded
+  RETRY --> EXPIRED : deadline exceeded (drop, notify user)
+  ACKED --> [*]
+  EXPIRED --> [*]
 ```
 
 Durability lives entirely in this sender-side queue. The middle is stateless.

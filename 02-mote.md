@@ -8,16 +8,19 @@ announcements are all MOTEs — one format, rendered differently by clients (§5
 
 A MOTE has three nested layers, each serving a distinct purpose:
 
-```
-┌─ Outer (mixnet / sealed sender) ─────────────────────────────┐
-│  routing to the recipient node; NO sender identity in clear   │  §4, §6
-│ ┌─ Envelope (signed, per-recipient) ───────────────────────┐  │
-│ │  authenticity + integrity; content-addressed id           │  §2.2
-│ │ ┌─ Payload (MLS/HPKE ciphertext) ──────────────────────┐  │  │
-│ │ │  the actual content: headers + body + attachments     │  │  §2.4
-│ │ └───────────────────────────────────────────────────────┘  │  │
-│ └───────────────────────────────────────────────────────────┘  │
-└───────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+  subgraph OUTER["Outer — mixnet / sealed sender · §4, §6"]
+    direction TB
+    O["routing to the recipient node<br/><i>NO sender identity in clear</i>"]
+    subgraph ENV["Envelope — signed, per-recipient · §2.2"]
+      direction TB
+      E["authenticity + integrity<br/><i>content-addressed id</i>"]
+      subgraph PAY["Payload — MLS/HPKE ciphertext · §2.4"]
+        P["the actual content:<br/>headers + body + attachments"]
+      end
+    end
+  end
 ```
 
 The **outer** layer is what mix nodes and relays see: an onion-wrapped, constant-length

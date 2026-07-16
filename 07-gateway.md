@@ -31,6 +31,28 @@ The gateway is **stateless**: durability is punted to the edges (§7.4).
    SENDING server retries (durability punted to the legacy sender). Store nothing.
 ```
 
+```mermaid
+sequenceDiagram
+  autonumber
+  participant G as Legacy MTA / Gmail
+  participant GW as Gateway / MX
+  participant M as Mesh
+  participant R as Recipient node K
+  G->>GW: SMTP: MAIL FROM / RCPT TO
+  Note over GW: reject spam pre-DATA (RBL/SPF/DMARC/greylist, §9)
+  GW->>GW: resolve RCPT TO → recipient key K (§3)
+  G->>GW: DATA — RFC 5322 message
+  Note over GW: wrap → MOTE (kind=mail), encrypt to K,<br/>ATTEST with domain-anchored key (§7.2a)
+  GW->>M: deliver(mote) to K (§4)
+  M->>R: deliver
+  R->>R: verify attestation vs sel._dmtap-gw record — mark legacy-origin
+  alt K reachable
+    GW-->>G: 250 accepted
+  else K unreachable
+    GW-->>G: SMTP 4xx — legacy sender retries (store nothing)
+  end
+```
+
 ### 7.2a Attestation key binding (normative)
 
 An attestation is worthless unless its signing key is provably bound to a gateway the domain
@@ -58,6 +80,24 @@ check with a cryptographic anchor.
    gateway signs AS def.com WITHOUT ever holding the user's DMTAP identity key.
 4. gateway SMTPs to the destination MX, enforcing TLS via MTA-STS/DANE.
 5. On failure, report to the node; the NODE retries (owns the queue). Store nothing.
+```
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant N as Sender node
+  participant GW as Gateway
+  participant MX as Destination MX / Gmail
+  N->>GW: mail MOTE for bob@gmail.com (authenticated mesh)
+  GW->>GW: translate MOTE → RFC 5322
+  Note over GW: DKIM-sign AS def.com via delegated selector<br/>at selector._domainkey.def.com — never holds user's IK
+  GW->>MX: SMTP over TLS (MTA-STS / DANE enforced)
+  alt delivered
+    MX-->>GW: 250 OK
+    GW-->>N: delivery report: success
+  else failure
+    GW-->>N: report failure — node retries (owns queue, store nothing)
+  end
 ```
 
 DKIM delegation cleanly separates *deliverability reputation* (the gateway's) from *identity*

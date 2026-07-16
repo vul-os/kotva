@@ -157,6 +157,16 @@ a v1 hardening.**
 - Logs MAY be federated; a verifier trusts a *set* of logs and requires consistency across
   them. No single log is authoritative.
 
+```mermaid
+flowchart TD
+  OWN["Owner's node"] -->|"append Identity / RecoveryPolicy /<br/>KeyRotation / MoveRecord (§1)"| LOG["Append-only Merkle log<br/><i>signed tree heads (STHs)</i>"]
+  LOG -->|"STH + inclusion proof"| VER["Verifier (first contact)<br/><i>rollback check: no newer version</i>"]
+  LOG -->|"monitor own entries"| MON["Owner's devices<br/><i>alert on unrequested change =<br/>identity intrusion detection</i>"]
+  VER -->|"gossip STH (§4)"| PEER["Gossip peers / auditor"]
+  PEER -->|"consistency proof<br/>between two STHs"| VER
+  PEER -.->|"conflicting root_hash ⇒<br/>split-view / equivocation detected"| ALERT["fail-closed alert"]
+```
+
 Two profiles are defined, both registered as KT log-types (§21.19) and selected by capability
 negotiation (§10.2): **v0-minimal (log-type `0x01`)** is the interoperable default every Core
 node MUST implement (§10.3); **v1-hardening (log-type `0x02`)** is specified below and used only

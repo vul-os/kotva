@@ -224,6 +224,21 @@ secrecy and per-message post-compromise security** — *finer* healing than MLS'
 (§5.2), a bonus of the mode, not a regression. Message keys authenticate via AEAD (a shared-key
 MAC), never a signature.
 
+```mermaid
+sequenceDiagram
+  autonumber
+  participant A as Initiator
+  participant D as Mesh / mixnet
+  participant B as Responder
+  Note over B: publishes DeniablePrekeyBundle (§18.4.8)<br/>idk + idk_sig, signed prekey spk, one-time opks, (PQXDH KEM keys)
+  A->>D: fetch B's bundle (via Identity.deniable_prekeys)
+  Note over A: X3DH/PQXDH — mix idk_a · idk_b · spk_b · opk_b<br/>prefer a one-time opk — long-term keys signed, never sign the transcript
+  A->>B: DeniableInit (kind 0x0b) — ek_a, opk_ref, first ratchet msg
+  Note over B: replay defense — reject last-resort-only repeat<br/>+ post-X3DH key confirmation (§5.2.1(a))
+  B-->>A: DeniableMessage — reply advances DH ratchet
+  Note over A,B: Double Ratchet: per-message FS + PCS<br/>(PCS needs bidirectional traffic)<br/>DeniablePayload carries NO signature — deniable by construction
+```
+
 **PCS requires bidirectional traffic (disclosed).** The DH-ratchet step that delivers
 post-compromise security only advances when a **reply** is received: healing needs a fresh DH
 contribution from the *other* party. A strictly **one-way thread** — the archetypal
