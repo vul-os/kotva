@@ -508,6 +508,29 @@ that swaps the bytes is caught. When `avatar.hash` is absent, the URL is a best-
 with no integrity guarantee, and a client SHOULD treat it as untrusted third-party content
 (§6 metadata caveats apply — fetching a URL discloses the fetch to its host).
 
+**Avatar fetch is untrusted-URL fetch — SSRF + tracking guard (normative).** `avatar.url` is
+attacker-chosen data (any key may publish any `Profile` about itself), so a fetcher MUST treat it
+as an untrusted URL, never a trusted resource:
+
+- **Scheme.** The URL scheme MUST be `https`; a fetcher MUST NOT fetch a `Profile` avatar over any
+  other scheme (`http`, `file`, `gopher`, `data`, `blob`, …).
+- **No internal targets (SSRF).** A fetcher — **especially a server-side renderer** (a webmail,
+  gateway, or cache that fetches on the user's behalf) — MUST NOT fetch a URL that resolves to a
+  loopback, private (RFC 1918 / RFC 4193 ULA), link-local (incl. `169.254.0.0/16` and the cloud
+  metadata endpoint `169.254.169.254`), or otherwise non-global address, and MUST re-check the
+  resolved address after any redirect (no redirect to an internal target). A URL failing this check
+  MUST NOT be fetched (`ERR_PROFILE_AVATAR_URL_UNSAFE` `0x011B`, FAIL_CLOSED_BLOCK) and the client
+  MUST fall back down the ladder below. This turns an owner-set display pointer into a benign
+  same-as-any-web-image fetch, not a server-side request-forgery primitive.
+- **Tracking-beacon minimization.** Fetching `avatar.url` inevitably discloses the viewer's IP and
+  the fetch timing to the **owner-chosen host** — i.e. an owner can use a unique avatar URL as a
+  read-beacon that learns *who viewed their profile and when*. A client therefore MUST NOT fetch an
+  avatar **eagerly on message arrival** (which would make mere receipt a beacon); it fetches only on
+  an explicit display of that identity. When `avatar.hash` is present, a client MUST cache the
+  verified image **by its content address** and SHOULD serve later renders from that cache **without
+  re-fetching**, so the owner sees at most a first-view fetch, never a per-render beacon. Fetching
+  through a shared caching proxy (where the deployment offers one) further blunts the IP disclosure.
+
 **Avatar fallback ladder (normative order).** A client resolving an avatar for display MUST use,
 in order:
 

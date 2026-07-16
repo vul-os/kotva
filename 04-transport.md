@@ -518,7 +518,10 @@ envelope that yields nothing to traffic analysis), longer memoryless delays, fas
 detection, and stricter guard/diversity. It is **negotiated as a capability** (§10.2); both parties
 MUST support the profile in force, and a recipient **MAY require** it for its inbound `private`
 traffic. Profiles are the lever that lets a deployment climb toward the trilemma bound; the
-irreducible residual **after** the maximal profile is stated honestly in §6.6.
+irreducible residual **after** the maximal profile is stated honestly in §6.6. When this profile is
+in force, **push wake-signaling jitter/batching (§4.9.1) becomes a MUST, not a MAY** — an
+un-jittered per-arrival wake would reopen at the push relay the very recipient-arrival timing
+channel this profile's constant-rate cover is spent to close.
 
 **What more hops do — and do not — buy (honest scope).** Raising the hop count (5 vs 3) and the
 per-hop delay hardens DMTAP against **timing correlation by a network observer**: more independent
@@ -689,9 +692,21 @@ Normatively:
   field **MUST** be rejected fail-closed (`ERR_WAKEPING_CONTENT_PRESENT`, `0x0313`, §21.5).
 - The wake token **MUST** be RFC 8291-encrypted to the subscription's push key; a node **MUST NOT**
   emit a readable/unencrypted wake.
+- The sealed plaintext **MUST** be a **fresh, unpredictable nonce of ≥ 16 bytes** minted per wake
+  (never a fixed or reused value). This is what lets the device detect a **replayed** wake: a push
+  relay carrying the token can re-deliver a captured ciphertext to re-wake the device — a battery
+  drain the emitting node's rate limiter (§4.9.4) cannot see because the replay never traverses the
+  node. The device therefore keeps a bounded replay cache of recently-accepted nonces (§16) and
+  treats a wake whose nonce it has already accepted as a replay, dropping it without re-waking
+  (`ERR_WAKEPING_REPLAY`, `0x0316`, DROP_SILENT, §4.9.4). RFC 8291's per-message random salt already
+  makes the *ciphertext* non-repeating on the wire; the fresh plaintext nonce adds the app-layer
+  dedup that makes a re-delivered ciphertext detectable after it opens.
 - A node **MAY** jitter and/or batch wakes (add randomized delay, coalesce several arrivals into one
   wake) to blunt timing correlation at the push relay; this trades wake latency for metadata
-  resistance and is a per-node policy (§6, §6.6 item 9).
+  resistance and is a per-node policy (§6, §6.6 item 9). **When the High-security profile (§4.4.10)
+  is in force this jitter/batching is a MUST, not a MAY:** that profile pins constant-rate cover to
+  yield nothing to traffic analysis, and an un-jittered per-arrival wake would reopen at the push
+  relay exactly the recipient-arrival timing channel the profile's cover traffic closes.
 
 ### 4.9.2 Your node originates the ping (why the graph stays private)
 
@@ -733,11 +748,19 @@ A wake spends the target's battery, so wakes are gated, fail-closed:
   that only the user's own node holds — a wake that fails to open is a forged/unauthenticated wake
   and **MUST** be dropped (`ERR_WAKEPING_AUTH_FAILED`, `0x0314`, DROP_SILENT); it MUST NOT be
   surfaced as a real sync trigger.
-- **Rate-limited.** A node **MUST** rate-limit wakes per device (coalescing bursts into a single
-  wake within a window, §16), and wakes beyond the device's budget are dropped
-  (`ERR_WAKEPING_RATE_LIMITED`, `0x0315`). This bounds a compromised-relay or misconfigured-node
-  battery-drain and composes with the jitter/batch policy of §4.9.1.
+- **Rate-limited — at both ends.** The emitting node **MUST** rate-limit wakes per device
+  (coalescing bursts into a single wake within a window, §16), and wakes beyond the device's budget
+  are dropped (`ERR_WAKEPING_RATE_LIMITED`, `0x0315`). The emitting node's limiter cannot, however,
+  see a wake a **push relay** re-delivers on its own (a captured ciphertext replayed to drain the
+  target's battery — the replay never traverses the node). The **receiving device** therefore
+  enforces the same budget on **inbound** wakes as a fail-closed backstop (`0x0315`), independent of
+  which relay delivered them, so a compromised or misbehaving relay cannot exceed the wake budget.
+- **Replay-dedup at the device.** Each wake's sealed plaintext is a fresh, unpredictable nonce
+  (§4.9.1); the device keeps a bounded cache of recently-accepted nonces (§16) and treats a wake
+  whose nonce it has already accepted as a **replay** — it is dropped without re-waking
+  (`ERR_WAKEPING_REPLAY`, `0x0316`, DROP_SILENT). This closes the relay-replay battery-drain that the
+  emitting node's limiter alone cannot.
 
-All four failure modes stop rather than wake the device on faith: an unverifiable subscription
-(`0x0312`), a content-bearing wake (`0x0313`), an unauthenticated wake (`0x0314`), and an
-over-budget wake (`0x0315`).
+All failure modes stop rather than wake the device on faith: an unverifiable subscription
+(`0x0312`), a content-bearing wake (`0x0313`), an unauthenticated wake (`0x0314`), an over-budget
+wake (`0x0315`, enforced at emitter **and** receiver), and a replayed wake (`0x0316`).

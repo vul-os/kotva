@@ -1797,9 +1797,11 @@ design). Responder: the RP, which verifies the result.
    succeeds; the identity key itself never leaves the node and never touches the RP.
 3. **Before signing**, generate a fresh **per-RP, per-device session keypair** (§13.4) and compute
    `cnf = H(session_pubkey)` (§13.3 step 4).
-4. Sign `H(rp_origin ‖ nonce ‖ issued_at ‖ exp ‖ aud ‖ cnf)` (canonical hash, §2) under the
-   user's **`IK`-authorized device key** (the identity-revealing login signer, `Assertion.from`) —
-   **not** the session key (which `cnf` commits) and not a bare relayed challenge.
+4. Sign `H(rp_origin ‖ nonce ‖ issued_at ‖ exp ‖ aud ‖ scope ‖ cnf)` (canonical hash, §2; `scope`
+   defaults to the empty array `[]` when the Challenge omits it, §18.9.8) under the user's
+   **`IK`-authorized device key** (the identity-revealing login signer, `Assertion.from`) — **not**
+   the session key (which `cnf` commits) and not a bare relayed challenge. Because `scope` is inside
+   the signed preimage, the RP MUST NOT grant a scope broader than the signed value (§13.3 step 6).
 5. Return the `SignedAssertion{challenge, cnf, sig}` to the RP, which binds the session **only** to
    `cnf` (proof-of-possession, §13.4).
 
@@ -1827,7 +1829,7 @@ trusted_client: observed origin = "https://app.example.com"                # MAT
 trusted_client: WebAuthn ceremony — user-verification (biometric/PIN) via passkey
 trusted_client: PRF-derived key unlocks node signing key
 trusted_client: gen session keypair; cnf = H(session_pubkey)                # before signing
-node: sign H(rp_origin ‖ nonce ‖ issued_at ‖ exp ‖ aud ‖ cnf) under device key "phone-passkey"
+node: sign H(rp_origin ‖ nonce ‖ issued_at ‖ exp ‖ aud ‖ scope ‖ cnf) under device key "phone-passkey"
 trusted_client → RP: SignedAssertion{ challenge, cnf, sig: Ed25519(...) }   # RP binds session to cnf
 ```
 

@@ -21,9 +21,11 @@
     "construction-todo": "byte-exact construction recipe given; vector still to be generated as the subsystem gains a fixed-input KAT"
   },
   "vectors_file": "vectors/vectors.json",
-  "vectors_count": 32,
+  "vectors_count": 67,
+  "referenced_vectors_count": 32,
+  "vectors_count_note": "vectors_count is the number of entries in vectors/vectors.json; referenced_vectors_count (32) is how many of them the byte-backed cases currently drive (several drive more than one case). The remaining 35 are pre-generated for construction-todo families not yet wired to a case.",
   "notes": [
-    "reject cases map to spec §21 (115-code registry); error_code + error_name + disposition (Action column) are normative.",
+    "reject cases map to spec §21 (117-code registry); error_code + error_name + disposition (Action column) are normative.",
     "self-contained CBOR reject cases assert a deterministic-CBOR (RFC 8949 §4.2 / §18.1.1) decoder rejects the given bytes.",
     "construction-todo cases are non-deterministic to seal (sealed Envelope/Payload) or belong to subsystems not yet vectored (README 'Coverage vs. deferred')."
   ],
@@ -1552,9 +1554,9 @@
         "§18.9.8",
         "§13.3"
       ],
-      "checks": "Assertion.sig over DS || BLAKE3-256(det_cbor([rp_origin,nonce,issued_at,exp,aud,cnf])) under the IK-authorized device key",
+      "checks": "Assertion.sig over DS || BLAKE3-256(det_cbor([rp_origin,nonce,issued_at,exp,aud,scope,cnf])) under the IK-authorized device key; scope is [] when the Challenge omits it and is inside the signed preimage (scope-binding, §18.7.2)",
       "operation": "assertion_sign",
-      "construction": "sign a fixed 6-field auth array",
+      "construction": "sign a fixed 7-field auth array (scope defaults to [])",
       "expect": {
         "outcome": "match",
         "field": "sig"

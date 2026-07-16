@@ -178,7 +178,14 @@ hostile-buffer scenarios.
 7. **Group handshake ordering is a metadata concentration point.** The per-group committer/
    ordering channel (§5.1) necessarily sees all of a group's handshake traffic; this is an
    explicit exception to the "no single node sees both ends" framing, bounded by rotating the
-   committer and keeping application traffic on the mixnet.
+   committer and keeping application traffic on the mixnet. **Additionally, in v0 the ordered,
+   reliable handshake channel is not itself required to ride the mixnet** (§5.1 routes it for
+   liveness), so a *network* observer — not only the committer — can see the timing of membership
+   changes (Add/Remove Commits, Welcomes), which is membership-graph metadata the mixnet otherwise
+   hides. Application traffic stays cover-indistinguishable; the handshake channel does not. Closing
+   this fully (carrying handshakes over the `private` tier, realizing "ordered/reliable" as the
+   committer's on-arrival log order rather than an in-transit bypass, and bringing any retained
+   low-latency committer path under the §4.4.9 no-silent-downgrade rule) is a tracked v0 residual.
 8. **`redact`/`expires` are unenforceable** against a non-compliant recipient that already holds
    the plaintext — they are cooperative hints, not guarantees (relevant to any "right to
    erasure" framing).
@@ -196,6 +203,10 @@ hostile-buffer scenarios.
    global-active-adversary residual (item 1) — the maximal open mechanism is applied first, and the
    irreducible **platform-mandated** leak is stated plainly rather than papered over. Where the
    platform permits an open provider (UnifiedPush / Web Push), this residual does not arise at all.
+   Because a per-arrival wake is itself an activity-dependent timing signal *outside* the mixnet's
+   cover traffic, it composes with item 1: under the **High-security profile** (§4.4.10) wake
+   jitter/batching is therefore a **MUST** (§4.9.1), so the wake path does not reintroduce the
+   recipient-arrival timing channel the profile's constant-rate cover closes.
 
 DMTAP states these boundaries in-product. Honest, disclosed limits beat a false "perfectly
 anonymous."

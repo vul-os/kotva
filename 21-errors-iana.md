@@ -109,6 +109,7 @@ fixed here once so the tables can cite them tersely without re-explaining each t
 | `0x0118` | `ERR_DEVICE_ATTESTATION_EXPIRED` | `DeviceCert` attestation-freshness check (§1.2a, §18.4.2, §16.9) | An attestation-gated context finds the `DeviceCert.attestation` evidence older than the re-attestation cadence (≤ 90 days), past its own validity window, or chaining only to a **retired** attestation root. Advisory hardening only — never overrides the §1.4 authorization authority. | Conditional (re-attest over the same non-exportable key under a current root) | FAIL_CLOSED_BLOCK — reject for the attestation-gated context until re-attested; a non-gated context is unaffected |
 | `0x0119` | `ERR_PROFILE_SIG_INVALID` | `Profile` verification (§3.9.5, §18.4.12, §18.9.3) | A `Profile`'s `sig` does not verify under the identity's `IK` (or an `IK`-authorized device key). Profile display data is self-asserted (authenticated to the key, never a real-world-identity claim); a bad signature means the data is not authorized by the key. | No | FAIL_CLOSED_BLOCK — reject the object; retain the prior pinned `Profile` or fall to the §3.9.5 avatar/initials fallback ladder |
 | `0x011A` | `ERR_PROFILE_AVATAR_HASH_MISMATCH` | `Profile` avatar integrity check (§3.9.5, §18.4.12) | A `Profile` carries `avatar.hash`, but the bytes fetched from `avatar.url` do not content-address (`0x1e ‖ BLAKE3-256`) to it — the owner-hosted image was swapped/tampered. Tamper-evidence, not a hosting guarantee. | Yes (re-fetch; a corrected host resolves it) | USER_WARN — MUST NOT display the fetched image; fall back down the §3.9.5 ladder (key-derived identicon, then initials) and surface a non-blocking warning |
+| `0x011B` | `ERR_PROFILE_AVATAR_URL_UNSAFE` | `Profile` avatar URL safety check (§3.9.5, §18.4.12) | `avatar.url` is attacker-chosen data whose scheme is not `https`, or which resolves (incl. after any redirect) to a loopback / private (RFC 1918 / RFC 4193 ULA) / link-local (`169.254.0.0/16`, cloud-metadata `169.254.169.254`) / non-global address — a server-side-request-forgery or internal-probe attempt via a display pointer. | No | FAIL_CLOSED_BLOCK — MUST NOT fetch the URL; fall back down the §3.9.5 ladder (key-derived identicon, then initials) |
 
 ## 21.4 Delivery & Validation — the MOTE object (`0x02xx`)
 
@@ -163,7 +164,8 @@ to a MOTE) is a distinct concept scoped to the Auth ceremony; see `0x0502` (§21
 | `0x0312` | `ERR_PUSH_SUBSCRIPTION_SIG_INVALID` | `PushSubscription` verification (§4.9.1, §4.9.4, §18.5.5, §18.9.15) | A `PushSubscription`'s signature does not verify under its claimed `device_key`, or that key is not an `IK`-authorized device key of the owner (§1.2) — the subscription is not authenticated to the identity, so acting on it could register/redirect a device's wakes. | No | FAIL_CLOSED_BLOCK — discard the subscription; never wake against it |
 | `0x0313` | `ERR_WAKEPING_CONTENT_PRESENT` | `WakePing` decode (§4.9.1, §18.5.6) | A `WakePing` carries any field beyond the opaque sealed token (key `1`), or its opened plaintext decodes to anything bearing sender/subject/recipient/content — a wake must be content-free and sender-blind. | No | FAIL_CLOSED_BLOCK — reject the wake; a `WakePing` MUST carry only the RFC 8291-sealed sync token |
 | `0x0314` | `ERR_WAKEPING_AUTH_FAILED` | `WakePing` open (RFC 8291 AEAD, §4.9.4, §18.9.15) | The wake token's `aes128gcm` AEAD fails to open under the subscription's `push_key`/`auth_secret` — a forged or unauthenticated wake (the push relay lacks the auth secret and cannot forge one). | No | DROP_SILENT — drop; MUST NOT be surfaced as a real sync trigger (an unauthenticated wake reveals nothing to notify) |
-| `0x0315` | `ERR_WAKEPING_RATE_LIMITED` | Per-device wake rate limit (§4.9.4, §16) | Wakes to this device exceed its rate budget (a wake spends the target's battery); bursts are coalesced into one wake per window. | Yes, after the window resets | DEFER_REQUESTS — coalesce/hold below the cap; DROP_SILENT beyond it |
+| `0x0315` | `ERR_WAKEPING_RATE_LIMITED` | Per-device wake rate limit (§4.9.4, §16) | Wakes to this device exceed its rate budget (a wake spends the target's battery); bursts are coalesced into one wake per window. Enforced at the emitting node **and** at the receiving device (the receiver-side budget bounds a push relay that replays/floods wakes the emitter never sent). | Yes, after the window resets | DEFER_REQUESTS — coalesce/hold below the cap; DROP_SILENT beyond it |
+| `0x0316` | `ERR_WAKEPING_REPLAY` | `WakePing` replay-cache check (§4.9.1, §4.9.4, §18.5.6, §16) | A `WakePing` whose sealed sync nonce is already in the device's replay cache — a push relay re-delivering a captured ciphertext to re-wake (drain the battery of) the device; the emitting node's rate limiter cannot see it because the replay never traverses the node. | No | DROP_SILENT — drop without re-waking; MUST NOT be surfaced as a real sync trigger |
 
 ## 21.6 Messaging & Group errors — MLS (`0x04xx`)
 
@@ -319,6 +321,7 @@ auditability:
 | KT inclusion-proof leaf-hash mismatch | `0x0117` |
 | Profile signature invalid (self-asserted display data) | `0x0119` |
 | Profile avatar bytes mismatch signed content-address | `0x011A` |
+| Profile avatar URL unsafe (non-https / SSRF internal target) | `0x011B` |
 | Capability delegation invalid (malformed/expired/over-attenuated) | `0x0508` |
 | Capability revoked (valid grant, explicitly revoked) | `0x050B` |
 | Session-revoked | `0x0504` |
@@ -341,6 +344,7 @@ auditability:
 | WakePing carries plaintext content/sender (forbidden) | `0x0313` |
 | WakePing unauthenticated / AEAD open failed | `0x0314` |
 | WakePing rate-limited (battery abuse) | `0x0315` |
+| WakePing replayed by relay (nonce already seen) | `0x0316` |
 
 ---
 
@@ -367,7 +371,7 @@ extension procedure in §21.25. Allocation policies use the standard terms of RF
 | **Registry name** | DMTAP Error/Status Codes |
 | **Reference** | §21.1–§21.11 (this document) |
 | **Allocation policy** | New subsystem byte (`0x09`–`0xEF`): Standards Action. New code point within an existing subsystem (`NN` = `0x01`–`0x7F`): Specification Required. `NN` = `0x80`–`0xFE` within any subsystem: Private Use (implementation-local diagnostics; MUST map to the nearest standard code's Responder Action, §21.2, for any behavior visible to another implementation). `SS`/`NN` = `0x00` or `0xFF`: Reserved. |
-| **Initial contents** | The 115 codes enumerated in §21.3–§21.11. |
+| **Initial contents** | The 117 codes enumerated in §21.3–§21.11. |
 | **Registry discipline** | Append-only. A retired code MUST be marked Deprecated, never deleted or reassigned to a different meaning (mirroring the append-only philosophy of the KT log, §3.5). |
 
 ## 21.15 Algorithm Suites Registry (`suite` u8)
@@ -526,19 +530,19 @@ fragmenting."
 
 ## 21.26 Summary
 
-- **Error/status codes defined:** 115 (`0x0101`–`0x011A`: 26, incl. the KT-v1 detection codes
+- **Error/status codes defined:** 117 (`0x0101`–`0x011B`: 27, incl. the KT-v1 detection codes
   `0x0110`–`0x0112`, the org-administration codes `0x0113`–`0x0115` (§3.10), `0x0116`
   device-attestation and `0x0118` attestation-expired (§1.2a), `0x0117` KT leaf-hash mismatch
-  (§3.5, §18.4.9), and the `Profile` display-data codes `0x0119` (signature invalid) and `0x011A`
-  (avatar content-address mismatch) (§3.9.5, §18.4.12); `0x0201`–`0x0210`: 16, incl. `0x020F` suite-downgrade and `0x0210`
+  (§3.5, §18.4.9), and the `Profile` display-data codes `0x0119` (signature invalid), `0x011A`
+  (avatar content-address mismatch) and `0x011B` (avatar URL unsafe / SSRF guard) (§3.9.5, §18.4.12); `0x0201`–`0x0210`: 16, incl. `0x020F` suite-downgrade and `0x0210`
   hybrid-suite-incomplete (intra-suite PQ-strip defense, §1.3);
-  `0x0301`–`0x0315`: 21, incl. `0x030A` capability-announce
+  `0x0301`–`0x0316`: 22, incl. `0x030A` capability-announce
   rollback (§10.2), the mixnet codes `0x030B`–`0x0311` — directory/descriptor/path (`0x030B`–`0x030D`),
   replay (`0x030E`), active-attack detection (`0x030F`), no-downgrade fail-closed covering
   both tier and profile downgrade (`0x0310`, §4.4.9), and mix-directory freshness/freeze defense
-  (`0x0311`, §4.4.2) — and the OPTIONAL push wake-signaling codes `0x0312`–`0x0315` (§4.9):
-  subscription-not-authenticated, WakePing-content-present, WakePing-auth-failed, and
-  WakePing-rate-limited;
+  (`0x0311`, §4.4.2) — and the OPTIONAL push wake-signaling codes `0x0312`–`0x0316` (§4.9):
+  subscription-not-authenticated, WakePing-content-present, WakePing-auth-failed,
+  WakePing-rate-limited (emitter + receiver), and WakePing-replay (relay-replay battery-drain);
   `0x0401`–`0x040F`: 15, incl. the deniable-mode codes `0x040B`–`0x040F` (§5.2.1) — prekey
   invalid/exhausted, X3DH/PQXDH failure, ratchet-MAC failure, mode-unavailable, and the
   signature-forbidden guard;

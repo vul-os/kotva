@@ -83,11 +83,15 @@ above and for ordering hints.
 |-----------|---------|-------|
 | Relay reservation TTL | 1 h | libp2p circuit-relay v2 (§14.5) |
 | Relay per-circuit cap | 2 min / 128 KiB | brief hole-punch assist only — not sustained sync |
+| Relay per-peer reservations | ≈ 128 | libp2p relay-v2 abuse cap (§14.5) |
+| Relay circuits / peer | ≈ 16 | libp2p relay-v2 abuse cap (§14.5) |
 | Reachability ladder | IPv6 → hole-punch → relay | prefer direct (§4.3) |
 | Offline-buffer TTL | 20 days | relay-mailbox message hold (§14.5) |
 | Peer-buffer TTL | 20 days | buddy-node ciphertext hold (§4.3, §14.5); not an archive |
 | Inactive-account purge | 90 days | relay-mailbox (§14.5) |
 | Push payload | ≤ 4 KiB, content-free | wake-and-fetch only (§14.3) |
+| Push wake rate limit | ≤ 1 wake / 60 s per device (burst-coalesced), budget ≈ 30 wakes / h | emitter **and** receiver enforce (§4.9.4); bounds battery-drain / relay-replay |
+| Push wake replay cache | ≥ recent 512 nonces or 24 h, whichever larger | device-side dedup of replayed wake nonces (§4.9.1, §4.9.4, `0x0316`) |
 
 ## 16.7 Crypto suites
 

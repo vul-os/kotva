@@ -74,8 +74,10 @@ optional `PUSH` cases are mirrored into `suite.json`). The changed deniable obje
 re-vectored when the reference regenerates `vectors.json`.
 
 > All 39 byte-backed cases correspond one-for-one to entries in `vectors.json`
-> (**32 vectors**, several driving more than one case). No case references a `vectors.json`
-> entry that does not exist; see [Vector cross-reference](#vector-cross-reference).
+> (they drive **32 of the 67 vectors** in the file — several vectors drive more than one case;
+> the remaining 35 are pre-generated for construction-todo families not yet wired to a case).
+> No case references a `vectors.json` entry that does not exist; see
+> [Vector cross-reference](#vector-cross-reference).
 
 ---
 
@@ -269,7 +271,7 @@ Core + DMTAP-Auth login ceremony with origin binding + key-bound sessions; OIDC 
 
 | id | req | clause | checks | expect | status |
 |----|-----|--------|--------|--------|--------|
-| DMTAP-AUTH-01 | MUST | §18.9.8, §13.3 | `Assertion.sig` over `DS ‖ BLAKE3-256(det_cbor([rp_origin,nonce,issued_at,exp,aud,cnf]))` under the IK-authorized device key | match (sig) | construction-todo |
+| DMTAP-AUTH-01 | MUST | §18.9.8, §13.3 | `Assertion.sig` over `DS ‖ BLAKE3-256(det_cbor([rp_origin,nonce,issued_at,exp,aud,scope,cnf]))` under the IK-authorized device key (`scope` is `[]` when absent; inside the signed preimage — scope-binding) | match (sig) | construction-todo |
 | DMTAP-AUTH-02 | MUST | §13.3 | an assertion whose `rp_origin`/`aud` mismatch the issued `Challenge` is rejected | reject → `ERR_ORIGIN_MISMATCH` (0x0501) | construction-todo |
 | DMTAP-AUTH-03 | MUST | §13.3 | a replayed `nonce` is rejected | reject → `ERR_NONCE_REPLAYED` (0x0502) | construction-todo |
 | DMTAP-AUTH-04 | MUST | §13.3 | an expired `Challenge` is rejected | reject → `ERR_CHALLENGE_EXPIRED` (0x0503) | construction-todo |
@@ -363,7 +365,7 @@ below are MUST.
 ## Vector cross-reference
 
 Every `vectored` case above maps to an existing entry in `vectors/vectors.json`
-(**32 vectors**). Cross-check (case → vector):
+(**32 of the 67 vectors** in the file are referenced by cases). Cross-check (case → vector):
 
 | vectors.json entry | driven by case(s) |
 |--------------------|-------------------|

@@ -184,6 +184,12 @@ owning clause says otherwise.
 | Device attestation freshness (gated only) | §1.2a | attestation absent/invalid/expired/retired-root in an **attestation-gated** context | `FAIL_CLOSED_BLOCK` for that context, `0x0116` / `0x0118`; advisory — **never** overrides §1.4 authorization |
 | **Org-managed-undisclosed** fail-closed | §3.10.2, §18.4.7 | an escrowed-key account presented **without** its `custody = "org-managed"` marker | `HALT_ALERT`; MUST NOT present as a sovereign identity, `0x0115` |
 | **Recovery-weakening quorum + veto** | §1.4 rules 3–4 | a `RecoveryPolicy` change that drops/weakens a factor | requires `rotate_threshold` **even when signed by `IK`**; takes effect only after the **72 h** asymmetric veto window (§16); a non-conforming weakening is vetoable |
+| **Auth: bare-node-signed login FORBIDDEN** | §13.3.1 | a login assertion presented as node-signed / from an unattributable channel | reject outright, `0x0507`; a node MUST NOT sign a login on a user's behalf (consent-farming defense) |
+| **Auth: login scope is signed** | §13.3, §18.7.2, §18.9.8 | RP would grant a scope broader than the assertion's signed `scope` | fail closed — the broader-scope preimage fails signature verification; RP MUST NOT grant beyond the signed scope (`0x0508` if surfaced as over-attenuated) |
+| **Auth: delegation re-chains through recovery** | §13.4, §1.4 | a live RP session whose authorizing delegation predates an `Identity.version` bump (IK rotation / recovery) | terminate at next re-validation; the revocation-list-epoch option MUST be keyed to `Identity.version`, else the recovery-invalidation guarantee silently fails to reach that RP |
+| **Auth: unreachable status/KT ⇒ bounded grace, then fail closed** | §13.4 | RP's status/KT head unreachable at re-validation | honor the last-validated delegation only to a **2× grace window** (§16), then fail closed — never honor indefinitely (bounds post-revocation persistence) |
+| **Auth: high-value RP multi-log / OOB** | §13.7 item 6 | high-value login against v0 single-KT-log | MUST require multi-log consistency or an OOB-verified pin — a single log can equivocate, `0x0111`/`0x0107` |
+| **Auth bridge: per-RP audience** | §13.6 | bridge embeds a login assertion audienced to the bridge, reused across its RPs | the bridge MUST run a per-RP §13.3 ceremony (`aud` = target RP, fresh per-RP `cnf`); an RP verifying the key directly MUST check `assertion.aud == own identifier`, `0x0501` on mismatch |
 
 ### 10.7.4 Delivery, gateway & anti-abuse fail-closed
 
@@ -199,6 +205,9 @@ owning clause says otherwise.
 | Unvetted token = zero budget | §9.3.1 | token from an unknown/self issuer | counts as **no token** — forces fallback to PoW/postage; self-issuance buys anonymity, not cost relief |
 | **Deniable-mode no-silent-downgrade** | §5.2.1(d) | recipient has not advertised the `deniable-1:1` capability | `REJECT_NOTIFY` — the client MUST surface the choice (non-deniable send, or not at all); **never** silently downgrade the user's *expectation* of deniability, `0x040E` |
 | Deniable payload signature forbidden | §5.2.1(c) | a `DeniablePayload` carries a signature field | `FAIL_CLOSED_BLOCK`, `0x040F` — the missing signature is the property |
+| **Deniable content off the signed cluster tree** | §5.2.1(d), §5.6 | a personal-cluster MLS CRDT entry embeds a `DeniablePayload` / deniable plaintext | `FAIL_CLOSED_BLOCK`, `0x040F` — no member-signed record may cover deniable plaintext (else owner-side non-repudiable evidence is manufactured) |
+| **Deniable bundle first-contact rollback** | §5.2.1(f), §5.8.6 | a fetched `DeniablePrekeyBundle` `version` is older than the KT-anchored current version | fail closed, `0x040B` — withdrawal must be detectable at first contact, not only on re-fetch by a pinned peer |
+| **Push-wake gates fail closed** | §4.9.1, §4.9.4 | unverifiable subscription / content-bearing wake / unauthenticated wake / replayed wake / over-budget wake (a wake spends the target's battery) | reject/drop — `0x0312` (FAIL_CLOSED_BLOCK), `0x0313` (FAIL_CLOSED_BLOCK), `0x0314` (DROP_SILENT), `0x0316` (DROP_SILENT), `0x0315` (rate-limit at emitter **and** receiver); a wake is never surfaced on faith |
 
 ### 10.7.5 The one governing rule
 

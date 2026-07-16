@@ -49,9 +49,15 @@ node that serializes handshake messages into an append-only, hash-chained per-gr
   past a timeout, or on member vote, via a Commit that all members apply.
 - **Failover / liveness & deterministic succession:** if the committer is unreachable, members
   hold pending Proposals and initiate a **takeover that does not depend on the incumbent's
-  cooperation**. The successor is **deterministic**: among live, non-faulted members the one with
-  the **lowest member signing key** (canonical byte order) is the designated next committer
-  (keys are unique; earliest join epoch is the fallback tie-break). The successor proposes a
+  cooperation**. The successor is **deterministic but not grindable**: among live, non-faulted
+  members the one with the lowest **per-epoch rank** `rank = BLAKE3-256(member_signing_key ‖
+  group_id ‖ epoch)` is the designated next committer (a raw-key byte-order comparison, then
+  earliest join epoch, break the astronomically-unlikely rank tie). Ranking by a per-epoch keyed
+  digest — rather than the raw signing key — means a member **cannot grind a low key at join time to
+  occupy the committer seat across every epoch**: the winner rotates unpredictably per epoch, so a
+  key that wins one epoch does not win the next (a VRF over the same inputs is a stronger,
+  OPTIONAL variant that also removes precomputation for a single target epoch). The successor
+  proposes a
   **takeover Commit** referencing the last agreed log head; it takes effect **only when it carries
   a threshold of member signatures** (a roster quorum, §16), so a partitioned minority cannot
   install a rival committer and there is no split-brain over *who* takes over. (The heavy
@@ -110,11 +116,14 @@ distinct, lighter ordering path for **n = 2** and reserves the committer/quorum 
   handshake that member has applied.
 - **Deterministic tie-break on concurrent Commits.** Because either peer may Commit, the two can
   propose **concurrent** Commits against the same epoch. This is resolved without a quorum by a
-  fixed rule: the Commit whose **originator has the lower member signing key** (canonical byte
-  order — the same total order §5.1 uses for successor selection) is **canonical**; the other
+  fixed rule: the Commit whose **originator has the lower per-epoch rank** `BLAKE3-256(
+  member_signing_key ‖ group_id ‖ epoch)` (the same non-grindable total order §5.1 uses for
+  successor selection, raw-key then join-epoch as final tie-breaks) is **canonical**; the other
   peer's concurrent Commit is **superseded and re-proposed** on top of the winner (its author
-  re-applies it at its next `hs_seq`). Ties on the key are impossible (keys are unique), so the
-  order is total and both peers converge on the identical epoch chain with no vote.
+  re-applies it at its next `hs_seq`). Because the rank folds in the epoch, neither peer can grind a
+  key that wins **every** concurrent-Commit race for the lifetime of the pair; the winner varies per
+  epoch. The order is total (rank ties are astronomically unlikely and fall back to the unique raw
+  key), so both peers converge on the identical epoch chain with no vote.
 - **No forgery, same fork-evidence.** Each handshake is still **member-signed** (MLS, §5.1), so
   neither peer can forge the other's membership actions; a peer that presents two different
   handshakes at the same `(originator_ik, hs_seq)` produces **self-signed fork evidence**, and the
@@ -278,7 +287,16 @@ turns around.
   the mode runs as **one Double-Ratchet session per device-pair** (Signal-Sesame style),
   fanning out to each of the recipient's devices — trading MLS's efficient single-tree cluster
   sync for pairwise deniability. This cost is disclosed; clients SHOULD show that deniable
-  threads sync per-device rather than through the shared MLS tree.
+  threads sync per-device rather than through the shared MLS tree. **Deniable-thread content MUST
+  be synchronized across the owner's own cluster ONLY via these per-device-pair Double-Ratchet
+  sessions (MAC-authenticated), and MUST NOT be placed into — or referenced by plaintext in — the
+  cluster MLS-group CRDT (§5.6).** The cluster CRDT wraps every application entry in a
+  member-**signed** `FramedContent` (§5.2); routing deniable plaintext through it would manufacture
+  a durable, MLS-signed, seizable copy of the deniable content on the owner's devices — owner-side
+  non-repudiable evidence that the shared-key-MAC construction (§5.2.1(c)) exists precisely to deny.
+  A cluster CRDT entry embedding a `DeniablePayload` (or its plaintext) MUST be rejected fail-closed
+  (`ERR_DENIABLE_SIGNATURE_PRESENT`, `0x040F` — the same "no signature may cover deniable content"
+  guard).
 - **Identity verification unchanged.** The counterpart's `IK` is still bound to its name via
   KT / OOB safety numbers (§3.4–§3.5); deniability repudiates *authorship of messages*, not the
   *key agreement*. Downgrade defense (§1.3 suite ratchet) and cold-sender anti-abuse (§9) apply
@@ -300,6 +318,14 @@ Two residuals survive and are stated plainly:
    deniability but that **online/interactive** deniability against a judge colluding in real time
    with a participant is weaker; the signed prekey and prekey-signing key are long-lived. DMTAP
    inherits these bounds — it does not claim to exceed Signal's proven guarantees.
+3. **Offering the mode is itself a durable public signal.** To be reachable async in deniable mode
+   an identity MUST publish an `IK`-certified `idk` (`idk_sig`) in a world-fetchable
+   `DeniablePrekeyBundle` and advertise the `deniable-1:1` capability — both are non-repudiable
+   standing artifacts asserting *"this identity provisions off-record channels."* The mode
+   repudiates message **authorship**, not the **fact that the capability is offered**; a user for
+   whom that fact is itself incriminating-by-association SHOULD provision `idk`/bundles **on demand**
+   via a rendezvous/introduction (the non-DHT §4.2 path) rather than a world-readable standing
+   bundle, accepting the loss of cold async first-contact.
 
 This is honest deniability: *repudiation of the cryptographic transcript*, disclosed for what it
 is, not a promise that a determined endpoint compromise can be undone.
@@ -318,6 +344,19 @@ explicit lost-/stolen-device flow, tied into §6.7 and recovery §1.4:
   identity DH key, certify it with a surviving device key (`idk_sig`), and let the old `idk`
   version age out (rollback defense rejects the withdrawn bundle, `0x040B`). New sessions then
   cannot be initiated against the revoked material.
+  - **KT-anchored bundle version (MUST) — first-contact rollback defense.** The simple
+    "reject the older `version`" rule only protects a fetcher that already holds the current
+    version; on **first contact** an initiator has no prior high-water-mark, and the withdrawn
+    bundle's `idk_sig`/`spk_sig`/`opk`s were all validly signed *before* revocation, so they still
+    verify — a stolen device that captured bundle v1 can serve it to a new correspondent whose
+    fully-reachable KT and correctly-verified `IK` do not detect the rollback, and then complete the
+    X3DH against the revoked private keys. The owner therefore MUST **KT-anchor the current
+    `DeniablePrekeyBundle` `version`** (bound to the identity's KT record via
+    `Identity.deniable_prekeys`, §3.5 / §1.3),
+    and a fetching initiator MUST check the fetched bundle's `version` against the KT-logged current
+    version and **fail closed if it is older** (`0x040B`) — the same fail-closed-on-unreachable-KT
+    stance as §3.3 / §6.6 item 4. This makes prekey withdrawal detectable at first contact, not only
+    on a re-fetch by an already-pinned peer.
 - **In-flight ratchet teardown (MUST).** Every deniable ratchet the revoked device held is
   considered compromised. The surviving cluster MUST **tear those sessions down** — discard their
   ratchet state and, for conversations the owner wants to keep, **re-establish a fresh session**
@@ -512,6 +551,19 @@ key can unilaterally hijack `team@company.com`.
   the group's `owner`/`admin` set** (FROST-style, reusing the §1.4 recovery machinery), so no
   single admin — and no committer — can sign as the group alone. Group-authoritative acts (below)
   require a threshold of admins, not one.
+  - **Verifiability of the custody claim (normative + honest bound).** A FROST/threshold Schnorr
+    signature is **bit-for-bit indistinguishable** from a single-signer signature, and the group
+    public key is a single point — so the signature *alone* does not prove the key is genuinely
+    split, and a coerced admin could hold the whole key while advertising `rotate_threshold > 1`.
+    To make the MUST **verifiable rather than aspirational**, group key establishment MUST publish a
+    **KT-anchored DKG / verifiable-secret-sharing (VSS) commitment** binding the group signing key
+    to per-share commitments held by ≥ `rotate_threshold` **distinct** `owner`/`admin` identity
+    keys; members MUST reject a group `Identity` whose signing key is not accompanied by a valid
+    such commitment and MUST NOT treat an uncommitted group key as threshold-held. **Honest bound:**
+    until a deployment carries this commitment, threshold custody is an operational/governance
+    property, not one members can cryptographically verify from the signature — the byte-exact
+    commitment object is a tracked v0 follow-up (§18), and this is the one group-custody MUST whose
+    enforcement is commitment-gated rather than self-evident from the wire.
 - **Group `RecoveryPolicy` + `rotate_threshold`.** A group has its own `RecoveryPolicy` (§1.4);
   changes to the group `Identity`, its recovery methods, or its key MUST satisfy the group's
   `rotate_threshold` (the weakening-quorum + veto-window rules of §1.4 apply), so a compromised

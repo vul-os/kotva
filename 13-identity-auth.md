@@ -53,13 +53,18 @@ DMTAP-Auth introduces almost no new cryptography — it reuses:
    ceremony (§13.3.1). BEFORE signing, the client generates a fresh per-RP, per-device SESSION
    keypair (§13.4) and computes  cnf = H(session_pubkey).
 5. The user's key signs the DOMAIN-SEPARATED preimage
-     "DMTAP-v0/auth-assertion" ‖ 0x00 ‖ H(rp_origin ‖ nonce ‖ issued_at ‖ exp ‖ aud ‖ cnf)
-   (canonical, §2; the exact preimage and DS-tag are normative in §18.9.8 — like every other
-    DMTAP signature this one is domain-separated, so an assertion can never be confused with any
-    other signed object)
+     "DMTAP-v0/auth-assertion" ‖ 0x00 ‖ H(rp_origin ‖ nonce ‖ issued_at ‖ exp ‖ aud ‖ scope ‖ cnf)
+   (canonical, §2; scope defaults to the empty array [] when the Challenge omits it; the exact
+    preimage and DS-tag are normative in §18.9.8 — like every other DMTAP signature this one is
+    domain-separated, so an assertion can never be confused with any other signed object)
 6. RP verifies the signature against alice's pinned key (§3.4), that rp_origin == its own
    origin, nonce unused, not expired → authenticated, and binds the session ONLY to the key
-   named by cnf (proof-of-possession, §13.4)
+   named by cnf (proof-of-possession, §13.4). Because scope is INSIDE the signed preimage, the RP
+   reconstructs it using exactly the scope it will grant and MUST NOT grant any scope broader than
+   the signed value: a broader grant reconstructs a different preimage, the signature fails to
+   verify, and login is refused (scope-elevation is self-defeating, not merely policy —
+   0x0508 if surfaced as an over-attenuated delegation). The trusted client MUST have displayed
+   that exact scope for user consent before signing.
 ```
 
 ```mermaid
@@ -73,7 +78,7 @@ sequenceDiagram
   RP->>TC: Challenge { rp_origin, nonce, issued_at, exp, aud, [scope] }
   Note over TC: bind + display VERIFIED rp_origin —<br/>WebAuthn/passkey user-verification (§13.3.1)
   Note over TC: gen fresh per-RP session keypair — cnf = H(session_pubkey)
-  TC->>K: sign "DMTAP-v0/auth-assertion" ‖ 0x00 ‖ H(rp_origin ‖ nonce ‖ issued_at ‖ exp ‖ aud ‖ cnf)
+  TC->>K: sign "DMTAP-v0/auth-assertion" ‖ 0x00 ‖ H(rp_origin ‖ nonce ‖ issued_at ‖ exp ‖ aud ‖ scope ‖ cnf)
   K-->>TC: SignedAssertion { challenge, cnf, sig }
   TC->>RP: SignedAssertion
   Note over RP: verify sig vs alice's pinned key (§3.4) —<br/>rp_origin == own origin, nonce unused, not expired
@@ -167,7 +172,17 @@ key**, so a leaked token cannot be replayed by a thief:
   indefinitely: it MUST **re-validate the delegation** against the user's status endpoint or KT
   head at a **bounded interval** (RP re-validation interval, §16), or bind the session to a
   **revocation-list epoch** it MUST refresh at that interval. A session whose delegation no longer
-  validates MUST be terminated at the next check.
+  validates MUST be terminated at the next check. The two options are **not** freely
+  interchangeable for the recovery case: a bare revocation list enumerates *explicitly revoked*
+  sessions, but a recovering owner (fresh device, empty store, §1.4) does not know which RPs hold
+  live sessions and so cannot populate it — leaving a pre-recovery session alive and silently
+  defeating the "recovery MUST invalidate all prior session authorizations" rule above. Therefore
+  the revocation-list epoch MUST be **keyed to `Identity.version`** (and bumped by any
+  `KeyRotation`/recovery event): a session carries the `Identity.version` under which it was
+  authorized, and a re-validation MUST terminate it when the current `Identity.version` is higher
+  (recovery advances the version, §1.4/§1.5), so a wholesale recovery invalidates every
+  pre-recovery delegation without the owner enumerating RPs. An RP that cannot bind its
+  revocation-list epoch to `Identity.version` MUST use the delegation-re-chain option instead.
 - **On unreachable status/KT (normative, sensible default).** If the status endpoint / KT head is
   unreachable at a re-validation check, the RP MUST NOT honor the session indefinitely (fail-open
   would let an attacker who partitions the endpoint keep a revoked session alive) and SHOULD NOT
@@ -255,7 +270,14 @@ consumable by them — the same native-path/legacy-bridge duality as mail (§7):
   logins for its RPs exactly as any classical IdP could.** DMTAP-Auth bounds this two ways:
   (a) the minted ID Token MUST **embed the user's own §13.3 signed assertion** (and its `cnf`) as
   a verifiable claim, so an RP MAY additionally **verify the user's key directly** and stop
-  trusting the bridge's signature alone; (b) every token the bridge mints MUST be appended to a
+  trusting the bridge's signature alone. To make that direct verification meaningful and prevent
+  **cross-RP assertion reuse**, the bridge MUST run a **distinct §13.3 ceremony per consuming RP**,
+  with the assertion's `rp_origin`/`aud` set to the **target RP's** identifier (carried through the
+  OIDC `client_id`/`aud`) and a **fresh per-RP `cnf`** — never one bridge-audienced assertion
+  replayed into several RPs' tokens (which would both let the assertion authenticate to any of the
+  bridge's RPs and collapse the per-RP `cnf` unlinkability of §13.7 limit 7). An RP verifying the
+  embedded assertion directly MUST check `assertion.aud == its own RP identifier` (as on the native
+  path), failing closed on mismatch (`0x0501`). (b) every token the bridge mints MUST be appended to a
   **bridge-transparency log** (KT-style, §3.5) that the user's node **monitors**, so a bridge
   minting a login the user never performed is **detectable** (the same intrusion-detection
   posture as identity KT). The bridge is a *convenience operator*, swappable and self-hostable —

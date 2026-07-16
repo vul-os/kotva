@@ -985,7 +985,7 @@ Avatar = {
 | | `prev` | 8 | `hash` | OPTIONAL | Hash of the previous `Profile` version; absent for the first. Chains profile history for KT audit (§3.5), same shape as `Identity.prev`. |
 | | `ts` | 9 | `ts` | MUST | Publication time. |
 | | `sig` | 10 | `sig-val` | MUST | `IK` (or an `IK`-authorized device key, §1.2) signature over the body (§18.9.3, DS-tag `DMTAP-v0/profile`). A `Profile` whose `sig` fails MUST be rejected (`ERR_PROFILE_SIG_INVALID` `0x0119`, FAIL_CLOSED_BLOCK) and the prior pinned profile / fallback ladder used. |
-| `Avatar` | `url` | 1 | `tstr` | MUST | Owner-set public URL of the avatar image (`https` RECOMMENDED). DMTAP does **not** host the image — this is a pointer the owner controls. Fetching it discloses the fetch to the URL's host (§6 metadata caveat). |
+| `Avatar` | `url` | 1 | `tstr` | MUST | Owner-set public URL of the avatar image. It is **attacker-chosen data** (any key may publish any `Profile` about itself): a fetcher MUST require scheme `https` and MUST NOT fetch a URL that resolves to a loopback / private / link-local / ULA / cloud-metadata (`169.254.169.254`) address — re-checked after any redirect — else `ERR_PROFILE_AVATAR_URL_UNSAFE` (`0x011B`, FAIL_CLOSED_BLOCK) and fall back (§3.9.5). DMTAP does **not** host the image. Fetching discloses the viewer's IP/timing to the owner-chosen host (a read-beacon): a client MUST NOT fetch eagerly on message arrival, and when `avatar.hash` is present MUST cache by content address and SHOULD NOT re-fetch on later renders (§3.9.5, §6 metadata caveat). |
 | | `hash` | 2 | `hash` | OPTIONAL | Content address (`0x1e ‖ BLAKE3-256`, §18.1.5) of the exact image bytes. When present, a client MUST verify the fetched bytes address to this value **before display**; on mismatch it MUST NOT display them, MUST fall back (§3.9.5), and SHOULD warn (`ERR_PROFILE_AVATAR_HASH_MISMATCH` `0x011A`, USER_WARN). Absent ⇒ the URL is best-effort with no integrity guarantee. |
 
 ---
@@ -1206,7 +1206,7 @@ WakePing = {
 
 | Field | Key | Type | Presence | Meaning & constraints |
 |-------|----:|------|----------|-----------------------|
-| `token` | 1 | `bytes` | MUST | The RFC 8291 `aes128gcm` ciphertext of an opaque sync nonce. A `WakePing` carrying **any** other map key, or whose opened plaintext decodes to anything carrying sender/subject/recipient/content, MUST be rejected fail-closed (`ERR_WAKEPING_CONTENT_PRESENT`, `0x0313`). A token whose AEAD fails to open under the subscription's `push_key`/`auth_secret` is a forged/unauthenticated wake and is dropped (`ERR_WAKEPING_AUTH_FAILED`, `0x0314`, DROP_SILENT). Wakes are rate-limited per device (`ERR_WAKEPING_RATE_LIMITED`, `0x0315`, §4.9.4). |
+| `token` | 1 | `bytes` | MUST | The RFC 8291 `aes128gcm` ciphertext of an opaque sync nonce. The sealed plaintext MUST be a **fresh, unpredictable nonce of ≥ 16 bytes** minted per wake (never fixed/reused), so the device can dedup replays (§4.9.1). A `WakePing` carrying **any** other map key, or whose opened plaintext decodes to anything carrying sender/subject/recipient/content, MUST be rejected fail-closed (`ERR_WAKEPING_CONTENT_PRESENT`, `0x0313`). A token whose AEAD fails to open under the subscription's `push_key`/`auth_secret` is a forged/unauthenticated wake and is dropped (`ERR_WAKEPING_AUTH_FAILED`, `0x0314`, DROP_SILENT). A token whose nonce is already in the device's replay cache (§16) is a **replayed** wake — dropped without re-waking (`ERR_WAKEPING_REPLAY`, `0x0316`, DROP_SILENT). Wakes are rate-limited per device at **emitter and receiver** (`ERR_WAKEPING_RATE_LIMITED`, `0x0315`, §4.9.4). |
 
 ---
 
@@ -1335,8 +1335,9 @@ Assertion = {
   4 => ts,              ; exp         echoed
   5 => tstr,            ; aud         echoed
   6 => ik-pub,          ; from        the identity-revealing login signer (IK-authorized device key)
-  7 => sig-val,         ; sig         over the origin-bound preimage incl. cnf (§18.9.8)
+  7 => sig-val,         ; sig         over the origin-bound preimage incl. scope + cnf (§18.9.8)
   8 => hash,            ; cnf         H(session_pubkey): binds the fresh per-RP session key (§13.3)
+  ? 9 => [* tstr],      ; scope       echoed Challenge scope ([] if absent); inside the signed preimage
 }
 ```
 
@@ -1350,6 +1351,7 @@ Assertion = {
 | `from` | 6 | `ik-pub` | MUST | The user's **login signer**: an `IK`-authorized **device key** (or `IK` itself, §1.2) that the RP MUST verify resolves to the pinned `name → key` identity (§3.4, §13.3 step 6). This is the identity-revealing login signature; it is **NOT** the session key. The fresh per-RP session key is committed by `cnf` (key 8), not carried here; per-RP session keys (used for DPoP/GNAP thereafter) are what give cross-site unlinkability (§13.4, §13.7 limit 7), not this field. |
 | `sig` | 7 | `sig-val` | MUST | Signature by `from` over the origin-bound preimage **including `cnf`** (§18.9.8). A captured assertion cannot be replayed with an attacker-chosen session key because `cnf` is inside the signed preimage (session-hijack defense, §13.3). |
 | `cnf` | 8 | `hash` | MUST | Confirmation key = `H(session_pubkey)` (RFC 7800 style, §13.3 step 4). The client generates the per-RP, per-device session keypair **before** signing and commits it here; the RP MUST bind the session **only** to `cnf` (proof-of-possession, §13.4). Present on every native assertion, and embedded verbatim in a bridged ID Token (§13.6). |
+| `scope` | 9 | `[* tstr]` | OPTIONAL (echo) | Echo of `Challenge.scope` (§18.7.1 key 6); the **empty array `[]`** when the Challenge omits it. It is **inside the signed preimage** (§18.9.8), so the granted scope is cryptographically bound to the user's consent: the RP MUST reconstruct the preimage with exactly the scope it will grant and MUST NOT grant any scope broader than the signed value (a broader grant fails signature verification; an over-attenuated delegation surfaces as `0x0508`). Closes the OAuth-style scope-elevation where a scope the user never signed is granted on the login assertion. |
 
 ### 18.7.3 `CapabilityToken` and `CapabilityRevocation` (§13.5, §3.10.4)
 
@@ -1629,16 +1631,18 @@ signature of their own — an ARC presentation is verified by the ARC protocol
 Per §13.3 step 5 the signature is over the hash of the origin-bound fields **including `cnf`**:
 
 ```
-auth_hash    = BLAKE3-256( det_cbor([ rp_origin, nonce, issued_at, exp, aud, cnf ]) )
+auth_hash    = BLAKE3-256( det_cbor([ rp_origin, nonce, issued_at, exp, aud, scope, cnf ]) )
 preimage     = "DMTAP-v0/auth-assertion" ‖ 0x00 ‖ auth_hash
 Assertion.sig = Sign(sk_device, preimage)          ; sk_device = the IK-authorized login signer
 ```
 
-The hashed array is a fixed 6-element CBOR array in exactly that order — the five echoed
-`Challenge` fields followed by `cnf` (`Assertion` key 8) — matching §13.3 step 5's
-`H(rp_origin ‖ nonce ‖ issued_at ‖ exp ‖ aud ‖ cnf)`. The RP reconstructs it from its own issued
-`Challenge` plus the assertion's `cnf` and MUST reject any mismatch of `rp_origin`/`aud`, and MUST
-bind the session **only** to `cnf`. The signing key is the user's **`IK`-authorized device key**
+The hashed array is a fixed 7-element CBOR array in exactly that order — the five echoed
+`Challenge` fields, then `scope` (`Assertion` key 9; the **empty array `[]`** when the Challenge
+carries no `scope`), then `cnf` (`Assertion` key 8) — matching §13.3 step 5's
+`H(rp_origin ‖ nonce ‖ issued_at ‖ exp ‖ aud ‖ scope ‖ cnf)`. The RP reconstructs it from its own
+issued `Challenge` plus the assertion's `cnf`, **using exactly the scope it will grant**, and MUST
+reject any mismatch of `rp_origin`/`aud`, MUST NOT grant a scope broader than the signed value
+(a broader grant simply fails verification), and MUST bind the session **only** to `cnf`. The signing key is the user's **`IK`-authorized device key**
 (`Assertion.from`), verified against the pinned `name → key` identity (§3.4) — **not** the session
 key (which `cnf` merely commits) and not `IK` used directly for routine logins.
 
