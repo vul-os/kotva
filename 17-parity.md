@@ -794,7 +794,7 @@ survive translation, and that is correct, not a bug).
 | 51 | Account migration | Clean | `MoveRecord`, contacts follow by key (§1.6) |
 | 52 | Backup/restore | Different | Identity recovery is excellent (§1.4); content backup/DR undocumented (gap) |
 
-Tally: **34 Clean, 17 Different, 2 N/A, 1 Harder** (auto-complete/directory, formerly the one
+Tally: **34 Clean, 15 Different, 2 N/A, 1 Harder** (auto-complete/directory, formerly the one
 "Harder" feature with no fallback beyond manual setup, is now graded **Different** — §3.10.3 gives
 it a first-class `DomainDirectory` object and §3.10 an org-admin provisioning flow, leaving only
 the honest "an org must opt in" difference. The remaining strictly-"Harder" grade is message

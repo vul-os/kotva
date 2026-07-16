@@ -44,7 +44,8 @@ DMTAP's headline guarantee is **strong metadata privacy against a global *passiv
 - **Cover traffic** — nodes emit loop and drop cover messages at a steady rate; an observer
   cannot distinguish real activity from cover. Rate is a **tunable knob** (higher rate → more
   privacy, more bandwidth).
-- **Size padding** — MOTEs are padded to fixed size buckets so length does not leak.
+- **Size padding** — MOTEs are padded to fixed size buckets so the *exact* length does not leak
+  (an observer learns only which of the four size buckets, §4.4.1).
 
 These are **normative and fully specified** — the Sphinx packet format, mix directory, path
 selection, key rotation, cover-traffic rates, active-attack detection, entry guards, operator
@@ -97,7 +98,8 @@ hostile-buffer scenarios.
 - Default is `private`. `fast` is opt-in. Because *choosing* `fast` is itself a signal, clients
   keep `private` as the standing default and cover it with cover traffic.
 - **Files:** the control MOTE is always `private`. **Normal-size files route through the
-  mixnet like messages (fully metadata-private).** **Large-file bulk** uses `fast` — but MUST
+  mixnet like messages (same private-tier metadata privacy as messages — strong vs a global
+  passive adversary; the §6.6 residuals apply).** **Large-file bulk** uses `fast` — but MUST
   be **onion-routed (a few hops, Tor-style) + size-padded to buckets + swarmed from multiple
   holders**, accepting bandwidth cost. **This bulk tier is explicitly weaker:** like Tor, it
   provides relationship anonymity against *local/partial* adversaries but is **vulnerable to

@@ -76,17 +76,19 @@ The **conformance test suite** is the *operational definition* of compatibility.
 means "passes the suite," not "resembles the reference." This is the primary defense against
 fragmentation. The suite lives in `conformance/` as three coupled artifacts:
 
-- **`conformance/SUITE.md`** — the normative test-case catalog: 91 numbered cases
+- **`conformance/SUITE.md`** — the normative test-case catalog: 100 numbered cases
   (`DMTAP-<category>-<NN>`) grouped by the levels above, each pinning its spec clause, input,
   expected result (accept / reject + the §21 error code), and MUST/SHOULD.
-- **`conformance/suite.json`** — the same cases as machine-readable data, so a runner in **any
-  language** can drive them.
+- **`conformance/suite.json`** — the machine-readable mirror of those cases, so a runner in **any
+  language** can drive them. It currently mirrors 91 of the 100; the 9 wave-2 additions (the
+  deniable-1:1 and KT-v1-hardening families) are pending mirror, per the `SUITE.md` sync note.
 - **`conformance/vectors/vectors.json`** — 32 byte-exact known-answer vectors (derived from the
   §18 canonical CBOR) that the cases dispatch on.
 
 39 cases are byte-runnable today (33 vector-backed + 6 self-contained canonical-CBOR reject cases);
-the remaining 45 carry an exact construction recipe and expected §21 error for the branches whose
-subsystems are not yet vectored (mixnet/MLS/gateway/auth — see `conformance/README.md`). An
+the remaining 61 carry an exact construction recipe and expected §21 error for the branches whose
+subsystems are not yet vectored (mixnet/MLS/gateway/auth, plus the wave-2 deniable/KT-v1/org/
+device-attestation families — see `conformance/README.md`). An
 implementation conforms at a level iff it passes every `MUST` case of that level and of every level
 it composes. The reference `dmtap-core` self-check test drives the vectors, but the spec plus these
 three files are authoritative (§10.4), not the reference.

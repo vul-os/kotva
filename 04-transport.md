@@ -119,8 +119,8 @@ Baseline guarantees (each detailed below): each mix peels exactly one layer so *
 sees both sender and recipient**; mixes add **randomized (Poisson) delays** and reorder,
 defeating timing correlation; nodes emit **loop + drop cover traffic** so an observer cannot tell
 when real messages flow; **sealed sender** (§6.2) keeps the sender identity inside the payload,
-never in the outer packet; and **size padding** to the bucket ladder (§4.4.1, §16.3) means length
-leaks nothing.
+never in the outer packet; and **size padding** to the bucket ladder (§4.4.1, §16.3) means the
+*exact* length leaks nothing — an observer learns only which of the four size buckets (§4.4.1).
 
 ```mermaid
 flowchart LR

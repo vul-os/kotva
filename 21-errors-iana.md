@@ -132,7 +132,7 @@ Codes are listed in the same order as the steps they correspond to.
 | `0x020F` | `ERR_SUITE_DOWNGRADE` | §2.7 step 8, §1.3 (suite ratchet) | `Envelope.suite` is **below** the sender-contact's pinned suite high-water-mark — a downgrade attempt (e.g. a broken classical suite offered after both parties migrated to PQ). | No | DEFER_REQUESTS + USER_WARN — route to requests with a security warning; MUST NOT accept the downgraded MOTE, MUST NOT ratchet the high-water-mark down |
 | `0x0210` | `ERR_HYBRID_SUITE_INCOMPLETE` | §1.3 (hybrid composition), §16.7 | A hybrid-suite object (`0x02`) presented to a verifier that **supports** the hybrid suite validates on only **one** component (e.g. Ed25519 passes but the ML-DSA-65 component is absent/fails) — an intra-suite strip of the PQ half. A hybrid verifier MUST require **all** component signatures (AND-composition) and the X-Wing IND-CCA KEM combiner; single-component acceptance is for a genuinely legacy (single-component) verifier only, at that component's lower assurance. | No | FAIL_CLOSED_BLOCK — reject the incomplete/downgraded hybrid; MUST NOT accept it on the classical half |
 
-**Content-addressed dedup as replay defense.** §2.6/§20E's dedup-by-`id` is what makes a bare
+**Content-addressed dedup as replay defense.** §2.6/`0x020E`'s dedup-by-`id` is what makes a bare
 resend of a previously-processed MOTE a non-event rather than a distinct "replay" failure mode
 at this layer — the content address absorbs it structurally. Replay of a **nonce** (as opposed
 to a MOTE) is a distinct concept scoped to the Auth ceremony; see `0x0502` (§21.7).
