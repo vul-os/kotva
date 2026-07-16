@@ -1,8 +1,5 @@
-draft/body/
-draft/*.log
-draft/*.aux
-draft/*.toc
-draft/*.out
-draft/*.synctex*
+# spec PDF build (Node + headless Chrome; see build/)
+build/node_modules/
+build/dmtap.html
 .DS_Store
 *.swp

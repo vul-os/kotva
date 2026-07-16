@@ -74,10 +74,13 @@ not run DNS. See §3. DNS holds the **stable** binding (name → key); the mesh 
 
 The core trick that frees an address from any IP:
 
-```
-abc@def.com  ──DNS/§3──▶  public key   ──mesh/§4──▶  current location
-   NAME                    IDENTITY                    (IP/relay/mix path)
-   (human, stable)         (durable, portable)         (ephemeral, self-updated)
+```mermaid
+flowchart LR
+  N["<b>abc@def.com</b><br/>NAME<br/><i>human · stable</i>"]
+  K["<b>public key</b><br/>IDENTITY<br/><i>durable · portable</i>"]
+  L["<b>current location</b><br/>IP / relay / mix path<br/><i>ephemeral · self-updated</i>"]
+  N -->|"DNS + KT · §3"| K
+  K -->|"mesh DHT · §4"| L
 ```
 
 - **Name → key** is stable and lives in DNS (+ key transparency). It changes only when you
@@ -102,18 +105,38 @@ abc@def.com  ──DNS/§3──▶  public key   ──mesh/§4──▶  curre
 
 No gateway, no SMTP, no plaintext outside the endpoints.
 
+```mermaid
+sequenceDiagram
+  autonumber
+  participant S as Sender node
+  participant D as DHT / mixnet
+  participant R as Recipient node
+  S->>S: resolve abc@def.com → key K (§3, cached after first contact)
+  S->>D: fetch K's KeyPackages + current location (§4, §5.3)
+  S->>S: build MOTE — sealed-sender, MLS/HPKE to K, signed (§2,§5,§6)
+  S->>D: send (mixnet = private tier, or direct = fast tier)
+  D->>R: deliver
+  R->>R: verify → decrypt → store
+  R-->>S: ack (sender retries until ack — durability at the edge)
+```
+
 ### Legacy → DMTAP (inbound)
 
-```
-gmail ──SMTP──▶ Gateway ──wrap+attest+encrypt to K──▶ mesh ──▶ recipient node
-                (if node offline: return SMTP 4xx; Gmail retries)
+```mermaid
+flowchart LR
+  G["gmail"] -->|SMTP| GW["Gateway"]
+  GW -->|"wrap + attest + encrypt to K"| M["mesh"]
+  M --> R["recipient node"]
+  GW -. "node offline: SMTP 451, Gmail retries" .-> G
 ```
 
 ### DMTAP → Legacy (outbound)
 
-```
-node ──MOTE(legacy)──▶ Gateway ──SMTP + delegated DKIM──▶ gmail
-                       (node retries on failure)
+```mermaid
+flowchart LR
+  N["node"] -->|"MOTE (legacy dest)"| GW["Gateway"]
+  GW -->|"SMTP + delegated DKIM"| G["gmail"]
+  GW -. "node retries on failure" .-> N
 ```
 
 ## 0.5 Where state lives

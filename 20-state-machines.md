@@ -94,32 +94,23 @@ cannot and need not distinguish the two), `retry_timer_fires` [§16.1: backoff],
 
 ### Diagram
 
+```mermaid
+stateDiagram-v2
+  [*] --> QUEUED : enqueue
+  QUEUED --> RETRY : resolve_or_seal_blocked
+  QUEUED --> SEALED : resolve_and_seal_ok
+  SEALED --> IN_FLIGHT : dispatch_ok
+  SEALED --> EXPIRED : deadline_exceeded
+  IN_FLIGHT --> ACKED : ack_received
+  IN_FLIGHT --> RETRY : tier_unreachable
+  IN_FLIGHT --> EXPIRED : deadline_exceeded
+  RETRY --> IN_FLIGHT : retry_timer_fires
+  EXPIRED --> EXPIRED : late_ack (ignored, [fill])
+  ACKED --> [*]
 ```
-                enqueue
-                  │
-                  ▼
-     ┌──────────────────────┐  resolve_or_seal_blocked   ┌───────┐
-     │        QUEUED        │───────────────────────────▶│ RETRY │◀────────────┐
-     └──────────┬───────────┘                             └───┬───┘            │
-                │ resolve_and_seal_ok                          │ retry_timer_fires
-                ▼                                              │                │
-     ┌──────────────────────┐        dispatch_ok        ┌──────▼───────┐        │
-     │        SEALED        │──────────────────────────▶│  IN_FLIGHT   │────────┘
-     └──────────┬───────────┘                            └───┬─────┬──┘  tier_unreachable
-                │                                    ack_received  │
-                │ deadline_exceeded                        │      │ deadline_exceeded
-                │                                           ▼      │
-                │                                      ┌─────────┐ │
-                └─────────────────────────────────────▶│ EXPIRED │◀┘
-                                                         └────┬────┘
-                                                              │ late_ack (self-loop, [fill])
-                                                              ▼
-                                                         ┌─────────┐
-                                                         │ EXPIRED │
-                                                         └─────────┘
-                (ACKED reachable from QUEUED-path is not possible; ACKED is only
-                 reachable from IN_FLIGHT/RETRY via ack_received — self-loops on ACKED omitted)
-```
+
+*ACKED is reachable only from IN_FLIGHT via `ack_received`; the terminal `EXPIRED` absorbs a
+late ack rather than resurrecting the send.*
 
 ---
 

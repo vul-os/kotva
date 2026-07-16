@@ -1,0 +1,13 @@
+{
+  "title": "Decentralized Message Transfer & Access Protocol (DMTAP)",
+  "draftId": "draft-paruk-dmtap-00",
+  "author": "I. Paruk",
+  "org": "Envoir",
+  "workgroup": "Network Working Group",
+  "intendedStatus": "Standards Track (proposal)",
+  "date": "July 2026",
+  "expires": "January 2027",
+  "abstract": "DMTAP is an open protocol for sovereign, metadata-private communication — mail, chat, and files — and decentralized identity/login, over a peer-to-peer mesh, with an optional bridge to legacy email. It unifies message *transfer* (the role of SMTP) and message *access* (the role of IMAP) into one decentralized, encrypted protocol, and extends the same keypair identity into decentralized web login. A user's identity is a keypair; a human name (a `name@domain` address, or an optional `@handle`) is a replaceable pointer to it, and an 8-word key-derived safety phrase lets two parties verify they hold the right key. Content, authenticity, and the social graph are protected: messages are end-to-end encrypted and signed, and who-talks-to-whom is hidden from a global passive observer. DMTAP composes existing standards (MLS, HPKE, JMAP, libp2p, DNS, key transparency, Privacy Pass, WebAuthn, OAuth, DID); the novelty is the composition and transport, not new cryptography.",
+  "status": "This Internet-Draft is submitted in full conformance with the provisions of an open, royalty-free specification. Internet-Drafts are working documents; this document is a proposal and is *not* an RFC — an RFC number is assigned only upon publication by the relevant standards body. It is valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time. It is inappropriate to use this document as reference material or to cite it other than as \"work in progress.\" This draft will expire on January 2027.",
+  "requirements": "The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL** in this document are to be interpreted as described in BCP 14 (RFC 2119, RFC 8174) when, and only when, they appear in all capitals, as shown here."
+}

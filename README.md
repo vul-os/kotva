@@ -24,6 +24,23 @@ This is the **source of truth** for DMTAP. Independent implementations MUST be b
 this text alone, without reading the reference code. Where the reference implementation and this
 spec disagree, **the spec wins** (or the discrepancy is a bug to reconcile).
 
+## Building the PDF
+
+The spec is plain Markdown. [`dmtap.pdf`](dmtap.pdf) is generated from it — Markdown → HTML →
+PDF via headless Chrome, with **highlight.js** syntax highlighting and **mermaid** diagrams
+(no LaTeX). To rebuild:
+
+```sh
+cd build
+npm install            # markdown-it, highlight.js, mermaid, puppeteer-core
+npm run build          # → ../dmtap.pdf
+```
+
+It drives the Chrome already on the machine (override with `CHROME_PATH=…`); nothing is
+downloaded at render time. Diagrams are authored inline as ` ```mermaid ` fenced blocks, so they
+stay in the same Markdown a reader edits. See [`build/`](build/) for the script, cover metadata,
+and print stylesheet.
+
 ## Sections
 
 | # | File | Status | Contents |
