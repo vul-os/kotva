@@ -109,5 +109,17 @@ above and for ordering hints.
 | **Committer roster quorum** | **> n/2** (⌈(n+1)/2⌉ of current members) | a takeover Commit is valid only with a strict-majority member-signature quorum, so two partitions CANNOT each elect a rival successor (split-brain prevention, §5.1) |
 | Group join-request expiry | 30 days | a `request`-mode join with no admin response is auto-expired/cleaned up (§5.8.2; mirrors requests-area retention §16.5) |
 
+## 16.9 Deniable mode & endpoint hardening
+
+| Parameter | Default | Notes |
+|-----------|---------|-------|
+| Deniable one-time-prekey (OPK) bundle size | 100 | X3DH/PQXDH one-time prekeys published per replenish (§5.2.1, §18.4.8); Signal-scale |
+| Deniable OPK replenish threshold | ≤ 20 remaining | owner's node republishes the bundle before exhaustion (§5.2.1) |
+| Deniable last-resort prekey use | rate-limited (signed prekey / last-resort KEM) | fallback when OPKs exhausted; reused, so rate-limited to bound reuse (§5.2.1, `0x040B`) |
+| Deniable signed-prekey rotation | ≤ 7 days | rotate `spk` (and PQ last-resort KEM key) on this cadence; old kept briefly for in-flight inits (§5.2.1) |
+| Double-Ratchet skipped-message keys (MAX_SKIP) | 1000 | max out-of-order message keys cached before a gap is irrecoverable (`0x040D`, §5.2.1) |
+| At-rest key relock timeout | ≤ 5 min inactivity (client policy) | evict the unlock-released at-rest key from memory after this idle period (§6.7); shorter on mobile |
+| `sensitive` message persistence | never written at rest | ephemeral-view only; MUST NOT be persisted by a compliant recipient (§6.7, §18.3.6) |
+
 All numeric values here are v0 defaults; a future protocol version MAY revise them, and
 capability negotiation (§10.2) carries any non-default profile.

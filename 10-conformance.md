@@ -23,7 +23,8 @@
 - A sender discovers a recipient's capabilities via the recipient's `Identity`/DNS record
   (native DMTAP vs legacy-only) and picks the path per-recipient (§3, §7.6).
 - `system` MOTEs (kind `0x0a`) carry capability announcements between nodes (supported suites,
-  privacy tiers, MLS ciphersuites, extensions, KT log-types, transport substrates).
+  privacy tiers, MLS ciphersuites, the optional `deniable-1:1` mode (§5.2.1), extensions, KT
+  log-types, transport substrates).
 - **Anti-rollback: capability announcements are monotonic (normative).** A capability
   announcement is authenticated (it rides inside a `system` MOTE authenticated to the recipient,
   §2.7) but, without a version, a replayed *older* announcement could **suppress a capability the

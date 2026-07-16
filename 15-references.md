@@ -16,6 +16,10 @@ where DMTAP narrows or extends a referenced spec, the DMTAP text is normative fo
 | **RFC 7748** | Elliptic Curves for Security (X25519) | key agreement (§1) |
 | **RFC 9420** | The Messaging Layer Security (MLS) Protocol | group/session security for 1:1, groups, files, multi-device (§5) |
 | **RFC 9750** | The MLS Architecture | Delivery/Authentication Service roles → mesh/KT mapping (§5) |
+| **Signal X3DH** (Marlinspike & Perrin, 2016) | Extended Triple Diffie-Hellman | authenticated key agreement for the optional deniable 1:1 mode (§5.2.1) |
+| **Signal PQXDH** (Kret & Schmidt, 2023) | Post-Quantum X3DH (ML-KEM-768) | PQ variant of the deniable-mode handshake, suite 0x02 (§5.2.1) |
+| **Signal Double Ratchet** (Perrin & Marlinspike, 2016) | per-message FS + PCS ratchet, shared-key-MAC auth | the deniable 1:1 session channel (§5.2.1) |
+| **XEdDSA / VXEdDSA** (Perrin, 2016) | Ed25519↔X25519 signing/DH from one key | derive the X3DH identity DH key from `IK` without a new long-term key (§5.2.1) |
 | **RFC 8949** | Concise Binary Object Representation (CBOR) | wire serialization; **deterministic (core) encoding, §4.2** (all objects) |
 | **FIPS 203** | ML-KEM (Module-Lattice KEM) | PQ KEM (suite 0x02, §1.1) |
 | **FIPS 204** | ML-DSA (Module-Lattice signatures) | PQ signatures (suite 0x02, §1.1) |
@@ -88,6 +92,10 @@ where DMTAP narrows or extends a referenced spec, the DMTAP text is normative fo
 | **draft-ietf-mls-pq-ciphersuites / -combiner** | PQ-MLS | PQ migration for the messaging layer (§5) |
 | **draft-kohbrok-mls-dmls** | Decentralized MLS | ongoing work on MLS over a leaderless mesh (§5.1) |
 | **draft-yun-privacypass-arc** | Anonymous Rate-Limited Credentials | the ARC token profile (§9.3) |
+| **Vatandas, Gennaro, Ithurburn & Krawczyk** (ACNS 2020) | On the Cryptographic Deniability of the Signal Protocol | the honest bound on X3DH offline vs online/interactive deniability (§5.2.1(e)) |
+| **Unger & Goldberg** (PETS 2015/2018) | Deniable Authenticated Key Exchange for secure messaging | deniability model precedent for the 1:1 mode (§5.2.1) |
+| **Android Key Attestation / Apple Secure Enclave / TPM 2.0 / FIDO** | hardware keystores + key attestation | non-exportable device keys and the `DeviceCert` attestation hook (§1.2a) |
+| **Signal Sesame** (2017) | multi-device session management | per-device-pair session fan-out for the deniable mode (§5.2.1(d)) |
 
 ## 15.6 On reproduction
 

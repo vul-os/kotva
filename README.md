@@ -230,9 +230,12 @@ DMTAP states what it *cannot* do rather than overclaim:
   unlimited resources is bounded by the Anonymity Trilemma, not defeated.
 - A first-contact MITM before key-transparency/out-of-band verification is possible; safety numbers
   and KT close it.
-- Endpoint or full device-cluster compromise reads your plaintext (as on any system).
+- Endpoint compromise is hardened (hardware-backed non-exportable keys, unlock-gated at-rest
+  encryption, per-device sealing, fast revocation) down to one floor: a device **actively
+  compromised while unlocked and in use** reads your plaintext (as on any system).
 - The legacy-email leg is, by construction, plaintext at the far end.
-- MLS is signature-based, so messages are **not** deniable in v0.
+- The default MLS path is signature-based (non-repudiable); an **optional deniable 1:1 mode**
+  (Signal-style X3DH/PQXDH + Double Ratchet) gives cryptographic repudiation when you choose it.
 
 ## Non-goals
 

@@ -106,6 +106,7 @@ accepted on the fast path). See §9 for the grammar, issuer-trust rules, and eac
 0x08  presence        ephemeral presence/typing (opt-in, off by default; §6)
 0x09  identity        Identity/Move/RecoveryPolicy announcement (§1)
 0x0a  system          protocol control (capability negotiation, §10)
+0x0b  deniable        optional deniable 1:1 transport frame (§5.2.1); real content kind rides inside
 0x40–0x7f  reserved for extensions (§10)
 ```
 

@@ -104,6 +104,7 @@ fixed here once so the tables can cite them tersely without re-explaining each t
 | `0x0113` | `ERR_DOMAIN_DIRECTORY_SIG_INVALID` | `DomainDirectory` verification (§3.10.3, §18.4.7) | The org directory object is not validly signed by the domain's pinned authority key (§3.10.1). | No | FAIL_CLOSED_BLOCK — do not trust the directory; per-name resolution (§3.3) is unaffected |
 | `0x0114` | `ERR_DIRECTORY_ENTRY_UNVERIFIED` | `DirEntry` forward-binding check (§3.10.3, §3.9.4) | A directory entry's `name → ik` does not match the forward DNS + KT binding — the directory indexes, it does not attest. | No | FAIL_CLOSED_BLOCK — render the entry unverified; MUST NOT be used to address mail |
 | `0x0115` | `ERR_ORG_MANAGED_UNDISCLOSED` | Member-custody disclosure check (§3.10.2, §18.4.7) | An org-managed (escrowed-key) account is presented without its `org-managed` custody marker — undisclosed org access to a member's mailbox. | No | HALT_ALERT — MUST NOT present as a sovereign identity; surface the escrow honestly |
+| `0x0116` | `ERR_DEVICE_ATTESTATION_INVALID` | `DeviceCert` hardware-attestation check (§1.2a, §18.4.2) | A context that **requires** a hardware-backed, non-exportable device key finds the `DeviceCert`'s `key_protection`/`attestation` absent or failing to verify against the platform attestation root. Advisory hardening only — never overrides the §1.4 authorization authority. | Conditional (re-enroll on an attested keystore) | FAIL_CLOSED_BLOCK — reject the device for the attestation-gated context; a non-gated context is unaffected |
 
 ## 21.4 Delivery & Validation — the MOTE object (`0x02xx`)
 
@@ -168,6 +169,11 @@ to a MOTE) is a distinct concept scoped to the Auth ceremony; see `0x0502` (§21
 | `0x0408` | `ERR_EXTERNAL_COMMIT_REJECTED` | Self-join via External Commit (§5.3) | `GroupInfo` referenced by the External Commit is stale or invalid. | Yes | REJECT_NOTIFY |
 | `0x0409` | `ERR_GROUP_POLICY_VIOLATION` | Add/Remove/role/policy Commit (§5.8.2) | The proposing member's role does not satisfy the required `admin`/`owner` authorization for the requested change. | No, without a role change | DENY_POLICY |
 | `0x040A` | `ERR_TREEKEM_STATE_DIVERGENCE` | Post-Commit ratchet-tree integrity check (§5.1) | A member's derived tree/epoch secret disagrees with the group's expected state after applying an agreed Commit sequence. | Yes (resync from Welcome/External Commit) | HALT_ALERT — treated as a potential integrity failure, not silently reconciled |
+| `0x040B` | `ERR_DENIABLE_PREKEY_INVALID_OR_EXHAUSTED` | Deniable-mode prekey intake (§5.2.1, §18.4.8) | A `DeniablePrekeyBundle`'s `sig`/`spk_sig` fails to verify, or the identity's bundle is exhausted (no unspent one-time prekey and last-resort rate-limited out). | Yes (fetch a replenished bundle) | REJECT_NOTIFY — surface to the initiating client; fall back to non-deniable MLS 1:1 only with user consent (§5.2.1(d)) |
+| `0x040C` | `ERR_DENIABLE_X3DH_FAILED` | Deniable-mode key agreement (§5.2.1(a)) | X3DH/PQXDH shared-secret derivation failed — an unknown/expired `spk_ref`/`opk_ref`/`kem_ref`, or a KEM decapsulation mismatch. | Yes (re-initiate with current prekeys) | REJECT_NOTIFY |
+| `0x040D` | `ERR_DENIABLE_RATCHET_AUTH_FAILED` | Double-Ratchet message auth (§5.2.1(b), §18.9.10) | A `DeniableMessage` AEAD tag (the shared-key MAC) fails to verify, or the message is irrecoverably out of ratchet order (beyond MAX_SKIP, §16.9). | No (this message) | DROP_SILENT — a MAC failure reveals nothing to notify; skipped-key exhaustion holds for resync |
+| `0x040E` | `ERR_DENIABLE_MODE_UNAVAILABLE` | Deniable-mode capability check (§5.2.1(d), §10.2) | The recipient has not advertised the `deniable-1:1` capability token, so a deniable session cannot be established. | Conditional (recipient may advertise it later) | REJECT_NOTIFY — the client MUST surface the choice (send non-deniable, or not at all); MUST NOT silently downgrade the user's expectation of deniability |
+| `0x040F` | `ERR_DENIABLE_SIGNATURE_PRESENT` | `DeniablePayload` decode (§5.2.1(c), §18.3.10) | A `DeniablePayload` carries a signature field — its presence would make the transcript attributable and defeat the mode's whole purpose. | No | FAIL_CLOSED_BLOCK — reject the message; the deniable payload MUST be MAC-authenticated only, never signed |
 
 ## 21.7 Auth errors — DMTAP-Auth (`0x05xx`)
 
@@ -291,6 +297,12 @@ auditability:
 | Org-managed custody undisclosed | `0x0115` |
 | Committer-fork-detected | `0x0404` |
 | Committer-unreachable | `0x0405` |
+| Deniable prekey invalid/exhausted | `0x040B` |
+| Deniable X3DH/PQXDH failed | `0x040C` |
+| Deniable ratchet MAC failed | `0x040D` |
+| Deniable mode not advertised | `0x040E` |
+| Deniable payload carries a signature (forbidden) | `0x040F` |
+| Device hardware-attestation invalid | `0x0116` |
 | Session-revoked | `0x0504` |
 | Session-expired | `0x0505` |
 | Origin-mismatch (auth) | `0x0501` |
@@ -332,7 +344,7 @@ extension procedure in §21.25. Allocation policies use the standard terms of RF
 | **Registry name** | DMTAP Error/Status Codes |
 | **Reference** | §21.1–§21.11 (this document) |
 | **Allocation policy** | New subsystem byte (`0x09`–`0xEF`): Standards Action. New code point within an existing subsystem (`NN` = `0x01`–`0x7F`): Specification Required. `NN` = `0x80`–`0xFE` within any subsystem: Private Use (implementation-local diagnostics; MUST map to the nearest standard code's Responder Action, §21.2, for any behavior visible to another implementation). `SS`/`NN` = `0x00` or `0xFF`: Reserved. |
-| **Initial contents** | The 98 codes enumerated in §21.3–§21.11. |
+| **Initial contents** | The 104 codes enumerated in §21.3–§21.11. |
 | **Registry discipline** | Append-only. A retired code MUST be marked Deprecated, never deleted or reassigned to a different meaning (mirroring the append-only philosophy of the KT log, §3.5). |
 
 ## 21.15 Algorithm Suites Registry (`suite` u8)
@@ -351,8 +363,8 @@ extension procedure in §21.25. Allocation policies use the standard terms of RF
 |---|---|
 | **Registry name** | DMTAP Message Kinds |
 | **Reference** | §2.3, §10.1 |
-| **Allocation policy** | `0x00`–`0x0A`: assigned (below). `0x0B`–`0x3F`: Unassigned — Standards Action (reserved for future *core* kinds sharing the wire-format guarantees of the initial set). `0x40`–`0x7F`: Specification Required (the extension range named in §2.3/§10.1). `0x80`–`0xFE`: Private Use. `0xFF`: Reserved. |
-| **Initial contents** | `0x00 mail`, `0x01 chat`, `0x02 reaction`, `0x03 edit`, `0x04 redact`, `0x05 file_offer`, `0x06 group_event`, `0x07 receipt`, `0x08 presence`, `0x09 identity`, `0x0A system`. |
+| **Allocation policy** | `0x00`–`0x0B`: assigned (below). `0x0C`–`0x3F`: Unassigned — Standards Action (reserved for future *core* kinds sharing the wire-format guarantees of the initial set). `0x40`–`0x7F`: Specification Required (the extension range named in §2.3/§10.1). `0x80`–`0xFE`: Private Use. `0xFF`: Reserved. |
+| **Initial contents** | `0x00 mail`, `0x01 chat`, `0x02 reaction`, `0x03 edit`, `0x04 redact`, `0x05 file_offer`, `0x06 group_event`, `0x07 receipt`, `0x08 presence`, `0x09 identity`, `0x0A system`, `0x0B deniable` (deniable 1:1 transport frame carrying a `DeniableFrame`, §5.2.1; the real content kind rides inside the `DeniablePayload`, §18.3.10). |
 | **Forward-compatibility rule** | A node MUST NOT `ack` a `kind` it cannot validate, whether unassigned or merely unimplemented (§10.1, `0x020A`). It MAY ignore such a MOTE without error. This is the single rule that lets new kinds roll out without a flag day. |
 
 ## 21.17 Challenge Types Registry
@@ -411,7 +423,7 @@ extension procedure in §21.25. Allocation policies use the standard terms of RF
 | **Registry name** | DMTAP Capability Tokens |
 | **Reference** | §10.2, `system` MOTEs (`kind = 0x0A`) |
 | **Allocation policy** | Specification Required for tokens intended to be portable across implementations; `x-`-prefixed tokens are Private Use / FCFS, mirroring §21.20. |
-| **Initial contents** | Supported-suite tokens (§1.1); privacy-tier tokens (`private`, `fast`, §4.6); supported MLS ciphersuite tokens (§5.1); KT log-type tokens (`0x01`/`0x02`, §3.5.2, §21.19); mix-suite tokens (§4.4.12, §21.23); transport-substrate tokens (§4.1, §21.24); supported extension-kind/extension-header tokens (cross-referencing §21.16/§21.20 registrations); and **signed-object `≥ 64` extension-field tokens** — a peer advertises support for a reserved extension field before any sender may include it in a *signed* object (§18.1.2, §10.2). |
+| **Initial contents** | Supported-suite tokens (§1.1); privacy-tier tokens (`private`, `fast`, §4.6); supported MLS ciphersuite tokens (§5.1); the **`deniable-1:1`** token (advertises support for the optional deniable 1:1 mode, §5.2.1 — both peers MUST advertise it before a deniable session is established); KT log-type tokens (`0x01`/`0x02`, §3.5.2, §21.19); mix-suite tokens (§4.4.12, §21.23); transport-substrate tokens (§4.1, §21.24); supported extension-kind/extension-header tokens (cross-referencing §21.16/§21.20 registrations); and **signed-object `≥ 64` extension-field tokens** — a peer advertises support for a reserved extension field before any sender may include it in a *signed* object (§18.1.2, §10.2). |
 | **Announcement versioning** | Capability announcements are **monotonic**: each carries a `caps_version` (`u64`) and a receiver rejects an announcement older-or-equal to the last accepted from that peer (`ERR_CAPABILITY_ANNOUNCE_ROLLBACK`, `0x030A`, §10.2), so a stale replay cannot suppress an advertised capability. |
 | **Forward-compatibility rule** | A node receiving a capability token it does not recognize MUST ignore that token (not the whole `system` MOTE) and MUST NOT assume the counterpart lacks the capability merely because the token name is unfamiliar — absence of a recognized token (in the current, highest-`caps_version` announcement) is inconclusive, not a negative assertion. |
 
@@ -491,12 +503,15 @@ fragmenting."
 
 ## 21.26 Summary
 
-- **Error/status codes defined:** 98 (`0x0101`–`0x0115`: 21, incl. the KT-v1 detection codes
-  `0x0110`–`0x0112` and the org-administration codes `0x0113`–`0x0115` (§3.10); `0x0201`–`0x020F`: 15,
-  incl. `0x020F` suite-downgrade (§1.3); `0x0301`–`0x0310`: 16, incl. `0x030A` capability-announce
+- **Error/status codes defined:** 104 (`0x0101`–`0x0116`: 22, incl. the KT-v1 detection codes
+  `0x0110`–`0x0112`, the org-administration codes `0x0113`–`0x0115` (§3.10), and `0x0116`
+  device-attestation (§1.2a); `0x0201`–`0x020F`: 15, incl. `0x020F` suite-downgrade (§1.3);
+  `0x0301`–`0x0310`: 16, incl. `0x030A` capability-announce
   rollback (§10.2) and the mixnet codes `0x030B`–`0x0310` — directory/descriptor/path (`0x030B`–`0x030D`),
   replay (`0x030E`), active-attack detection (`0x030F`), and no-downgrade fail-closed (`0x0310`) (§4.4);
-  `0x0401`–`0x040A`: 10;
+  `0x0401`–`0x040F`: 15, incl. the deniable-mode codes `0x040B`–`0x040F` (§5.2.1) — prekey
+  invalid/exhausted, X3DH/PQXDH failure, ratchet-MAC failure, mode-unavailable, and the
+  signature-forbidden guard;
   `0x0501`–`0x050A`: 10; `0x0601`–`0x0604`: 4, plus the informative SMTP mapping table of §21.9;
   `0x0701`–`0x070E`: 14; `0x0801`–`0x0808`: 8, incl. `0x0808` manifest-key-present (§5.5)),
   spanning the 8 requested subsystems, with every code resolving to exactly one of the 13

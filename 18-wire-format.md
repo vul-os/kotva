@@ -209,10 +209,10 @@ Envelope = {
 | `to` | 4 | `DeliveryTag` | MUST | Routing target: recipient key, group id, or blinded tag (§18.3.2). If it does not resolve to this node/group, the MOTE is dropped (§2.7 step 4). |
 | `epoch` | 5 | `bytes` | OPTIONAL | MLS epoch / group-context reference; present **iff** the MOTE targets an MLS group, so the recipient selects the right epoch key (§5.1). Absent for 1:1/HPKE-sealed MOTEs. Opaque; length set by MLS. |
 | `ts` | 6 | `ts` | MUST | Sender wall-clock timestamp, ms since Unix epoch. Subject to clock-skew tolerance ±120 s (§16.1). Used only for ordering/expiry, never for correctness. |
-| `kind` | 7 | `u8` | MUST | Message kind (§2.3): `0x00` mail … `0x0a` system; `0x40–0x7f` reserved extensions. A node MUST NOT `ack` a kind it cannot validate (§10.1). |
+| `kind` | 7 | `u8` | MUST | Message kind (§2.3): `0x00` mail … `0x0a` system, `0x0b` **deniable** (§5.2.1); `0x40–0x7f` reserved extensions. A node MUST NOT `ack` a kind it cannot validate (§10.1). |
 | `keypkg` | 8 | `KeyPackageRef` | OPTIONAL | Present **iff** this MOTE initiates an MLS session against one of the recipient's published KeyPackages (async join, §5.3). Identifies the consumed KeyPackage (§18.3.4). |
 | `challenge` | 9 | `ChallengeResponse` | OPTIONAL | Anti-abuse proof for a **cold** sender (§9), evaluated *without decrypting* (§2.7 step 6). Known contacts omit it (fast path). One of ARC token / PoW / stamp / vouch (§18.3.3). |
-| `ciphertext` | 10 | `bytes` | MUST | The MLS `PrivateMessage` or HPKE-sealed `Payload` (§18.3.5). Opaque to every intermediary. Its bytes are the sole input to `id`. |
+| `ciphertext` | 10 | `bytes` | MUST | The MLS `PrivateMessage`, the HPKE-sealed `Payload` (§18.3.5), **or** — when `kind = 0x0b` (deniable, §5.2.1) — the deterministic CBOR of a `DeniableFrame` (§18.3.9), whose payload is Double-Ratchet-encrypted. Opaque to every intermediary (the recipient node decrypts). Its bytes are the sole input to `id`. |
 | `sender_sig` | 11 | `sig-val` | MUST | Detached signature by an **ephemeral, per-message** signing key (unlinkable) over the preimage of §18.9.1 `(DS ‖ id ‖ to ‖ ts ‖ kind ‖ challenge)`. Gates abuse; reveals no identity (identity is inside `Payload`). Verified at §2.7 step 3. |
 | `sender_key` | 12 | `sig-pub` | MUST | The **ephemeral, per-message** public key that verifies `sender_sig`. A verifier has no persistent key to look up for an unknown cold sender, so the verification key MUST travel with the message; it is fresh per message (hence unlinkable) and asserts no identity. `sig-pub` is a raw public key whose length is fixed by `suite` (§18.1.4), matching the signature algorithm of `sender_sig`. The `challenge` (field 9) MUST be cryptographically bound to this key (§9.4). |
 
@@ -365,6 +365,7 @@ Headers = {
   ? 3 => tstr,                ; mime     content type of Body
   4 => [* ik-pub],            ; cc       additional recipient keys (fan-out is per-recipient)
   ? 5 => { * tstr => ext-value }, ; ext   extension headers (§10) — deterministic-safe values only
+  ? 6 => bool,                ; sensitive  MUST NOT be persisted at rest by the recipient (§6.7)
 }
 
 ; ext values are constrained to the deterministic-CBOR-safe subset (§18.1.1): NO floats,
@@ -382,6 +383,7 @@ Body = tstr / bytes           ; UTF-8 text, or opaque MIME bytes
 | `mime` | 3 | `tstr` | OPTIONAL | Media type of `Body` (e.g. `"text/plain; charset=utf-8"`, `"message/rfc822"`). If absent, `Body` of type `tstr` defaults to `text/plain; charset=utf-8`. |
 | `cc` | 4 | `[* ik-pub]` | MUST (MAY be empty) | Additional recipient identity keys. Delivery fan-out is one sealed MOTE **per recipient** (§2.4); `cc` is informational threading metadata visible only to those who can decrypt. |
 | `ext` | 5 | `{* tstr => ext-value}` | OPTIONAL | Text-keyed extension headers (§10). The **only** place text keys are admitted — but values are restricted to `ext-value` (bool/int/bytes/tstr and nestings), **not** arbitrary CBOR: floats, NaN/Infinity, `undefined`, and tags are forbidden (§18.1.1 rules 4–5), because `Headers` is inside the signed `Payload` (§18.9.2) and a non-canonical value would make the signature non-reproducible. A decoder MUST reject an `ext` value outside `ext-value` (fail closed) rather than sign/verify over an ambiguous encoding. Unknown extension *keys* MUST be ignored, never rejected. Keys SHOULD be namespaced (e.g. `"x-vendor-foo"`). |
+| `sensitive` | 6 | `bool` | OPTIONAL | If `true`, the receiving client **MUST NOT persist the message at rest** — hold it for an ephemeral view only, never write it to the durable MOTE store (§6.7, endpoint-seizure least-persistence). Cooperative like `expires` (§6.6 item 8): a compliant recipient honors it, a compromised one can still copy what it reads. Absent ⇒ `false` (normal persistence). |
 | `Body` | — | `tstr / bytes` | (as `Payload.body`) | `tstr` ⇒ UTF-8 text; `bytes` ⇒ opaque MIME per `mime`. A decoder MUST accept either major type. |
 
 ### 18.3.7 `Attachment` and `ManifestRef` (§2.5)
@@ -439,6 +441,85 @@ Manifest = {
 | ~~`key`~~ | ~~5~~ | — | **FORBIDDEN** | The file content key MUST NOT appear in a `Manifest`. A `Manifest` is a content-addressed blob fetched from the swarm to obtain the chunk list (§5.5, §19.8.2); any holder that serves it would then also learn the key and could decrypt every chunk, defeating blind chunk-serving. The key travels **only** in `Attachment.key` (§18.3.7, key 6) inside the **sealed** MOTE. A decoder that receives a `Manifest` containing key `5` MUST reject it (`ERR_MANIFEST_KEY_PRESENT`, §21) as a leak/malformation, never use the embedded key. Key `5` is reserved-unused for this object so an old sender's leaky manifest is detected, not silently honored. |
 | `suite` | 6 | `suite` | MUST | Suite governing chunk AEAD and the digest algorithm of each `h_i` and of `id`. |
 
+### 18.3.9 `DeniableFrame`, `DeniableInit`, `DeniableMessage` (§5.2.1)
+
+The transport frame of the **optional deniable 1:1 mode** (§5.2.1). Carried as the
+`Envelope.ciphertext` of a `kind = 0x0b` MOTE. A tagged choice; key `0` is the variant
+discriminator. **None of these objects carries a `sig-val`** — authentication is the Double
+Ratchet's shared-key MAC (the AEAD tag), which either party could compute; that absence is what
+makes the mode repudiable (§18.9.10).
+
+```cddl
+DeniableFrame = DeniableInit / DeniableMessage
+
+DeniableInit = {
+  0 => 1,               ; discriminator: X3DH/PQXDH first message (§5.2.1(a))
+  1 => suite,           ; suite     0x01 ⇒ X3DH; 0x02 ⇒ PQXDH (ML-KEM-768)
+  2 => ik-pub,          ; ik_a      initiator IK (the X25519 identity-DH key is XEdDSA-derived from it)
+  3 => bytes,           ; ek_a      initiator ephemeral X25519 public key
+  4 => hash,            ; spk_ref   content-addr of the responder signed prekey consumed
+  ? 5 => hash,          ; opk_ref   content-addr of the responder one-time prekey consumed (absent ⇒ signed-prekey only)
+  ? 6 => bytes,         ; kem_ct    PQXDH KEM ciphertext to the responder KEM key (present iff suite = 0x02)
+  ? 7 => hash,          ; kem_ref   content-addr of the responder one-time KEM prekey consumed (PQ)
+  8 => DeniableMessage, ; msg       the first Double-Ratchet message (embedded)
+}
+
+DeniableMessage = {
+  0 => 2,               ; discriminator: subsequent Double-Ratchet message (§5.2.1(b))
+  1 => bytes,           ; dh        sender's current ratchet X25519 public key
+  2 => u32,             ; pn        number of messages in the previous sending chain
+  3 => u32,             ; n         message number in the current sending chain
+  4 => bytes,           ; ct        AEAD ciphertext of the DeniablePayload; the AEAD tag is the shared-key MAC
+}
+```
+
+| Object | Field | Key | Type | Presence | Meaning & constraints |
+|--------|-------|----:|------|----------|-----------------------|
+| `DeniableInit` | disc | 0 | `1` | MUST | Selects the X3DH/PQXDH first message. |
+| | `suite` | 1 | `suite` | MUST | `0x01` ⇒ classical X3DH; `0x02` ⇒ PQXDH with ML-KEM-768 (§16.7). MUST satisfy the recipient's suite ratchet (§1.3); a below-high-water-mark suite is rejected (`0x020F`). |
+| | `ik_a` | 2 | `ik-pub` | MUST | Initiator `IK`. Only the **recipient** parses this (sealed sender — the whole `ciphertext` is opaque to intermediaries). The X3DH long-term identity DH key is XEdDSA-derived from it (§5.2.1(a)); the recipient MUST bind it to the pinned `name → key` identity (§3.4). |
+| | `ek_a` | 3 | `bytes` | MUST | Initiator ephemeral X25519 public key for the X3DH DH mix. |
+| | `spk_ref` | 4 | `hash` | MUST | Content address of the responder **signed prekey** (`spk`) consumed from the responder's `DeniablePrekeyBundle` (§18.4.8). Unknown/expired ⇒ `ERR_DENIABLE_X3DH_FAILED` (`0x040C`). |
+| | `opk_ref` | 5 | `hash` | OPTIONAL | Content address of the responder **one-time prekey** consumed. Absent ⇒ the signed prekey alone was used (last-resort, rate-limited, §16.9). A one-time prekey MUST be marked spent on use. |
+| | `kem_ct` | 6 | `bytes` | OPTIONAL | PQXDH KEM ciphertext encapsulated to the responder's ML-KEM key; present **iff** `suite = 0x02`. |
+| | `kem_ref` | 7 | `hash` | OPTIONAL | Content address of the responder one-time KEM prekey consumed (PQ); absent ⇒ last-resort KEM key. |
+| | `msg` | 8 | `DeniableMessage` | MUST | The first Double-Ratchet message, whose `ct` is already ratchet-encrypted under the freshly agreed root key. |
+| `DeniableMessage` | disc | 0 | `2` | MUST | Selects a subsequent Double-Ratchet message. |
+| | `dh` | 1 | `bytes` | MUST | Sender's current ratchet X25519 public key (the DH-ratchet step, §5.2.1(b)). |
+| | `pn` | 2 | `u32` | MUST | Count of messages in the previous sending chain (skipped-key handling, MAX_SKIP §16.9). |
+| | `n` | 3 | `u32` | MUST | Message number in the current sending chain. |
+| | `ct` | 4 | `bytes` | MUST | AEAD ciphertext of the `DeniablePayload` (§18.3.10) under the derived message key. The **AEAD tag is the shared-key MAC**; a verification failure is `ERR_DENIABLE_RATCHET_AUTH_FAILED` (`0x040D`). The AEAD **associated data** is the standard Double-Ratchet AD — the ratchet header `(dh, pn, n)` concatenated with the X3DH-established context `AD = IK_A ‖ IK_B` (the two parties' identity keys, §5.2.1) — so a message cannot be cut-and-pasted across sessions or reattributed. It does **not** and cannot bind `Envelope.id` (which is the hash of the ciphertext that already contains this `ct`). **No signature accompanies it — by design.** |
+
+### 18.3.10 `DeniablePayload` (§5.2.1)
+
+The plaintext sealed into a `DeniableMessage.ct` — the structural twin of `Payload` (§18.3.5)
+**with the identity signature removed**, because the mode's authentication is the ratchet MAC,
+not a signature. It carries the real content `kind` (the envelope `kind` is the fixed `0x0b`).
+
+```cddl
+DeniablePayload = {
+  1 => ik-pub,          ; from      sender IK (bound by X3DH, NOT by a signature — repudiable)
+  2 => u8,              ; kind      the real content kind (mail/chat/reaction/…, §2.3)
+  3 => Headers,         ; headers   (§18.3.6)
+  4 => Body,            ; body      (§18.3.6)
+  5 => [* hash],        ; refs      threading (§2.3)
+  6 => [* Attachment],  ; attach    (§18.3.7)
+  ? 7 => ts,            ; expires   requested client-enforced expiry
+  ; NO signature field. A DeniablePayload carrying one MUST be rejected (0x040F).
+}
+```
+
+| Field | Key | Type | Presence | Meaning & constraints |
+|-------|----:|------|----------|-----------------------|
+| `from` | 1 | `ik-pub` | MUST | Sender `IK`. It is **authenticated by the X3DH/PQXDH key agreement** (the shared secret can only be derived by the holder of `ik_a`'s identity key and the consumed prekeys), **not** by a signature — so the recipient is convinced of the sender *to itself* while retaining no transferable proof of authorship (repudiation). MUST match the pinned identity for a known contact (§3.4). |
+| `kind` | 2 | `u8` | MUST | The real content kind (§2.3), since the envelope `kind` is the fixed transport tag `0x0b`. A node MUST NOT act on a `kind` it cannot validate. |
+| `headers` | 3 | `Headers` | MUST | As §18.3.6. MAY be empty. The `sensitive` flag (key 6) is honored as in any MOTE. |
+| `body` | 4 | `Body` | MUST | As §18.3.6. MAY be empty. |
+| `refs` | 5 | `[* hash]` | MUST (MAY be empty) | Threading references (§2.3). |
+| `attach` | 6 | `[* Attachment]` | MUST (MAY be empty) | Attachments (§18.3.7); per-file keys travel in `Attachment.key` as always. |
+| `expires` | 7 | `ts` | OPTIONAL | Requested client-enforced expiry (§2.4). |
+| ~~`sig`~~ | — | — | **FORBIDDEN** | A `DeniablePayload` MUST NOT carry any signature field. Its presence would make the transcript attributable and defeat the mode; a decoder that finds one MUST reject the message (`ERR_DENIABLE_SIGNATURE_PRESENT`, `0x040F`). |
+
 ---
 
 ## 18.4 Identity-layer objects (§1)
@@ -460,6 +541,7 @@ Identity = {
   ? 8  => hash,                 ; prev      hash of previous Identity version (hash chain)
   9  => ts,                     ; ts
   10 => [+ sig-val],            ; sig       ONE signature per suite in `suites`, over the body
+  ? 11 => KeyPackageBundleRef,  ; deniable_prekeys  OPTIONAL: X3DH/PQXDH prekey bundle (§5.2.1, §18.4.8)
 }
 ```
 
@@ -474,7 +556,8 @@ Identity = {
 | `names` | 7 | `[* tstr]` | MUST (MAY be empty) | Human name(s), e.g. `"abc@def.com"`, `"@handle"` (§3.9). A list ⇒ aliases. These are **self-asserted**: an identity MAY list any string, including a victim's address, so a listed name proves **nothing** on its own. A verifier MUST trust/display a name **only after** confirming the forward `name → ik` binding (DNS + KT, §3.3–3.5) resolves back to *this* key (§3.9.4); a name that does not verify back MUST be rendered as unverified, never as an authenticated address. Every *verified* alias resolves to the same key. |
 | `prev` | 8 | `hash` | OPTIONAL | Hash of the previous `Identity` version; absent only for the genesis version. Chains versions into the KT-mirrored history (§3.5). |
 | `ts` | 9 | `ts` | MUST | Publication timestamp. |
-| `sig` | 10 | `[+ sig-val]` | MUST | **One signature per suite in `suites`**, in the same order, each over the body preimage (§18.9.3). A verifier trusting either the classical or PQ key can validate; it MUST reject an Identity whose highest offered suite it cannot validate (§1.3). |
+| `sig` | 10 | `[+ sig-val]` | MUST | **One signature per suite in `suites`**, in the same order, each over the body preimage (§18.9.3). A verifier trusting either the classical or PQ key can validate; it MUST reject an Identity whose highest offered suite it cannot validate (§1.3). Note `sig` remains key `10` even though the OPTIONAL `deniable_prekeys` is key `11`; the signing preimage is `Identity ∖ {10}` and so covers key `11` when present (§18.9.3). |
+| `deniable_prekeys` | 11 | `KeyPackageBundleRef` | OPTIONAL | Location + hash of the identity's `DeniablePrekeyBundle` (§18.4.8) for the optional deniable 1:1 mode (§5.2.1). Same shape as `keypkgs` (§18.4.3). Absent ⇒ the identity does not offer deniable sessions; the default MLS path is unaffected. |
 
 ### 18.4.2 `DeviceCert` (§1.2)
 
@@ -488,7 +571,10 @@ DeviceCert = {
   ? 6 => ts,            ; expires
   7 => [+ tstr],        ; caps        capability strings
   8 => sig-val,         ; sig         IK over the body (§18.9)
+  ? 9 => key-protection, ; key_protection  keystore class holding device_key (§1.2a)
+  ? 10 => bytes,        ; attestation  OPTIONAL platform key-attestation evidence (§1.2a)
 }
+key-protection = "software" / "tpm" / "secure-enclave" / "strongbox" / "tee"
 ```
 
 | Field | Key | Type | Presence | Meaning & constraints |
@@ -500,7 +586,9 @@ DeviceCert = {
 | `created` | 5 | `ts` | MUST | Issuance time. |
 | `expires` | 6 | `ts` | OPTIONAL | Expiry; after it, verifiers MUST NOT accept `device_key`. Absent ⇒ no expiry. |
 | `caps` | 7 | `[+ tstr]` | MUST | Capability set gating participation: `"send"`, `"recv"`, `"relay"`, `"mix"`, `"gateway"`, `"admin"` (§1.2). An `admin` device counts as only **one factor** toward `rotate_threshold` and MAY NOT unilaterally change recovery (§1.4). |
-| `sig` | 8 | `sig-val` | MUST | IK signature over the body (§18.9.3). |
+| `sig` | 8 | `sig-val` | MUST | IK signature over the body (§18.9.3). Covers keys `9`/`10` when present (the preimage is `DeviceCert ∖ {8}`). |
+| `key_protection` | 9 | `key-protection` | OPTIONAL | The keystore class holding `device_key`: `"software"` or a hardware class (`"tpm"`/`"secure-enclave"`/`"strongbox"`/`"tee"`, §1.2a). A relying context (group admit, org provisioning) MAY require a hardware class. Absent ⇒ unstated (treat as `"software"` for policy). |
+| `attestation` | 10 | `bytes` | OPTIONAL | Platform key-attestation evidence that `device_key` is hardware-resident and **non-exportable** (Android Key Attestation / Apple / TPM `AK` quote / FIDO), §1.2a. Verified against the platform's attestation root out of band. A context requiring attestation rejects a device whose evidence is absent/invalid (`ERR_DEVICE_ATTESTATION_INVALID`, `0x0116`). Advisory hardening — never a substitute for the §1.4 authorization authority. |
 
 ### 18.4.3 `KeyPackageBundleRef` (§1.3, §5.3)
 
@@ -682,6 +770,40 @@ member-custody = "sovereign" / "org-managed"
 | | `custody` | 4 | `member-custody` | MUST | `"sovereign"` (member holds their own key; the org cannot access, §3.10.2a) or `"org-managed"` (org holds/escrows the key — a disclosed §6.6-style limit, §3.10.2b). An `"org-managed"` entry MUST be rendered as such; presenting one as sovereign MUST fail closed (`ERR_ORG_MANAGED_UNDISCLOSED`, `0x0115`). |
 | | `roles` | 5 | `[* tstr]` | OPTIONAL | Informative org roles / standing-group memberships (§13.5.1, §5.8.7); authority for a role is the capability (§13.5.1), not this hint. |
 | | `added` | 6 | `ts` | MUST | When the entry was published. |
+
+### 18.4.8 `DeniablePrekeyBundle` (§5.2.1)
+
+The published X3DH/PQXDH prekeys for the optional deniable 1:1 mode (§5.2.1), located via
+`Identity.deniable_prekeys` (§18.4.1). Analogous to the MLS KeyPackage bundle (§18.4.3) but for
+the Signal-style channel; replenished and rate-limited per §16.9.
+
+```cddl
+DeniablePrekeyBundle = {
+  1 => suite,           ; suite     0x01 (X3DH) or 0x02 (PQXDH)
+  2 => ik-pub,          ; ik        the identity these prekeys belong to
+  3 => bytes,           ; spk       signed prekey — X25519 DH public key
+  4 => sig-val,         ; spk_sig   device-key signature over `spk` (the ONE signed thing, §5.2.1(a))
+  5 => [* bytes],       ; opks      one-time prekeys (X25519 DH publics), consumed per session
+  ? 6 => bytes,         ; last_kem  (PQ) signed last-resort ML-KEM encapsulation key (suite 0x02)
+  ? 7 => [* bytes],     ; okems     (PQ) one-time ML-KEM encapsulation keys
+  8 => u64,             ; version   monotonic; reject older-or-equal (rollback defense)
+  9 => ts,              ; ts
+  10 => sig-val,        ; sig       device-key signature over the whole bundle (§18.9.10)
+}
+```
+
+| Field | Key | Type | Presence | Meaning & constraints |
+|-------|----:|------|----------|-----------------------|
+| `suite` | 1 | `suite` | MUST | `0x01` X3DH or `0x02` PQXDH; governs the DH group and (PQ) the ML-KEM parameters. |
+| `ik` | 2 | `ik-pub` | MUST | The identity offering deniable sessions; MUST match the pinned identity. |
+| `spk` | 3 | `bytes` | MUST | The signed prekey — an X25519 DH public key. |
+| `spk_sig` | 4 | `sig-val` | MUST | Signature by an `IK`-authorized **device key** over `spk` (DS-tag `DMTAP-v0/deniable-spk`, §18.9.10). This is the **only** signature that participates in a deniable session, and it signs a *public prekey*, never any message — which is exactly why deniability is preserved (§5.2.1(a)). |
+| `opks` | 5 | `[* bytes]` | MUST (MAY be empty) | One-time prekeys (X25519 DH publics). Each is consumed (marked spent) by one `DeniableInit.opk_ref`. Empty ⇒ only the signed prekey / last-resort path is available (rate-limited, §16.9). |
+| `last_kem` | 6 | `bytes` | OPTIONAL | PQXDH signed last-resort ML-KEM encapsulation key; present under `suite = 0x02`. |
+| `okems` | 7 | `[* bytes]` | OPTIONAL | PQXDH one-time ML-KEM encapsulation keys, consumed by `DeniableInit.kem_ref`. |
+| `version` | 8 | `u64` | MUST | Monotonic; a verifier MUST reject a bundle whose `version` is older-or-equal to one already seen (rollback defense, same rule as `Identity.version`). |
+| `ts` | 9 | `ts` | MUST | Publication time. |
+| `sig` | 10 | `sig-val` | MUST | Signature by an `IK`-authorized device key over the body (§18.9.10, DS-tag `DMTAP-v0/deniable-prekeys`). Authenticates the *bundle*; an invalid signature or an exhausted bundle is `ERR_DENIABLE_PREKEY_INVALID_OR_EXHAUSTED` (`0x040B`). |
 
 ---
 
@@ -967,6 +1089,9 @@ every signature is over `DS-tag ‖ det_cbor(object∖sig)`, where:
 | `PostageStamp` | `sig` (k7) | `DMTAP-v0/postage-stamp` | `det_cbor(PostageStamp ∖ {7})` |
 | `Vouch` | `sig` (k5) | `DMTAP-v0/vouch` | `det_cbor(Vouch ∖ {5})` |
 | `Assertion` | `sig` (k7) | `DMTAP-v0/auth-assertion` | §18.9.8 |
+| `DeniablePrekeyBundle` | `sig` (k10) | `DMTAP-v0/deniable-prekeys` | `det_cbor(DeniablePrekeyBundle ∖ {10})` (§18.9.10) |
+| `DeniablePrekeyBundle` | `spk_sig` (k4) | `DMTAP-v0/deniable-spk` | the raw `spk` bytes (field 3) (§18.9.10) |
+| `DeniableInit`/`DeniableMessage`/`DeniablePayload` | — (none) | — | **no signature** — authenticated by the Double-Ratchet AEAD MAC (§18.9.10) |
 
 For `Identity` (`sig` is a **list**, one entry per suite): the **same** preimage
 `DS-tag ‖ det_cbor(Identity ∖ {10})` is signed once per suite in `suites`, and the results are
@@ -1113,6 +1238,35 @@ CBOR signature — it is the Sphinx packet construction of §4.4.1 (per-hop MAC 
 group element), verified by each mix peeling its layer, and is out of scope for this preimage
 table (it carries no `sig-val` field).
 
+### 18.9.10 Deniable-mode objects (§5.2.1)
+
+The deniable 1:1 mode has a **deliberately asymmetric** signing story, because signatures are
+what would destroy deniability:
+
+- **`DeniablePrekeyBundle.sig`** (key 10) uses the general rule
+  `Sign(sk_device, "DMTAP-v0/deniable-prekeys" ‖ 0x00 ‖ det_cbor(DeniablePrekeyBundle ∖ {10}))`
+  with an `IK`-authorized device key. This signs the *bundle of public prekeys*, not any message.
+- **`DeniablePrekeyBundle.spk_sig`** (key 4) is the standard X3DH **signed-prekey signature**:
+  `Sign(sk_device, "DMTAP-v0/deniable-spk" ‖ 0x00 ‖ spk_bytes)` over the raw `spk` public key
+  (field 3). It proves the prekey was published by the identity; it signs **no** content and
+  binds **no** transcript, so it does not make any conversation attributable (§5.2.1(a)).
+- **`DeniableInit`, `DeniableMessage`, and `DeniablePayload` carry NO DMTAP signature at all.**
+  Their integrity/authentication is the **Double Ratchet AEAD tag** — a **shared-key MAC** under a
+  per-message key that *both* parties can derive from the X3DH/PQXDH shared secret. Because either
+  party could have produced any such tag, no tag is a transferable proof of authorship — this is
+  the cryptographic root of participation + message repudiation. A `DeniablePayload` presented
+  with any signature field MUST be rejected (`ERR_DENIABLE_SIGNATURE_PRESENT`, `0x040F`); a
+  `DeniableMessage` whose AEAD tag fails is `ERR_DENIABLE_RATCHET_AUTH_FAILED` (`0x040D`). The AEAD
+  associated data is the standard Double-Ratchet AD — the ratchet header `(dh, pn, n)` with the
+  X3DH context `AD = IK_A ‖ IK_B` — binding the message to the session (it does **not** bind
+  `Envelope.id`, which is the hash of the ciphertext that already contains this tag). This mirrors
+  the `ArcToken`/`PowSolution` case (§18.9.7): a wire object whose security comes from a *different*
+  proof system, not a DMTAP `sig-val`.
+
+The envelope that carries a deniable frame still bears `Envelope.sender_sig` (§18.9.1), but that
+is a **fresh per-message ephemeral** signature over routing metadata that binds **no long-term
+identity** — it gates abuse (§9) without attributing the transcript, so it is deniability-neutral.
+
 ---
 
 ## 18.10 Collected CDDL grammar (copy-paste block)
@@ -1175,10 +1329,22 @@ Payload = {
 
 Headers = {
   ? 1 => bytes, ? 2 => tstr, ? 3 => tstr,
-  4 => [* ik-pub], ? 5 => { * tstr => ext-value },
+  4 => [* ik-pub], ? 5 => { * tstr => ext-value }, ? 6 => bool,   ; 6 = sensitive (no-persist, §6.7)
 }
 ext-value = bool / int / bytes / tstr / [* ext-value] / { * tstr => ext-value }
 Body = tstr / bytes
+
+; ── deniable 1:1 mode (§5.2.1); kind = 0x0b; NO sig-val anywhere (repudiable) ───────
+DeniableFrame   = DeniableInit / DeniableMessage
+DeniableInit    = {
+  0 => 1, 1 => suite, 2 => ik-pub, 3 => bytes, 4 => hash,
+  ? 5 => hash, ? 6 => bytes, ? 7 => hash, 8 => DeniableMessage,
+}
+DeniableMessage = { 0 => 2, 1 => bytes, 2 => u32, 3 => u32, 4 => bytes }   ; 4 = AEAD ct; tag IS the shared-key MAC
+DeniablePayload = {
+  1 => ik-pub, 2 => u8, 3 => Headers, 4 => Body,
+  5 => [* hash], 6 => [* Attachment], ? 7 => ts,             ; NO signature field (§18.3.10)
+}
 
 Attachment = {
   1 => tstr, 2 => tstr, 3 => u64,
@@ -1198,14 +1364,24 @@ Identity = {
   1 => [+ u8], 2 => { + u8 => ik-pub }, 3 => u64,
   4 => [* DeviceCert], 5 => KeyPackageBundleRef, 6 => hash,
   7 => [* tstr], ? 8 => hash, 9 => ts, 10 => [+ sig-val],
+  ? 11 => KeyPackageBundleRef,                              ; 11 = deniable_prekeys (§5.2.1); sig stays key 10
 }
 
 DeviceCert = {
   1 => suite, 2 => ik-pub, 3 => ik-pub, 4 => tstr,
   5 => ts, ? 6 => ts, 7 => [+ tstr], 8 => sig-val,
+  ? 9 => key-protection, ? 10 => bytes,                    ; 9 = keystore class, 10 = attestation (§1.2a)
 }
+key-protection = "software" / "tpm" / "secure-enclave" / "strongbox" / "tee"
 
 KeyPackageBundleRef = { 1 => tstr, 2 => hash, ? 3 => [+ u8] }
+
+; Published X3DH/PQXDH prekeys for the deniable mode (§5.2.1); located via Identity.deniable_prekeys.
+; spk_sig (key 4) signs the PUBLIC prekey only; sig (key 10) signs the bundle. No message is signed.
+DeniablePrekeyBundle = {
+  1 => suite, 2 => ik-pub, 3 => bytes, 4 => sig-val, 5 => [* bytes],
+  ? 6 => bytes, ? 7 => [* bytes], 8 => u64, 9 => ts, 10 => sig-val,
+}
 
 RecoveryPolicyRef = hash
 RecoveryPolicy = {
@@ -1335,17 +1511,30 @@ resolves each explicitly rather than picking one silently; each SHOULD be reconc
    committer cannot meet). Being newly formalized, they SHOULD get a review pass against any
    reference implementation.
 
+9. **Deniable 1:1 mode & endpoint-hardening fields (newly formalized).** The optional deniable
+   mode (§5.2.1) adds `DeniablePrekeyBundle` (§18.4.8), the `DeniableFrame` choice
+   (`DeniableInit`/`DeniableMessage`, §18.3.9), and `DeniablePayload` (§18.3.10) — the last three
+   deliberately carry **no `sig-val`** (authentication is the Double-Ratchet AEAD MAC, §18.9.10),
+   which is the wire-visible root of repudiation. Endpoint hardening (§1.2a, §6.7) adds OPTIONAL
+   fields to existing signed objects: `Identity.deniable_prekeys` (key 11; `sig` stays key 10),
+   `DeviceCert.key_protection`/`attestation` (keys 9/10), and `Headers.sensitive` (key 6). All are
+   OPTIONAL and additive; the signing preimages (`object ∖ {sig}`) already cover them, so no
+   existing signature computation changes. These SHOULD get a review pass against a reference
+   implementation.
+
 **Object count:** this appendix gives a normative CDDL rule and a per-field semantics table for
-**28 wire objects** — `Envelope`, `DeliveryTag`, `ChallengeResponse`, `KeyPackageRef`, `Payload`,
-`Headers`, `Body`, `Attachment`, `ManifestRef`, `Manifest`, `Identity`, `DeviceCert`,
-`KeyPackageBundleRef`, `RecoveryPolicy`, `RecoveryMethod`, `Threshold`, `KeyRotation`,
-`MoveRecord`, `DomainDirectory`, `DirEntry`, `LocationRecord`, `MixNodeDescriptor`,
-`MixDirectory`, `GroupState`, `RosterEntry`, `GroupEvent`, `Challenge`, `Assertion` — plus their
-tagged sub-variants (`KeyTag`/`GroupTag`/`BlindedTag`;
-`ArcToken`/`PowSolution`/`PostageStamp`/`Vouch`; `PhraseMethod`/`DeviceMethod`/`SocialMethod`;
-`MethodPredicate`; `MixKeyEntry`) and the shared scalar prelude (§18.1.7). Counting the four
-choice-variant families, `MethodPredicate`, and `MixKeyEntry` as distinct encodable structures
-brings the total to **41 CDDL-defined structures**, all collected in §18.10. (The two new mixnet
-objects `MixNodeDescriptor`/`MixDirectory` plus the `MixKeyEntry` sub-structure are the §4.4
-mixnet binding; the Sphinx packet itself is a non-CBOR fixed-length format specified by reference
-in §4.4.1, not a CDDL object.)
+**31 wire objects** — `Envelope`, `DeliveryTag`, `ChallengeResponse`, `KeyPackageRef`, `Payload`,
+`Headers`, `Body`, `Attachment`, `ManifestRef`, `Manifest`, `DeniableFrame`, `DeniablePayload`,
+`Identity`, `DeviceCert`, `KeyPackageBundleRef`, `DeniablePrekeyBundle`, `RecoveryPolicy`,
+`RecoveryMethod`, `Threshold`, `KeyRotation`, `MoveRecord`, `DomainDirectory`, `DirEntry`,
+`LocationRecord`, `MixNodeDescriptor`, `MixDirectory`, `GroupState`, `RosterEntry`, `GroupEvent`,
+`Challenge`, `Assertion` — plus their tagged sub-variants (`KeyTag`/`GroupTag`/`BlindedTag`;
+`ArcToken`/`PowSolution`/`PostageStamp`/`Vouch`; `DeniableInit`/`DeniableMessage`;
+`PhraseMethod`/`DeviceMethod`/`SocialMethod`; `MethodPredicate`; `MixKeyEntry`) and the shared
+scalar prelude (§18.1.7). Counting the five choice-variant families, `MethodPredicate`, and
+`MixKeyEntry` as distinct encodable structures brings the total to **46 CDDL-defined structures**,
+all collected in §18.10. (The two mixnet objects `MixNodeDescriptor`/`MixDirectory` plus
+`MixKeyEntry` are the §4.4 mixnet binding; the deniable `DeniableFrame`/`DeniableInit`/
+`DeniableMessage`/`DeniablePayload`/`DeniablePrekeyBundle` are the §5.2.1 binding; the Sphinx
+packet and the Double-Ratchet/X3DH/PQXDH cryptographic cores are specified by reference — Sphinx
+in §4.4.1, Signal's designs in §5.2.1 — not re-encoded as CDDL objects here.)

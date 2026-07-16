@@ -12,7 +12,7 @@ honestly, defines the guarantees, and marks the boundaries we do *not* claim.
 | Curious directory / DNS / KT log | sees lookups | mitigated (mixnet-routed lookups §3.7); binding tamper-evident (KT §3.5) |
 | **Global passive adversary** | observes all links, all timing | **primary target**: social graph + timing hidden by mixnet + cover traffic |
 | Global *active* adversary (inject/drop/delay at will, unlimited resources) | shapes traffic to correlate | **not fully defeated** — see §6.6 |
-| Compromised endpoint (node seized/keylogged) | reads that node's plaintext | out of scope for confidentiality; limited by at-rest encryption + FS + recovery |
+| Compromised endpoint (node seized/keylogged) | reads that node's plaintext | **hardened, then bounded** (§6.6 item 3): hardware-backed non-exportable keys (§1.2a), device-unlock-gated at-rest encryption (§6.7), per-device sealing, and fast revocation heal all cases **except** a device *actively compromised while unlocked and in use* |
 
 DMTAP's headline guarantee is **strong metadata privacy against a global *passive* adversary.**
 
@@ -130,11 +130,30 @@ hostile-buffer scenarios.
 2. **Large-file bulk metadata.** Onion-routing + padding + swarming makes it *strong*, not
    *free* and not *perfect* — the fact and approximate volume of a large transfer may remain
    partially observable at high adversary capability.
-3. **Endpoint compromise has cluster-wide blast radius.** A seized/keylogged device that is a
-   synced cluster member (§5.6) exposes the **entire replicated mailbox and its history**, not
-   just a device-local slice — phone theft is the common case. Mitigated by at-rest encryption,
-   forward secrecy (§5.2), recovery/rotation (§1), and OPTIONAL **scoped sync** (e.g. recent-N-
-   days on mobile) which implementations SHOULD offer; not eliminated.
+3. **Endpoint compromise — the irreducible residual *after* the mechanisms.** DMTAP does not
+   treat endpoint compromise as an unaddressed limit; it specifies concrete, normative defenses
+   that shrink the blast radius to a single floor:
+   - **Offline seizure is defended.** The local MOTE store is encrypted with a key **released
+     only on device unlock** (biometric/PIN, §6.7), so a powered-off / locked stolen phone yields
+     **nothing** — the ciphertext is inert without the unlock secret.
+   - **Key exfiltration is defended.** `IK`/device keys **SHOULD** live in a hardware keystore as
+     **non-exportable** keys (Secure Enclave / TPM / StrongBox / TEE, §1.2a), so even a software
+     compromise cannot *copy* the key out to sign or decrypt elsewhere — it can only *use* it
+     locally while the device is unlocked, and only until revoked.
+   - **Single-device compromise heals.** A device is its own MLS leaf (§5.6); removing/rotating it
+     (§1.5, §13.4) advances every epoch (**post-compromise security**) so the evicted key decrypts
+     nothing further, and the **lost/stolen-device flow** (§6.7) evicts it from the cluster. One
+     compromised device does **not** hand over other devices' independent sessions.
+   - **Least-persistence options.** OPTIONAL **scoped sync** (recent-N-days on mobile) and the
+     **`sensitive` / non-cached message flag** (§6.7 — a message the client MUST NOT persist at
+     rest) further shrink what a later seizure can reveal; implementations SHOULD offer both.
+
+   **After all of that**, one residual is irreducible: a device **actively compromised while
+   unlocked and in use** sees exactly what the *user* sees — it can read decrypted content and
+   exercise the (hardware-held) key in real time. **No protocol can prevent an authorized,
+   unlocked endpoint from reading its own screen.** DMTAP shrinks endpoint compromise to precisely
+   this floor — live, unlocked, in-use — rather than the old "any seized cluster member leaks the
+   whole history." That is the honest boundary *after* the maximal defense, not in place of it.
 4. **First-contact MITM.** Before KT/OOB verification, the *first* name→key resolution can be
    MITM'd; DMTAP fails closed if KT is unreachable at first contact (§3.3, §3.4).
 5. **Metadata privacy is weakest-link.** One leaky component (a bad lookup, a client bug, a
@@ -163,6 +182,27 @@ anonymous."
 ## 6.7 Data at rest
 
 - The node encrypts the mailbox, file blobs, and keys **at rest** under a device/identity key.
+- **Unlock-gated store encryption (normative, SHOULD).** The at-rest key SHOULD be **released
+  only on device unlock** — wrapped by a key the hardware keystore (§1.2a) yields only after a
+  successful biometric/PIN authentication, and **evicted from memory on relock/timeout** (§16.9).
+  This distinguishes two threat cases sharply: an **offline-seized** device (powered off or
+  locked) yields only inert ciphertext (**defended**); a **live, unlocked, in-use** device can
+  read what the user reads (**the residual**, §6.6 item 3). Implementations MUST NOT keep the
+  at-rest key resident indefinitely across a locked device.
+- **`sensitive` / non-cached messages (normative, MAY-send / MUST-honor).** A sender MAY mark a
+  message `sensitive` (a `Headers` flag, §18.3.6): the receiving client **MUST NOT persist it at
+  rest** — it is held in memory for an ephemeral view and dropped, never written to the durable
+  MOTE store — so a *later* seizure reveals nothing of it. Like `redact`/`expires` (§6.6 item 8)
+  this is **cooperative** (a non-compliant or compromised recipient can still copy what it can
+  read); it is a least-persistence reduction, not a guarantee against a live endpoint.
+- **Lost/stolen-device flow (normative).** On suspected device compromise the owner (from any
+  surviving cluster device, or after recovery §1.4) performs: (1) an **MLS Remove** of the lost
+  device from every group (§5.8.2) and, for a personal cluster, from the device group (§5.6);
+  (2) a **device-key rotation** (§1.5) re-keying any identity/recovery material the device held;
+  (3) **session revocation** of all that device's auth sessions (§13.4, which a device-key
+  rotation triggers wholesale). Steps (1)–(2) advance every affected epoch, so the evicted key
+  has **post-compromise** — it decrypts no message sent after the eviction Commit. This reuses
+  existing machinery (§1.5, §5.8.2, §13.4); no new revocation protocol is introduced.
 - Messages get MLS **forward secrecy**; files use **per-file keys** (blast radius = one file)
   delivered over the forward-secret channel. Persistent, re-readable data cannot ratchet like
   ephemeral messages — this is a property of files, not a DMTAP flaw (§5.5).

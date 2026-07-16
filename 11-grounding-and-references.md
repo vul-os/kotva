@@ -39,8 +39,11 @@ existing standards**; the novelty is the composition and transport, not new cryp
    `draft-kohbrok-mls-dmls`.
 2. **Async init** — use MLS-native **KeyPackages + external commits**, not a bolted-on PQXDH
    (§5.3).
-3. **Deniability** — MLS is **non-repudiable**; DMTAP does **not** claim message deniability
-   and does not swap MLS signatures for MACs (§5.2). Open design item.
+3. **Deniability** — the default MLS path is **non-repudiable** (DMTAP does not swap MLS
+   signatures for MACs, §5.2); a **normative, optional, capability-negotiated deniable 1:1 mode**
+   (Signal-style X3DH/PQXDH + Double Ratchet with shared-key-MAC authentication) is specified in
+   §5.2.1 for users who need repudiation. Groups stay MLS/non-deniable; the residual is honest
+   (repudiation of the cryptographic transcript, not protection against a compromised endpoint).
 4. **No-PIR claim** — reframed honestly: push delivery avoids PIR's problem but leaves
    last-hop visibility, receipt-timing, and intersection exposure — mitigated by node/identity
    decoupling + recipient-side cover traffic (§6.4).

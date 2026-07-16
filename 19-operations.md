@@ -712,8 +712,10 @@ A: ACKED  — removed from retry queue
 ### 19.4.1 `fetch-keypackage(ik) → KeyPackage`
 
 **Purpose.** Retrieve a signed MLS KeyPackage (MLS's prekey) for an identity so a sender can
-initiate an encrypted session with a peer whose devices are all currently offline, without a
-separate PQXDH/X3DH protocol (§5.3).
+initiate an encrypted session with a peer whose devices are all currently offline. The **default**
+MLS path needs no separate PQXDH/X3DH protocol (§5.3); the **optional** deniable 1:1 mode (§5.2.1)
+does use X3DH/PQXDH and fetches a `DeniablePrekeyBundle` (via `Identity.deniable_prekeys`) by the
+same locate-and-pin pattern shown below.
 
 **Initiator / Responder.** Initiator: the node wishing to start a session (sender). Responder:
 the mesh (KeyPackages are located via `Identity.keypkgs`, §1.3, and fetched from

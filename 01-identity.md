@@ -53,14 +53,16 @@ IK  (root identity key, Ed25519[+ML-DSA])         ← the identity; rarely used
 
 ```
 DeviceCert {
-  suite:      u8,
-  ik:         bytes,        // root identity public key
-  device_key: bytes,        // device signing public key
-  label:      tstr,         // "phone", "home-box", ...
-  created:    u64,          // ms epoch
-  expires:    ?u64,
-  caps:       [+ tstr],     // "send","recv","relay","mix","gateway","admin"
-  sig:        bytes,        // IK over the CBOR-encoded fields above
+  suite:          u8,
+  ik:             bytes,        // root identity public key
+  device_key:     bytes,        // device signing public key
+  label:          tstr,         // "phone", "home-box", ...
+  created:        u64,          // ms epoch
+  expires:        ?u64,
+  caps:           [+ tstr],     // "send","recv","relay","mix","gateway","admin"
+  key_protection: ?tstr,        // "software"|"tpm"|"secure-enclave"|"strongbox"|"tee" (§1.2a)
+  attestation:    ?bytes,       // OPTIONAL platform attestation evidence over device_key (§1.2a)
+  sig:            bytes,        // IK over the CBOR-encoded fields above
 }
 ```
 
@@ -70,6 +72,38 @@ requires either `IK` directly or satisfaction of the current `rotate_threshold` 
 `admin` device counts only as *one factor* toward that quorum (it may, e.g., be a required
 member of the quorum, but never sufficient alone). This prevents a single stolen `admin` device
 from locking the owner out by rewriting recovery. See §1.4 for the authoritative signer rule.
+
+### 1.2a Hardware-backed keys & per-device compartmentalization (normative)
+
+A software compromise of a device is the common real-world attack (§6.6 item 3). DMTAP reduces
+its blast radius with three device-key mechanisms — the first two SHOULD be used wherever the
+platform supports them, all three are buildable from this text:
+
+- **Hardware-backed, non-exportable device keys (SHOULD).** A device's `device_key` — and, where
+  the platform allows, the `IK` on the device that holds it — SHOULD be generated **inside a
+  hardware keystore** (Apple **Secure Enclave**, a **TPM 2.0**, Android **StrongBox/Keystore**,
+  or a **TEE**) as a **non-exportable** key. A software compromise can then only *use* the key
+  **while the device is unlocked**; it **cannot exfiltrate** the private key to sign elsewhere or
+  after the fact. `DeviceCert.key_protection` records the protection class, and
+  `DeviceCert.attestation` (OPTIONAL) carries the platform's **key-attestation** evidence
+  (Android Key Attestation / Apple DeviceCheck-style / TPM `AK` quote / FIDO attestation) that the
+  key is hardware-resident and non-exportable. A relying context (a group admit, an org
+  provisioning, §3.10) MAY **require** an attested `key_protection` and reject a device whose
+  attestation is absent or invalid (`ERR_DEVICE_ATTESTATION_INVALID`, `0x0116`). Attestation is an
+  **advisory hardening hook**, never a substitute for the KT/quorum authority of §1.4 — a device
+  the owner did not authorize is rejected regardless of how well-attested its keystore is.
+- **Per-device sealing / compartmentalization (MUST).** A device's keys **MUST NOT** decrypt
+  content beyond what that device legitimately holds. This is enforced by the existing model, not
+  a new mechanism: each device is its **own MLS leaf** (§5.1, §5.6) with its own leaf secret, so a
+  seized device's key material decrypts only the epochs that device was a member for — not other
+  devices' independent sessions, and not group content after the device is removed. Deniable 1:1
+  sessions (§5.2.1) are already per-device-pair, so one seized device exposes only its own pairwise
+  ratchets.
+- **Compromise healing via revocation (MUST, PCS).** Removing/rotating a compromised device
+  **heals the cluster forward**: an MLS Remove + `IK`-authorized device-key rotation (§1.5)
+  advances every group's epoch so the evicted key decrypts nothing further (post-compromise
+  security), and revokes all that device's auth sessions at once (§13.4). The "lost/stolen
+  device" flow is exactly this path — see §6.7 for the operational sequence.
 
 ## 1.3 The `Identity` object (published)
 
@@ -85,6 +119,7 @@ Identity {
   keypkgs:  KeyPackageBundleRef,  // location + hash of the current KeyPackage bundle (§5.3)
   recovery: RecoveryPolicyRef,   // hash of the current RecoveryPolicy (§1.4)
   names:    [* tstr],            // self-asserted name(s); trust only after forward name→ik verification (§3.9.4)
+  deniable_prekeys: ?KeyPackageBundleRef, // OPTIONAL: X3DH/PQXDH prekeys for deniable 1:1 mode (§5.2.1)
   prev:     ?bytes,             // hash of the previous Identity version (hash chain)
   ts:       u64,
   sig:      [+ bytes],         // one signature per suite in `suites`, over all of the above
@@ -119,6 +154,11 @@ so an identity can hold classical and PQ keys simultaneously during migration. R
   records the suite actually used.
 - A verifier MUST reject an `Identity` whose highest offered suite it cannot validate rather
   than fall back silently.
+
+**`deniable_prekeys` (OPTIONAL).** An identity that offers the deniable 1:1 mode (§5.2.1)
+publishes a `DeniablePrekeyBundle` (§18.4.8) and references it here (same `KeyPackageBundleRef`
+shape as `keypkgs`). Its absence simply means the identity does not offer deniable sessions; the
+default MLS path is unaffected. Wire key `11`; the identity signature stays key `10` (§18.4.1).
 
 `prev` chains versions into a tamper-evident history mirrored in the transparency log (§3).
 A verifier accepts an `Identity` only if every `sig` validates under the corresponding key in
@@ -305,6 +345,7 @@ layer.
 | `RecoveryPolicy` | IK or rotate-quorum | yes | yes |
 | `KeyRotation` | old IK → new IK | via Identity chain | yes |
 | `MoveRecord` | IK | yes | yes |
+| `DeniablePrekeyBundle` | device key (+ `spk_sig`) | via Identity (`deniable_prekeys`) | no (like `keypkgs`) |
 
 All identity-lifecycle operations share one machinery: **signed, versioned objects,
 threshold-gated changes, and the transparency log as the audit trail** (§3).

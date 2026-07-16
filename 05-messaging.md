@@ -137,16 +137,121 @@ distinct, lighter ordering path for **n = 2** and reserves the committer/quorum 
   is **per-epoch/per-Commit**, which is coarser than the Signal Double Ratchet's
   per-message healing — using MLS for 1:1 (§5.1) is a deliberate *simplicity-vs-optimality*
   trade, not a strict improvement over Double Ratchet.
-- **Deniability — honest correction.** MLS is **signature-based and therefore
-  non-repudiable**: every LeafNode and every FramedContent (handshake *and* application
-  messages) is signed with the member's signature key. RFC 9750 states plainly that *"MLS
-  does not make any claims with regard to deniability."* DMTAP therefore **does NOT claim
-  message deniability** at the MLS layer, and MUST NOT substitute shared-secret MACs for
-  MLS's mandatory signatures (that would break RFC 9420 conformance). Deniability is an
-  **explicit open design item**: if required, it must be engineered at another layer (e.g.
-  exchanging the signature keys themselves over a deniable channel, per RFC 9750's note),
-  or scoped to a pairwise/OTR-style sub-channel. Do not represent DMTAP messages as deniable
-  in v0.
+- **Deniability — the default path is non-repudiable; an optional deniable 1:1 mode is
+  specified.** MLS is **signature-based and therefore non-repudiable**: every LeafNode and every
+  FramedContent (handshake *and* application messages) is signed with the member's signature key,
+  and RFC 9750 states plainly that *"MLS does not make any claims with regard to deniability."*
+  DMTAP's **default MLS path is therefore non-repudiable**, and DMTAP MUST NOT substitute
+  shared-secret MACs for MLS's mandatory signatures *inside MLS* (that would break RFC 9420
+  conformance). Deniability is **not** achieved by weakening MLS. Instead, DMTAP specifies a
+  **normative, OPTIONAL, capability-negotiated deniable 1:1 mode in §5.2.1** that runs a *separate*
+  Signal-style channel (X3DH/PQXDH + Double Ratchet with shared-key-MAC authentication) **beside**
+  the 2-member MLS group, giving cryptographic **participation and message repudiation** for
+  1:1 conversations. Groups (`n ≥ 3`) stay MLS and remain non-repudiable. The residual is disclosed
+  honestly in §5.2.1: deniability is *cryptographic repudiation of the transcript*, not protection
+  against a compromised endpoint that logs plaintext.
+
+### 5.2.1 Optional deniable 1:1 mode (normative)
+
+MLS-everywhere buys simplicity and post-compromise security at the cost of **non-repudiation** —
+inherent to any signature-authenticated protocol. For users who need **repudiation** (a
+whistleblower, a source, a lawyer's off-record channel), DMTAP specifies an OPTIONAL **deniable
+1:1 mode**. It does **not** modify MLS; it is a **separate pairwise channel** selected per
+conversation, reusing the proven Signal design rather than inventing new cryptography.
+
+**Why not "MLS with MACs."** Deniability cannot be retrofitted onto MLS by dropping its
+signatures — that breaks RFC 9420 conformance and the group ratchet's security proof. The clean
+construction is a **distinct 1:1 protocol whose authentication is a shared-key MAC**, so *either*
+party could have produced any transcript ⇒ neither can prove the other authored it. That protocol
+already exists and is deployed at scale: **Signal's X3DH/PQXDH + Double Ratchet**.
+
+#### (a) Handshake — X3DH (classical) / PQXDH (PQ), by reference
+
+Session setup reuses **X3DH** (Marlinspike & Perrin, 2016) for `suite = 0x01` and **PQXDH**
+(Kret & Schmidt, 2023) for `suite = 0x02` (ML-KEM-768, matching the suite's X-Wing KEM, §16.7)
+— **not reimplemented here**. DMTAP supplies only the binding to its own identity and prekeys:
+
+- **Long-term identity DH key from `IK`.** X3DH mixes the parties' *long-term identity DH keys*.
+  DMTAP's `IK` is an **Ed25519 signing** key, so both parties derive the corresponding
+  X25519 identity DH key from `IK` via **XEdDSA** (Perrin, 2016) — **no new long-term key is
+  provisioned**, and the `IK ↔ name` binding (KT, §3.5) still authenticates the counterpart.
+- **Published deniable prekeys.** An identity that offers the mode publishes a
+  **`DeniablePrekeyBundle`** (§18.4.8) located via `Identity.deniable_prekeys` (§1.3, §18.4.1):
+  a **signed prekey** `spk` (X25519) with its signature, a set of **one-time prekeys** `opks`,
+  and — under `suite = 0x02` — a signed **last-resort ML-KEM key** plus one-time KEM keys
+  (PQXDH). The bundle is replenished by the owner's node exactly like KeyPackages (§5.3);
+  exhaustion falls back to the signed prekey / last-resort key, rate-limited (§16.9).
+- **What is signed vs MAC'd (the crux).** The **only** signature in the whole mode is the
+  **signed-prekey signature** (`spk_sig`), which attests that the *prekey was published* — it
+  does **not** sign any message, transcript, or the fact that a conversation occurred. This is
+  exactly the standard X3DH signed prekey and is what preserves deniability: the long-term
+  signature covers a public prekey, never content. **Every message is authenticated by a
+  shared-key MAC** (the Double Ratchet AEAD tag under a per-message key derived from the shared
+  secret), which **both** parties can compute ⇒ **participation + message repudiation**.
+
+#### (b) Session — Double Ratchet, by reference
+
+After the handshake yields a root secret, messages travel over the **Double Ratchet**
+(Perrin & Marlinspike, 2016): a DH ratchet + symmetric-key chains giving **per-message forward
+secrecy and per-message post-compromise security** — *finer* healing than MLS's per-epoch Commit
+(§5.2), a bonus of the mode, not a regression. Message keys authenticate via AEAD (a shared-key
+MAC), never a signature.
+
+#### (c) Wire framing
+
+- A deniable MOTE uses **`kind = 0x0b` (`deniable`)** (§21.16). Its `Envelope.ciphertext`
+  (§18.3.1) carries a **`DeniableFrame`** (§18.3.9) — a tagged choice of **`DeniableInit`** (the
+  X3DH/PQXDH first message, embedding the first ratchet message) or **`DeniableMessage`** (a
+  subsequent Double-Ratchet message). Neither carries a `sig-val`.
+- The inner plaintext, after ratchet decryption, is a **`DeniablePayload`** (§18.3.10) — the
+  structural twin of `Payload` (§2.4) **with the signature field removed** and the real content
+  `kind` carried inside. A `DeniablePayload` that carries a signature MUST be rejected
+  (`ERR_DENIABLE_SIGNATURE_PRESENT`, `0x040F`); the missing signature is the point.
+- The **envelope layer stays deniable-preserving**: `Envelope.sender_sig` (§18.3.1) is a
+  **fresh, identity-free, per-message ephemeral** signature over routing metadata only (§18.9.1).
+  It binds no long-term key and asserts no identity, so it does **not** make the transcript
+  attributable — it only gates abuse (§9). Sealed-sender still applies (the sender's `IK` lives
+  inside the ratchet-encrypted `DeniablePayload`, visible only to the recipient).
+
+#### (d) Negotiation, scope, and composition (normative)
+
+- **Capability-negotiated.** The mode is used only when **both** peers advertise the
+  **`deniable-1:1`** capability token (§10.2, §21.22) and the initiating **user selects it** —
+  it is a user/client-selectable mode, never a silent default. A peer that has not advertised
+  it is handled per `ERR_DENIABLE_MODE_UNAVAILABLE` (`0x040E`): the client MUST surface the
+  choice (fall back to the non-deniable MLS 1:1, or do not send), never silently downgrade the
+  user's *expectation* of deniability.
+- **1:1 only; pairwise per device.** Deniability is inherently pairwise. The mode replaces the
+  **2-member MLS group** (§5.1.1) as the transport for that 1:1's *content*; it does not apply to
+  groups of `n ≥ 3`, which stay MLS and remain non-repudiable. Across a personal cluster (§5.6)
+  the mode runs as **one Double-Ratchet session per device-pair** (Signal-Sesame style),
+  fanning out to each of the recipient's devices — trading MLS's efficient single-tree cluster
+  sync for pairwise deniability. This cost is disclosed; clients SHOULD show that deniable
+  threads sync per-device rather than through the shared MLS tree.
+- **Identity verification unchanged.** The counterpart's `IK` is still bound to its name via
+  KT / OOB safety numbers (§3.4–§3.5); deniability repudiates *authorship of messages*, not the
+  *key agreement*. Downgrade defense (§1.3 suite ratchet) and cold-sender anti-abuse (§9) apply
+  as for any MOTE.
+
+#### (e) The residual (honest, after the mechanism)
+
+The mode delivers **cryptographic repudiation of the transcript**: given only ciphertext and
+keys, neither party (nor a third party) can produce a cryptographic proof that the *other* party
+authored a given message, because the authenticator is a shared-key MAC either could have forged.
+Two residuals survive and are stated plainly:
+
+1. **Deniability is not endpoint protection.** A compromised or coerced endpoint that **logs the
+   plaintext as it is displayed** trivially "proves" content — no repudiation protocol prevents a
+   party from keeping and disclosing its own plaintext (this is the same floor as §6.6 item 3).
+   Cryptographic deniability defeats a *cryptographic* transcript proof, not a screenshot.
+2. **X3DH deniability has known theoretical bounds.** Formal analyses (Vatandas, Gennaro,
+   Ithurburn & Krawczyk, ACNS 2020; Unger & Goldberg) show X3DH gives strong **offline**
+   deniability but that **online/interactive** deniability against a judge colluding in real time
+   with a participant is weaker; the signed prekey and prekey-signing key are long-lived. DMTAP
+   inherits these bounds — it does not claim to exceed Signal's proven guarantees.
+
+This is honest deniability: *repudiation of the cryptographic transcript*, disclosed for what it
+is, not a promise that a determined endpoint compromise can be undone.
 
 ## 5.3 Async session initiation (MLS-native)
 
