@@ -39,7 +39,9 @@ Envelope {
   challenge: ?ChallengeResponse, // anti-abuse proof for cold senders (§2.2b, §9) —
                                  //   verifiable WITHOUT decrypting `ciphertext`
   ciphertext: bytes,        // MLS or HPKE sealed Payload (§2.4)
-  sender_sig: bytes,        // detached sig by an EPHEMERAL per-message key over
+  sender_key: bytes,        // EPHEMERAL per-message PUBLIC key; the verification key for
+                            //   `sender_sig`. Fresh per message ⇒ unlinkable, reveals no identity.
+  sender_sig: bytes,        // detached sig by `sender_key`'s secret over
                             //   (id‖to‖ts‖kind‖challenge); gates abuse, reveals no identity
 }
 ```
@@ -53,9 +55,15 @@ Envelope {
   deduplication, integrity, and cacheability for free; identical ciphertext shares an `id`.
 - **Signature placement.** For sealed-sender messages the *authenticating* signature and the
   sender's identity live **inside** the encrypted payload (`Payload.from`, `Payload.sig`),
-  so intermediaries never see who signed. `sender_sig` in the envelope, when present, is a
+  so intermediaries never see who signed. `sender_sig` in the envelope is a
   detached signature by an *ephemeral* per-message key (unlinkable) used only for
-  spam/abuse gating at the recipient (§9); it does not reveal identity.
+  spam/abuse gating at the recipient (§9); it does not reveal identity. The matching
+  **public** key travels in `sender_key` so the recipient can verify `sender_sig`
+  *before decrypting* (§2.7 step 3) — there is no persistent key to look up, and a fresh
+  keypair per message means `sender_key` is itself unlinkable. The `challenge` proof
+  (§9) MUST be bound to `sender_key` (an ARC token is issued to it; a PoW/stamp commits to
+  it — §9.4) so that a captured proof cannot be re-signed onto another envelope with a
+  different ephemeral key.
 - **`epoch`** ties a message to an MLS group epoch so the recipient selects the right key.
 
 ### 2.2a Delivery tag (`to`) and recipient blinding
@@ -199,8 +207,12 @@ in order:
 
 1. Reject unknown `v`/`suite` (fail closed).
 2. Verify `id` matches the content address of `ciphertext` (§2.2); drop on mismatch.
-3. Verify `sender_sig` over `(id‖to‖ts‖kind‖challenge)` under its ephemeral key (cheap; no
-   decryption). Drop on failure.
+3. Verify `sender_sig` over `(id‖to‖ts‖kind‖challenge)` under **`sender_key`** — the ephemeral
+   per-message public key carried in the same envelope (cheap; no decryption). Drop on failure.
+   `sender_key` is trusted only as the abuse-gate key for *this* envelope; it asserts no identity
+   (identity is authenticated later, inside `ciphertext`, at step 8). The `challenge` at step 6
+   MUST be bound to `sender_key` (§9.4), so this step also fixes which ephemeral key the abuse
+   proof was minted for.
 4. **Resolve `to`** to this node (or a group it belongs to). If `to` does not resolve, drop.
 5. **Classify the sender** by `to`/pinning state: a **known contact** (fast path) vs an
    **unknown/cold sender**.

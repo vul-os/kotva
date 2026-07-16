@@ -137,6 +137,7 @@ suite   = 0x01..0xff                   ; DMTAP algorithm-suite id (§18.1.4)
 ; ── crypto byte strings (lengths suite-governed, §18.1.4) ─────────
 hash    = bytes .size (33..129)        ; 1-byte alg prefix ‖ digest; v0 = 33
 ik-pub  = bytes                        ; identity/device public key; v0 Ed25519 = 32 B
+sig-pub = bytes                        ; ephemeral sender_sig verification key; v0 Ed25519 = 32 B
 sig-val = bytes                        ; detached signature;         v0 Ed25519 = 64 B
 enc-key = bytes                        ; HPKE/AEAD content key;      v0 = 32 B
 peer-id = bytes                        ; libp2p PeerId = multihash(pubkey)
@@ -181,6 +182,7 @@ Envelope = {
   ? 9  => ChallengeResponse, ; challenge  anti-abuse proof (§18.3.3)
   10 => bytes,            ; ciphertext MLS/HPKE sealed Payload (§18.3.5)
   11 => sig-val,          ; sender_sig detached sig by an EPHEMERAL per-message key
+  12 => sig-pub,          ; sender_key ephemeral public key that verifies field 11
 }
 ```
 
@@ -197,6 +199,7 @@ Envelope = {
 | `challenge` | 9 | `ChallengeResponse` | OPTIONAL | Anti-abuse proof for a **cold** sender (§9), evaluated *without decrypting* (§2.7 step 6). Known contacts omit it (fast path). One of ARC token / PoW / stamp / vouch (§18.3.3). |
 | `ciphertext` | 10 | `bytes` | MUST | The MLS `PrivateMessage` or HPKE-sealed `Payload` (§18.3.5). Opaque to every intermediary. Its bytes are the sole input to `id`. |
 | `sender_sig` | 11 | `sig-val` | MUST | Detached signature by an **ephemeral, per-message** signing key (unlinkable) over the preimage of §18.9.1 `(DS ‖ id ‖ to ‖ ts ‖ kind ‖ challenge)`. Gates abuse; reveals no identity (identity is inside `Payload`). Verified at §2.7 step 3. |
+| `sender_key` | 12 | `sig-pub` | MUST | The **ephemeral, per-message** public key that verifies `sender_sig`. A verifier has no persistent key to look up for an unknown cold sender, so the verification key MUST travel with the message; it is fresh per message (hence unlinkable) and asserts no identity. `sig-pub` is a raw public key whose length is fixed by `suite` (§18.1.4), matching the signature algorithm of `sender_sig`. The `challenge` (field 9) MUST be cryptographically bound to this key (§9.4). |
 
 ### 18.3.2 `DeliveryTag` (§2.2a)
 
@@ -266,7 +269,7 @@ Vouch = {
 |--------|-------|----:|------|----------|-----------------------|
 | `ArcToken` | disc | 0 | `1` | MUST | Selects ARC. |
 | | `issuer` | 1 | `bytes` | MUST | Issuer identity/key ref. An **unknown/unvetted** issuer (incl. the sender's own node) carries a rate budget of **ZERO** (§9.3.1) — treated as no token. |
-| | `token` | 2 | `bytes` | MUST | The ARC presentation, **per-origin-scoped** (`draft-yun-privacypass-arc`), giving per-recipient rate-limiting *and* cross-recipient unlinkability. |
+| | `token` | 2 | `bytes` | MUST | The ARC presentation, **per-origin-scoped** (`draft-yun-privacypass-arc`), giving per-recipient rate-limiting *and* cross-recipient unlinkability. Its request context MUST bind the envelope's `sender_key` (§9.2a) so a stripped presentation cannot be replayed under a different ephemeral key; a verifier MUST reject one whose context does not. |
 | | `origin` | 3 | `bytes` | MUST | The recipient-origin the credential is scoped to; MUST match the verifying node's origin. |
 | | `nonce` | 4 | `bytes` | OPTIONAL | Freshness nonce within the 120 s validity window (§16.1). |
 | `PowSolution` | disc | 0 | `2` | MUST | Selects PoW (last-resort tier, §9.4). |
@@ -834,11 +837,15 @@ preimage = "DMTAP-v0/envelope-sender" ‖ 0x00
 sender_sig = Sign(sk_ephemeral, preimage)
 ```
 
-`id_bytes` is the raw byte string of `Envelope.id` (its CBOR head is *not* included). `to` and
-`challenge` are included as their deterministic CBOR encodings so structured tags are covered
-unambiguously. When `challenge` is absent, exactly one byte `0xf6` is appended (this is the only
-place a `null` appears in a preimage, §18.1.1). A verifier MUST reconstruct this preimage and
-check `sender_sig` under the ephemeral key **before** any decryption (§2.7 step 3).
+where `(sk_ephemeral, sender_key)` is a **fresh keypair generated for this one message** and
+`sender_key` (field 12) is the public half. `id_bytes` is the raw byte string of `Envelope.id`
+(its CBOR head is *not* included). `to` and `challenge` are included as their deterministic CBOR
+encodings so structured tags are covered unambiguously. When `challenge` is absent, exactly one
+byte `0xf6` is appended (this is the only place a `null` appears in a preimage, §18.1.1). A
+verifier MUST reconstruct this preimage and check `sender_sig` under **`sender_key`** (field 12,
+carried in the same envelope) **before** any decryption (§2.7 step 3). Because the keypair is
+ephemeral, the abuse proof in `challenge` MUST commit to `sender_key` (§9.4); otherwise a valid
+proof observed on the wire could be re-attached to a forged envelope under a new ephemeral key.
 
 ### 18.9.2 `Payload.sig`
 
@@ -967,6 +974,7 @@ suite   = 0x01..0xff                   ; DMTAP algorithm suite
 ; ── crypto byte strings (lengths suite-governed, §18.2) ────────────
 hash    = bytes .size (33..129)        ; 1-byte alg prefix ‖ digest; v0 = 33
 ik-pub  = bytes                        ; v0 Ed25519 = 32 B
+sig-pub = bytes                        ; ephemeral sender_key; v0 Ed25519 = 32 B
 sig-val = bytes                        ; v0 Ed25519 = 64 B
 enc-key = bytes                        ; v0 = 32 B
 peer-id = bytes
@@ -977,7 +985,7 @@ Envelope = {
   1 => u8, 2 => suite, 3 => hash, 4 => DeliveryTag,
   ? 5 => bytes, 6 => ts, 7 => u8,
   ? 8 => KeyPackageRef, ? 9 => ChallengeResponse,
-  10 => bytes, 11 => sig-val,
+  10 => bytes, 11 => sig-val, 12 => sig-pub,
 }
 
 DeliveryTag = KeyTag / GroupTag / BlindedTag

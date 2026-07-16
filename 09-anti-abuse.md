@@ -30,6 +30,36 @@ ChallengeSpec = pow(bits) / token(issuer) / stamp(amount) / vouch(guardianSet)
 A stranger's first MOTE MUST carry a valid challenge response or it is dropped/deferred to a
 "requests" area, never delivered to the inbox.
 
+### 9.2a Binding proofs to the message (theft/replay prevention — normative)
+
+Every `ChallengeResponse` is carried in the **cleartext** envelope so it can be checked before
+decryption (§2.7). That means an on-path observer sees it. A proof that is valid *in isolation*
+could therefore be **stripped from a victim's MOTE and re-attached to the attacker's own MOTE**
+(the attacker mints a fresh ephemeral `sender_key`, copies the stolen proof into `challenge`, and
+signs — both `sender_sig` and the stolen proof then verify). To close this, **a
+`ChallengeResponse` MUST be cryptographically bound to the envelope's ephemeral `sender_key`**
+(§2.2, field 12), so a stolen proof is worthless under any other ephemeral key:
+
+- **ArcToken** — the ARC presentation MUST be computed over a request context that includes
+  `sender_key` (in addition to `origin`). A verifier MUST reject a presentation whose context
+  does not bind the `sender_key` of the carrying envelope. This is what makes the token
+  single-holder without deanonymizing it (ARC stays cross-recipient-unlinkable, §9.3).
+- **PowSolution** — already bound: the `epoch_nonce` scope is `id ‖ recipient ‖ nonce(epoch)`
+  (§9.4/§16.5) and `id` is the content address of *this* ciphertext, so a stolen PoW only "works"
+  on the identical MOTE, which the recipient de-duplicates by `id`. Implementations SHOULD
+  additionally fold `sender_key` into the PoW scope for defense in depth.
+- **PostageStamp** — theft is bounded by the online single-use redemption check (§9.5.1): the
+  first party to redeem `serial` wins and the stamp is spent, so a stolen stamp cannot be
+  redeemed twice. The presentation MUST additionally name `sender_key` in the redemption request
+  so the issuer binds the spend to the presenting ephemeral key.
+- **Vouch** — a stolen vouch lets an attacker past the *abuse gate* only; the message still fails
+  identity authentication inside `ciphertext` at §2.7 step 8, so it is discarded. No additional
+  binding is required, but a vouch SHOULD still be rate-limited per `subject` (§9.7).
+
+Because `challenge` is inside the `sender_sig` preimage (§18.9.1) and `sender_sig` is made by
+`sender_key`, this binding also proves the proof and the signature came from the *same* ephemeral
+key for this exact envelope.
+
 ## 9.3 Anonymous rate-limit tokens (the core mechanism)
 
 DMTAP uses **Privacy-Pass anonymous tokens** (RFC 9576 architecture, RFC 9577 HTTP scheme,
