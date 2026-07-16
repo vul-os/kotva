@@ -12,7 +12,7 @@ The suite has two coupled artifacts plus this guide:
 | [`suite.json`](suite.json) | The **machine-readable** form of the same cases (same ids) — a runner in any language drives it. |
 | [`vectors/vectors.json`](vectors/vectors.json) | The **byte-exact known-answer inputs** the vectored cases dispatch on. |
 
-`SUITE.md` and `suite.json` carry the **same 84 case ids** and MUST stay in sync. 39 cases are
+`SUITE.md` and `suite.json` carry the **same 91 case ids** and MUST stay in sync. 39 cases are
 byte-runnable today (33 backed by a `vectors.json` entry, 6 self-contained CBOR-reject cases whose
 bytes are inline); 45 are `construction-todo` — each carries an exact construction recipe and the
 expected §21 error, and becomes byte-backed as its subsystem gains a fixed-input KAT (see
