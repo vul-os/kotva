@@ -46,6 +46,11 @@ DMTAP's headline guarantee is **strong metadata privacy against a global *passiv
   privacy, more bandwidth).
 - **Size padding** — MOTEs are padded to fixed size buckets so length does not leak.
 
+These are **normative and fully specified** — the Sphinx packet format, mix directory, path
+selection, key rotation, cover-traffic rates, active-attack detection, entry guards, operator
+diversity, fail-closed no-downgrade, and the high-security profile — in **§4.4.1–§4.4.10** with
+parameters in **§16.3**; this subsection is the summary, §4.4 is the buildable specification.
+
 Email's asynchrony is the enabling property: minutes of latency are acceptable for the
 `private` tier, and higher latency yields stronger anonymity.
 
@@ -103,10 +108,25 @@ hostile-buffer scenarios.
 
 ## 6.6 Honest boundaries (what we do NOT claim)
 
-1. **Global active adversary.** An adversary who can inject, drop, and delay traffic
-   everywhere and correlate at scale can, given enough resources, degrade anonymity. Perfect
-   resistance is bounded by the fundamental **anonymity ↔ (latency + bandwidth)** tradeoff;
-   more cover traffic and delay approach it asymptotically but never reach a costless zero.
+1. **Global active adversary — the irreducible residual *after* the mechanisms.** DMTAP does not
+   treat the active adversary as an unaddressed limit: §4.4.6–§4.4.10 specify concrete, normative
+   defenses — **per-epoch mix replay caches** (drop replayed packets), **tagging-resistant
+   integrity-protected Sphinx headers**, **memoryless Poisson mixing** (timing correlation stays
+   hard even under active delay injection), **loop-cover active-attack detection** that turns
+   drop/delay/flooding from undetectable into **detected → rotate + `HALT_ALERT` + fail-closed**,
+   **entry guards + `≥ 3`-disjoint-operator path diversity** bounding long-term intersection,
+   **attested (non-token) mix identities** for Sybil resistance, and a **no-silent-downgrade
+   rule** (§4.4.9) so DoSing the mixnet cannot strip the tier. A **user-selectable high-security
+   profile** (§4.4.10 — 5 hops, longer delays, constant-rate cover, tighter guards/diversity) is
+   the lever to climb toward the bound.
+   **After all of that**, an irreducible residual remains: by the **Anonymity Trilemma** (Das,
+   Meiser, Mohammadi & Kate, *"Anonymity Trilemma: Strong Anonymity, Low Bandwidth Overhead, Low
+   Latency — Choose Two,"* IEEE S&P 2018), strong anonymity provably **cannot** be had without
+   paying in latency and/or bandwidth, so a global *active* adversary with unlimited resources that
+   controls a large enough fraction of the network can still mount long-term statistical disclosure
+   at *some* latency/cost point. DMTAP **approaches** that mathematical floor as the high-security
+   profile's latency/overhead grows; it does **not** pretend to defeat an omnipotent adversary at
+   zero cost. This is the honest floor *after* the maximal defense, not a substitute for it.
 2. **Large-file bulk metadata.** Onion-routing + padding + swarming makes it *strong*, not
    *free* and not *perfect* — the fact and approximate volume of a large transfer may remain
    partially observable at high adversary capability.
@@ -155,5 +175,5 @@ anonymous."
   **confidential** MUST always re-key (opt-out forbidden). Without a re-key, a removed member
   retains indefinite read access to already-shared files. Clients MUST surface that pre-removal copies a
   member already downloaded cannot be recalled — deletion/recall is cooperative-only, never a
-guarantee (the un-share limit, §17 #28).
+guarantee (the un-share limit; `redact`/`expires` are unenforceable cooperative hints, §6.6 item 8).
 - Recovery custody (§1.4) governs how at-rest keys survive device loss.

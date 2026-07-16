@@ -50,6 +50,21 @@ not recognize (fail closed) so that the signing preimage is unambiguous; a decod
 **unsigned** object MAY ignore unknown keys ≥ 64. Text-keyed extensibility is confined to
 `Headers.ext` (§18.3.6).
 
+**How the `≥ 64` range is used on a *signed* object (normative reconciliation).** The fail-closed
+rule above means an old peer cannot "ignore-but-preserve" an unknown `≥ 64` key in a signed
+object — it rejects the whole object — so a signed object MUST NOT simply be extended in place and
+sent to arbitrary peers. Structural extension of a signed object is instead done through
+**capability negotiation (§10.2)**: a sender includes a `≥ 64` extension field in a signed object
+**only toward a peer whose capability announcement advertises support** for that extension
+(carried, versioned and rollback-protected, in a `system` MOTE, §10.2). A peer that never
+advertised the extension never receives the key it would reject, so extension is additive and
+flag-day-free while the fail-closed preimage guarantee is preserved. The alternative
+"ignore-but-preserve unknown keys" affordance applies **only** to **unsigned** objects and to the
+text-keyed `Headers.ext` map (§18.3.6, §21.20), where there is no signing preimage to keep
+unambiguous. New `≥ 64` fields intended to be portable follow the extension procedure (§21.25) and are paired
+with a capability token (§21.22); private-use extensions use an `x-`-prefixed `Headers.ext` key
+instead.
+
 ### 18.1.3 Endianness
 
 CBOR encodes all integers big-endian by construction (RFC 8949 §3), so map/field integers carry
@@ -679,11 +694,12 @@ The self-certifying `key → location` value record stored in the DHT (IPNS patt
 ```cddl
 LocationRecord = {
   1 => ik-pub,          ; ik        identity key (DHT key = multihash(ik))
-  2 => peer-id,         ; peer_id   libp2p PeerId (MAY be per-epoch/unlinkable, §6)
+  2 => peer-id,         ; peer_id   node id per `substrate` (v0 libp2p PeerId; MAY be per-epoch/unlinkable, §6)
   3 => [* maddr],       ; addrs     current reachability hints
   4 => u64,             ; seq       monotonic sequence number (rollback defense, §16.2)
   5 => u64,             ; ttl       record lifetime in seconds
   6 => ts,              ; ts
+  ? 8 => u8,            ; substrate transport-substrate tag (§21.24); absent ⇒ 0x01 libp2p (§4.1)
   7 => sig-val,         ; sig       signed by a device key
 }
 ```
@@ -696,12 +712,85 @@ LocationRecord = {
 | `seq` | 4 | `u64` | MUST | Monotonic sequence number; a resolver MUST reject a record whose `seq` is **older or equal** to one already seen (rollback/replay defense, §4.2, §16.2). |
 | `ttl` | 5 | `u64` | MUST | Record lifetime in seconds (v0 default 2 h, §16.2); republished before expiry (default 45 min). |
 | `ts` | 6 | `ts` | MUST | Publication time. |
-| `sig` | 7 | `sig-val` | MUST | Signed by a **device key** (not necessarily IK) authorized in the current `Identity` (§18.9.3). Signing authenticates content only — it does NOT stop eclipse (§4.2). |
+| `substrate` | 8 | `u8` | OPTIONAL | Transport-substrate tag from the Transport Substrates registry (§21.24). **Absent ⇒ `0x01` (libp2p)**, the v0 default (§4.1). Governs how `peer_id` and `addrs` are interpreted and dialed; a resolver that does not implement the tagged substrate treats the record as unreachable (`0x0303`), never a parse error. Introducing a new substrate is the additive, capability-negotiated (§10.2) migration analogous to a new suite (§4.1, §21.25) — not a flag day. |
+| `sig` | 7 | `sig-val` | MUST | Signed by a **device key** (not necessarily IK) authorized in the current `Identity` (§18.9.3). Signing authenticates content only — it does NOT stop eclipse (§4.2). Covers `substrate` when present. |
 
 > **Reconciled (§18.11 item 3):** `seq` (key 4) is REQUIRED here, per §16.2's "Location
 > seq-number | monotonic u64" rollback defense. §4.2's inline CBOR now carries the same `seq`
 > field, so appendix and prose agree; a resolver MUST reject any record whose `seq` is older-or-
 > equal to one already seen.
+
+### 18.5.2 `MixNodeDescriptor` (§4.4.2)
+
+A signed self-descriptor a mix node publishes so senders can route Sphinx packets (§4.4.1)
+through it. It advertises the node's **Sphinx mix public key(s)** per epoch (§4.4.4), its
+reachability, and its **stratified layer** (§4.4.3). It is discovered via the `MixDirectory`
+(§18.5.3), which is bound to the existing DNS/KT trust (§4.4.2); a descriptor is otherwise an
+ordinary signed identity-style object.
+
+```cddl
+MixNodeDescriptor = {
+  1 => suite,           ; suite      signature/KEM/hash suite of this descriptor and its mix keys
+  2 => ik-pub,          ; node_ik    the mix node's long-term identity key (its DMTAP identity)
+  3 => [* maddr],       ; addrs      reachability hints for the mix role
+  4 => [+ MixKeyEntry], ; mix_keys   current + next Sphinx mix public keys, keyed by epoch (§4.4.4)
+  5 => mix-layer,       ; layer      stratified position: 0=entry, 1=middle, 2=exit (§4.4.3)
+  ? 9 => ik-pub,        ; operator   operator identity for diversity (§4.4.8); absent ⇒ node_ik
+  ? 8 => u8,            ; substrate  transport-substrate tag (§21.24); absent ⇒ 0x01 libp2p
+  6 => ts,              ; ts
+  7 => sig-val,         ; sig        signed by an IK-authorized device key of `node_ik` (§18.9.9)
+}
+MixKeyEntry = { 1 => u64, 2 => enc-key, 3 => ts }   ; epoch, Sphinx mix public key, valid-until
+mix-layer   = 0..2
+```
+
+| Object | Field | Key | Type | Presence | Meaning & constraints |
+|--------|-------|----:|------|----------|-----------------------|
+| `MixNodeDescriptor` | `suite` | 1 | `suite` | MUST | Suite of `sig` and of `mix_keys` (v0 `0x01`: the Sphinx mix key is an X25519 public key; §4.4.1). A PQ mix suite is a future registration (§4.4.12). |
+| | `node_ik` | 2 | `ik-pub` | MUST | The mix node's long-term identity key — an ordinary DMTAP identity (§1.3), so a mix operator is accountable and KT-auditable (§4.4.2, §9.8). |
+| | `addrs` | 3 | `[* maddr]` | MUST (MAY be empty) | Reachability hints for the mix role, interpreted per `substrate`. |
+| | `mix_keys` | 4 | `[+ MixKeyEntry]` | MUST | The node's **Sphinx mix public keys** by epoch (§4.4.4): at least the current epoch, SHOULD also carry the next (overlap window) so senders can pre-build. A sender MUST encrypt each hop to the key of the **epoch it targets** and MUST reject a descriptor with no key for a usable epoch. |
+| | `layer` | 5 | `mix-layer` | MUST | Stratified layer the node serves (`0` entry / `1` middle / `2` exit); the directory authority assigns/accepts it, and path selection (§4.4.3) draws one node per layer in order. |
+| | `operator` | 9 | `ik-pub` | OPTIONAL | The **operator identity** this mix is under, for the **operator-diversity** path rule (§4.4.8): a path MUST NOT reuse an `operator` across hops. **Absent ⇒ the mix is its own operator (`node_ik`).** SHOULD be corroborated by a `_dmtap-mix` operator attestation (§4.4.8, analogous to `_dmtap-gw`, §7.2a) so it cannot be spoofed to defeat diversity. |
+| | `substrate` | 8 | `u8` | OPTIONAL | Transport-substrate tag (§21.24); absent ⇒ `0x01` libp2p (§4.1). |
+| | `ts` | 6 | `ts` | MUST | Descriptor publication time. |
+| | `sig` | 7 | `sig-val` | MUST | Signature by an `IK`-authorized device key of `node_ik` (§18.9.9). Authenticates the descriptor's content; trust in the *set* of mixes comes from the KT-anchored `MixDirectory`, §18.5.3. |
+| `MixKeyEntry` | `epoch` | 1 | `u64` | MUST | Monotonic mix-key epoch number (§4.4.4). |
+| | `mix_key` | 2 | `enc-key` | MUST | Sphinx per-hop public key for this epoch (v0 X25519). |
+| | `valid_until` | 3 | `ts` | MUST | End of this epoch's validity; a packet built to an expired epoch key is rejected (`ERR_MIX_DESCRIPTOR_STALE`, `0x030C`). |
+
+### 18.5.3 `MixDirectory` (§4.4.2)
+
+The signed, versioned, **KT-anchored** snapshot of the mix fleet for an epoch — the mixnet analog
+of the `DomainDirectory` (§18.4.7) and subject to the same "indexes, does not forge" discipline.
+It is published by a **directory authority** (a DMTAP identity whose key is pinned via DNS/KT,
+§4.4.2) and its root is appended to key transparency (§3.5) so the fleet's history is append-only
+and auditable; the authority key SHOULD be threshold-held (§5.8.6) and MAY be a set with a
+`> n/2` quorum (§3.5.2(b)) so no single authority can unilaterally inject mixes.
+
+```cddl
+MixDirectory = {
+  1 => suite,                  ; suite
+  2 => ik-pub,                 ; authority   directory-authority identity key (pinned via DNS/KT)
+  3 => u64,                    ; epoch       directory epoch (§4.4.4)
+  4 => u64,                    ; version     monotonic; reject older-or-equal (rollback defense)
+  5 => [+ MixNodeDescriptor],  ; mixes       the fleet for this epoch, each independently signed
+  6 => hash,                   ; prev        content-address of the previous MixDirectory (chain)
+  7 => ts,                     ; ts
+  8 => sig-val,                ; sig         signed by `authority` (§18.9.9)
+}
+```
+
+| Field | Key | Type | Presence | Meaning & constraints |
+|-------|----:|------|----------|-----------------------|
+| `suite` | 1 | `suite` | MUST | Suite of the authority signature. |
+| `authority` | 2 | `ik-pub` | MUST | Directory-authority identity key; a verifier MUST have pinned it via DNS/KT (§4.4.2) and MUST reject a directory not signed by it (`ERR_MIX_DIRECTORY_SIG_INVALID`, `0x030B`). |
+| `epoch` | 3 | `u64` | MUST | The mix-key epoch this directory describes (§4.4.4). |
+| `version` | 4 | `u64` | MUST | Monotonic; a resolver MUST reject a directory whose `version` is older-or-equal to one already accepted (rollback defense, mirrors `LocationRecord.seq`). |
+| `mixes` | 5 | `[+ MixNodeDescriptor]` | MUST | Each mix's own signed descriptor (§18.5.2); the authority attests **membership of the set**, not the descriptors' content (each self-verifies under its own `node_ik`). A directory MUST contain ≥ 1 node per stratified layer or path-building fails (`ERR_MIX_PATH_UNBUILDABLE`, `0x030D`). |
+| `prev` | 6 | `hash` | MUST | Content-address of the previous `MixDirectory`, chaining the fleet history (genesis = all-zero digest with the v0 prefix); the root is KT-anchored (§3.5) so equivocation over the fleet is detectable exactly like a split-view (`0x0107`). |
+| `ts` | 7 | `ts` | MUST | Publication time. |
+| `sig` | 8 | `sig-val` | MUST | Directory-authority signature (§18.9.9). |
 
 ---
 
@@ -871,6 +960,8 @@ every signature is over `DS-tag ‖ det_cbor(object∖sig)`, where:
 | `MoveRecord` | `sig` (k7) | `DMTAP-v0/move-record` | `det_cbor(MoveRecord ∖ {7})` |
 | `DomainDirectory` | `sig` (k9) | `DMTAP-v0/domain-directory` | `det_cbor(DomainDirectory ∖ {9})` |
 | `LocationRecord` | `sig` (k7) | `DMTAP-v0/location-record` | `det_cbor(LocationRecord ∖ {7})` |
+| `MixNodeDescriptor` | `sig` (k7) | `DMTAP-v0/mix-descriptor` | `det_cbor(MixNodeDescriptor ∖ {7})` |
+| `MixDirectory` | `sig` (k8) | `DMTAP-v0/mix-directory` | `det_cbor(MixDirectory ∖ {8})` |
 | `GroupState` | `committer_sig` (k13) | `DMTAP-v0/group-state` | `det_cbor(GroupState ∖ {13})` |
 | `GroupEvent` | `committer_sig` (k6) | `DMTAP-v0/group-event` | `det_cbor(GroupEvent ∖ {6})` |
 | `PostageStamp` | `sig` (k7) | `DMTAP-v0/postage-stamp` | `det_cbor(PostageStamp ∖ {7})` |
@@ -1010,6 +1101,18 @@ bind the session **only** to `cnf`. The signing key is the user's **`IK`-authori
 (`Assertion.from`), verified against the pinned `name → key` identity (§3.4) — **not** the session
 key (which `cnf` merely commits) and not `IK` used directly for routine logins.
 
+### 18.9.9 Mixnet objects
+
+`MixNodeDescriptor.sig` and `MixDirectory.sig` use the general rule
+(`Sign(sk, DS-tag ‖ 0x00 ‖ det_cbor(object ∖ {sig}))`) with tags `DMTAP-v0/mix-descriptor` /
+`DMTAP-v0/mix-directory`. The `MixNodeDescriptor` signing key is an **`IK`-authorized device key**
+of the descriptor's `node_ik` (verified via that node's `Identity`, §1.2); the `MixDirectory`
+signing key is the **directory-authority IK** pinned via DNS/KT (§4.4.2, threshold-held per
+§5.8.6 where a set/quorum is used). The **Sphinx per-hop wrapping** of a MOTE is **not** a DMTAP
+CBOR signature — it is the Sphinx packet construction of §4.4.1 (per-hop MAC + re-randomized
+group element), verified by each mix peeling its layer, and is out of scope for this preimage
+table (it carries no `sig-val` field).
+
 ---
 
 ## 18.10 Collected CDDL grammar (copy-paste block)
@@ -1138,7 +1241,20 @@ member-custody = "sovereign" / "org-managed"
 ; ── transport layer (§4) ───────────────────────────────────────────
 LocationRecord = {
   1 => ik-pub, 2 => peer-id, 3 => [* maddr],
-  4 => u64, 5 => u64, 6 => ts, 7 => sig-val,
+  4 => u64, 5 => u64, 6 => ts, ? 8 => u8, 7 => sig-val,   ; 8 = substrate tag (§21.24); absent ⇒ 0x01 libp2p
+}
+
+; ── mixnet layer (§4.4) ────────────────────────────────────────────
+; A signed descriptor for one mix node, and the signed per-epoch directory of them.
+MixKeyEntry     = { 1 => u64, 2 => enc-key, 3 => ts }        ; epoch, Sphinx mix public key, valid-until
+MixNodeDescriptor = {
+  1 => suite, 2 => ik-pub, 3 => [* maddr], 4 => [+ MixKeyEntry],
+  5 => mix-layer, ? 9 => ik-pub, ? 8 => u8, 6 => ts, 7 => sig-val,  ; 9=operator (§4.4.8); 8=substrate (§21.24, absent⇒0x01 libp2p)
+}
+mix-layer       = 0..2                                       ; stratified position: 0=entry,1=middle,2=exit
+MixDirectory = {
+  1 => suite, 2 => ik-pub, 3 => u64, 4 => u64, 5 => [+ MixNodeDescriptor],
+  6 => hash, 7 => ts, 8 => sig-val,                          ; 3=epoch 4=version 6=prev-directory hash
 }
 
 ; ── group layer (§5.8) ─────────────────────────────────────────────
@@ -1220,12 +1336,16 @@ resolves each explicitly rather than picking one silently; each SHOULD be reconc
    reference implementation.
 
 **Object count:** this appendix gives a normative CDDL rule and a per-field semantics table for
-**26 wire objects** — `Envelope`, `DeliveryTag`, `ChallengeResponse`, `KeyPackageRef`, `Payload`,
+**28 wire objects** — `Envelope`, `DeliveryTag`, `ChallengeResponse`, `KeyPackageRef`, `Payload`,
 `Headers`, `Body`, `Attachment`, `ManifestRef`, `Manifest`, `Identity`, `DeviceCert`,
 `KeyPackageBundleRef`, `RecoveryPolicy`, `RecoveryMethod`, `Threshold`, `KeyRotation`,
-`MoveRecord`, `DomainDirectory`, `DirEntry`, `LocationRecord`, `GroupState`, `RosterEntry`,
-`GroupEvent`, `Challenge`, `Assertion` — plus their tagged sub-variants
-(`KeyTag`/`GroupTag`/`BlindedTag`; `ArcToken`/`PowSolution`/`PostageStamp`/`Vouch`;
-`PhraseMethod`/`DeviceMethod`/`SocialMethod`; `MethodPredicate`) and the shared scalar prelude
-(§18.1.7). Counting the four choice-variant families and `MethodPredicate` as distinct encodable
-structures brings the total to **38 CDDL-defined structures**, all collected in §18.10.
+`MoveRecord`, `DomainDirectory`, `DirEntry`, `LocationRecord`, `MixNodeDescriptor`,
+`MixDirectory`, `GroupState`, `RosterEntry`, `GroupEvent`, `Challenge`, `Assertion` — plus their
+tagged sub-variants (`KeyTag`/`GroupTag`/`BlindedTag`;
+`ArcToken`/`PowSolution`/`PostageStamp`/`Vouch`; `PhraseMethod`/`DeviceMethod`/`SocialMethod`;
+`MethodPredicate`; `MixKeyEntry`) and the shared scalar prelude (§18.1.7). Counting the four
+choice-variant families, `MethodPredicate`, and `MixKeyEntry` as distinct encodable structures
+brings the total to **41 CDDL-defined structures**, all collected in §18.10. (The two new mixnet
+objects `MixNodeDescriptor`/`MixDirectory` plus the `MixKeyEntry` sub-structure are the §4.4
+mixnet binding; the Sphinx packet itself is a non-CBOR fixed-length format specified by reference
+in §4.4.1, not a CDDL object.)

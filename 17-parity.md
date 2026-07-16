@@ -207,8 +207,9 @@ survive translation, and that is correct, not a bug).
   §6.2).
 - **Sense-check:** Correctly modeled as metadata-sensitive rather than a free default — read
   receipts leak exactly the kind of fine-grained timing/behavior signal the rest of the spec
-  works hard to hide (§6.6.3's intersection-attack concern applies at the small scale of "did
-  they read it and when" too), so opt-in-only is the right call, not an oversight.
+  works hard to hide (the intersection / statistical-disclosure concern of §6.4 (residual
+  exposure 3) and §11.3 applies at the small scale of "did they read it and when" too), so
+  opt-in-only is the right call, not an oversight.
 - **Security:** Better — legacy read receipts (or worse, silent tracking pixels used as a
   read-receipt substitute) are usually either on-by-default or invisible/non-consensual; here
   the feature only exists when the recipient affirmatively enables it, and it rides inside

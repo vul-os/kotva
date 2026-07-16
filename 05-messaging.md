@@ -54,10 +54,10 @@ node that serializes handshake messages into an append-only, hash-chained per-gr
   (keys are unique; earliest join epoch is the fallback tie-break). The successor proposes a
   **takeover Commit** referencing the last agreed log head; it takes effect **only when it carries
   a threshold of member signatures** (a roster quorum, §16), so a partitioned minority cannot
-  install a rival committer and there is no split-brain over *who* takes over. (Edge case: a
-  2-member group cannot perform a takeover if one member is dead — the > n/2 quorum needs both —
-  so a censoring committer in a 2-party group is resolved by leaving/recreating the group, not by
-  takeover.) The hash-chained
+  install a rival committer and there is no split-brain over *who* takes over. (The heavy
+  committer-plus-`> n/2`-takeover machinery in this bullet applies only to **groups of n ≥ 3**; a
+  **2-member group (a 1:1) uses the lighter symmetric-ordering path of §5.1.1 instead**, because
+  the `> n/2` quorum is unsatisfiable when one of the two peers is dead.) The hash-chained
   log makes a **fork detectable**: two Commits at the same log position with the same predecessor
   is proof of committer misbehavior; members MUST halt and alert (analogous to KT equivocation,
   §3.5) and recover per the fork-recovery path below.
@@ -92,6 +92,44 @@ rotate committer frequently.
 
 Track `draft-kohbrok-mls-dmls` (Decentralized MLS) for a fully leaderless replacement; until it
 lands, the committer model above is v0.
+
+### 5.1.1 Lighter ordering for n = 2 (1:1) — symmetric co-committers (normative)
+
+A **1:1 is a 2-member MLS group** (§5.1), and the committer-takeover machinery above **cannot
+work for it**: takeover needs a `> n/2` (both-of-two) member-signature quorum, which a live peer
+can never assemble when its counterpart is offline or censoring — so a single committer would be
+an unremovable single point of failure over the pair's own ordering. DMTAP therefore specifies a
+distinct, lighter ordering path for **n = 2** and reserves the committer/quorum machinery for
+**n ≥ 3**:
+
+- **Both members are symmetric co-committers.** There is **no single committer** and no takeover:
+  each of the two members MAY serialize its own handshake messages (Proposal/Commit/Update). The
+  ordered, reliable per-group channel MLS requires (§5.1) is realized by **pairwise handshake
+  sequence numbers** rather than one node's log: each member maintains a strictly increasing
+  `hs_seq` for the handshakes it originates, and each handshake is chained by `prev` to the last
+  handshake that member has applied.
+- **Deterministic tie-break on concurrent Commits.** Because either peer may Commit, the two can
+  propose **concurrent** Commits against the same epoch. This is resolved without a quorum by a
+  fixed rule: the Commit whose **originator has the lower member signing key** (canonical byte
+  order — the same total order §5.1 uses for successor selection) is **canonical**; the other
+  peer's concurrent Commit is **superseded and re-proposed** on top of the winner (its author
+  re-applies it at its next `hs_seq`). Ties on the key are impossible (keys are unique), so the
+  order is total and both peers converge on the identical epoch chain with no vote.
+- **No forgery, same fork-evidence.** Each handshake is still **member-signed** (MLS, §5.1), so
+  neither peer can forge the other's membership actions; a peer that presents two different
+  handshakes at the same `(originator_ik, hs_seq)` produces **self-signed fork evidence**, and the
+  other member MUST `HALT_ALERT` exactly as for committer equivocation (§5.1, `0x0404`). The
+  hash-chain `prev` still detects reordering and gaps.
+- **Censorship degrades to unilateral action, not deadlock.** A 2-party peer cannot *stall* the
+  other's ordering (there is no committer to withhold service): each member can order its own
+  Commits — including the other's **removal** — so the "censoring committer in a 2-party group"
+  dead-end is removed (it is no longer resolved by leaving/recreating the group). A genuine
+  divergence (a detected fork) recovers via the §5.1 out-of-band path with the trivial 2-party
+  quorum (both members, or re-pair).
+- **Growth to n ≥ 3.** The first Commit that grows the group beyond two members installs the
+  standard **committer** (§5.1 — the adding member is the initial committer) and the group leaves
+  the symmetric path; shrinking back to two members reverts to symmetric co-committers. The
+  regime is a pure function of roster size, so both peers always agree on which is in force.
 
 ## 5.2 Forward secrecy & (non-)deniability
 

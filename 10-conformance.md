@@ -23,7 +23,27 @@
 - A sender discovers a recipient's capabilities via the recipient's `Identity`/DNS record
   (native DMTAP vs legacy-only) and picks the path per-recipient (§3, §7.6).
 - `system` MOTEs (kind `0x0a`) carry capability announcements between nodes (supported suites,
-  privacy tiers, MLS ciphersuites, extensions).
+  privacy tiers, MLS ciphersuites, extensions, KT log-types, transport substrates).
+- **Anti-rollback: capability announcements are monotonic (normative).** A capability
+  announcement is authenticated (it rides inside a `system` MOTE authenticated to the recipient,
+  §2.7) but, without a version, a replayed *older* announcement could **suppress a capability the
+  peer has since advertised** (e.g. hide that a peer now supports a stronger suite or the KT-v1
+  log-type, forcing a downgrade). Every capability announcement MUST therefore carry a
+  **monotonic `caps_version` (`u64`)**, and a receiver MUST **reject any announcement whose
+  `caps_version` is older-than-or-equal-to** the last one it has accepted from that peer
+  (`ERR_CAPABILITY_ANNOUNCE_ROLLBACK`, `0x030A`, §21.5) — the identical rollback-defense rule
+  the spec applies to `Identity.version` (§1.3), `LocationRecord.seq` (§4.2, §16.2), and
+  `GroupState.version` (§5.8.2). A receiver retains the highest `caps_version` seen per peer;
+  capabilities are only ever added or upgraded across increasing versions, never silently rolled
+  back by a stale replay. Absence of a recognized capability token in the *current* (highest)
+  announcement is still inconclusive, not a negative assertion (§21.22).
+- **Structural extension of signed objects rides capability negotiation.** Because a decoder of
+  a **signed** object fails closed on any unknown integer key (§18.1.2, so the signing preimage
+  stays unambiguous), a sender MUST include a reserved `≥ 64` extension field in a signed object
+  **only toward a peer that has advertised support** for that extension in its capability
+  announcement — old peers therefore never receive a key they would reject. This is the
+  normative path for extending signed objects; the "ignore-unknown" affordance is confined to
+  **unsigned** objects and to `Headers.ext` (§18.1.2, §21.20).
 - **Opportunistic upgrade**: a legacy correspondent is reached via the gateway; if they later
   publish a DMTAP key, native delivery is used automatically. No flag day.
 
@@ -34,7 +54,7 @@ An implementation is **DMTAP-conformant** at a level if it passes the correspond
 | Level | Requires |
 |-------|----------|
 | **Core** | Identity (§1), MOTE (§2), naming resolution + TOFU + **v0-minimal KT publish/verify with fail-closed-on-unreachable** (§3), mesh delivery + `deliver`/`ack` (§4), MLS 1:1 (§5), recipient policy incl. cold-sender challenge gating (§9) |
-| **Private** | Core + mixnet + sealed sender + cover traffic + privacy tiers (§4, §6) |
+| **Private** | Core + mixnet (Sphinx packet + directory + 3-hop stratified paths + key-epoch rotation, §4.4.1–§4.4.4) + sealed sender + cover traffic + the **anti-active-adversary mechanisms** (per-epoch replay caches, Poisson mixing, loop-cover attack detection, entry guards + operator diversity, and **fail-closed no-downgrade**, §4.4.6–§4.4.9) + privacy tiers (§4, §6). The user-selectable **high-security profile** (§4.4.10) and **PQ-Sphinx** (§4.4.12) are OPTIONAL. |
 | **Groups & Files** | Core + MLS groups + content-addressed file transfer (§5) |
 | **Legacy** | Core + gateway inbound/outbound + DKIM delegation (§7) |
 | **Clients** | Core + JMAP; IMAP/POP/SMTP-submission compat RECOMMENDED (§8) |

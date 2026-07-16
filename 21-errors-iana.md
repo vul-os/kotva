@@ -3,7 +3,7 @@
 This appendix is normative. It has two parts: **Part 1** (§21.1–§21.12) is the exhaustive
 error/status registry — every failure condition defined anywhere in this specification, given a
 stable code, a required responder action, and a retryability classification, so that **no
-condition in DMTAP has undefined behavior**. **Part 2** (§21.13–§21.23) states the IANA
+condition in DMTAP has undefined behavior**. **Part 2** (§21.13–§21.26) states the IANA
 considerations: the registries DMTAP requires, their initial contents, their allocation
 policies, and the procedure for extending the protocol without fragmenting it. The key words
 "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", and "MAY" are used as in RFC 2119, consistent with
@@ -46,7 +46,7 @@ Subsystem bytes:
 | `0x06` | Gateway — legacy SMTP bridge (§7) |
 | `0x07` | Anti-Abuse & Postage (§9) |
 | `0x08` | Files (§5.5, §6.7) |
-| `0x09`–`0xEF` | Unassigned — reserved for future subsystems (§21.23) |
+| `0x09`–`0xEF` | Unassigned — reserved for future subsystems (§21.25) |
 | `0xF0`–`0xFE` | Private Use (experimental/vendor subsystems) |
 | `0xFF` | Reserved |
 
@@ -146,6 +146,13 @@ to a MOTE) is a distinct concept scoped to the Auth ceremony; see `0x0502` (§21
 | `0x0307` | `ERR_MIX_PACKET_MALFORMED` | Sphinx onion peel (§4.4) | A mix hop cannot peel a layer (corrupt or non-conformant packet). | No | DROP_SILENT — a content-blind mix has no channel to notify anyone |
 | `0x0308` | `ERR_SENDER_RETRY_DEADLINE_EXCEEDED` | Delivery state machine `EXPIRED` (§2.6, §4.7, §16.1: 72 h) | Sender's retry deadline elapsed without an `ack`. | No | REJECT_NOTIFY — notify the sending user; drop the queued MOTE |
 | `0x0309` | `ERR_OFFLINE_BUFFER_UNAVAILABLE` | Peer buffering / relay-mailbox pickup (§4.3, §14.5) | The buffering peer or relay-mailbox is unreachable, or the buffer's TTL has elapsed. | Yes, until TTL | ROTATE_RETRY before TTL; REJECT_NOTIFY after |
+| `0x030A` | `ERR_CAPABILITY_ANNOUNCE_ROLLBACK` | `system`-MOTE capability announcement version check (§10.2) | A capability announcement's `caps_version` is older-than-or-equal-to the last accepted from that peer — a stale replay attempting to suppress an advertised capability (downgrade). | No (this announcement) | FAIL_CLOSED_BLOCK — retain the higher-versioned capability set; do not roll back |
+| `0x030B` | `ERR_MIX_DIRECTORY_SIG_INVALID` | `MixDirectory` verification (§4.4.2, §18.5.3) | The mix directory is not validly signed by the pinned directory authority (or fails the `> n/2` authority quorum). | No | FAIL_CLOSED_BLOCK — do not use the fleet; a KT split view over the directory is `0x0107` |
+| `0x030C` | `ERR_MIX_DESCRIPTOR_STALE` | Sphinx path build / mix key epoch check (§4.4.4, §18.5.2) | A `MixNodeDescriptor` has no key for a usable epoch, or a packet was built to an expired/rotated mix key (`valid_until` passed). | Yes (refresh the `MixDirectory` and rebuild for the current epoch) | ROTATE_RETRY — re-fetch the directory, rebuild the path for the current epoch |
+| `0x030D` | `ERR_MIX_PATH_UNBUILDABLE` | Stratified path selection (§4.4.3) | Cannot build a conformant 3-hop stratified path — a layer has no live/reachable mix in the current directory. | Yes (later directory epoch may repopulate) | ROTATE_RETRY; REJECT_NOTIFY once the sender's retry budget (§4.7) is exhausted |
+| `0x030E` | `ERR_MIX_REPLAY_DETECTED` | Per-epoch mix replay cache (§4.4.6) | A mix received a Sphinx packet whose per-hop tag is already in its current-epoch replay cache — a replayed packet (correlation / n−1 replay attempt). | No | DROP_SILENT — a content-blind mix has no channel to notify; the duplicate is simply dropped |
+| `0x030F` | `ERR_MIX_ACTIVE_ATTACK_SUSPECTED` | Loop-cover detection (§4.4.7) | A node's loop-cover return fraction fell below the loss threshold (or latency inflated beyond the delay budget), inferring an active drop/delay/flooding attack on its paths. | Yes (after rotation) | HALT_ALERT — rotate away from implicated mixes/guards, alert the user, and **fail closed for `private`** (MUST NOT auto-downgrade to `fast`, §4.4.9) |
+| `0x0310` | `ERR_PRIVATE_TIER_DOWNGRADE_REFUSED` | Minimum-viable-path check (§4.4.9) | No minimum-viable `private` path (≥ 3 hops, 1/layer, ≥ 3 disjoint operators, current-epoch keys) is buildable — an adversary DoSing mixes to force a downgrade, or genuine outage. | Yes (hold + retry until a viable path exists) | FAIL_CLOSED_BLOCK — hold the MOTE in the sender queue (§4.7), never silently route it over `fast` or a shorter/non-diverse path; surface to the user if it persists past the retry deadline |
 
 ## 21.6 Messaging & Group errors — MLS (`0x04xx`)
 
@@ -293,6 +300,12 @@ auditability:
 | Gateway-attestation-invalid | `0x0601` |
 | Postage-double-spend | `0x0708` |
 | Issuer-untrusted | `0x0704` (token issuer), `0x0707` (postage issuer), `0x0509` (OIDC issuer) |
+| Capability-announcement rollback | `0x030A` |
+| Mix directory not authority-signed | `0x030B` (a directory split-view is `0x0107`) |
+| Mix descriptor / key epoch stale | `0x030C` |
+| Mix path unbuildable / min-viable-path unmet | `0x030D` (no path), `0x0310` (viable-path refused, no downgrade) |
+| Mix packet replay | `0x030E` |
+| Mixnet active-attack inferred (loop-cover) | `0x030F` |
 
 ---
 
@@ -303,11 +316,11 @@ auditability:
 DMTAP intends to pursue IETF standardization (§10.5). Upon submission of the governing
 Internet-Draft, the registries below SHOULD be requested from IANA under "DMTAP Parameters."
 Until then, **this appendix is the interim authoritative registry**, maintained per the
-extension procedure in §21.23. Allocation policies use the standard terms of RFC 8126:
+extension procedure in §21.25. Allocation policies use the standard terms of RFC 8126:
 
 - **Standards Action** — requires a new RFC on the standards track.
 - **Specification Required** — requires a stable, publicly available specification and review
-  by a Designated Expert (§21.23), but not a new RFC.
+  by a Designated Expert (§21.25), but not a new RFC.
 - **First Come First Served (FCFS)** — no review; allocated on request.
 - **Private Use** — not registered at all; meaningful only within a closed deployment or as a
   vendor extension, and MUST be namespaced (e.g. `x-` prefix) to avoid accidental collision.
@@ -319,7 +332,7 @@ extension procedure in §21.23. Allocation policies use the standard terms of RF
 | **Registry name** | DMTAP Error/Status Codes |
 | **Reference** | §21.1–§21.11 (this document) |
 | **Allocation policy** | New subsystem byte (`0x09`–`0xEF`): Standards Action. New code point within an existing subsystem (`NN` = `0x01`–`0x7F`): Specification Required. `NN` = `0x80`–`0xFE` within any subsystem: Private Use (implementation-local diagnostics; MUST map to the nearest standard code's Responder Action, §21.2, for any behavior visible to another implementation). `SS`/`NN` = `0x00` or `0xFF`: Reserved. |
-| **Initial contents** | The 91 codes enumerated in §21.3–§21.11. |
+| **Initial contents** | The 98 codes enumerated in §21.3–§21.11. |
 | **Registry discipline** | Append-only. A retired code MUST be marked Deprecated, never deleted or reassigned to a different meaning (mirroring the append-only philosophy of the KT log, §3.5). |
 
 ## 21.15 Algorithm Suites Registry (`suite` u8)
@@ -381,14 +394,14 @@ extension procedure in §21.23. Allocation policies use the standard terms of RF
 | **Initial contents** | None assigned at v0. Candidate future registrations flagged by the feature-parity audit (§17.6) but **not yet registered**: a delegate-attribution marker ("sent/edited by delegate device X of identity Y," items 23/43) and a cosmetic `priority` hint (item 27) — both Specification-Required candidates for a future revision, listed here for traceability only. |
 | **Forward-compatibility rule (normative)** | A receiver MUST ignore any `ext` key it does not recognize; an unrecognized key MUST NOT cause validation failure or message rejection. This is what lets `ext` be extended without breaking older clients. |
 
-## 21.21 DNS Parameter Keys Registry (`_dmtap` / `_dmtap-gw`)
+## 21.21 DNS Parameter Keys Registry (`_dmtap` / `_dmtap-gw` / `_dmtap-mix`)
 
 | | |
 |---|---|
 | **Registry name** | DMTAP DNS TXT/SVCB Parameters |
 | **Reference** | §3.2, §7.2a |
 | **Allocation policy** | Specification Required. |
-| **Initial contents** | Under `<name>._dmtap.<domain>` TXT: `v=` (format version), `suite=` (algorithm suite, §1.1), `ik=` (base64url identity public key), `id=` (hash of the current `Identity`, §1.3), `kt=` (KT log URL), `keypkgs=` (KeyPackage bundle locator, §5.3). Under `_dmtap.<domain>` SVCB: reserved service parameters and KT anchors. Under `<sel>._dmtap-gw.<domain>` TXT (§7.2a): `v=` (attestation scheme version), `k=` (gateway attestation public key). |
+| **Initial contents** | Under `<name>._dmtap.<domain>` TXT: `v=` (format version), `suite=` (algorithm suite, §1.1), `ik=` (base64url identity public key), `id=` (hash of the current `Identity`, §1.3), `kt=` (KT log URL), `keypkgs=` (KeyPackage bundle locator, §5.3). Under `_dmtap.<domain>` SVCB: reserved service parameters and KT anchors. Under `<sel>._dmtap-gw.<domain>` TXT (§7.2a): `v=` (attestation scheme version), `k=` (gateway attestation public key). Under `<sel>._dmtap-mix.<domain>` TXT (§4.4.8, analogous to `_dmtap-gw`): `v=` (attestation scheme version), `k=` (mix-operator attestation public key), binding a `MixNodeDescriptor.operator` to an accountable domain for path operator-diversity (§4.4.8). Under `_dmtap.<domain>` a `mix=` locator (§4.4.2) points to the `MixDirectory` authority. |
 | **Registration requirements** | A new TXT/SVCB key MUST specify its grammar and whether it is required or optional for a conformant resolver; unrecognized keys in an existing record MUST be ignored by resolvers (same forward-compat rule as §21.20). |
 
 ## 21.22 Capability Tokens Registry (negotiation, §10.2)
@@ -398,10 +411,31 @@ extension procedure in §21.23. Allocation policies use the standard terms of RF
 | **Registry name** | DMTAP Capability Tokens |
 | **Reference** | §10.2, `system` MOTEs (`kind = 0x0A`) |
 | **Allocation policy** | Specification Required for tokens intended to be portable across implementations; `x-`-prefixed tokens are Private Use / FCFS, mirroring §21.20. |
-| **Initial contents** | Supported-suite tokens (§1.1); privacy-tier tokens (`private`, `fast`, §4.6); supported MLS ciphersuite tokens (§5.1); supported extension-kind/extension-header tokens (cross-referencing §21.16/§21.20 registrations). |
-| **Forward-compatibility rule** | A node receiving a capability token it does not recognize MUST ignore that token (not the whole `system` MOTE) and MUST NOT assume the counterpart lacks the capability merely because the token name is unfamiliar — absence of a recognized token is inconclusive, not a negative assertion. |
+| **Initial contents** | Supported-suite tokens (§1.1); privacy-tier tokens (`private`, `fast`, §4.6); supported MLS ciphersuite tokens (§5.1); KT log-type tokens (`0x01`/`0x02`, §3.5.2, §21.19); mix-suite tokens (§4.4.12, §21.23); transport-substrate tokens (§4.1, §21.24); supported extension-kind/extension-header tokens (cross-referencing §21.16/§21.20 registrations); and **signed-object `≥ 64` extension-field tokens** — a peer advertises support for a reserved extension field before any sender may include it in a *signed* object (§18.1.2, §10.2). |
+| **Announcement versioning** | Capability announcements are **monotonic**: each carries a `caps_version` (`u64`) and a receiver rejects an announcement older-or-equal to the last accepted from that peer (`ERR_CAPABILITY_ANNOUNCE_ROLLBACK`, `0x030A`, §10.2), so a stale replay cannot suppress an advertised capability. |
+| **Forward-compatibility rule** | A node receiving a capability token it does not recognize MUST ignore that token (not the whole `system` MOTE) and MUST NOT assume the counterpart lacks the capability merely because the token name is unfamiliar — absence of a recognized token (in the current, highest-`caps_version` announcement) is inconclusive, not a negative assertion. |
 
-## 21.23 Extension & versioning procedure (normative)
+## 21.23 Mix Parameters Registry (Sphinx / mixnet, §4.4)
+
+| | |
+|---|---|
+| **Registry name** | DMTAP Mix Parameters |
+| **Reference** | §4.4 (§4.4.1 packet format, §4.4.3 path, §4.4.4 epochs, §4.4.12 PQ), §16.3 |
+| **Allocation policy** | **Mix suite** values (the `suite` on `MixNodeDescriptor`/`MixKeyEntry`, §18.5.2): `0x01`–`0x1F` Standards Action, `0x20`–`0xDF` Specification Required, `0xE0`–`0xFE` Private Use, `0x00`/`0xFF` Reserved — mirroring the Algorithm Suites registry (§21.15), because a mix packet format is a network-wide interoperability and security floor. Individual numeric parameters (path length, cell size, delay/cover means, epoch length) are **profile values fixed in §16.3**, tuned within the protocol version, not separately code-point-allocated. |
+| **Initial contents** | **Mix suite `0x01` (v0 REQUIRED):** classical **Sphinx** (Danezis–Goldberg 2009) — header group **X25519**, `β` stream cipher **ChaCha20**, per-hop MAC **Poly1305**, KDF **BLAKE3**, cell payload `δ` **2 KiB**, path length **3**, stratified topology, Poisson per-hop delay (§4.4.1, §4.4.3, §16.3). **Mix suite `0x02` (RESERVED, PQ frontier):** a post-quantum / hybrid Sphinx packet format — **not yet specified**, tracked per §4.4.12 and §11.3; reserved so the agility seam (`suite` on descriptors + capability negotiation §10.2) is ready when a PQ mix format is standardized. |
+| **Registration requirements** | A new mix suite MUST specify its full packet construction (group element, per-hop KDF, `β` stream cipher, `γ` MAC, `δ` AEAD, constant-length invariant) and a security analysis; MUST preserve Sphinx's constant-length, unlinkable-per-hop, tagging-resistant properties; MUST state its cell size and how it composes with the bucket ladder (§4.4.1); and MUST NOT be accepted by a node until published here (unknown mix suites rejected fail-closed, mirroring §1.1). PQ mix formats MUST disclose their metadata-only exposure honestly (§4.4.12). |
+
+## 21.24 Transport Substrates Registry (§4.1)
+
+| | |
+|---|---|
+| **Registry name** | DMTAP Transport Substrates |
+| **Reference** | §4.1 (substrate seam), `LocationRecord.substrate` / `MixNodeDescriptor.substrate` (§18.5.1, §18.5.2) |
+| **Allocation policy** | Specification Required. A new substrate MUST specify how `peer_id` and `addrs` are interpreted and dialed under it, how it composes with the reachability ladder (§4.3) and the mixnet (§4.4), and its NAT/roaming story. `0x01`–`0xDF` Specification Required; `0xE0`–`0xFE` Private Use (closed deployments); `0x00`/`0xFF` Reserved. |
+| **Initial contents** | `0x01` — **libp2p** (v0 REQUIRED, the default; absent `substrate` field ⇒ this value): Kademlia DHT routing, circuit-relay v2, Noise/TLS, QUIC/TCP/WS/WebRTC/WebTransport, PeerId = `multihash(pubkey)`, addresses = multiaddrs (§4.1–§4.3). |
+| **Migration** | A new substrate is introduced **additively** and **capability-negotiated** (§10.2), the same dual-stack mechanism as a new algorithm suite (§21.15, §21.25 procedure): nodes advertise supported substrates, publish records under each, bridge during the transition, and retire the old substrate only once no pinned relationship needs it. A resolver treats a record on an unimplemented substrate as unreachable (`0x0303`), never a parse failure — moving off libp2p is an incremental migration, not a flag day. |
+
+## 21.25 Extension & versioning procedure (normative)
 
 This section is the operational answer to "how does DMTAP add something new without
 fragmenting."
@@ -455,17 +489,21 @@ fragmenting."
    wrong and you silently corrupt application semantics), and an `ext` key is inert metadata by
    construction (guess wrong and nothing security-relevant is at stake).
 
-## 21.24 Summary
+## 21.26 Summary
 
-- **Error/status codes defined:** 91 (`0x0101`–`0x0115`: 21, incl. the KT-v1 detection codes
+- **Error/status codes defined:** 98 (`0x0101`–`0x0115`: 21, incl. the KT-v1 detection codes
   `0x0110`–`0x0112` and the org-administration codes `0x0113`–`0x0115` (§3.10); `0x0201`–`0x020F`: 15,
-  incl. `0x020F` suite-downgrade (§1.3); `0x0301`–`0x0309`: 9; `0x0401`–`0x040A`: 10;
+  incl. `0x020F` suite-downgrade (§1.3); `0x0301`–`0x0310`: 16, incl. `0x030A` capability-announce
+  rollback (§10.2) and the mixnet codes `0x030B`–`0x0310` — directory/descriptor/path (`0x030B`–`0x030D`),
+  replay (`0x030E`), active-attack detection (`0x030F`), and no-downgrade fail-closed (`0x0310`) (§4.4);
+  `0x0401`–`0x040A`: 10;
   `0x0501`–`0x050A`: 10; `0x0601`–`0x0604`: 4, plus the informative SMTP mapping table of §21.9;
   `0x0701`–`0x070E`: 14; `0x0801`–`0x0808`: 8, incl. `0x0808` manifest-key-present (§5.5)),
   spanning the 8 requested subsystems, with every code resolving to exactly one of the 13
   defined responder actions (§21.2) — no undefined behavior remains.
-- **IANA registries defined:** 10 — the 8 requested (Algorithm Suites, Message Kinds, Challenge
+- **IANA registries defined:** 12 — the 8 requested (Algorithm Suites, Message Kinds, Challenge
   Types, Name Backends, KT Log Types, `Headers.ext` Keys, DNS Parameters, Capability Tokens),
-  plus the DMTAP Error/Status Code Registry itself (§21.14, needed to make Part 1 durable
-  against future extension) and the extension/versioning procedure (§21.23) that governs all of
-  them.
+  the **Mix Parameters** registry (§21.23) and **Transport Substrates** registry (§21.24) added
+  for the mixnet and substrate seams (§4.4, §4.1), plus the DMTAP Error/Status Code Registry
+  itself (§21.14, needed to make Part 1 durable against future extension) and the
+  extension/versioning procedure (§21.25) that governs all of them.

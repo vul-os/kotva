@@ -18,6 +18,20 @@ DMTAP builds on **libp2p** rather than reinventing P2P:
 
 A node dials **outbound** and holds connections, so CGNAT/dynamic-IP nodes are reachable.
 
+**Substrate seam — libp2p is v0, not a flag day (normative).** libp2p is DMTAP's **v0 substrate**,
+but the protocol MUST NOT be *permanently* wedded to it: the `LocationRecord` (§4.2, §18.5.1)
+carries an explicit **`substrate` discriminator** — a tag from the **Transport Substrates
+registry** (§21.24) — and its `peer_id` / `addrs` are interpreted **relative to that substrate**.
+v0 defines exactly one value, `0x01 = libp2p` (peer id = libp2p PeerId, addrs = multiaddrs), and
+an absent `substrate` field means libp2p for backward compatibility. A future non-libp2p overlay
+is introduced by **registering a new substrate tag** and advertising support via capability
+negotiation (§10.2) — the **same additive, dual-stack migration mechanism as a new crypto suite**
+(§1.1, §21.25): a resolver dials a record only on a substrate it implements, nodes bridge during
+the transition, and the old substrate is retired only once no pinned relationship needs it. A
+record on a substrate a resolver does not implement is simply unreachable to it (`0x0303`), never
+a parse failure. This keeps `multiaddr` + the registered substrate tag as the abstraction seam so
+moving off libp2p is an incremental migration, not a flag day.
+
 **Roaming — honest note:** identity is a persistent keypair, not an IP. When a node's address
 changes, roaming is carried primarily by **re-publishing the location record (§4.2) and peers
 re-dialing**, not by QUIC connection migration. QUIC migration (RFC 9000) *can* preserve some
@@ -29,11 +43,12 @@ handling is imperfect; do not rely on it for seamless roaming.
 ```
 LocationRecord {
   ik:        bytes,        // identity key (DHT key = hash(ik))
-  peer_id:   bytes,        // libp2p peer id (may be per-epoch / unlinkable, §6)
+  peer_id:   bytes,        // node id, interpreted per `substrate` (v0 libp2p PeerId; may be per-epoch / unlinkable, §6)
   addrs:     [* multiaddr],// current reachability hints (may be relay circuits, mix addrs)
   seq:       u64,          // monotonic sequence number; reject older-or-equal (rollback defense, §16.2)
   ttl:       u64,
   ts:        u64,
+  substrate: u8,           // OPTIONAL transport-substrate tag (§21.24); absent ⇒ 0x01 libp2p (§4.1)
   sig:       bytes,        // signed by a device key
 }
 ```
@@ -78,22 +93,350 @@ outage) — no central buffer required.
 
 ## 4.4 The mixnet (metadata privacy)
 
-For the `private` tier, MOTEs are sent as **Sphinx-format**, constant-length, onion-wrapped
-packets through a sequence of **mix nodes** (Loopix/Nym-style):
+The `private` tier (the production default for all mail and every control MOTE, §4.6, §10.3) is a
+**mixnet**: MOTEs travel as **Sphinx-format**, constant-length, onion-wrapped packets through a
+sequence of **mix nodes**, mixed with Poisson delays and cover traffic in the **Loopix/Nym**
+operational style. This section specifies it **normatively and by reference** — DMTAP does **not**
+invent a mix format. It **profiles** two finalized designs and pins their parameters to §16.3:
 
-- Each mix peels one layer; **no mix sees both sender and recipient**.
-- Mixes add **randomized (Poisson) delays** and reorder, defeating timing correlation.
-- Nodes emit **cover traffic** (loop + drop messages) at a steady rate so an observer cannot
-  tell when real messages are sent/received. Cover rate is a **tunable knob** (§6).
-- **Sealed sender** (§6.2): the sender identity is inside the payload, never in the outer
-  packet.
-- **Size padding**: MOTEs are padded to fixed buckets so size does not leak content.
+- the **Sphinx** packet format (Danezis & Goldberg, *"Sphinx: A Compact and Provably Secure Mix
+  Format,"* IEEE S&P 2009) for the on-wire onion packet (§4.4.1); and
+- the **Loopix** anonymity system (Piotrowska et al., USENIX Security 2017) and its production
+  descendant **Nym** for the operational design — stratified topology, Poisson mixing, loop/drop
+  cover, and continuous-time mixing (§4.4.3, §4.4.5).
 
-Mix nodes are the same permissionless, content-blind contributor model as relays; incentive
-and Sybil-resistance are covered in §6.4 and §9.
+DMTAP's own contribution is confined to the **binding**: how mixes are discovered and keyed
+against the existing DNS/KT trust (§4.4.2), how the tiers compose (§4.6, §10.3), and an honest
+low-adoption model (§4.4.11), and the **anti-active-adversary hardening of §4.4.6–§4.4.10**
+(replay caches, tagging resistance, Poisson mixing, loop-cover attack detection, entry guards +
+operator-diversity, and fail-closed no-downgrade). Mix nodes are the same permissionless,
+content-blind contributor
+model as relays (the mix role is a capability of the node binary, §4); incentive and
+Sybil-resistance are in §6.4 and §9.8. Email's asynchrony is what makes full-strength mixing
+affordable: minutes of latency are acceptable for the `private` tier (§16.3).
 
-Email's asynchrony is what makes full-strength mixing affordable: minutes of latency are
-acceptable for the `private` tier.
+Baseline guarantees (each detailed below): each mix peels exactly one layer so **no single mix
+sees both sender and recipient**; mixes add **randomized (Poisson) delays** and reorder,
+defeating timing correlation; nodes emit **loop + drop cover traffic** so an observer cannot tell
+when real messages flow; **sealed sender** (§6.2) keeps the sender identity inside the payload,
+never in the outer packet; and **size padding** to the bucket ladder (§4.4.1, §16.3) means length
+leaks nothing.
+
+### 4.4.1 Sphinx packet format (profiled; parameters pinned)
+
+DMTAP uses the **Sphinx packet format** unchanged; this subsection states the profile a
+conformant implementation MUST follow and pins every free parameter. A Sphinx packet is a
+**fixed-length** structure `(α, β, γ, δ)`:
+
+- **`α` — the header group element** (an elliptic-curve point). v0 uses **X25519 / Curve25519**
+  (the KEM group of `suite = 0x01`, §16.7), so `α` is **32 bytes**. Each hop derives a shared
+  secret by Diffie–Hellman between `α` and its **Sphinx mix public key** for the target epoch
+  (§4.4.4), then **re-randomizes `α`** (multiplies by the derived blinding factor) before
+  forwarding, so `α` is unlinkable hop-to-hop.
+- **`β` — the encrypted routing information**, a fixed-length onion of per-hop routing commands
+  (next-hop address, per-hop Poisson delay, and padding), each layer encrypted with a key derived
+  from that hop's shared secret using a **stream cipher** (v0 ChaCha20, matching the suite AEAD
+  primitive). `β` is padded so it stays **constant length at every hop** (this constant length is
+  what makes Sphinx resistant to length-based tracing).
+- **`γ` — the per-hop MAC** over `β`, a **Poly1305** tag (v0) keyed from the hop's shared secret;
+  a hop that fails the MAC drops the packet (`ERR_MIX_PACKET_MALFORMED`, `0x0307`) — this is
+  Sphinx's integrity guarantee against tagging attacks.
+- **`δ` — the payload**, a **constant-length, padded body** wrapped in one AEAD layer per hop
+  (LIONESS/AEAD as in Sphinx), delivered to the exit hop. v0 fixes `δ` to the **Sphinx cell
+  size = 2 KiB** (§16.3), the constant-length bucket after padding.
+
+**Pinned parameters (v0, §16.3):** path length **ν = 3 hops** (Standard) — but the header `β` is
+**sized for the maximum supported path length `r_max = 5`** (the High-security hop count, §4.4.10)
+and **zero-padded for shorter paths**, so a 3-hop and a 5-hop packet are **byte-for-byte the same
+length** and the packet size **never leaks which profile** a sender uses. Also pinned: cell
+payload **`δ` = 2 KiB**; per-hop delay **exp(mean 5 s)**; group **X25519**; stream cipher
+**ChaCha20**; MAC **Poly1305**; KDF **BLAKE3** (suite hash). These are carried as capabilities and
+are versioned with the protocol; a PQ variant is §4.4.12.
+
+**The bucket ladder (reconciles §2.5 inline size with the 2 KiB cell).** A single Sphinx cell
+carries **2 KiB** of payload, so a MOTE is not "one packet ≤ 64 KiB" — it is a **whole number of
+2 KiB cells**. To keep size from leaking while still allowing multi-KiB inline/normal payloads
+(§2.5, §6.5), a sender MUST pad the MOTE up to the next size on a **fixed bucket ladder** and then
+fragment it into exactly `bucket / 2 KiB` Sphinx cells, all sent over independently-selected paths
+(§4.4.3) and reassembled by the recipient. The v0 ladder (§16.3) is **{2 KiB, 8 KiB, 32 KiB,
+64 KiB}** — i.e. **1, 4, 16, 32 cells**. Thus the `inline` file tier's "≤ 64 KiB after padding"
+(§2.5) is the **top rung = 32 cells**, not one packet; only sizes on the ladder ever appear on the
+wire, so an observer learns only which of four buckets a message fell into, never its true length.
+A MOTE that would exceed the top inline rung is a `normal`/`large` file (§2.5) and its bulk travels
+per §4.5, not as inline cells.
+
+**Acks and replies.** A delivery `ack` (§2.6) travels the mixnet as its own small `system` MOTE
+(one cell); implementations MAY additionally use Sphinx **Single-Use Reply Blocks (SURBs)** so a
+recipient can reply/ack without learning the sender's location, and SURBs are the mechanism for
+recipient-side loop cover (§4.4.5).
+
+### 4.4.2 Mix directory (discovery + keys, bound to DNS/KT)
+
+Senders need the mix fleet's **identities, addresses, Sphinx public keys, and layers** to build
+paths — DMTAP distributes them by **reusing DNS + key transparency**, not a new PKI:
+
+- **`MixNodeDescriptor`** (§18.5.2) — each mix publishes a signed descriptor: its identity key
+  `node_ik` (an ordinary DMTAP identity, so operators are accountable and KT-auditable), its
+  reachability, its **Sphinx mix public key(s) per epoch** (§4.4.4), and its **stratified layer**
+  (§4.4.3).
+- **`MixDirectory`** (§18.5.3) — a **directory authority** publishes a signed, versioned,
+  hash-chained snapshot of the fleet for an epoch, and **appends its root to key transparency**
+  (§3.5) exactly as the org directory does (§3.10.3). The authority is a DMTAP identity whose key
+  is pinned via the domain's `_dmtap` anchor (§3.2, a `mix=` locator) — **the same discovery and
+  pinning path as any name → key binding** (§3.3). The authority key SHOULD be threshold-held
+  (§5.8.6) and the directory MAY be attested by a **set of authorities with a `> n/2` quorum**
+  (§3.5.2(b)), so no single authority can unilaterally inject or suppress mixes.
+
+Because the directory is KT-anchored, an authority that shows different fleets to different
+clients (a split view over the mix set) is **detectable exactly like KT equivocation** (`0x0107`,
+§3.5.2). The directory **indexes; it does not forge**: each `MixNodeDescriptor` self-verifies
+under its own `node_ik`, so a compromised authority can withhold or reorder mixes (a
+denial/annoyance, detectable) but cannot make a sender encrypt to a key an honest mix does not
+hold — the same "convenience enumeration of independently-verifiable bindings" discipline as the
+GAL (§3.10.3). A directory not signed by the pinned authority is rejected
+(`ERR_MIX_DIRECTORY_SIG_INVALID`, `0x030B`); an older-or-equal `version` is rejected (rollback
+defense); a directory lacking a full stratified layer set makes path-building fail
+(`ERR_MIX_PATH_UNBUILDABLE`, `0x030D`).
+
+### 4.4.3 Path selection (3-hop stratified free-route)
+
+- **Length: 3 hops** (§16.3) — entry, middle, exit — the Loopix/Nym choice: enough that no single
+  mix links both ends, short enough to keep email-scale latency and bandwidth bounded (the
+  anonymity ↔ latency/bandwidth tradeoff, §6.6 item 1).
+- **Topology: stratified (layered), free-route within a layer.** The fleet is partitioned into
+  **three layers** by `MixNodeDescriptor.layer` (0=entry/1=middle/2=exit); a path is built by
+  drawing **one mix uniformly at random from each layer in order**, weighted by advertised
+  capacity/reputation (§9.8). Rationale: a stratified topology (as analyzed for Loopix and
+  deployed by Nym) gives a **well-defined anonymity-set analysis and predictable mixing** and
+  spreads load evenly, versus an unconstrained free route whose anonymity is harder to reason
+  about and whose load concentrates on popular nodes. Layer assignment is part of the directory,
+  so all senders draw from the same partition.
+- **Fresh path per packet.** A sender MUST select an **independent** path for **each Sphinx cell**
+  (including the cells of a multi-cell MOTE, §4.4.1, and each cover packet, §4.4.5); paths are
+  never reused across messages, so no persistent circuit exists to correlate.
+
+### 4.4.4 Mix key rotation & epochs
+
+- **Epochs.** Mix keys are **epoch-scoped**; the v0 epoch is **24 h** (a §16.3 parameter). The
+  `MixDirectory.epoch` names the current epoch and each `MixKeyEntry` (§18.5.2) binds a Sphinx mix
+  public key to an epoch and a `valid_until`.
+- **Rotation with overlap.** A mix MUST generate a fresh Sphinx keypair each epoch and SHOULD
+  advertise **both the current and the next** epoch key (an overlap window) so senders can
+  pre-build paths across an epoch boundary without a gap. Old epoch private keys are **deleted at
+  `valid_until`**, giving the mixnet **forward secrecy against later node compromise** (a seized
+  mix cannot retroactively peel captured old packets).
+- **Sender obligation.** A sender MUST encrypt each hop to the mix key of the **epoch that hop
+  will process the packet in**, and MUST NOT build to an expired epoch key; a packet built to an
+  expired/rotated key is dropped by the mix (`ERR_MIX_DESCRIPTOR_STALE`, `0x030C`). Clients
+  refresh the `MixDirectory` at least once per epoch.
+
+### 4.4.5 Cover traffic & Loopix loops (normative)
+
+Cover traffic is **load-bearing, not optional** (§6.2, §6.4). Every `private`-tier node MUST emit,
+independently of user activity, two Poisson streams (rate per §16.3, default mean 30 s/msg,
+tunable — higher rate = more privacy, more bandwidth):
+
+- **Loop cover** — a packet the node sends **through a full 3-hop path back to itself** (via a
+  SURB, §4.4.1) at Poisson rate **λ_loop** (§16.3). Loops (a) give the node a steady *sending*
+  stream indistinguishable from real traffic, and (b) act as **active-attack detection**: a node
+  that stops receiving its own loops at the expected rate has evidence its traffic is being
+  dropped/delayed (an `(n-1)`/flooding attack). The **full detection rule, threshold, and
+  fail-closed response are normative in §4.4.7** — loops are the key lever that makes active
+  attacks detectable-and-responded rather than silent.
+- **Drop cover** — a packet addressed to a **random mix that discards it at the last hop**,
+  providing link cover on the entry segment.
+- **Recipient-side loop cover (normative, §6.4).** An always-on recipient node MUST **also**
+  receive a steady loop-cover stream so that **real receipts are indistinguishable from cover** on
+  its delivery link — closing the receipt-timing exposure of §6.4 item 2. Without this, an
+  observer of the recipient's link learns *when* mail arrives even though it cannot read it.
+
+Mixing delay is applied **per hop**: each mix independently holds each packet an exp(mean 5 s,
+§16.3) time drawn from the per-hop delay command in `β` (§4.4.1) and forwards in re-randomized
+order (continuous-time Poisson mixing, as Loopix specifies), so input and output streams cannot be
+timing-correlated. Cover-packet admission is rate-bounded per node (§9.8) so cover cannot be
+turned into a flooding vector.
+
+### 4.4.6 Active-attack resistance: replay, tagging, unlinkability, Poisson mixing (normative)
+
+These are the concrete mechanisms that make a **global *active* adversary** (inject/drop/delay,
+§6.1) expensive and, where it acts, **detectable** — not an "honest limit," a defense. Each is
+profiled from Sphinx/Loopix, made mandatory here.
+
+- **Per-epoch replay cache at every mix (MUST).** Each mix MUST maintain a **replay cache** of the
+  Sphinx per-hop **tag** — the value `H(shared_secret)` derived when it peels a packet (a unique,
+  unlinkable-across-hops identifier) — for **every packet it has processed in the current mix-key
+  epoch** (§4.4.4), and MUST **drop any packet whose tag is already present**
+  (`ERR_MIX_REPLAY_DETECTED`, `0x030E`, DROP_SILENT). Because mix keys rotate per epoch and the old
+  private key is **deleted at `valid_until`**, a captured packet is replayable only within one
+  epoch, so the cache need only cover **one epoch + the clock-skew window** (§16.3) then be flushed
+  — bounded memory, no permanent log. This is the primary defence against **replay-based
+  correlation and (n−1) replay flooding**: an adversary cannot re-inject a target's packet to trace
+  it, because the second copy is dropped at the first honest hop.
+- **Tagging-attack resistance (MUST).** Each hop verifies the per-hop **MAC `γ` over `β`** before
+  any processing (§4.4.1); any adversarial bit-flip of the header fails the MAC and the packet is
+  dropped (`0x0307`). An active adversary therefore **cannot mark ("tag") a packet at the entry and
+  recognise the mark at the exit** — Sphinx's provable integrity guarantee, and the reason DMTAP
+  uses Sphinx rather than a plain layered-encryption onion.
+- **Bitwise unlinkability (inherent).** `α` is re-randomised and `β`/`δ` fully re-encrypted at
+  every hop (§4.4.1), so a mix's input and output packets share **no correlatable bits**. An
+  adversary observing both sides of an honest mix is reduced to **timing** correlation only, which
+  the next mechanism defeats.
+- **Poisson (exponential, memoryless) mixing (MUST).** Each hop delays each packet by an
+  **independent exponential** delay (mean per §16.3), never a fixed or bounded delay. By the
+  memoryless property, a packet's **output time is independent of its input time** given the
+  exponential hold, so even an adversary that **injects or selectively delays** input cannot use
+  inter-arrival timing to correlate a mix's input and output streams (continuous-time mixing, as
+  Loopix specifies). Fixed or uniform delays would leak ordering; the exponential distribution is
+  **required**, not a tuning choice.
+
+### 4.4.7 Loop cover as active-attack detection & fail-closed response (normative) — the key lever
+
+Cover traffic (§4.4.5) is not only obfuscation: **loop cover is an active-attack *detector***, the
+mechanism that converts drop/delay/flooding attacks from **undetectable** to
+**detected-and-responded**. This is the single most important lever against an active adversary.
+
+- **Client loops and mix loops (MUST).** Every `private`-tier node emits **client loops** — a
+  Sphinx packet sent through a **full 3-hop path back to itself** via a Single-Use Reply Block
+  (SURB, §4.4.1) — at Poisson rate **λ_loop** (§16.3); every mix likewise emits **mix loops**
+  through the layers back to itself. A node knows exactly which loops it launched, over which
+  paths, and the delay budget within which each should return.
+- **Detection rule (MUST).** A node MUST track, over a sliding window, the **fraction of its loops
+  that return within their expected delay budget** and their **latency distribution**. If the
+  return fraction drops below the **loop-loss threshold** (§16.3) or latencies inflate beyond what
+  the exponential budget explains, the node MUST **infer an active drop/delay attack on its paths**
+  and raise `ERR_MIX_ACTIVE_ATTACK_SUSPECTED` (`0x030F`). Because loops are **Sphinx packets
+  indistinguishable from real traffic** on the same paths, an adversary **cannot** selectively
+  drop real messages while sparing loops — suppressing traffic on a path necessarily suppresses
+  that path's loops, which is exactly what the node measures.
+- **Response — rotate, alert, and FAIL CLOSED (MUST; never silently continue).** On an inferred
+  active attack the node MUST: (1) **rotate away** from the implicated mixes and **entry guards**
+  (§4.4.8) and rebuild over alternate, operator-diverse paths; (2) raise a **`HALT_ALERT`**
+  (§21.2) to the user — the private tier is under active attack; and (3) **fail closed for the
+  `private` tier** — it MUST NOT silently fall back to `fast` or to a shorter/less-diverse path to
+  "get the message through" (that is precisely the adversary's goal, §4.4.9). Silent continuation
+  under detected active attack is prohibited.
+- **(n−1) / flooding defence (MUST).** To isolate a target packet an adversary must flush all
+  other traffic from a mix (the classic n−1 attack). The **steady loop + drop cover from every
+  honest node** (§4.4.5) means a mix is **never empty of indistinguishable cover**, so the
+  adversary must inject vastly more traffic to dominate a mix (raising cost sharply), and the
+  honest nodes whose loops then fail to return **detect** the flush (above). Cover admission is
+  **rate-bounded per node** (§9.8) so cover itself cannot be turned into the flood. Loops thus both
+  **raise the cost** of and **expose** flooding.
+
+### 4.4.8 Entry guards, operator diversity & mix Sybil resistance (normative)
+
+Long-term **statistical-disclosure / intersection** attacks — an adversary who controls some mixes
+correlating a persistent user across many messages — are bounded **structurally**, not merely
+disclosed.
+
+- **Entry guards (MUST).** A sender MUST NOT choose a fresh entry mix per packet; instead it pins a
+  **small, rotating entry-guard set** of **G = 2** entry-layer mixes (§16.3), reuses them across
+  packets, and rotates only every **guard-rotation period** (§16.3, default **30 days**) —
+  Tor-style. Rationale: with a fresh random entry per packet, an adversary owning a fraction *f* of
+  entry mixes appears on *some* of a victim's paths eventually and, across many messages, mounts an
+  intersection attack; pinning guards means the victim is **either persistently clear of the
+  adversary's entries (probability ≈ (1−f)^G) or persistently on a known guard** — bounding
+  long-term exposure to a one-time draw instead of a cumulative certainty (§6.6, §11.3).
+- **Operator diversity in path selection (MUST).** A 3-hop path MUST traverse mixes under **three
+  disjoint operators** — no two hops may share a `MixNodeDescriptor.operator` (§18.5.2, absent ⇒
+  the mix's own `node_ik`) — mirroring the disjoint-operator discipline of KT log sets (§3.5.2(b))
+  and S/Kademlia disjoint paths (§4.2). For an adversary operating a fraction *a* of the (diverse)
+  fleet this bounds the fraction of **fully-compromised (entry-and-exit adversarial) paths** to
+  ≈ *a*², and denies any single operator a whole-path view. (While the fleet is single-operator at
+  launch, diversity is necessarily relaxed to that operator and **disclosed** per §4.4.11; the rule
+  binds as independent operators join.)
+- **Mix Sybil resistance — attested identity, NO anonymous token (MUST).** Mix admission MUST NOT
+  use an anonymous token (that would let one party mint unlimited Sybil mixes). A mix's `node_ik`
+  is a **KT-auditable DMTAP identity** (§4.4.2), and its **operator control MUST be attested by a
+  DNS/KT record under the operator's domain** — a `_dmtap-mix` attestation directly analogous to
+  the gateway attestation `_dmtap-gw` (§7.2a) — so every mix is bound to an **accountable,
+  rate-limited real-world operator**; the directory authority (§4.4.2) admits only attested mixes.
+  Operators **SHOULD post stake/bond** as gateway operators do (§9.6), making Sybil fleets costly,
+  and path selection **weights mixes by measured reliability/reputation** — a concrete
+  **measurement hook**: each node's loop-return statistics (§4.4.7) feed a reliability score
+  (§9.8) that **down-weights mixes that drop or delay**, so a misbehaving or Sybil mix loses path
+  share.
+
+### 4.4.9 Fail-closed: minimum viable path, no silent downgrade (normative)
+
+A global active adversary can **DoS mixes specifically to force `private → fast`** — collapsing a
+metadata-private message onto a correlatable tier. DMTAP treats this as an attack and **refuses**.
+
+- **Minimum viable path (MUST).** A `private`-tier packet MUST be sent only over a path meeting the
+  **minimum-viable-path** bar: **≥ 3 hops, one per stratified layer, under ≥ 3 disjoint operators**
+  (§4.4.8) using **current-epoch** mix keys (§4.4.4). The high-security profile raises the bar
+  (§4.4.10). While the fleet is single-operator the operator-diversity component is relaxed **and
+  disclosed** (§4.4.11), but the **hop count and per-layer requirement are never relaxed**.
+- **Fail closed, never auto-downgrade (MUST).** If no minimum-viable path is buildable from the
+  current `MixDirectory` (too many mixes down/attacked, or diversity unmet), the sender MUST **NOT**
+  silently route the MOTE over `fast`, over fewer hops, or over a non-diverse path. It MUST **hold
+  the MOTE in its retry queue** (§4.7) and retry, surfacing `ERR_PRIVATE_TIER_DOWNGRADE_REFUSED`
+  (`0x0310`) to the user if the condition persists to the retry deadline — the same fail-closed
+  stance as unreachable KT (§3.3) and unreachable auth status (§13.4). Downgrading `private → fast`
+  is **only ever a deliberate, user-surfaced choice** (§4.6), **never** an automatic reaction to
+  mix unavailability. This closes the "DoS the mixnet to strip anonymity" vector: an adversary can
+  **delay** delivery but cannot silently **demote** it.
+- **Triggered by the detector.** The condition is raised either by an empty minimum-viable-path
+  build (§4.4.3) or by the loop-cover active-attack inference (§4.4.7); both lead to
+  hold-rotate-alert, never to a silent weaker tier.
+
+### 4.4.10 High-security profile (normative, user-selectable)
+
+The Anonymity Trilemma (§6.6, Das et al. 2018) proves strong anonymity **must** cost latency
+and/or bandwidth; DMTAP therefore exposes that tradeoff as a **selectable profile**, not a fixed
+point — the concrete lever a high-risk user pulls. Two profiles are normative (parameters §16.3):
+
+| Profile | Hops | Per-hop delay | Cover / loop rate | Entry guards | Operator diversity | Intended use |
+|---------|:----:|---------------|-------------------|:------------:|--------------------|--------------|
+| **Standard** (default) | 3 | exp, mean 5 s | Poisson, mean 30 s; λ_loop mean 30 s | 2 guards / 30 d | 3 disjoint (all hops) | all mail by default |
+| **High-security** | **5** | exp, **mean 30 s** | **constant-rate** (Poisson) mean **5 s**; λ_loop mean **5 s** | **3 guards / 7 d** | **5 disjoint** (all hops) | high-risk users / messages |
+
+The high-security profile trades minutes → tens-of-minutes latency and higher bandwidth for a
+larger effective anonymity set, **constant-rate cover** (a flat, activity-independent traffic
+envelope that yields nothing to traffic analysis), longer memoryless delays, faster loop-based
+detection, and stricter guard/diversity. It is **negotiated as a capability** (§10.2); both parties
+MUST support the profile in force, and a recipient **MAY require** it for its inbound `private`
+traffic. Profiles are the lever that lets a deployment climb toward the trilemma bound; the
+irreducible residual **after** the maximal profile is stated honestly in §6.6.
+
+### 4.4.11 Honest low-adoption model (disclosed, §6.6 style)
+
+A mixnet's privacy **is** its anonymity set, and DMTAP does **not** overclaim a day-one one:
+
+- **Launch = an operator-run mix fleet.** At launch the three stratified layers are staffed by a
+  **small fleet the launching operator runs** (the same operator that runs gateways/relays, §12).
+  With few nodes under one operator, the guarantee is closer to **Tor-with-few-relays / a trusted
+  VPN with mixing** than to a strong global mixnet: it defeats a **network-local passive
+  observer** and hides the graph from **any single mix**, but a **small set of colluding
+  first-and-last mixes, or the operator itself if it ran an entire path, could correlate** — this
+  is disclosed, not hidden.
+- **Strengthening with the network.** Privacy **increases as independent operators contribute
+  mixes** and the layers come under **disjoint operational control** (the directory SHOULD prefer
+  layer assignments that spread operators, analogous to S/Kademlia disjoint paths, §4.2, and to KT
+  logs under distinct operators, §3.5.2(b)). The design target is many-operator layers where no
+  single party controls a whole path; the launch state is the honest floor, not the end state.
+- **No false anonymity-set claims.** Clients MUST NOT present the `private` tier as "anonymous"
+  in absolute terms while the fleet is small; the in-product disclosure follows §6.6. This is the
+  mixnet-specific instance of the weakest-link and global-active-adversary boundaries (§6.6 items
+  1 and 5, §11.3).
+
+### 4.4.12 Post-quantum Sphinx (tracked frontier, agility hook)
+
+v0 Sphinx uses **X25519** for `α` (§4.4.1), so the **onion packet is not post-quantum**: a
+"harvest-now-decrypt-later" adversary who records `private`-tier packets and later has a quantum
+computer could recover **routing metadata** (not content — content is separately MLS/HPKE-sealed
+and PQ-migratable, §5.1). This is an **openly tracked frontier**: standardized PQ mix-packet
+formats (lattice-based / hybrid Sphinx constructions) are **active research, not yet finalized**
+(§11.3), and DMTAP does **not** invent one.
+
+The **agility seam** is already in place, mirroring the crypto-suite mechanism (§1.1): the
+`MixNodeDescriptor` and each `MixKeyEntry` carry a **`suite`** (§18.5.2), and the **Mix Parameters
+registry** (§21.23) is where a future PQ-Sphinx packet format + its group/KEM, delay and MAC
+primitives are registered. When a PQ mix format is standardized it is added as a **new mix suite**,
+advertised in descriptors, negotiated via capability announcements (§10.2), and adopted
+dual-stack — old and new packet formats coexisting until the classical format is retired, exactly
+as a new crypto suite spreads (§21.25). Classical X25519 Sphinx is the v0 baseline; PQ-Sphinx is
+disclosed as the frontier, not silently deferred.
 
 ## 4.5 Bulk / file transfer
 

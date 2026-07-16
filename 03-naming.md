@@ -107,9 +107,26 @@ immediately for high-value contacts.
 Out-of-band verification compares the **key**, not the name — it is the strongest trust upgrade
 and the one thing that closes a first-contact MITM immediately.
 
-- A **safety number** (Signal-style) is a deterministic function of the parties' `IK`s (the
-  fingerprint of the identity keys). Two contacts confirm they see the same value out-of-band —
-  in person, over a trusted channel, or by scanning a **QR code**.
+- A **safety number** (Signal-style) is a deterministic fingerprint of the parties' identities.
+  Two contacts confirm they see the same value out-of-band — in person, over a trusted channel,
+  or by scanning a **QR code**.
+- **Computed over the whole multi-suite `Identity`, not a single key (normative).** Because a
+  DMTAP identity carries **multiple suite keys** — `iks` is a map `{ suite → ik-pub }` (§1.3,
+  §18.4.1), e.g. a classical `0x01` key and a PQ `0x02` key — a safety number MUST be computed
+  over the **content-address of the entire `Identity` object** (`Identity_id = prefix ‖
+  BLAKE3-256(det_cbor(Identity))`, §18.9.4), which **commits to every suite key** at once, not
+  over any one `ik`. Fingerprinting a single suite key would let an attacker who has injected a
+  **rogue additional suite key** (e.g. a forged PQ `0x02` entry) sit *behind* a pin the user
+  verified only against the classical key. Taking the fingerprint over the whole `Identity`
+  binds the OOB check to the full keyset, so a verified pin cannot be bypassed by adding a key.
+- **Re-verification on keyset change (normative).** Adding a new suite key (or any other change
+  to `iks`) is a new signed `Identity` version (§1.3) with a different content-address, so it
+  **changes the safety number**. A client that holds a *verified* (OOB-confirmed) pin MUST treat
+  such a change as a **downgrade of that pin to unverified** and MUST prompt the user to
+  **re-verify out-of-band** before the pin is treated as verified again — exactly as an
+  unchained key change raises a warning (§3.4). It MUST NOT silently carry the verified status
+  across a keyset change. (A change that follows a valid signed `Identity`/`KeyRotation` chain is
+  accepted for *routing* per §3.4; only the *verified-fingerprint* status resets.)
 - **This is verification, not an address.** A safety number / fingerprint is *never* used to
   route or reach someone; it only confirms that the key you pinned is the key you meant. It does
   not appear in `Identity.names` and cannot be typed at to send mail.
@@ -121,9 +138,9 @@ and the one thing that closes a first-contact MITM immediately.
   a different key. **Proquints** (pronounceable 5-char syllables, 16 bits each) are an allowed
   language-neutral alternative encoding of the same bits.
 - The word encoding exists **only** for this verification role — a comparison aid for confirming
-  a key. It is deliberately **not** an address: DMTAP does not name people by their key digits.
-  Because the safety number is taken over the full identity key, it carries the key's full
-  strength; there is no separate truncated-name address to grind.
+  an identity. It is deliberately **not** an address: DMTAP does not name people by their key
+  digits. Because the safety number is taken over the full `Identity` (all suite keys, above), it
+  carries the keyset's full strength; there is no separate truncated-name address to grind.
 
 ## 3.5 Key transparency (KT)
 

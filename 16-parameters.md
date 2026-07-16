@@ -38,17 +38,28 @@ above and for ordering hints.
 
 | Parameter | Default | Notes |
 |-----------|---------|-------|
-| Mix path length | 3 hops | Sphinx onion (§4.4) |
-| Per-hop mix delay | exp, mean 5 s | Poisson mixing; `private` tier |
-| Cover-traffic rate | Poisson, mean 30 s/msg | tunable per node; higher = more privacy, more bandwidth |
-| Padded packet size (bucket) | 2 KiB | Sphinx constant-length cell after padding |
-| `private`-tier end-to-end latency | seconds–minutes | consequence of mixing (§6) |
+| Mix path length | 3 hops | Sphinx onion, stratified (§4.4.1, §4.4.3) |
+| Per-hop mix delay | exp, mean 5 s | Poisson mixing; `private` tier (§4.4.5) |
+| Cover-traffic rate | Poisson, mean 30 s/msg | loop + drop + recipient-side loop; tunable per node; higher = more privacy, more bandwidth (§4.4.5) |
+| Sphinx cell size (`δ`) | 2 KiB | Sphinx constant-length payload cell after padding (§4.4.1) |
+| Payload bucket ladder | {2, 8, 32, 64} KiB = {1, 4, 16, 32} cells | a MOTE is padded up to the next rung, then fragmented into that many 2 KiB cells (§4.4.1); only ladder sizes appear on the wire |
+| Mix key epoch | 24 h | Sphinx mix-key rotation; advertise current+next, delete old key at `valid_until` (§4.4.4) |
+| Sphinx group / stream / MAC (v0) | X25519 / ChaCha20 / Poly1305 | header DH group, `β` stream cipher, per-hop MAC (§4.4.1); PQ variant §4.4.12 |
+| Mix replay-cache window | 1 epoch + skew (≈ 24 h + 120 s) | per-mix Sphinx-tag replay cache; flush at epoch end (§4.4.6, `0x030E`) |
+| Loop-cover rate (λ_loop) | Poisson, mean 30 s | client + mix loops for active-attack detection (§4.4.7) |
+| Loop-loss detection threshold | > 20% loss (sliding window) or latency ≫ delay budget | infer active drop/delay attack → `0x030F`, rotate + `HALT_ALERT` + fail-closed (§4.4.7) |
+| Entry-guard set size (G) | 2 | pinned entry-layer mixes per sender (§4.4.8) |
+| Entry-guard rotation period | 30 days | Tor-style guard rotation; intersection-attack bound (§4.4.8) |
+| Path operator-diversity | ≥ 3 disjoint operators (one per hop) | no two hops share `operator` (§4.4.8); relaxed only while single-operator (§4.4.11) |
+| Minimum viable `private` path | 3 hops, 1/layer, current-epoch keys | below this the sender fails closed, never downgrades (§4.4.9, `0x0310`) |
+| High-security profile | 5 hops, exp mean 30 s/hop, constant-rate cover mean 5 s, 3 guards / 7 d, 5 disjoint operators | user-selectable maximal anonymity (§4.4.10); capability-negotiated (§10.2) |
+| `private`-tier end-to-end latency | seconds–minutes (Standard); tens of minutes (High-security) | consequence of mixing (§6, §4.4.10) |
 
 ## 16.4 File tiers & transfer
 
 | Parameter | Default | Notes |
 |-----------|---------|-------|
-| Inline attachment threshold | ≤ 64 KiB | rides the message (§2.5) |
+| Inline attachment threshold | ≤ 64 KiB | rides the message (§2.5); = top bucket-ladder rung (32 Sphinx cells, §16.3) |
 | Normal-file threshold | ≤ 4 MiB (≤ 4 chunks) | chunks via mixnet — full privacy (§6.5) |
 | Chunk size | 1 MiB | fixed; content-addressed (§5.5) |
 | Large-file bulk | > 4 MiB | fast/onion bulk path — weaker privacy (§6.5) |
@@ -90,6 +101,7 @@ above and for ordering hints.
 | DMTAP-Auth session TTL | 24 h | key-bound session lifetime before re-auth (§13.4) |
 | DMTAP-Auth session idle-timeout | 30 min | idle expiry of a key-bound session (§13.4) |
 | RP delegation re-validation interval | ≤ 15 min | RP re-checks status endpoint / KT head (§13.4) |
+| RP re-validation grace window (unreachable status/KT) | 2× re-validation interval (≤ 30 min) | honor last-validated delegation on unreachable status/KT, then fail closed (§13.4, §20.6) |
 | Recovery-weakening veto window | 72 h | delay before a factor-weakening `RecoveryPolicy` change takes effect (§1.4) |
 | Recovery veto quorum | `rotate_threshold` | a veto MUST satisfy this (asymmetric; a single factor cannot veto its own eviction, §1.4) |
 | Committer-liveness timeout | 5 min | pending signed proposal unordered past this → takeover eligible (§5.1) |

@@ -525,6 +525,7 @@ session lifecycle (§13.4).
 | `APPROVAL_GATE` | Remote-node-signing path only: a trusted approval surface displays the verified `rp_origin` and requires explicit per-login approval before the node signs (§13.3.1). |
 | `ASSERTION_VERIFIED` | Signature produced and verified by the RP: pinned key matches, `rp_origin` matches RP's own origin, nonce unused, not expired; the RP binds the session **only** to the assertion's `cnf = H(session_pubkey)` (§13.3 steps 4–6, proof-of-possession). |
 | `SESSION_ACTIVE` | Key-bound session established (DPoP/GNAP, per-RP per-device ephemeral key, §13.4). |
+| `REVALIDATION_GRACE` | The RP's periodic delegation re-validation (§13.4) found the user's **status endpoint / KT head unreachable**. The RP honors the **last successfully-validated delegation** but only until the bounded grace window elapses; the session is live-but-provisional (§13.4). |
 | `REFRESHED` | Session key rotated while the logical session continues (§13.4). |
 | `REVOKED` | Terminal: explicit revocation, device-key rotation, or `IK` recovery (§13.4). |
 | `EXPIRED` | Terminal: session lifetime elapsed. |
@@ -535,7 +536,8 @@ session lifecycle (§13.4).
 `channel_unattributable`, `user_approves`, `user_denies`, `approval_timeout`, `rate_limited`,
 `nonce_expired`, `rp_verify_ok`, `rp_verify_fail`, `establish_session`, `dpop_proof_ok`,
 `dpop_proof_fail`, `session_key_rotation`, `revoke_requested`, `device_key_rotated`,
-`ik_recovered`, `session_timeout`.
+`ik_recovered`, `session_timeout`, `revalidation_due`, `revalidation_ok`,
+`revalidation_delegation_invalid`, `revalidation_endpoint_unreachable`, `grace_window_elapsed`.
 
 ### Transition table
 
@@ -555,6 +557,15 @@ session lifecycle (§13.4).
 | `APPROVAL_GATE` | `rate_limited` | `NO_SESSION` | Node's own rate limit on approvals (§13.3.1 point 2, consent-farming defense) refuses this attempt; logged. |
 | `ASSERTION_VERIFIED` | `establish_session` | `SESSION_ACTIVE` | Mint per-RP, per-device ephemeral session key authorized by a device key (§13.4), not `IK` itself. |
 | `SESSION_ACTIVE` | `dpop_proof_ok` | `SESSION_ACTIVE` | Self-loop: steady state of normal use. |
+| `SESSION_ACTIVE` | `revalidation_ok` | `SESSION_ACTIVE` | Self-loop: the RP re-validated the login-time delegation against the status endpoint / KT head at the **≤ 15 min** interval (§16.8) and it still holds (§13.4). |
+| `SESSION_ACTIVE` | `revalidation_delegation_invalid` | `REVOKED` | Re-validation reached the endpoint and found the delegation **no longer valid** (IK rotation, device revocation, or recovery, §1.4/§1.5); the session MUST be terminated at this check (§13.4). |
+| `SESSION_ACTIVE` | `revalidation_endpoint_unreachable` | `REVALIDATION_GRACE` | Status endpoint / KT head **unreachable** at a re-validation check. Neither fail-open (would let an endpoint-partitioning attacker keep a revoked session alive) nor instant hard-fail (would log everyone out on a transient outage): honor the last validated delegation and start the grace timer [§16.8: 2× re-validation interval ≤ 30 min] (§13.4). |
+| `REVALIDATION_GRACE` | `revalidation_ok` | `SESSION_ACTIVE` | Endpoint reachable again within the grace window and the delegation still validates; cancel the grace timer and resume normal use. |
+| `REVALIDATION_GRACE` | `revalidation_delegation_invalid` | `REVOKED` | Endpoint reachable again but the delegation is now invalid; terminate immediately (§13.4). |
+| `REVALIDATION_GRACE` | `dpop_proof_ok` | `REVALIDATION_GRACE` | Self-loop: requests are still served on the last-validated delegation **only** while the grace window has not elapsed. |
+| `REVALIDATION_GRACE` | `grace_window_elapsed` | `EXPIRED` | [§16.8: 2× re-validation interval] elapsed still-unreachable → **fail closed** and require re-authentication (§13.4), bounding an attacker's post-revocation persistence to the grace window while tolerating brief outages (mirrors §3.3's fail-closed-on-unreachable-KT). |
+| `REVALIDATION_GRACE` | `revoke_requested` / `device_key_rotated` / `ik_recovered` | `REVOKED` | Any explicit local revocation trigger overrides the grace window immediately. |
+| `REVALIDATION_GRACE` | `session_timeout` | `EXPIRED` | The ordinary TTL/idle timeout (§16.8) may fire first; whichever comes first ends the session. |
 | `SESSION_ACTIVE` | `dpop_proof_fail` | `SESSION_ACTIVE` | **[fill]** §13.4 does not state whether a single bad proof-of-possession tears down the whole session or only that one request. This machine rejects the request only and keeps the session alive — consistent with DPoP's inherently per-request nature; a stolen bearer token is "useless without the key" precisely because *each* request re-proves possession, not because one failure is terminal. |
 | `SESSION_ACTIVE` | `session_key_rotation` | `REFRESHED` | Periodic re-keying of the ephemeral session key, same logical session. |
 | `SESSION_ACTIVE` | `revoke_requested` | `REVOKED` | Published to transparency log / short-lived status endpoint (§13.4); MUST NOT require rotating `IK`. |
@@ -586,6 +597,7 @@ session lifecycle (§13.4).
 | Session TTL (absolute) | **24 h** | §16.8 |
 | Session idle timeout | **30 min** | §16.8 |
 | RP delegation re-validation interval | **≤ 15 min** | §16.8 |
+| Delegation re-validation grace window (unreachable status/KT) | **2× re-validation interval (≤ 30 min)** | §13.4, §16.8 |
 
 ### Diagram
 
@@ -598,11 +610,16 @@ stateDiagram-v2
   APPROVAL_GATE --> ASSERTION_VERIFIED : user_approves + rp_verify_ok
   APPROVAL_GATE --> NO_SESSION : channel_unattributable / user_denies / approval_timeout / rate_limited
   ASSERTION_VERIFIED --> SESSION_ACTIVE : establish_session
-  SESSION_ACTIVE --> SESSION_ACTIVE : dpop_proof_ok / fail
+  SESSION_ACTIVE --> SESSION_ACTIVE : dpop_proof_ok / fail / revalidation_ok
   SESSION_ACTIVE --> REFRESHED : session_key_rotation
   REFRESHED --> SESSION_ACTIVE : (immediate)
   SESSION_ACTIVE --> EXPIRED : session_timeout (TTL 24h / idle 30m, §16.8)
-  SESSION_ACTIVE --> REVOKED : revoke_requested / device_key_rotated / ik_recovered
+  SESSION_ACTIVE --> REVOKED : revoke_requested / device_key_rotated / ik_recovered / revalidation_delegation_invalid
+  SESSION_ACTIVE --> REVALIDATION_GRACE : revalidation_endpoint_unreachable
+  REVALIDATION_GRACE --> SESSION_ACTIVE : revalidation_ok
+  REVALIDATION_GRACE --> REVALIDATION_GRACE : dpop_proof_ok (within grace)
+  REVALIDATION_GRACE --> EXPIRED : grace_window_elapsed (2× interval, §16.8)
+  REVALIDATION_GRACE --> REVOKED : revalidation_delegation_invalid / revoke_requested / device_key_rotated / ik_recovered
   REVOKED --> [*]
   EXPIRED --> [*]
 ```

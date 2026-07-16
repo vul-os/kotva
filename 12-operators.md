@@ -41,9 +41,15 @@ one). **GatewayAuthz is different and MUST NOT fail open to "allow."** GatewayAu
 control (§9): the accountability it enforces is exactly what prevents unattributable legacy
 egress — the open-relay failure mode §7.7 exists to avoid. On operator-unreachable, GatewayAuthz
 MUST fall back to a **safe default**: permit legacy egress only to **already-established
-contacts** (and to senders carrying valid self-contained proof — postage/PoW verifiable without
-the operator), and **deny cold/unproven legacy egress** for the outage window. A generic
-"fail-open to allow" for this capability is prohibited.
+contacts** and to senders carrying a valid **proof-of-work solution** (§9.4) — the one anti-abuse
+proof that is genuinely **verifiable without any operator** — and **deny cold/unproven legacy
+egress** for the outage window. **Postage is deliberately excluded from this fallback:** a stamp
+requires an **online issuer redemption check** against the issuer's endpoint or signed spent-list
+(§9.5.1), and is treated as *unverified* whenever that issuer is unreachable, so it is **not**
+operator-independent and MUST NOT be accepted on faith during an outage (it is only usable here if
+the postage issuer happens to be independently reachable at redemption time). Established contacts
+plus operator-independent PoW are therefore the genuinely operator-independent egress path; a
+generic "fail-open to allow" for this capability is prohibited.
 
 ## 12.3 The inviolable rule (normative)
 

@@ -77,9 +77,10 @@ where DMTAP narrows or extends a referenced spec, the DMTAP text is normative fo
 | **Solid-OIDC** (CG report) | WebID + DPoP over OIDC | architectural template for the OIDC bridge; trusts *issuers* (§13.6) |
 | **Nostr NIP-07 / NIP-98** | keypair browser signing / HTTP auth | deployed keypair-auth precedent; weaker binding than WebAuthn (§13) |
 | **UCAN v1.0** | User-Controlled Authorization Networks | capability-delegation model (§13.5) |
-| **Sphinx** (Danezis & Goldberg, 2009) | mix packet format | mixnet packets (§4, §6) |
-| **Loopix** (USENIX Sec 2017) | mixnet design | Poisson mixing + cover traffic (§4, §6) |
-| **Anonymity Trilemma** (IEEE S&P 2018) | anonymity ↔ latency/bandwidth | the fundamental privacy bound (§6.6) |
+| **Sphinx** (Danezis & Goldberg, 2009) | mix packet format | profiled for the Sphinx cell, replay/tagging resistance (§4.4.1, §4.4.6) |
+| **Loopix** (USENIX Sec 2017) | mixnet design | Poisson mixing, loop/drop cover + active-attack detection (§4.4.5, §4.4.7) |
+| **Nym** | deployed stratified mixnet | stratified topology + operational descendant of Loopix (§4.4.3) |
+| **Anonymity Trilemma** (Das et al., IEEE S&P 2018) | anonymity ↔ latency/bandwidth | the fundamental privacy bound; the high-security-profile lever (§6.6, §4.4.10) |
 | **CONIKS** (USENIX Sec 2015) / **RFC 6962** | key transparency / Certificate Transparency | auditable `name→key` (§3.5) |
 | **SLIP-0039** / **RFC 9591 (FROST)** | Shamir mnemonic / threshold signatures | recovery (§1.4) |
 | **Chatmail / Delta Chat, Matrix/Sygnal, Signal** | minimal mail server, push gateway, sealed sender | mobile push + relay-mailbox precedent (§14); sealed sender (§6) |
