@@ -537,15 +537,21 @@ definition, which is exactly why its ordering is normatively fixed (§2.7).
    block/allow lists against the now-known identity — a sender that passed the anonymous
    challenge gate (step 6) but is on an explicit per-identity block list (§9.2 `block`) is still
    rejected here.
-9. Apply `expires`/`refs`/`kind` semantics (§2.4, §2.3); **store** the MOTE (inbox, if step 6/8
-   cleared it fully; requests area, if step 6 deferred it); **`ack`** (§19.3.2). A MOTE whose
+9. Apply `expires`/`refs`/`kind` semantics (§2.4, §2.3); **store** the MOTE. If step 6/8 cleared
+   it fully → store to the **inbox** and **`ack`** (§19.3.2). If step 6 only *deferred* it → hold
+   it in the **requests area** (durably, 30 days, §16.5) but **do NOT `ack`**: an unproven cold
+   sender is not owed a receipt confirmation (acking would confirm the recipient's existence and
+   falsely signal *delivered* when the MOTE is merely pending review), and the sender's own retry
+   independently reaches `EXPIRED` (§16.1, 72 h) — consistent with §2.7a and §20.2. A MOTE whose
    `id` this node **already holds** (dedup, §2.6) is acked immediately at whichever step the
    duplicate is detected, without re-running the remaining steps.
 
-**Success result.** The MOTE is stored (inbox or requests area) and an `ack(id)` is sent to the
-sender. Exactly one of three terminal states is reached for every input: **stored+acked**,
-**deferred+acked** (requests area), or **dropped+unacked** (silent, only for cryptographically
-invalid input per §2.7a) — there is no fourth, undefined outcome.
+**Success result.** The MOTE is stored (inbox or requests area). Exactly one of three terminal
+states is reached for every input: **stored+acked** (inbox), **deferred+unacked** (durably held
+in the requests area, but no receipt is sent — the sender's own retry expires), or
+**dropped+unacked** (silent, for cryptographically invalid input per §2.7a) — there is no fourth,
+undefined outcome. The ack axis is binary: **ack iff delivered to the inbox** (or a dedup of one
+already held); deferred and dropped are both unacked, differing only in retention.
 
 **Failure modes.**
 
@@ -556,7 +562,7 @@ invalid input per §2.7a) — there is no fourth, undefined outcome.
 | `sender_sig` fails to verify | Silent drop | No ack — forged envelope |
 | `to` does not resolve at this node | Silent drop | This node is not a valid recipient; MUST NOT forward or leak that it received *something* |
 | Cold sender, `challenge` invalid/forged | Silent drop | Per §2.7a exactly |
-| Cold sender, `challenge` absent/below threshold | Defer to requests area | Rate-limited (§9.2), retained 30 days (§16.5), never silently discarded and never shown as an inbox message (§2.7a's two MUST NOTs) |
+| Cold sender, `challenge` absent/below threshold | Defer to requests area, **no ack** | Rate-limited (§9.2), retained 30 days (§16.5), never silently discarded and never shown as an inbox message (§2.7a's two MUST NOTs); not acked (don't confirm receipt to an unproven cold sender — the sender's own retry `EXPIRED`s) |
 | Decryption fails (wrong epoch/key/corrupt) | Silent drop | No ack — indistinguishable from a forged envelope to the sender, by design (does not confirm epoch/key state to an attacker) |
 | `Payload.sig` fails under `Payload.from`, OR `from` mismatches a known contact's pin | Silent drop | No ack — a passed anti-abuse gate does not substitute for payload authenticity |
 | `from` (revealed post-decrypt) is on the recipient's explicit block list | Silent drop | No ack — step 6 passing (anonymous accountability) does not override an explicit identity-level block once identity is known |

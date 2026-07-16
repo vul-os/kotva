@@ -126,6 +126,7 @@ Codes are listed in the same order as the steps they correspond to.
 | `0x020C` | `ERR_TIMESTAMP_OUT_OF_SKEW` | `Envelope.ts` vs. receiver clock (§16.1) | `ts` falls outside the ±120 s clock-skew tolerance. | Yes (resend with a fresh `ts`) | DROP_SILENT for cold senders; implementations MAY be lenient toward known contacts |
 | `0x020D` | `ERR_MALFORMED_OBJECT` | any CBOR parse (Envelope/Payload/Attachment/Manifest) | Object fails to parse as well-formed CBOR against its schema. | No | DROP_SILENT |
 | `0x020E` | `STATUS_DUPLICATE_ID` | §2.6 (deduplication) | Recipient already holds `id`. | N/A | ACK_DEDUP |
+| `0x020F` | `ERR_SUITE_DOWNGRADE` | §2.7 step 8, §1.3 (suite ratchet) | `Envelope.suite` is **below** the sender-contact's pinned suite high-water-mark — a downgrade attempt (e.g. a broken classical suite offered after both parties migrated to PQ). | No | DEFER_REQUESTS + USER_WARN — route to requests with a security warning; MUST NOT accept the downgraded MOTE, MUST NOT ratchet the high-water-mark down |
 
 **Content-addressed dedup as replay defense.** §2.6/§20E's dedup-by-`id` is what makes a bare
 resend of a previously-processed MOTE a non-event rather than a distinct "replay" failure mode
@@ -318,7 +319,7 @@ extension procedure in §21.23. Allocation policies use the standard terms of RF
 | **Registry name** | DMTAP Error/Status Codes |
 | **Reference** | §21.1–§21.11 (this document) |
 | **Allocation policy** | New subsystem byte (`0x09`–`0xEF`): Standards Action. New code point within an existing subsystem (`NN` = `0x01`–`0x7F`): Specification Required. `NN` = `0x80`–`0xFE` within any subsystem: Private Use (implementation-local diagnostics; MUST map to the nearest standard code's Responder Action, §21.2, for any behavior visible to another implementation). `SS`/`NN` = `0x00` or `0xFF`: Reserved. |
-| **Initial contents** | The 89 codes enumerated in §21.3–§21.11. |
+| **Initial contents** | The 91 codes enumerated in §21.3–§21.11. |
 | **Registry discipline** | Append-only. A retired code MUST be marked Deprecated, never deleted or reassigned to a different meaning (mirroring the append-only philosophy of the KT log, §3.5). |
 
 ## 21.15 Algorithm Suites Registry (`suite` u8)
@@ -456,10 +457,11 @@ fragmenting."
 
 ## 21.24 Summary
 
-- **Error/status codes defined:** 89 (`0x0101`–`0x0115`: 21, incl. the KT-v1 detection codes
-  `0x0110`–`0x0112` and the org-administration codes `0x0113`–`0x0115` (§3.10); `0x0201`–`0x020E`: 14; `0x0301`–
-  `0x0309`: 9; `0x0401`–`0x040A`: 10; `0x0501`–`0x050A`: 10; `0x0601`–`0x0604`: 4, plus the
-  informative SMTP mapping table of §21.9; `0x0701`–`0x070E`: 14; `0x0801`–`0x0807`: 7),
+- **Error/status codes defined:** 91 (`0x0101`–`0x0115`: 21, incl. the KT-v1 detection codes
+  `0x0110`–`0x0112` and the org-administration codes `0x0113`–`0x0115` (§3.10); `0x0201`–`0x020F`: 15,
+  incl. `0x020F` suite-downgrade (§1.3); `0x0301`–`0x0309`: 9; `0x0401`–`0x040A`: 10;
+  `0x0501`–`0x050A`: 10; `0x0601`–`0x0604`: 4, plus the informative SMTP mapping table of §21.9;
+  `0x0701`–`0x070E`: 14; `0x0801`–`0x0808`: 8, incl. `0x0808` manifest-key-present (§5.5)),
   spanning the 8 requested subsystems, with every code resolving to exactly one of the 13
   defined responder actions (§21.2) — no undefined behavior remains.
 - **IANA registries defined:** 10 — the 8 requested (Algorithm Suites, Message Kinds, Challenge

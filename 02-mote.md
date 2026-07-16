@@ -223,7 +223,12 @@ in order:
 8. Verify `Payload.sig` under `Payload.from`; **on failure, discard silently and do not `ack`**
    (fail closed, matching steps 1–3). Otherwise verify `from` matches the pinned identity for a
    known contact, or TOFU-pin on first contact (§3.4). For a cold sender whose `from` is now
-   revealed, re-apply block/allow lists.
+   revealed, re-apply block/allow lists. **Suite-ratchet check:** now that the sender identity is
+   known, verify `Envelope.suite` is **not below** this contact's pinned suite high-water-mark
+   (§1.3); a below-water-mark suite is a downgrade attempt → reject to the requests area with a
+   security warning (`ERR_SUITE_DOWNGRADE`, §21.4), never accept. (This must occur here, not at
+   step 1, because sealed sender hides the sender until decryption; a recipient that has retired a
+   suite for *itself* MAY additionally reject that `Envelope.suite` at step 1 as its own floor.)
 9. Apply `expires`, `refs`, `kind` semantics; store; `ack`.
 
 Known contacts MAY skip step 6 (they are pre-authorized). Only known-contact MOTEs reach
@@ -237,8 +242,11 @@ To reconcile §2.7 and §9.2, the disposition is by *degree*:
   user-visible effect, do not `ack` (except a duplicate `id`, which is acked).
 - **Absent or below policy threshold** (a cold sender with no/weak proof) → **defer to a
   "requests" area** (not the inbox), rate-limited, never silently dropped and never surfaced as
-  a normal message. Deferred MOTEs are held for the **requests-area retention period** (30 days,
-  §16.5), then auto-cleaned. The user MAY promote the sender (which pins them as a contact).
+  a normal message, and **not `ack`ed** (a deferred cold MOTE is durably held but no receipt is
+  sent — acking would confirm the recipient's existence to an unproven sender and falsely signal
+  *delivered*; the sender's own retry reaches `EXPIRED`, §16.1). Deferred MOTEs are held for the
+  **requests-area retention period** (30 days, §16.5), then auto-cleaned. The user MAY promote the
+  sender (which pins them as a contact). Ack is owed **only** for inbox delivery (§19.3.1 step 9).
 
 Implementations MUST NOT deliver an unproven cold MOTE to the inbox, and MUST NOT silently
 discard a well-formed-but-under-threshold one without the requests-area affordance.

@@ -97,6 +97,20 @@ so an identity can hold classical and PQ keys simultaneously during migration. R
 - A **sender MUST use the highest suite both parties support** (intersection of the sender's
   supported suites and the recipient's `Identity.suites`); if the intersection is empty, delivery
   fails closed (no silent downgrade).
+- **Recipient-side downgrade defense — the suite ratchet (normative).** The sender rule above is
+  not self-enforcing: a recipient that still publishes a weaker suite would otherwise accept a
+  MOTE encrypted/signed under it even after both parties can do better, so a future break of the
+  weaker primitive (e.g. quantum against a classical suite) would defeat the migration. A
+  recipient therefore MUST maintain, **per pinned contact**, a **suite high-water-mark** = the
+  highest suite it has seen that contact use or advertise (in a validated `Identity`/KeyPackage).
+  A subsequent MOTE from that contact using a suite **below** the high-water-mark MUST be rejected
+  (`ERR_SUITE_DOWNGRADE`, §21.4) — routed to the requests area with a security warning, never
+  silently accepted. The high-water-mark only ratchets **up**; it lowers solely through an
+  explicit, `IK`-authorized rotation the owner performs (a genuine suite retirement, §1.5), never
+  through an inbound message. An owner MAY additionally publish a signed **`classical_retired`**
+  marker in `Identity` that makes rejection of the retired suite unconditional (not merely
+  below-high-water-mark). This is the analogue of TLS's downgrade-sentinel: migration to a PQ
+  suite delivers protection at **receipt**, not only once the old keys are globally unpublished.
 - During transition the `Identity` MUST carry a signature under **every** suite in `suites`
   (`sig` is a list), so a verifier trusting either the classical or the PQ key can validate the
   object — this is what lets the network migrate without a flag day.
