@@ -107,6 +107,7 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8">
 ${coverHtml}
 ${tocHtml}
 ${body}
+<div class="colophon">Drafted with the help of an LLM by Imran Yusuf Paruk · Durban, South Africa</div>
 <script>${mermaidJs}</script>
 <script>
   window.__mermaidDone = false;

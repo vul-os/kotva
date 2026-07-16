@@ -150,3 +150,11 @@ hr { border: none; border-top: 1px solid var(--rule); margin: 1.3em 0; }
 .toc-h2 .num { min-width: 3.4em; padding-left: 1.5em; }
 
 .section { }
+
+/* ---- colophon: small attribution at the very end ---- */
+.colophon {
+  margin-top: 2.4em; padding-top: 1em; border-top: 1px solid var(--rule-soft, #e4e7ea);
+  text-align: center; font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 7.6pt; color: var(--faint); letter-spacing: .02em;
+  break-before: avoid;
+}
