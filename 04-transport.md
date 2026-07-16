@@ -220,6 +220,30 @@ GAL (§3.10.3). A directory not signed by the pinned authority is rejected
 defense); a directory lacking a full stratified layer set makes path-building fail
 (`ERR_MIX_PATH_UNBUILDABLE`, `0x030D`).
 
+- **Directory freshness — freeze-attack defense (MUST).** Rollback defense (rejecting an
+  *older-or-equal* `version`) stops an adversary *rewinding* a client, but it does **not** by
+  itself stop an adversary *freezing* one: an on-path adversary (or a censoring authority) that
+  simply **serves the last honest directory forever** presents a validly-signed, non-rolled-back
+  snapshot while withholding every newer one. Left unbounded, a freeze pins the victim to a
+  **stale fleet view** — it never learns of newly-joined, operator-diverse honest mixes (so its
+  effective diversity and anonymity set stay artificially small and adversary-favourable) even
+  though nothing it can see is *invalid*. This is the exact analogue of the KT **freeze attack**
+  that STH freshness defends (§3.5.2(a), `0x0112`), and the mix directory — being KT-anchored
+  (its root is appended to KT) — MUST inherit the same defense. A client therefore MUST treat a
+  `MixDirectory` older than the **mix-directory freshness window** (§16.3, ≤ one mix-key epoch)
+  as **stale**, MUST refresh it before building any `private`-tier path, and MUST **fail closed**
+  (§4.4.9 — hold, never downgrade) if it cannot obtain a fresh directory — raising
+  `ERR_MIX_DIRECTORY_STALE` (`0x0311`). Because the authority MUST publish a new directory each
+  epoch and append its root to KT (above), a freeze is **detectable**: the authority's own KT log
+  will show no fresh directory root within the window (a withholding signal, gossiped exactly as
+  an unpublished KT entry is, §3.5.2(a)), and under v1-hardening KT it is attributable to the
+  authority. This makes "withhold newer mixes" a **detected, fail-closed** event rather than a
+  silent shrinking of the anonymity set, completing the trust-minimization triad for the
+  directory authority (minimized §4.4.2 quorum, **detectable** here, fail-closed §4.4.9). In v0,
+  as with all KT, a single-log freeze is only tamper-evident-after-the-fact (§6.6 item 6); the
+  ≤-one-epoch key rotation (§4.4.4) still bounds the freeze window because a frozen directory's
+  keys expire and path-building then fails closed regardless.
+
 ### 4.4.3 Path selection (3-hop stratified free-route)
 
 - **Length: 3 hops** (§16.3) — entry, middle, exit — the Loopix/Nym choice: enough that no single
@@ -477,6 +501,20 @@ detection, and stricter guard/diversity. It is **negotiated as a capability** (�
 MUST support the profile in force, and a recipient **MAY require** it for its inbound `private`
 traffic. Profiles are the lever that lets a deployment climb toward the trilemma bound; the
 irreducible residual **after** the maximal profile is stated honestly in §6.6.
+
+**What more hops do — and do not — buy (honest scope).** Raising the hop count (5 vs 3) and the
+per-hop delay hardens DMTAP against **timing correlation by a network observer**: more independent
+memoryless hops (§4.4.6) mean an observer watching the links must defeat more layers of Poisson
+reordering to link a mix's input to its output, so the passive-correlation advantage falls toward
+the chance floor as hops and cover grow (measured, §6.10). It does **not**, however, reduce the
+probability that the **entry and exit mixes are both adversarial** — the one placement from which a
+*colluding* pair correlates a flow regardless of how many honest hops sit between them. That
+probability is bounded **only** by entry guards + attested operator diversity (§4.4.8), which hold
+it near ≈ *a*² for an adversary operating a fraction *a* of the attested-diverse fleet; adding
+middle hops leaves it unchanged. Hop count and operator diversity therefore defend **different**
+attacks and neither substitutes for the other — the High-security profile raises **both** (5 hops
+*and* 5 disjoint operators / 3 tighter guards) precisely because each closes a gap the other
+cannot. This distinction is stated as measured evidence in §6.10.
 
 ### 4.4.11 Honest low-adoption model (disclosed, §6.6 style)
 

@@ -326,8 +326,11 @@ reach**: strong against a global *passive* adversary, *bounded* (not defeated) a
 - *Against:* the global **active** adversary.
 - *Residual (bounded, not eliminated):* the Anonymity Trilemma floor (§6.6 item 1, Das et al.,
   IEEE S&P 2018) — strong anonymity provably cannot be free; sub-threshold selective dropping stays
-  under the §4.4.7 detector (§6.6 item 1, §16.3). DMTAP *approaches* the mathematical floor as the
-  profile's latency/overhead grows; it does not claim to defeat an omnipotent active adversary.
+  under the §4.4.7 detector (§6.6 item 1, §16.3); the colluding entry+exit floor is ≈ *f*² and is
+  **not** reduced by adding hops (§4.4.10). DMTAP *approaches* the mathematical floor as the
+  profile's latency/overhead grows; it does not claim to defeat an omnipotent active adversary. The
+  mechanism-model simulation corroborating this shape (chance-floor convergence, 20%-loss detection,
+  ≈ *f*² collusion, hops-≠-collusion-defense) is reported — with its honest caveats — in §6.10.
 
 **SP-5 — Recipient unlinkability (blinded delivery tags).**
 - *Claim:* An observer cannot link successive `private`-tier deliveries to the same recipient *by
@@ -448,3 +451,65 @@ reach**: strong against a global *passive* adversary, *bounded* (not defeated) a
 An implementation or a formal model that exhibits a counterexample to any SP-*n* **claim line
 above** — without invoking its stated residual — has found a spec-level defect, and it MUST be
 filed as such (§10.4). That is the point of stating them falsifiably.
+
+## 6.10 Measured anonymity evidence (mechanism-model simulation — supporting, not deployment proof)
+
+The §6.9 properties are stated to be **refutable**; this subsection reports what a **mixnet
+anonymity simulator** in the reference measured when the §4.4 mechanisms were exercised against a
+global adversary. It is offered as **corroborating evidence** for SP-3/SP-4 (and the §6.6 item 1
+honest floor), and it is **explicitly caveated**:
+
+> **This is a mechanism-model simulation, NOT the deployed network.** The simulator models the
+> §4.4 constructions — Poisson per-hop mixing, loop/drop cover, stratified path selection, entry
+> guards, operator diversity, and colluding-mix placement — under an idealized traffic model. It
+> is a *sanity check that the mechanisms behave as designed in the abstract*, not a measurement of
+> a real fleet, and it is **not a substitute** for the pre-deployment external audit gate
+> (§12.8.4). Real-world anonymity depends on the live anonymity set (§4.4.11), implementation
+> fidelity (the weakest-link caveat, §6.6 item 5), and side channels a mechanism model does not
+> capture. No production claim rests on these numbers.
+
+With that caveat, the simulator's four measured findings each map to a claimed property:
+
+1. **Passive correlation converges toward the 1/N chance floor as cover and hops grow.** Against a
+   *global passive* adversary, the simulated probability of correctly linking a target's sender to
+   its receiver fell toward **1/N** (N = the anonymity set — indistinguishable senders) as
+   cover-traffic rate and hop count increased: with enough cover and mixing, the adversary's
+   guess approached a **uniform random guess over the anonymity set**. This is the mechanism-model
+   evidence for **SP-3** (sender anonymity vs. global passive) and shows *why* cover traffic is
+   load-bearing, not optional (§6.2, §4.4.5) — the convergence is *to* the floor, not *below* it,
+   and it is a floor set by N, i.e. by adoption (§4.4.11), which the model idealizes.
+
+2. **Active drop attacks are detected at the 20%-loss loop threshold.** When the simulated
+   adversary dropped packets on a target's paths, the **loop-cover return fraction** (§4.4.7) fell
+   below its detection threshold at ≈ **20% loss** (§16.3), triggering the inferred-active-attack
+   response — rotate + `HALT_ALERT` + fail-closed (`0x030F`). This is the evidence for **SP-4**'s
+   "drop/delay is *detected and responded to*": above-threshold suppression is caught; the honest
+   residual is **sub-threshold** dropping (< 20%), which stays under the detector but, dropping so
+   little, accomplishes correspondingly little (§6.6 item 1). Faster loops (High-security, §4.4.10)
+   tighten this floor.
+
+3. **Anonymity degrades with the compromised fraction f, tracking ≈ f².** As the fraction *f* of
+   mixes under adversary control grew, the simulated deanonymization probability rose **≈ f²** —
+   the joint probability that **both** the entry **and** the exit of a path are adversarial, the
+   placement from which a colluding pair correlates a flow. This is the quantitative shape of the
+   §4.4.8 bound and of the §6.6 item 1 residual: entry guards + **attested** operator diversity
+   (§4.4.8) are what hold the exponent at ≈ *f*² rather than letting a single Sybil operator faking
+   *N* identities collapse it to ≈ *f* (§4.4.8, §10.7.2). It also quantifies **SP-4**'s "bounded,
+   not eliminated" — the bound is ≈ *f*², not zero.
+
+4. **More hops defend against timing correlation but NOT against colluding entry+exit mixes.** The
+   single most important honesty result: increasing the hop count in the simulation **lowered the
+   timing-correlation success of a network *observer*** (more memoryless hops to defeat, finding 1),
+   but left the **≈ f² colluding-entry+exit deanonymization essentially unchanged** — adding honest
+   middle hops does not reduce the chance that the two *ends* are both adversarial. Hop count and
+   operator diversity therefore defend **different** attacks: hops buy timing-correlation resistance
+   (against observers), diversity + guards buy entry+exit-collusion resistance (against colluding
+   mixes), and **neither substitutes for the other** (§4.4.10). Any claim that "just add more hops"
+   defeats a colluding-endpoint adversary is refuted by this measurement and MUST NOT be made.
+
+**Honest reading.** These results *support* the claims exactly as §6.9 states them and *refute* the
+overclaims §6.6 disallows: passive correlation is driven to the chance floor (not below), active
+dropping is detected (above threshold, not below), and the colluding-endpoint residual is a real
+≈ *f*² floor that more hops do not remove. The evidence strengthens the honest posture; it does not
+license a stronger claim than the residuals permit, and it does not replace §12.8.4's external
+audit.

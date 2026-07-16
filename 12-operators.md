@@ -234,6 +234,21 @@ recovery.
   — a quorum-backed recovery **overrides any veto** (§1.4 rule 4), so a stolen not-yet-removed factor
   cannot block its own eviction. Confidential shared folders re-key on removal (§6.7).
 
+- **Steady-state monitoring cadence (what *produces* the detections above).** The three runbooks
+  are triggered by continuous monitoring an operator MUST run, not by chance observation. A
+  conformant deployment operates, at the pinned cadences (§16.2, §16.3): (1) **KT STH gossip +
+  consistency checks** at least once per gossip interval (≤ 1 h) and treats any STH older than the
+  freshness window (≤ 24 h) as stale — the split-view/freeze detector (§3.5.2(a), `0x0112`); (2)
+  **owner self-monitoring** of every log in the identity's pinned set (STH poll ≤ 6 h) so an
+  unauthorized entry raises `HALT_ALERT` (§3.5.2(c)); (3) **≥ 2 independent auditors per log**
+  checking append-only extension name-agnostically (§3.5.2(c)); (4) **mix-directory freshness**
+  checks (≤ one mix-key epoch) so a frozen fleet view fails closed (§4.4.2, `0x0311`); and (5)
+  **loop-return telemetry** feeding the active-attack detector (§4.4.7, `0x030F`). These cadences
+  are the operational half of the trust-minimization triad — a trusted party (KT log, mix directory
+  authority) is *minimized* by quorum, made *detectable* by this monitoring, and *fails closed* on
+  the codes above. An operator that runs the mechanisms but not this cadence has the detectors and
+  never looks at them; the cadence is what makes "detectable" real.
+
 ### 12.8.3 Key-ceremony guidance
 
 The strength of SP-1/SP-2/SP-10 (§6.9) rests on how the long-lived keys are generated and held.

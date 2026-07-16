@@ -130,6 +130,7 @@ Codes are listed in the same order as the steps they correspond to.
 | `0x020D` | `ERR_MALFORMED_OBJECT` | any CBOR parse (Envelope/Payload/Attachment/Manifest) | Object fails to parse as well-formed CBOR against its schema. | No | DROP_SILENT |
 | `0x020E` | `STATUS_DUPLICATE_ID` | §2.6 (deduplication) | Recipient already holds `id`. | N/A | ACK_DEDUP |
 | `0x020F` | `ERR_SUITE_DOWNGRADE` | §2.7 step 8, §1.3 (suite ratchet) | `Envelope.suite` is **below** the sender-contact's pinned suite high-water-mark — a downgrade attempt (e.g. a broken classical suite offered after both parties migrated to PQ). | No | DEFER_REQUESTS + USER_WARN — route to requests with a security warning; MUST NOT accept the downgraded MOTE, MUST NOT ratchet the high-water-mark down |
+| `0x0210` | `ERR_HYBRID_SUITE_INCOMPLETE` | §1.3 (hybrid composition), §16.7 | A hybrid-suite object (`0x02`) presented to a verifier that **supports** the hybrid suite validates on only **one** component (e.g. Ed25519 passes but the ML-DSA-65 component is absent/fails) — an intra-suite strip of the PQ half. A hybrid verifier MUST require **all** component signatures (AND-composition) and the X-Wing IND-CCA KEM combiner; single-component acceptance is for a genuinely legacy (single-component) verifier only, at that component's lower assurance. | No | FAIL_CLOSED_BLOCK — reject the incomplete/downgraded hybrid; MUST NOT accept it on the classical half |
 
 **Content-addressed dedup as replay defense.** §2.6/§20E's dedup-by-`id` is what makes a bare
 resend of a previously-processed MOTE a non-event rather than a distinct "replay" failure mode
@@ -156,6 +157,7 @@ to a MOTE) is a distinct concept scoped to the Auth ceremony; see `0x0502` (§21
 | `0x030E` | `ERR_MIX_REPLAY_DETECTED` | Per-epoch mix replay cache (§4.4.6) | A mix received a Sphinx packet whose per-hop tag is already in its current-epoch replay cache — a replayed packet (correlation / n−1 replay attempt). | No | DROP_SILENT — a content-blind mix has no channel to notify; the duplicate is simply dropped |
 | `0x030F` | `ERR_MIX_ACTIVE_ATTACK_SUSPECTED` | Loop-cover detection (§4.4.7) | A node's loop-cover return fraction fell below the loss threshold (or latency inflated beyond the delay budget), inferring an active drop/delay/flooding attack on its paths. | Yes (after rotation) | HALT_ALERT — rotate away from implicated mixes/guards, alert the user, and **fail closed for `private`** (MUST NOT auto-downgrade to `fast`, §4.4.9) |
 | `0x0310` | `ERR_PRIVATE_TIER_DOWNGRADE_REFUSED` | Minimum-viable-path check (§4.4.9) | No path meeting the **in-force profile's** bar is buildable (Standard: ≥ 3 hops, 1/layer, ≥ 3 disjoint operators; **High-security: ≥ 5 hops, ≥ 5 disjoint operators**), all current-epoch keys — an adversary DoSing mixes to force a downgrade, or genuine outage. **Covers both a tier downgrade (`private → fast`) and a profile downgrade (High-security → Standard):** a high-security message that can only build a lesser-bar path fails here rather than silently shipping over Standard strength. | Yes (hold + retry until a viable path exists) | FAIL_CLOSED_BLOCK — hold the MOTE in the sender queue (§4.7), never silently route it over `fast`, a shorter/non-diverse path, or a lower profile's bar; surface to the user if it persists past the retry deadline |
+| `0x0311` | `ERR_MIX_DIRECTORY_STALE` | `MixDirectory` freshness check (§4.4.2, §16.3) | The served mix directory is older than the mix-directory freshness window (≤ one mix-key epoch) — a stale, possibly frozen fleet view an adversary serves to keep the client's diversity/anonymity set small (freeze attack, analogue of KT STH-freshness `0x0112`). | Yes (re-fetch a fresh directory) | FAIL_CLOSED_BLOCK — refresh before building any `private` path; hold + fail closed (§4.4.9) if no fresh directory is obtainable, never build over the stale view |
 
 ## 21.6 Messaging & Group errors — MLS (`0x04xx`)
 
@@ -283,6 +285,7 @@ auditability:
 | Named condition | Code(s) |
 |---|---|
 | Unknown version/suite (fail-closed) | `0x0201`, `0x0101` |
+| Suite downgrade / hybrid strip | `0x020F` (below high-water-mark), `0x0210` (intra-suite hybrid strip) |
 | Bad content-address | `0x0202` |
 | Bad `sender_sig` | `0x0203` |
 | Decrypt-failure | `0x0207` |
@@ -321,6 +324,7 @@ auditability:
 | Issuer-untrusted | `0x0704` (token issuer), `0x0707` (postage issuer), `0x0509` (OIDC issuer) |
 | Capability-announcement rollback | `0x030A` |
 | Mix directory not authority-signed | `0x030B` (a directory split-view is `0x0107`) |
+| Mix directory stale / frozen (freeze attack) | `0x0311` |
 | Mix descriptor / key epoch stale | `0x030C` |
 | Mix path unbuildable / min-viable-path unmet | `0x030D` (no path), `0x0310` (viable-path refused, no downgrade) |
 | Mix packet replay | `0x030E` |
@@ -351,7 +355,7 @@ extension procedure in §21.25. Allocation policies use the standard terms of RF
 | **Registry name** | DMTAP Error/Status Codes |
 | **Reference** | §21.1–§21.11 (this document) |
 | **Allocation policy** | New subsystem byte (`0x09`–`0xEF`): Standards Action. New code point within an existing subsystem (`NN` = `0x01`–`0x7F`): Specification Required. `NN` = `0x80`–`0xFE` within any subsystem: Private Use (implementation-local diagnostics; MUST map to the nearest standard code's Responder Action, §21.2, for any behavior visible to another implementation). `SS`/`NN` = `0x00` or `0xFF`: Reserved. |
-| **Initial contents** | The 107 codes enumerated in §21.3–§21.11. |
+| **Initial contents** | The 109 codes enumerated in §21.3–§21.11. |
 | **Registry discipline** | Append-only. A retired code MUST be marked Deprecated, never deleted or reassigned to a different meaning (mirroring the append-only philosophy of the KT log, §3.5). |
 
 ## 21.15 Algorithm Suites Registry (`suite` u8)
@@ -510,14 +514,16 @@ fragmenting."
 
 ## 21.26 Summary
 
-- **Error/status codes defined:** 107 (`0x0101`–`0x0118`: 24, incl. the KT-v1 detection codes
+- **Error/status codes defined:** 109 (`0x0101`–`0x0118`: 24, incl. the KT-v1 detection codes
   `0x0110`–`0x0112`, the org-administration codes `0x0113`–`0x0115` (§3.10), `0x0116`
   device-attestation and `0x0118` attestation-expired (§1.2a), and `0x0117` KT leaf-hash mismatch
-  (§3.5, §18.4.9); `0x0201`–`0x020F`: 15, incl. `0x020F` suite-downgrade (§1.3);
-  `0x0301`–`0x0310`: 16, incl. `0x030A` capability-announce
-  rollback (§10.2) and the mixnet codes `0x030B`–`0x0310` — directory/descriptor/path (`0x030B`–`0x030D`),
-  replay (`0x030E`), active-attack detection (`0x030F`), and no-downgrade fail-closed — now covering
-  both tier and profile downgrade (`0x0310`, §4.4.9);
+  (§3.5, §18.4.9); `0x0201`–`0x0210`: 16, incl. `0x020F` suite-downgrade and `0x0210`
+  hybrid-suite-incomplete (intra-suite PQ-strip defense, §1.3);
+  `0x0301`–`0x0311`: 17, incl. `0x030A` capability-announce
+  rollback (§10.2) and the mixnet codes `0x030B`–`0x0311` — directory/descriptor/path (`0x030B`–`0x030D`),
+  replay (`0x030E`), active-attack detection (`0x030F`), no-downgrade fail-closed covering
+  both tier and profile downgrade (`0x0310`, §4.4.9), and mix-directory freshness/freeze defense
+  (`0x0311`, §4.4.2);
   `0x0401`–`0x040F`: 15, incl. the deniable-mode codes `0x040B`–`0x040F` (§5.2.1) — prekey
   invalid/exhausted, X3DH/PQXDH failure, ratchet-MAC failure, mode-unavailable, and the
   signature-forbidden guard;

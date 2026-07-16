@@ -174,6 +174,35 @@ so an identity can hold classical and PQ keys simultaneously during migration. R
 - During transition the `Identity` MUST carry a signature under **every** suite in `suites`
   (`sig` is a list), so a verifier trusting either the classical or the PQ key can validate the
   object — this is what lets the network migrate without a flag day.
+- **Hybrid composition within a suite — no intra-suite downgrade (normative).** The
+  "either can validate" rule above governs **cross-suite** migration (a legacy verifier that
+  supports *only* `0x01` validating an object that also carries a `0x02` signature). It MUST NOT
+  be read as permitting a verifier that **does support** a hybrid suite to accept that suite's
+  object on **one component alone**. A hybrid suite (`0x02` = Ed25519 **+** ML-DSA-65 signing,
+  X-Wing = X25519 **+** ML-KEM-768 KEM, §16.7) is defined so that its security holds if **at
+  least one** component is unbroken, and that goal decomposes by primitive:
+  - **Signatures compose AND at verification.** A verifier that supports suite `0x02` MUST require
+    **every** component signature of a `0x02` object to verify (Ed25519 **and** ML-DSA-65); a
+    `0x02`-claimed object whose ML-DSA component is missing or fails while only the Ed25519
+    component validates MUST be **rejected** as an incomplete/downgraded hybrid
+    (`ERR_HYBRID_SUITE_INCOMPLETE`, §21.4) — never accepted on the classical half. Requiring both
+    to verify is what makes forgery need breaking **both**; accepting on either half would collapse
+    unforgeability to the *weaker* component and hand a quantum adversary a silent
+    strip-the-PQ-half downgrade. Single-component acceptance is permitted **only** for a legacy
+    verifier that genuinely supports just one component, which thereby obtains **only that
+    component's** assurance and MUST treat the binding at that (lower) level, never as full hybrid
+    strength.
+  - **KEM composes with an IND-CCA-robust combiner.** The hybrid KEM MUST be **X-Wing**
+    (`draft-connolly-cfrg-xwing-kem`), whose combiner is IND-CCA-secure if **either** the X25519
+    **or** the ML-KEM-768 share is unbroken; an implementation MUST NOT substitute a bare
+    concatenation or accept an establishment derived from a single share. Because X-Wing is a
+    single monolithic KEM there is no "classical-only" fallback *inside* `0x02` to strip — the
+    combiner is the anti-downgrade guarantee for confidentiality, as AND-verification is for
+    authenticity.
+
+  This makes the PQ migration downgrade-free **in both directions**: the suite high-water-mark
+  (above) stops a peer being pushed *back to* `0x01`, and AND-composition + the X-Wing combiner
+  stop the PQ half being *stripped from within* `0x02`.
 - Per-message suite is negotiated at **KeyPackage granularity** (§5.3): a KeyPackage advertises
   its suite, and the sender selects a recipient KeyPackage of the chosen suite. `Envelope.suite`
   records the suite actually used.
