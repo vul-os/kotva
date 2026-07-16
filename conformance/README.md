@@ -2,7 +2,55 @@
 
 The conformance suite is the **operational definition** of "DMTAP-compatible": an
 implementation conforms at a level (Core / Private / Groups&Files / Legacy / Clients / Auth,
-see spec §10) if and only if it passes the corresponding vectors here.
+see spec §10) if and only if it passes the corresponding cases here.
+
+The suite has two coupled artifacts plus this guide:
+
+| File | Role |
+|------|------|
+| [`SUITE.md`](SUITE.md) | The **normative test-case catalog**: every case numbered (`DMTAP-<CAT>-<NN>`), grouped by §10.3 level, with its spec clause, input, expected result (accept / reject + §21 error code), and MUST/SHOULD. |
+| [`suite.json`](suite.json) | The **machine-readable** form of the same cases (same ids) — a runner in any language drives it. |
+| [`vectors/vectors.json`](vectors/vectors.json) | The **byte-exact known-answer inputs** the vectored cases dispatch on. |
+
+`SUITE.md` and `suite.json` carry the **same 84 case ids** and MUST stay in sync. 39 cases are
+byte-runnable today (33 backed by a `vectors.json` entry, 6 self-contained CBOR-reject cases whose
+bytes are inline); 45 are `construction-todo` — each carries an exact construction recipe and the
+expected §21 error, and becomes byte-backed as its subsystem gains a fixed-input KAT (see
+[Coverage vs. deferred](#coverage-vs-deferred)).
+
+### How a third-party implementer uses the suite
+
+1. Parse `suite.json`. For each case, read `level`, `operation`, `expect.outcome`
+   (`match` / `accept` / `reject`), and — for `reject` — `expect.error_code`/`error_name`.
+2. If the case has a `vector` (or `reuses_vector`), load that entry from `vectors.json` and dispatch
+   on its `operation` (see [How an implementation runs the vectors](#how-an-implementation-runs-the-vectors)).
+   If it has an inline `input.cbor_hex`, feed those bytes to your deterministic-CBOR decoder.
+   If it is `construction-todo`, build the fixture from the `construction` recipe.
+3. Assert the outcome: a `match` case recomputes to the committed value; an `accept` case validates;
+   a `reject` case fails **and** maps to the named §21 code with that code's disposition
+   (DROP_SILENT / DEFER_REQUESTS / FAIL_CLOSED_BLOCK / HALT_ALERT / ACK_DEDUP).
+4. You conform at a level iff every `MUST` case at that level (and every level it composes) passes.
+
+### Level → capability mapping (spec §10.3)
+
+| Level | Case prefixes | Requires (spec) |
+|-------|---------------|-----------------|
+| **Core** | `CBOR`, `ADDR`, `SIG`, `PRE`, `NAME`, `SAFE`, `SUITE`, `VAL`, `IDENT` | Identity (§1), MOTE (§2), naming + TOFU + fail-closed KT (§3), delivery + `deliver`/`ack` (§4), MLS 1:1 (§5), cold-sender challenge gating (§9) |
+| **Private** | `PRIV` (+ Core) | Core + mixnet + sealed sender + cover traffic + anti-active-adversary + fail-closed no-downgrade + privacy tiers (§4.4, §6). A production mail node MUST implement Private. |
+| **Groups & Files** | `GRP`, `FILE` (+ Core) | Core + MLS groups + content-addressed file transfer (§5) |
+| **Legacy** | `LEG` (+ Core) | Core + gateway inbound/outbound + DKIM delegation (§7) |
+| **Clients** | `CLI` (+ Core) | Core + JMAP; IMAP/POP/SMTP-submission compat RECOMMENDED (§8) |
+| **Auth** | `AUTH` (+ Core) | Core + DMTAP-Auth login ceremony + origin binding + key-bound sessions (§13); OIDC bridge RECOMMENDED |
+
+### Reference runner
+
+The reference runner is the `dmtap-core` crate's self-checking test
+(`crates/dmtap-core/tests/conformance_vectors.rs`, run with `cargo test -p dmtap-core`): it is
+exactly the vector-dispatch loop below plus the drift guard of
+[Provenance & drift protection](#provenance--drift-protection). It is a **proof**, not the
+definition — the spec + `SUITE.md` + `suite.json` + `vectors.json` are authoritative (§10.4). A
+third-party runner in any language is written directly against those four; it does not need the
+reference crate.
 
 ## Byte-exact known-answer vectors
 
@@ -130,11 +178,14 @@ the MOTE content-address and signature KATs. **32 vectors** across 9 operations.
 
 ### A note on the CBOR encoding vectored here
 
-The `cbor_encode` vectors capture the **reference crate's actual encoding**: `serde` + `ciborium`,
-which serializes each struct as a CBOR **map keyed by text field names** in field-declaration
-order. This is deterministic (byte-stable, round-trips), which is what the vectors assert. It is
-**not** the integer-keyed, bytewise-sorted canonical form of the normative wire appendix
-(spec §18.1.1–§18.1.2). Aligning the reference encoder to §18's COSE/CWT-style integer keys is a
-known reference-vs-spec gap (spec §10.4 / §18.11); when that lands, these `cbor_encode` vectors
-must be regenerated and this note removed. Until then they pin what "DMTAP-compatible" means for
-the reference implementation, honestly labelled.
+The `cbor_encode` vectors are the **§18-canonical, integer-keyed (COSE/CWT-style) deterministic
+encoding** (RFC 8949 §4.2; spec §18.1.1 / §18.1.2 / §18.3.x / §18.4.x), matching the
+`vectors.json` `methodology` field and each vector's own note. This is directly visible in the
+bytes: e.g. `cbor_identity` begins `a9 01 81 01 02 a1 …` — a 9-entry map keyed by the small
+unsigned integers `1, 2, 3, …` in ascending order, exactly as §18.4.1 specifies, **not** a
+text-keyed map. A second implementer following §18 alone reproduces these bytes; the self-check
+additionally round-trips each object (`decode(encode(x)) == x`, byte-identical) and recomputes the
+`Identity` content address (§18.9.4). Cases `DMTAP-CBOR-01…04` in `SUITE.md` pin these four
+objects; `DMTAP-CBOR-05…12` pin the canonical-form **reject** rules (non-preferred integers,
+indefinite lengths, unsorted/duplicate keys, floats, `undefined`, null-valued optionals, and
+unknown `≥ 64` keys in signed objects).

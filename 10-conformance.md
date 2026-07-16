@@ -72,9 +72,24 @@ privacy. Privacy is a first-class requirement of the protocol, not an optional a
 Private level is the *normal* baseline, and the mixnet it depends on is fully specified in §4.4 /
 §6.3 (Sphinx/Loopix, with the parameters of §16.3) rather than left to implementations.
 
-The **conformance test suite** (in `conformance/`, TBD) is the *operational definition* of
-compatibility. "DMTAP-compatible" means "passes the suite," not "resembles the reference." This
-is the primary defense against fragmentation.
+The **conformance test suite** is the *operational definition* of compatibility. "DMTAP-compatible"
+means "passes the suite," not "resembles the reference." This is the primary defense against
+fragmentation. The suite lives in `conformance/` as three coupled artifacts:
+
+- **`conformance/SUITE.md`** — the normative test-case catalog: 84 numbered cases
+  (`DMTAP-<category>-<NN>`) grouped by the levels above, each pinning its spec clause, input,
+  expected result (accept / reject + the §21 error code), and MUST/SHOULD.
+- **`conformance/suite.json`** — the same cases as machine-readable data, so a runner in **any
+  language** can drive them.
+- **`conformance/vectors/vectors.json`** — 32 byte-exact known-answer vectors (derived from the
+  §18 canonical CBOR) that the cases dispatch on.
+
+39 cases are byte-runnable today (33 vector-backed + 6 self-contained canonical-CBOR reject cases);
+the remaining 45 carry an exact construction recipe and expected §21 error for the branches whose
+subsystems are not yet vectored (mixnet/MLS/gateway/auth — see `conformance/README.md`). An
+implementation conforms at a level iff it passes every `MUST` case of that level and of every level
+it composes. The reference `dmtap-core` self-check test drives the vectors, but the spec plus these
+three files are authoritative (§10.4), not the reference.
 
 ## 10.4 The spec is authoritative
 
