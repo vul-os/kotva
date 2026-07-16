@@ -176,6 +176,38 @@ identity events (§1.4) — so a **silent grant** an attacker installs (the clas
 compromise move: quietly delegating access or auto-forwarding mail) is **visible to the owner's
 other devices** and alertable. Silent, unlogged authorization is prohibited.
 
+### 13.5.1 Organizational admin roles as capabilities (normative)
+
+Org / domain administration (§3.10) introduces **no new authorization machinery**: an admin role
+is a §13.5 UCAN-style capability rooted at the **domain authority** key (§3.10.1) and delegated to
+an admin's device/identity. Four standard roles, least-privilege and attenuable:
+
+| Role | Least-privilege capability | Delegated from |
+|------|----------------------------|----------------|
+| **domain-owner** | full domain authority, incl. rotating the domain anchor and the directory-signing key | the domain authority itself (a **threshold** act, §3.10.1) |
+| **domain-admin** | provision/offboard members, edit the directory (§3.10.3), create org groups (§5.8.7), delegate user-/group-admin | domain-owner |
+| **user-admin** | provision/offboard members and edit their directory entries only | domain-owner / domain-admin |
+| **group-admin** | create and administer org groups (§5.8.7) only | domain-owner / domain-admin |
+
+Rules — all reuse machinery already defined:
+
+- **Delegable & attenuable.** A capability may be sub-delegated only to a subset (a `user-admin`
+  cannot mint a `domain-admin`); attenuation and offline verification are exactly §13.5.
+- **Revocable.** A role is revoked like any session/capability (§13.4): publish a revocation to the
+  transparency log / status endpoint; it MUST NOT require rotating the domain `IK`. Offboarding an
+  admin (§3.10.5) revokes their role capabilities this way.
+- **KT-logged & owner-visible.** Every role grant/revocation MUST be routed through the domain
+  authority's KT self-monitoring path (§3.5), exactly like the owner-visible-grants rule above — a
+  silently installed admin grant is detectable and alertable. Silent, unlogged org-admin
+  authorization is prohibited.
+- **No unilateral super-admin where it matters (mirror §5.8.6).** A **domain-authoritative act** —
+  rotating the domain anchor `IK`, or changing the directory-signing key — MUST satisfy the
+  domain's **threshold** (§3.10.1, the §5.8.6 discipline), not one admin's capability. A single
+  `domain-admin` may add/remove ordinary members (a bounded, KT-logged, reversible act) but MUST
+  NOT be able to seize the whole namespace by rotating the anchor. An over-broad, expired, or
+  over-attenuated org capability is rejected as `ERR_CAPABILITY_DELEGATION_INVALID` (`0x0508`, §21)
+  — the same check as any other delegated capability.
+
 ## 13.6 Legacy bridge: OIDC / OAuth compatibility
 
 Existing apps speak "Sign in with Google/OIDC," not DMTAP-Auth. The bridge makes DMTAP identity

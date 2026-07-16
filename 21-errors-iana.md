@@ -101,6 +101,9 @@ fixed here once so the tables can cite them tersely without re-explaining each t
 | `0x0110` | `ERR_KT_STH_INCONSISTENT` | KT v1 STH gossip cross-check (§3.5.2(a),(d)) | Two validly-signed STHs of the **same** log are mutually inconsistent — equal `tree_size` but differing `root_hash`, or no valid consistency proof exists between them (append-only violation). Distinct from `0x0107` (`ERR_KT_EQUIVOCATION`, the split-view *conclusion*): `0x0110` is the specific append-only/consistency-proof failure that evidences it. | No | HALT_ALERT — stop trusting the log; publish the conflicting STHs as transferable evidence (§3.5.2(d)) |
 | `0x0111` | `ERR_KT_LOG_QUORUM_UNMET` | KT v1 multi-log federation binding check (§3.5.2(b)) | A `name → ik` binding is not attested by the required `> n/2` quorum of the pinned log set (logs disagree, or too many are unreachable). | Conditional (a later fetch reaching quorum resolves it) | FAIL_CLOSED_BLOCK — MUST NOT pin on a sub-quorum view; fall back to OOB verification (§3.4.1) |
 | `0x0112` | `ERR_KT_STH_STALE` | KT v1 STH freshness check (§3.5.2(a), §16.2) | A presented STH is older than the STH freshness window / not refreshed within the maximum merge delay — the freeze/withholding attack, where a log serves an old but self-consistent head. | Yes (fetch a fresher head) | HOLD_RESYNC — buffer and re-fetch a current STH before trusting the view; escalate to HALT_ALERT if it persists past gossip cross-check |
+| `0x0113` | `ERR_DOMAIN_DIRECTORY_SIG_INVALID` | `DomainDirectory` verification (§3.10.3, §18.4.7) | The org directory object is not validly signed by the domain's pinned authority key (§3.10.1). | No | FAIL_CLOSED_BLOCK — do not trust the directory; per-name resolution (§3.3) is unaffected |
+| `0x0114` | `ERR_DIRECTORY_ENTRY_UNVERIFIED` | `DirEntry` forward-binding check (§3.10.3, §3.9.4) | A directory entry's `name → ik` does not match the forward DNS + KT binding — the directory indexes, it does not attest. | No | FAIL_CLOSED_BLOCK — render the entry unverified; MUST NOT be used to address mail |
+| `0x0115` | `ERR_ORG_MANAGED_UNDISCLOSED` | Member-custody disclosure check (§3.10.2, §18.4.7) | An org-managed (escrowed-key) account is presented without its `org-managed` custody marker — undisclosed org access to a member's mailbox. | No | HALT_ALERT — MUST NOT present as a sovereign identity; surface the escrow honestly |
 
 ## 21.4 Delivery & Validation — the MOTE object (`0x02xx`)
 
@@ -275,6 +278,9 @@ auditability:
 | KT-v1-STH-stale (freeze attack) | `0x0112` |
 | Chain-broken | `0x0104` |
 | Stale/rollback record | `0x0105` (identity), `0x0302` (location record) |
+| Org-directory not authority-signed | `0x0113` |
+| Directory entry fails forward-verify | `0x0114` |
+| Org-managed custody undisclosed | `0x0115` |
 | Committer-fork-detected | `0x0404` |
 | Committer-unreachable | `0x0405` |
 | Session-revoked | `0x0504` |
@@ -312,7 +318,7 @@ extension procedure in §21.23. Allocation policies use the standard terms of RF
 | **Registry name** | DMTAP Error/Status Codes |
 | **Reference** | §21.1–§21.11 (this document) |
 | **Allocation policy** | New subsystem byte (`0x09`–`0xEF`): Standards Action. New code point within an existing subsystem (`NN` = `0x01`–`0x7F`): Specification Required. `NN` = `0x80`–`0xFE` within any subsystem: Private Use (implementation-local diagnostics; MUST map to the nearest standard code's Responder Action, §21.2, for any behavior visible to another implementation). `SS`/`NN` = `0x00` or `0xFF`: Reserved. |
-| **Initial contents** | The 86 codes enumerated in §21.3–§21.11. |
+| **Initial contents** | The 89 codes enumerated in §21.3–§21.11. |
 | **Registry discipline** | Append-only. A retired code MUST be marked Deprecated, never deleted or reassigned to a different meaning (mirroring the append-only philosophy of the KT log, §3.5). |
 
 ## 21.15 Algorithm Suites Registry (`suite` u8)
@@ -450,8 +456,8 @@ fragmenting."
 
 ## 21.24 Summary
 
-- **Error/status codes defined:** 86 (`0x0101`–`0x0112`: 18, incl. the KT-v1 detection codes
-  `0x0110`–`0x0112`; `0x0201`–`0x020E`: 14; `0x0301`–
+- **Error/status codes defined:** 89 (`0x0101`–`0x0115`: 21, incl. the KT-v1 detection codes
+  `0x0110`–`0x0112` and the org-administration codes `0x0113`–`0x0115` (§3.10); `0x0201`–`0x020E`: 14; `0x0301`–
   `0x0309`: 9; `0x0401`–`0x040A`: 10; `0x0501`–`0x050A`: 10; `0x0601`–`0x0604`: 4, plus the
   informative SMTP mapping table of §21.9; `0x0701`–`0x070E`: 14; `0x0801`–`0x0807`: 7),
   spanning the 8 requested subsystems, with every code resolving to exactly one of the 13

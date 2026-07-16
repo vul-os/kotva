@@ -432,3 +432,129 @@ to the same key — and support subaddressing:
   `Identity` version, audited via the same KT (§3.5). A legacy-alias's inbound mail is marked
   *legacy-origin* (not E2E before the gateway, §7.2), so the user sees which messages came the old
   way.
+
+## 3.10 Organization & domain administration
+
+An organization that controls `@abc.com` needs the things a management console provides — add
+users, run a directory, create distribution lists, assign admin roles, offboard people. DMTAP
+provides all of them by **composing primitives it already has**, not by bolting on a parallel
+system: the domain's DNS + `kt=` anchor (§3.2) is the root of authority for *names*; provisioning
+a member is publishing a `name → key` binding (§3.9); the directory is a signed, enumerable
+projection of those bindings; org groups are §5.8 group-identities; admin roles are §13.5
+capabilities; offboarding is removing a name and revoking capabilities. The sovereignty ethic is
+held throughout by one honest invariant: **the org controls names and operations, never a
+sovereign member's key** — and where it *does* hold a key, that is disclosed (§3.10.2b).
+
+### 3.10.1 Domain authority (what it means to control `@abc.com`)
+
+Controlling `abc.com` means controlling its DNS zone and the `_dmtap` / `kt=` anchors (§3.2) that
+state which key each `name@abc.com` points to. That control is the **root of authority for names
+under the domain — and only for names, never for keys.** The authority can say *which key a name
+points to* and can add or remove names, but it cannot forge, read, or impersonate anything a key
+protects, because members hold their own keys (§3.10.2a) and KT makes every binding auditable
+(§3.5).
+
+- **Who holds it.** The domain authority is an ordinary DMTAP identity (§1.3) whose `IK` is
+  published at the domain apex (`_dmtap.abc.com`) and anchored in KT. To avoid a single unilateral
+  super-admin over the whole namespace, the authority's signing key SHOULD be **threshold-held by
+  the domain-owner / domain-admin set**, reusing the group-key custody discipline (§5.8.6,
+  FROST-style over the §1.4 machinery): rotating the domain anchor or the directory-signing key is
+  a domain-authoritative act requiring a threshold, not one admin (§13.5.1).
+- **Relation to onboarding tiers (§3.8).** A **Tier B** provider *is* the domain authority for
+  `gw.example` and administers all its users. A **Tier C** org owning `yourbrand.com` becomes its
+  own domain authority, self- or provider-operated. **Tier A** has no domain and therefore no
+  domain-administration layer — it is an individual identity, not an org.
+
+### 3.10.2 Member provisioning — two honest models
+
+Creating `alice@abc.com` means publishing the binding `alice@abc.com → alice_ik` under the
+domain: a `_dmtap` DNS record (§3.2), a KT entry (§3.5), and a directory entry (§3.10.3). Two
+models differ **only in who generates and holds `alice_ik`**, and the difference is a §6.6-style
+honest limit that MUST be disclosed. The default SHOULD be sovereign.
+
+**(a) Sovereign member (default, SHOULD).** Alice generates her own `IK` on her own device; the
+org merely **publishes the `name → key` binding**. The org can add or revoke the *name*, but
+**cannot read her mail, cannot impersonate her, and cannot recover her key** — it never held the
+key. This is the model that keeps "your key is your identity" (§1) true *inside* an org, and it is
+what makes offboarding a name-revocation rather than a mailbox seizure (§3.10.5).
+
+**(b) Org-managed member (convenience/compliance, disclosed).** The org generates and/or
+**escrows** the account key (e.g. as a guardian/quorum in the account's `RecoveryPolicy`, §1.4).
+This buys admin password-reset, compliance hold, and legal discovery — at the cost that **the org
+CAN access the account and CAN impersonate the user.** That capability MUST be **disclosed and
+machine-visible**: the directory entry and the member's `Identity` carry `custody = "org-managed"`
+(§18.4.7), rendered to the user and to correspondents as an honest limit exactly like a
+legacy-origin marker (§3.9.4). A message from an org-managed identity carries less individual
+assurance than a sovereign one and MUST NOT be silently presented as equivalent. **Undisclosed
+escrow** — an org-managed account presented as sovereign — MUST fail closed
+(`ERR_ORG_MANAGED_UNDISCLOSED`, §21).
+
+Org-managed is opt-in per account, chosen deliberately for a stated compliance need, never the
+silent default. Even org-managed does not weaken transport crypto or metadata privacy (§12.3): the
+org's access is via **holding the key, disclosed**, not via a protocol backdoor.
+
+### 3.10.3 The organization directory (GAL)
+
+A `name@abc.com` autocomplete / global address list is a **`DomainDirectory` object (§18.4.7)**: a
+signed, versioned, KT-logged enumeration of the domain's member (and group, §3.10.4/§5.8.7)
+bindings. This closes the org-directory gap flagged in §17 (item 33).
+
+- **Where it lives.** Published like any identity object — content-addressed in the mesh, located
+  via the domain's `_dmtap` anchor (§3.2, a `dir=` locator), and its root **appended to key
+  transparency** (§3.5) so its history is append-only and auditable.
+- **Authentication.** Signed by the **domain authority** (§3.10.1), i.e. under the threshold-held
+  domain key. A verifier MUST reject a directory not validly signed by the pinned authority
+  (`ERR_DOMAIN_DIRECTORY_SIG_INVALID`, §21).
+- **The directory cannot forge a binding (load-bearing).** Each `DirEntry`'s `name → ik` is only
+  an **index**: a client MUST independently verify it against the **forward DNS + KT binding**
+  (§3.3–3.5) before trusting or displaying it — the self-asserted-name rule of §3.9.4 applied to
+  the org's assertion. An entry that does not resolve forward to the same key MUST be rendered
+  unverified and MUST NOT be used to address mail (`ERR_DIRECTORY_ENTRY_UNVERIFIED`, §21). So the
+  GAL is a *convenience enumeration of independently-verifiable bindings*, **not a new root of
+  trust**: a compromised directory can withhold or mislabel names (a denial/annoyance, detectable
+  via KT) but can never make mail encrypt to a key the member does not hold.
+- **Query.** Members query the whole directory (autocomplete) via the domain's node; an outsider
+  resolves a single `name@abc.com` the ordinary way (§3.3) and needs no directory access at all.
+- **Privacy posture (membership is a choice).** `DomainDirectory.membership_visibility` (§18.4.7)
+  is `public` or `members-only`, mirroring group membership visibility (§5.8.3). A `public`
+  directory (a company staff page) is world-listable; a `members-only` directory serves entries
+  only to authenticated members, so the *membership roster* is not a public artifact even though
+  each individual `name@abc.com` remains resolvable if you already know it (the same resolvability
+  legacy email already exposes). Which posture applies is an org policy choice the org MUST
+  disclose to its members.
+
+### 3.10.4 Admin roles (summary; capability machinery in §13.5.1)
+
+Who may add/remove members, edit the directory, and manage groups is expressed as **§13.5
+capabilities** delegated from the domain authority, in four roles: **domain-owner**,
+**domain-admin**, **user-admin**, **group-admin** (§13.5.1). Domain-authoritative acts — rotating
+the domain anchor, changing the directory-signing key — require the domain's **threshold**
+(§3.10.1, §5.8.6), so no single admin is a unilateral super-admin over the namespace. The full
+capability grammar, attenuation, revocation, and KT-logging are in §13.5.1. Org distribution lists
+and team inboxes are in §5.8.7.
+
+### 3.10.5 Offboarding & lifecycle
+
+Removing `alice@abc.com`:
+
+1. **Remove the name binding.** Publish a `DomainDirectory` version dropping her entry and retire
+   the `_dmtap` DNS record for `alice` (§3.2); the removal is KT-logged (§3.5), so "who was
+   offboarded when" is auditable.
+2. **Revoke org capabilities.** Revoke any admin/role capabilities delegated to her (§13.5.1,
+   §13.4 revocation) and remove her from org groups via the normal §5.8.2 Remove (which re-keys
+   shared folders, §6.7). Losing the name does not by itself evict her from a group — that is a
+   separate §5.8 Remove.
+3. **Mailbox disposition — this is where the two models diverge honestly.**
+   - **Sovereign member (a):** her **key survives** — the org removed only the *name*. Her
+     identity, contacts, and history are hers (§1.6); she can rebind the same key to a new name
+     (`MoveRecord`, §1.6) and her existing correspondents follow her by key automatically. The org
+     retains nothing of hers it did not already hold, and it cannot read a mailbox it never had the
+     key to. Offboarding is a **name revocation, not a mailbox seizure**.
+   - **Org-managed member (b):** because the org holds/escrows the key (§3.10.2b), it CAN retain,
+     transfer, or archive the mailbox for continuity/compliance — the disclosed cost of that model.
+     A conformant client MUST have shown the user this was possible (the `org-managed` marker,
+     §18.4.7) at provisioning, so retention is not a surprise.
+
+A domain-wide teardown (the org shuts down or changes providers) is the domain-authority analog of
+individual migration (§1.6): sovereign members keep their keys and re-bind their names elsewhere;
+only org-managed accounts depend on the org to move them.

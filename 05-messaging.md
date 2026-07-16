@@ -296,3 +296,34 @@ key can unilaterally hijack `team@company.com`.
   detect an unauthorized group-key change. The committer (§5.1) orders *handshakes*; it is
   **not** authorized to change the group's identity key — that is a threshold act above the
   committer role.
+
+### 5.8.7 Organization groups & distribution lists (normative)
+
+An org's `team@abc.com`, `all@abc.com`, `support@abc.com` are ordinary **group identities (§5.8)**
+whose group *name* is a domain address under the org's domain authority (§3.10.1). Nothing new is
+needed; the org-administration layer only adds **who may provision and administer them**:
+
+- **Provisioning.** A `group-admin` or `domain-admin` capability (§13.5.1, §3.10.4) authorizes
+  creating a group identity and binding its `team@abc.com` name under the domain (§3.2 record +
+  directory entry, §3.10.3) — exactly as a member is provisioned (§3.10.2). A group is "a member
+  that has members" (§5.8).
+- **Group custody stays threshold-held.** Because the group is domain-addressed and org-critical,
+  its signing key MUST be threshold-held by the group's `owner`/`admin` set (§5.8.6), so neither a
+  single group-admin nor the committer (§5.1) can unilaterally hijack `team@abc.com`. Org
+  provisioning does not override §5.8.6: the domain authority grants the *name*, the group's own
+  threshold governs the *key*.
+- **Membership maps to the directory.** An org group's roster (§5.8.2) is populated from
+  `DomainDirectory` entries (§3.10.3): `all@abc.com` is the group whose members are the directory's
+  members, and admin tooling keeps them in sync (adding a person to the org SHOULD offer to add
+  them to standing groups). The mapping is convenience only — the **roster remains the group's own
+  MLS roster** (the authority), and every add/remove is member-signed and KT-audited (§5.8.2), so
+  the org cannot silently inject a listener into a team inbox: a directory-driven add is still a
+  signed group Commit, visible in the group's handshake log.
+- **Posting model & privacy per group.** `all@abc.com` (announce) SHOULD be a broadcast list with
+  hidden membership (§5.8.1, §5.8.3); `team@abc.com` (collaboration) a member-visible channel — the
+  org picks per group and discloses it (§5.8.1). Per-poster anti-abuse carry-through and fan-out
+  rate-limits (§5.8.4, §9.9) apply unchanged.
+- **Offboarding.** Removing a person from the org (§3.10.5) SHOULD remove them from org groups via
+  the normal §5.8.2 Remove (re-keying shared state, §6.7), so a departed member loses group access
+  even though their **sovereign key survives** (§3.10.2a) — the group evicts the *member*, it does
+  not touch their *identity*.
