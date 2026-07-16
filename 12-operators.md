@@ -87,3 +87,34 @@ without a crippled free tier:
 - **The open-core temptation recurs:** pressure to move "just one" feature behind the paywall
   will appear. The inviolable rule (§12.3) is the bright line; drift there is fatal to the
   brand and is prohibited for privacy/crypto features.
+
+## 12.6 Organization administration & the seam (normative)
+
+Org / domain administration (§3.10) is an **organizational concern**, so it lives squarely on the
+operator seam (§12.2) — and the inviolable rule (§12.3) draws the honest line through it:
+
+- **Provisioning maps to the seam's Provisioning capability (§12.2).** Creating, suspending, and
+  offboarding `name@abc.com` and org groups (§5.8.7) is exactly the seam's **Provisioning** hook
+  across onboarding tiers A/B/C (§3.8). A hosted operator running the domain supplies the admin
+  console; a self-hosted domain authority (§3.10.1) uses the same operations against the
+  unlimited/no-op self-host default (§12.2) — an org can self-administer its own domain with no
+  operator at all.
+- **Directory, roles, and quotas are behind the seam; keys and crypto are NOT.** Curating the GAL
+  (§3.10.3), assigning admin roles (§13.5.1), and per-member quotas are org/operations concerns the
+  seam MAY meter and gate (**Policy**, §12.2). But the inviolable rule (§12.3) forbids any seam
+  hook that would disable a member's encryption, weaken metadata privacy, or deny a member access
+  to **their own keys or mailbox**. In particular, a **sovereign** member's key (§3.10.2a) is never
+  a seam-controllable object: no operator plan, quota, or admin action can read it, escrow it, or
+  lock the member out of it. The org controls the **name and the operations**, never a sovereign
+  member's key.
+- **Org-managed escrow is a disclosed member arrangement, not a seam backdoor.** The org-managed
+  model (§3.10.2b) lets the *org* hold a member's key for compliance — but that is an explicit,
+  disclosed, per-account arrangement visible to the user (`custody = "org-managed"`, §18.4.7),
+  **not** a hidden operator hook and **not** applied to sovereign accounts. It does not violate
+  §12.3 because it disables nothing in the protocol and hides nothing: the member is told, at
+  provisioning, that this account's key is org-held. A conformant operator MUST NOT offer a control
+  that escrows a **sovereign** account's key, or that presents an org-managed account as sovereign.
+
+This keeps a real management console fully expressible on the seam while the sovereignty ethic
+holds: **admin power and premium are for running the domain and its operations, never for reaching
+into a member's keys** (§12.3).

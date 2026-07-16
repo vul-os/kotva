@@ -453,20 +453,25 @@ survive translation, and that is correct, not a bug).
   "shared address book = MLS group over contact MOTEs" the same way §5.5/§5.7 do for files, so
   implementers don't have to infer it.
 
-#### 33. Auto-complete / directory (org-wide GAL equivalent) — **Harder**
-- **How:** No default provider-hosted org directory exists in DMTAP's model. What's available:
-  the global handle directory (§3.9.2, not org-scoped, thin/KT-audited), and — if an
-  organization wants a GAL-equivalent — self-assembling one as a shared-contacts group (item
-  32) that all org members are added to.
-- **Sense-check:** This is a genuine, disclosed difference, not a design flaw: a legacy GAL is
-  a provider-hosted, always-populated directory *because* the provider already holds
-  everyone's plaintext account data centrally. DMTAP has no equivalent central store to build
-  a directory from — an org has to deliberately construct one.
-- **Security:** Arguably better once built (no provider-side directory to scrape/breach for
-  an org chart), but the automatic, zero-setup nature of a legacy GAL is genuinely lost until
-  an org sets up its own shared-contacts group.
-- **Open issue:** **Gap.** No first-class "organizational directory" object/onboarding flow is
-  specified; left as an application built from the shared-address-book primitive (item 32).
+#### 33. Auto-complete / directory (org-wide GAL equivalent) — **Different** (now first-class)
+- **How:** A domain that runs org administration (§3.10) publishes a first-class **`DomainDirectory`
+  object (§18.4.7)** — a signed, versioned, KT-logged enumeration of its `name@domain` bindings,
+  signed by the domain authority (§3.10.1). Members query it for autocomplete; outsiders resolve a
+  single name the ordinary way (§3.3). The global handle directory (§3.9.2) remains available for
+  the non-org, flat-namespace case.
+- **Sense-check:** A legacy GAL is a provider-hosted, always-populated directory *because* the
+  provider already holds everyone's plaintext account data centrally. DMTAP has no such central
+  plaintext store, so the directory is an explicitly-published, admin-curated object (§3.10.3)
+  rather than a byproduct of central data custody — but it *is* now a named construct with a
+  provisioning flow, not a build-it-yourself afterthought.
+- **Security:** Better than a legacy GAL: the directory is only a *convenience index* of bindings
+  that each independently verify forward via DNS + KT (§3.9.4), so a compromised directory can
+  withhold/mislabel names (detectable via KT) but can never forge a `name → key` binding or make
+  mail encrypt to a key the member doesn't hold (§3.10.3). Membership can be `public` or
+  `members-only` (§3.10.3), a choice a legacy GAL doesn't offer.
+- **Open issue:** **Closed** by §3.10.3 (`DomainDirectory`, §18.4.7) and the §3.10 org-admin flow.
+  Residual honest difference: unlike a legacy GAL it is not *automatic* — an org must opt to run a
+  domain authority and publish the directory (§3.10.1).
   Worth naming this as a needed piece of on-boarding tooling for org/business deployments.
 
 #### 34. Contact photos — **Clean**
@@ -767,7 +772,7 @@ survive translation, and that is correct, not a bug).
 | 30 | Contact cards | Clean | JSContact/CardDAV (§8.4) |
 | 31 | Contact groups | Different | Split cleanly into addressable groups vs. local tags |
 | 32 | Shared address books | Different | Extrapolated from shared-folder pattern (§5.1/§5.7); not verbatim named |
-| 33 | Auto-complete/directory | Harder | No default org directory; must be built as a shared-contacts group |
+| 33 | Auto-complete/directory | Different | First-class `DomainDirectory`/GAL object (§3.10.3, §18.4.7); admin-curated, KT-logged, forward-verified |
 | 34 | Contact photos | Clean | vCard field / inline attachment |
 | 35 | Import/export | Clean | CardDAV compat surface (§8.4) |
 | 36 | Contact key/verification | Clean | **The headline upgrade** — real key binding + KT + OOB verify (§3.4–3.5) |
@@ -788,10 +793,12 @@ survive translation, and that is correct, not a bug).
 | 51 | Account migration | Clean | `MoveRecord`, contacts follow by key (§1.6) |
 | 52 | Backup/restore | Different | Identity recovery is excellent (§1.4); content backup/DR undocumented (gap) |
 
-Tally: **34 Clean, 16 Different, 2 N/A, 1 Harder** (of the 2 features graded strictly "Harder,"
-auto-complete/directory is the one with no fallback beyond manual setup; message recall's
-"Harder" grade is really "same honest limit as legacy," included as Harder only because it is a
-capability legacy nominally advertises and DMTAP explicitly refuses to overclaim).
+Tally: **34 Clean, 17 Different, 2 N/A, 1 Harder** (auto-complete/directory, formerly the one
+"Harder" feature with no fallback beyond manual setup, is now graded **Different** — §3.10.3 gives
+it a first-class `DomainDirectory` object and §3.10 an org-admin provisioning flow, leaving only
+the honest "an org must opt in" difference. The remaining strictly-"Harder" grade is message
+recall, whose "Harder" is really "same honest limit as legacy," included as Harder only because it
+is a capability legacy nominally advertises and DMTAP explicitly refuses to overclaim).
 
 ## 17.6 Gaps to resolve
 
@@ -800,10 +807,11 @@ Ranked by how load-bearing the gap is:
 1. **Full-fidelity backup/restore export** (item 52) — no client-level "export everything,
    encrypted, portable" primitive is specified. Identity recovery (§1.4) is solved; mailbox/
    calendar/contacts disaster-recovery for self-hosters is not. Recommend a §8 addition.
-2. **Auto-complete/organizational directory** (item 33) — no zero-setup GAL equivalent; needs
-   either a documented "org directory = shared-contacts group" pattern and onboarding flow, or
-   an explicit acceptance that this is permanently a build-it-yourself feature for
-   organizations.
+2. **Auto-complete/organizational directory** (item 33) — **resolved.** §3.10.3 specifies a
+   first-class **`DomainDirectory`** (GAL) object (§18.4.7) — admin-curated, domain-authority-signed,
+   KT-logged, and forward-verified per entry (§3.9.4) — and §3.10 gives the org-admin provisioning
+   and onboarding flow. The only residual difference from a legacy GAL is that it is opt-in
+   (an org must run a domain authority, §3.10.1), not automatic.
 3. **Public, always-queryable availability/booking page** (item 40) — free/busy-as-message
    covers person-to-person scheduling well but has no analog for a public booking page
    (Calendly-style); worth a short note on composing it from a broadcast group + automated

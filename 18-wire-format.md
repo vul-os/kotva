@@ -618,6 +618,58 @@ MoveRecord = {
 
 ---
 
+### 18.4.7 `DomainDirectory` and `DirEntry` (§3.10.3)
+
+The signed, versioned, KT-logged enumeration of a domain's member (and group) bindings — the org
+directory / GAL (§3.10.3). Signed by the **domain authority** (§3.10.1, threshold-held). It is a
+convenience **index**: each entry's `name → ik` MUST still verify forward via DNS + KT (§3.3–3.5,
+§3.9.4) before use, so the directory can enumerate but never *forge* a binding.
+
+```cddl
+DomainDirectory = {
+  1 => suite,
+  2 => tstr,             ; domain                 "abc.com"
+  3 => ik-pub,           ; authority              domain authority IK (threshold-held, §3.10.1)
+  4 => u64,              ; version                monotonic
+  5 => dir-visibility,   ; membership_visibility
+  6 => [* DirEntry],     ; entries
+  ? 7 => hash,           ; prev                   hash chain (KT-logged, §3.5)
+  8 => ts,
+  9 => sig-val,          ; sig                    by the domain authority (§18.9.3)
+}
+
+DirEntry = {
+  1 => tstr,             ; name       "alice@abc.com" (or a group name, §5.8.7)
+  2 => ik-pub,           ; ik         member/group identity key
+  3 => hash,             ; id         content addr of the member's current Identity (§18.4.1)
+  4 => member-custody,   ; custody
+  ? 5 => [* tstr],       ; roles      org roles / standing-group memberships (informative)
+  6 => ts,               ; added
+}
+
+dir-visibility = "public" / "members-only"
+member-custody = "sovereign" / "org-managed"
+```
+
+| Object | Field | Key | Type | Presence | Meaning & constraints |
+|--------|-------|----:|------|----------|-----------------------|
+| `DomainDirectory` | `domain` | 2 | `tstr` | MUST | The administered domain; the `authority` key is pinned via `_dmtap.<domain>` (§3.2). |
+| | `authority` | 3 | `ik-pub` | MUST | Domain authority IK (§3.10.1). SHOULD be threshold-held by the domain-owner/domain-admin set (§5.8.6). A verifier MUST reject a directory not signed by the pinned authority (`ERR_DOMAIN_DIRECTORY_SIG_INVALID`, `0x0113`). |
+| | `version` | 4 | `u64` | MUST | Monotonic; reject ≤ last pinned (rollback defense, `0x0105`, same rule as `Identity`). |
+| | `membership_visibility` | 5 | `dir-visibility` | MUST | `"public"` (world-listable) or `"members-only"` (entries served only to authenticated members) (§3.10.3). |
+| | `entries` | 6 | `[* DirEntry]` | MUST (MAY be empty) | Member/group bindings. Each MUST verify forward against DNS + KT (§3.9.4) before use — the directory indexes, it does not attest (`ERR_DIRECTORY_ENTRY_UNVERIFIED`, `0x0114`). MAY be sharded/paged for large orgs; the KT-logged signed root is authoritative over the set. |
+| | `prev` | 7 | `hash` | OPTIONAL | Hash chain; the chain is appended to key transparency (§3.5), so directory history is append-only and auditable. |
+| | `ts` | 8 | `ts` | MUST | Publication time. |
+| | `sig` | 9 | `sig-val` | MUST | Signature by the domain authority (§18.9.3, DS-tag `DMTAP-v0/domain-directory`); a threshold-quorum signature where the authority key is threshold-held (§3.10.1, §5.8.6). |
+| `DirEntry` | `name` | 1 | `tstr` | MUST | The member or group name under the domain (§3.10.2, §5.8.7). |
+| | `ik` | 2 | `ik-pub` | MUST | The member's/group's identity key; MUST match the forward DNS + KT binding (§3.9.4) or the entry is unverified (`0x0114`). |
+| | `id` | 3 | `hash` | MUST | Content address of the member's current `Identity` object (§18.4.1). |
+| | `custody` | 4 | `member-custody` | MUST | `"sovereign"` (member holds their own key; the org cannot access, §3.10.2a) or `"org-managed"` (org holds/escrows the key — a disclosed §6.6-style limit, §3.10.2b). An `"org-managed"` entry MUST be rendered as such; presenting one as sovereign MUST fail closed (`ERR_ORG_MANAGED_UNDISCLOSED`, `0x0115`). |
+| | `roles` | 5 | `[* tstr]` | OPTIONAL | Informative org roles / standing-group memberships (§13.5.1, §5.8.7); authority for a role is the capability (§13.5.1), not this hint. |
+| | `added` | 6 | `ts` | MUST | When the entry was published. |
+
+---
+
 ## 18.5 Transport-layer object (§4)
 
 ### 18.5.1 `LocationRecord` (§4.2)
@@ -817,6 +869,7 @@ every signature is over `DS-tag ‖ det_cbor(object∖sig)`, where:
 | `RecoveryPolicy` | `sig` (k9) | `DMTAP-v0/recovery-policy` | `det_cbor(RecoveryPolicy ∖ {9})` |
 | `KeyRotation` | `sig` (k7) | `DMTAP-v0/key-rotation` | `det_cbor(KeyRotation ∖ {7})` |
 | `MoveRecord` | `sig` (k7) | `DMTAP-v0/move-record` | `det_cbor(MoveRecord ∖ {7})` |
+| `DomainDirectory` | `sig` (k9) | `DMTAP-v0/domain-directory` | `det_cbor(DomainDirectory ∖ {9})` |
 | `LocationRecord` | `sig` (k7) | `DMTAP-v0/location-record` | `det_cbor(LocationRecord ∖ {7})` |
 | `GroupState` | `committer_sig` (k13) | `DMTAP-v0/group-state` | `det_cbor(GroupState ∖ {13})` |
 | `GroupEvent` | `committer_sig` (k6) | `DMTAP-v0/group-event` | `det_cbor(GroupEvent ∖ {6})` |
@@ -868,11 +921,12 @@ under `from`'s `Identity` (§1.2). Verified at §2.7 step 8.
 
 ### 18.9.3 Identity-family objects
 
-`Identity`, `DeviceCert`, `RecoveryPolicy`, `KeyRotation`, `MoveRecord`, `LocationRecord` all use
-the general rule: `Sign(sk, DS-tag ‖ 0x00 ‖ det_cbor(object ∖ {sig-key}))` with the DS-tags in the
-table above. The signing key is: IK for `Identity`/`DeviceCert`/`MoveRecord`; IK **or** a satisfied
-`rotate_threshold` quorum for `RecoveryPolicy`; **`old_ik`** for `KeyRotation`; an authorized
-**device key** for `LocationRecord`.
+`Identity`, `DeviceCert`, `RecoveryPolicy`, `KeyRotation`, `MoveRecord`, `LocationRecord`,
+`DomainDirectory` all use the general rule: `Sign(sk, DS-tag ‖ 0x00 ‖ det_cbor(object ∖ {sig-key}))`
+with the DS-tags in the table above. The signing key is: IK for `Identity`/`DeviceCert`/`MoveRecord`;
+IK **or** a satisfied `rotate_threshold` quorum for `RecoveryPolicy`; **`old_ik`** for `KeyRotation`;
+an authorized **device key** for `LocationRecord`; the **domain authority IK** (threshold-held,
+§3.10.1/§5.8.6) for `DomainDirectory`.
 
 ### 18.9.4 Object content addresses (`Envelope.id`, `Identity` anchor)
 
@@ -1069,6 +1123,14 @@ MoveRecord = {
   5 => ts, ? 6 => hash, 7 => sig-val,
 }
 
+DomainDirectory = {
+  1 => suite, 2 => tstr, 3 => ik-pub, 4 => u64,
+  5 => dir-visibility, 6 => [* DirEntry], ? 7 => hash, 8 => ts, 9 => sig-val,
+}
+DirEntry       = { 1 => tstr, 2 => ik-pub, 3 => hash, 4 => member-custody, ? 5 => [* tstr], 6 => ts }
+dir-visibility = "public" / "members-only"
+member-custody = "sovereign" / "org-managed"
+
 ; ── transport layer (§4) ───────────────────────────────────────────
 LocationRecord = {
   1 => ik-pub, 2 => peer-id, 3 => [* maddr],
@@ -1154,12 +1216,12 @@ resolves each explicitly rather than picking one silently; each SHOULD be reconc
    reference implementation.
 
 **Object count:** this appendix gives a normative CDDL rule and a per-field semantics table for
-**24 wire objects** — `Envelope`, `DeliveryTag`, `ChallengeResponse`, `KeyPackageRef`, `Payload`,
+**26 wire objects** — `Envelope`, `DeliveryTag`, `ChallengeResponse`, `KeyPackageRef`, `Payload`,
 `Headers`, `Body`, `Attachment`, `ManifestRef`, `Manifest`, `Identity`, `DeviceCert`,
 `KeyPackageBundleRef`, `RecoveryPolicy`, `RecoveryMethod`, `Threshold`, `KeyRotation`,
-`MoveRecord`, `LocationRecord`, `GroupState`, `RosterEntry`, `GroupEvent`, `Challenge`,
-`Assertion` — plus their tagged sub-variants (`KeyTag`/`GroupTag`/`BlindedTag`;
-`ArcToken`/`PowSolution`/`PostageStamp`/`Vouch`; `PhraseMethod`/`DeviceMethod`/`SocialMethod`;
-`MethodPredicate`) and the shared scalar prelude (§18.1.7). Counting the four choice-variant
-families and `MethodPredicate` as distinct encodable structures brings the total to **36
-CDDL-defined structures**, all collected in §18.10.
+`MoveRecord`, `DomainDirectory`, `DirEntry`, `LocationRecord`, `GroupState`, `RosterEntry`,
+`GroupEvent`, `Challenge`, `Assertion` — plus their tagged sub-variants
+(`KeyTag`/`GroupTag`/`BlindedTag`; `ArcToken`/`PowSolution`/`PostageStamp`/`Vouch`;
+`PhraseMethod`/`DeviceMethod`/`SocialMethod`; `MethodPredicate`) and the shared scalar prelude
+(§18.1.7). Counting the four choice-variant families and `MethodPredicate` as distinct encodable
+structures brings the total to **38 CDDL-defined structures**, all collected in §18.10.
