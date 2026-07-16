@@ -1684,16 +1684,27 @@ Responder: the gateway (acting as MX for the domain).
    `<sel>._dmtap-gw.<domain>. TXT` (§7.2a), never the gateway operator's own arbitrary key.
 5. Deliver the resulting MOTE into the mesh, addressed to `K` (`deliver`, §19.3.1, run at the
    recipient's node once it arrives).
-6. **If `K`'s node is unreachable** (the reachability ladder, §19.2.3, and any configured
-   relay-mailbox buffering, exhaust without success) — return SMTP **`4xx`** to the sending
-   server so **it** retries; the gateway stores nothing (§7.4).
+6. Deliver, then **wait for the recipient node's `ack` (§19.3.1) within the inbound SMTP
+   transaction window** before replying to the legacy sender.
+   - **`ack` received** → return SMTP **`250 OK`** — the MOTE is now durably held by the
+     recipient (or a relay-mailbox that has itself acked durable custody, §14.5), so the
+     durability handoff is complete.
+   - **No `ack` within the window** — because `K`'s node is unreachable (reachability ladder +
+     any relay-mailbox buffering exhausted), or reachable but not yet durably accepted — return
+     SMTP **`4xx`** (`451`, §21.9) so the **legacy sender's own MTA queue retries**; the gateway
+     stores nothing (§7.4).
 
-**Success result (recipient reachable).** A MOTE is delivered into the mesh; the gateway
-returns SMTP `250 OK` once the mesh accepts the send (not once the recipient `ack`s — the
-gateway does not hold a queue awaiting `ack`, §7.4; durability past the gateway's own hand-off
-is the recipient node's sender-retry-equivalent responsibility on the mesh side, or, if truly
-undeliverable at that point, the ordinary `EXPIRED` outcome of §19.3.3 applies to the *mesh-side*
-delivery attempt rather than to the SMTP transaction, which has already completed).
+   **Silent-loss avoidance (normative, closes the DSN gap).** The gateway MUST NOT return `250`
+   on mere mesh *hand-off* (a best-effort buffer accepting the packet) — only on a durable
+   `ack`. A stateless gateway (§7.4) cannot generate a delivery-status notification later, and
+   the inbound SMTP transaction closes at its reply; returning `250` before durable acceptance
+   would let a subsequent mesh-side `EXPIRED` (§19.3.3) drop the message while the legacy sender
+   believes it was delivered — an un-notified loss. Deferring with `451` instead keeps durability
+   in the legacy sender's queue (which *can* bounce after its own retry window), exactly per §7.4.
+
+**Success result (recipient reachable).** The recipient node has `ack`ed durable custody of the
+MOTE and the gateway returned SMTP `250 OK`; there is no post-`250` window in which the message
+can be silently lost, because `250` is emitted only after that `ack`.
 
 **Failure modes.**
 
@@ -1701,7 +1712,8 @@ delivery attempt rather than to the SMTP transaction, which has already complete
 |---|---|---|
 | Spam signals present pre-`DATA` (RBL/DNSBL hit, SPF/DMARC fail, rate-limit exceeded) | Reject | SMTP-level rejection before `DATA` (standard SMTP `5xx`), per §9 — never wrapped into a MOTE at all |
 | `RCPT TO` does not resolve to any known DMTAP recipient key | Reject | SMTP `550` (no such user), standard MX behavior |
-| Recipient node unreachable (all reachability-ladder rungs + buffering exhausted) | Defer | SMTP **`4xx`**; sending server retries per its own SMTP retry schedule — this is the *entire* durability mechanism for this path, since the gateway is stateless (§7.4) |
+| Recipient node unreachable (all reachability-ladder rungs + buffering exhausted) | Defer | SMTP **`451`**; sending server retries per its own SMTP retry schedule — this is the *entire* durability mechanism for this path, since the gateway is stateless (§7.4) |
+| Recipient node reachable but does **not** durably `ack` within the transaction window (or only a best-effort buffer accepted the packet) | Defer | SMTP **`451`** — the gateway MUST NOT return `250` on mere hand-off; without a durable `ack` a later mesh-side `EXPIRED` (§19.3.3) would silently lose the message after the SMTP transaction closed. Deferring keeps durability in the legacy sender's queue (step 6, silent-loss avoidance) |
 | Attestation key not yet published for this domain (misconfiguration) | Reject (operational) | The gateway MUST NOT deliver an unattestable MOTE as if it were attested; implementations SHOULD refuse to accept mail for a domain whose own attestation key isn't configured, surfaced as an operator-side configuration error, not a per-message SMTP failure |
 | Recipient's node rejects the attestation (attestation key not published under the recipient's own domain, or doesn't verify, §7.2a) | Reject (at the recipient, via ordinary `deliver`, §19.3.1) | The recipient node MUST reject an attestation that does not verify and MUST mark accepted ones as legacy-origin; this is enforced recipient-side, not gateway-side — the gateway cannot force acceptance |
 
@@ -1733,7 +1745,7 @@ gateway → gmail-mta: 250 2.6.0 message queued
 gmail-mta → gateway: MAIL FROM/RCPT TO/DATA as above, recipient carol@example.org
 gateway: resolve, wrap, attest as above
 gateway: attempt-reachability(carol_ik) → all rungs fail; no relay-mailbox buffering configured
-gateway → gmail-mta: 421 4.4.2 carol's node temporarily unreachable, try again later
+gateway → gmail-mta: 451 4.4.1 carol's node has not durably accepted yet, try again later
 gmail-mta: schedules its own SMTP retry per its standard backoff — durability now lives on
            Gmail's side, not the gateway's (§7.4)
 ```

@@ -200,11 +200,25 @@ conditions onto the existing IANA "SMTP Enhanced Status Codes" registry.
 | DMTAP condition | SMTP reply | Enhanced status | Retry semantics |
 |---|---|---|---|
 | Recipient key/node unresolvable within the inbound transaction window | `451` | `4.4.1` | Transient — legacy sender's MTA retries per its own queue policy. |
+| Recipient reachable but has **not durably `ack`ed** within the transaction window (best-effort buffer only, no durable custody) | `451` | `4.4.1` | Transient — the gateway MUST NOT reply `250` before a durable `ack` (§19.7.1 step 6); replying `451` keeps durability in the legacy sender's queue and prevents an un-notified post-`250` loss. |
 | No `name → key` binding exists for the recipient at all | `550` | `5.1.1` | Permanent — no such user. |
 | Pre-`DATA` anti-abuse reject: RBL/DNSBL, SPF/DMARC hard fail (§9, §7.2 step 2) | `550` | `5.7.1` | Permanent — delivery refused on policy grounds. |
 | Pre-`DATA` greylisting / rate-limit (§7.2 step 2) | `450` | `4.7.1` | Transient — try again later. |
 | Message exceeds size policy | `552` | `5.3.4` | Permanent. |
 | Recipient node reachable but declines (recipient-side `Policy.block`, §9.2) | `550` | `5.7.1` | Permanent, from the gateway's perspective — the block is enforced downstream and is not distinguishable to the SMTP client from "no such user" by design (never leak block-list membership to a sender). |
+
+### 21.9.1 Why a stateless gateway defers rather than accepting-then-losing (DSN safety)
+
+A store-and-forward MTA that returns `250` becomes responsible for the message and emits a **DSN
+(bounce)** if it later fails to deliver. A DMTAP gateway holds **no queue** (§7.4), so it cannot
+emit a later DSN — its only signal to the legacy sender is the live SMTP reply. Therefore the
+gateway returns `250` **only after the recipient node durably `ack`s** (§19.7.1 step 6); until
+then it replies `451` so the **legacy sender's own MTA** retains the message and will itself
+bounce after its retry window. This deliberately keeps the accept/bounce responsibility on the
+one party that can still act on it, and eliminates the otherwise-silent loss where a `250` is
+followed by a mesh-side `EXPIRED` (§19.3.3) with no channel left to notify the sender. (Contrast
+§21.8.1: a *post-delivery* attestation failure genuinely has no live channel back — there the
+loss window is disclosed and irreducible; here it is fully closed by never `250`-ing early.)
 
 ## 21.10 Anti-Abuse & Postage errors (`0x07xx`)
 
