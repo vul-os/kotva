@@ -1821,8 +1821,10 @@ ordinary `deliver`, §19.3.1), and — implicitly — every future chunk-swarm p
 (§19.8.2).
 
 **Parameters.**
-- `manifest` (`Manifest`, MUST) — `{id, size, chunk_sz, chunks, key, suite}` (§5.5): the BLAKE3
-  Merkle-DAG root over chunk hashes, plus the per-file content key.
+- `manifest` (`Manifest`, MUST) — `{id, size, chunk_sz, chunks, suite}` (§5.5): the BLAKE3
+  Merkle-DAG root over chunk hashes. The Manifest carries **no** key (§18.3.8).
+- `key` (`enc-key`, MUST) — the per-file content key, delivered **only** in the sealed MOTE as
+  `Attachment.key` (§18.3.7), never inside the swarm-distributed `Manifest`.
 - `attach_mode` (implicit, derived from `size`, not caller-chosen) — the tier (§2.5/§16.4)
   the file falls into, which determines whether it inlines or travels as a manifest reference:
 
@@ -1833,7 +1835,7 @@ ordinary `deliver`, §19.3.1), and — implicitly — every future chunk-swarm p
   | **large** | > 4 MiB | Manifest in the MOTE; chunks fetched via the **fast/onion bulk path** (weaker privacy, §6.5) |
 
 **Preconditions.** The file's chunks (for normal/large tiers) already exist, content-addressed
-and encrypted under `manifest.key`, held by at least the origin node (§5.5).
+and encrypted under `Attachment.key`, held by at least the origin node (§5.5).
 
 **Procedure (normative).**
 1. Compute `size`; select the tier per the table above (§16.4's numeric thresholds are tunable
@@ -1867,14 +1869,14 @@ unchanged and dedupes naturally at the chunk-storage layer.
 **Example trace (large file).**
 ```
 A: offer-file(manifest=Manifest{ id:blake3:c4a1..., size:52428800, chunk_sz:1048576,
-                                  chunks:[...50 hashes...], key:k_file, suite:1 },
-              recipient=bob_ik)
+                                  chunks:[...50 hashes...], suite:1 },   # NO key in the Manifest
+              key=k_file, recipient=bob_ik)                              # key travels in the Attachment
 A: size=50MiB > 4MiB normal threshold → LARGE tier
 A: construct Attachment{ name:"video.mp4", mime:"video/mp4", size:52428800,
                          manifest: ManifestRef{id:c4a1..., size:52428800, chunks:50}, key:k_file }
 A: MOTE{ kind:0x05 file_offer, to:bob_ik, payload:{ attach:[Attachment{...}] } } — private tier
 A: deliver() as ordinary control MOTE → bob's node
-bob: ack(id); manifest+key now held; begins fetch-chunk() over the fast/onion bulk path
+bob: ack(id); manifest (chunk list) + Attachment.key now held; begins fetch-chunk() over the fast/onion bulk path
 ```
 
 ### 19.8.2 `fetch-chunk(chunk_hash, sources) → chunk`
@@ -1891,7 +1893,7 @@ chunk (origin node, or another peer that has already fetched and cached it).
 - `parallelism` (`u32`, OPTIONAL, default per §16.4: ≤ 8 concurrent sources per file).
 
 **Preconditions.** The fetcher holds a verified `manifest` containing `chunk_hash`
-(`offer-file`'s success result, §19.8.1), and `manifest.key` to decrypt the chunk once fetched.
+(`offer-file`'s success result, §19.8.1), and `Attachment.key` to decrypt the chunk once fetched.
 
 **Procedure (normative, §5.5, §4.5).**
 1. Identify candidate sources: the origin node, plus any peer known to have already fetched this
@@ -1901,7 +1903,7 @@ chunk (origin node, or another peer that has already fetched and cached it).
    for normal-tier files, fast/onion bulk path for large-tier, §4.5, §6.5).
 3. On receipt, **verify the chunk self-verifies against `chunk_hash`** (content-address
    integrity, §5.5) before accepting it into local storage.
-4. Decrypt using `manifest.key`.
+4. Decrypt using `Attachment.key`.
 5. Once all chunks in `manifest.chunks` are fetched and verified, the file is complete and
    itself becomes available as a source for other swarm participants (deduplication + swarm
    growth, §5.5).
@@ -1916,7 +1918,7 @@ completion, §5.5).
 |---|---|---|
 | A fetched blob does not hash to `chunk_hash` (corrupt or malicious source) | Reject | Discard; retry from a different source — content addressing makes a bad source immediately detectable, never silently accepted |
 | No source currently holds the chunk (origin offline, no swarm cache yet) | Defer | Retry later (bounded by the fetcher's own patience/UI, not a fixed protocol deadline distinct from the file offer's own `expires` if any); this is the honest cost of best-effort availability (§5.5's tier table) absent a paid durable/always-available replica |
-| Decryption under `manifest.key` fails (wrong key, corrupted manifest) | Reject | `CHUNK_DECRYPT_FAILED`; if this occurs for *every* chunk, treat the whole manifest as invalid and do not present a partially-decrypted file to the user |
+| Decryption under `Attachment.key` fails (wrong key, corrupted manifest) | Reject | `CHUNK_DECRYPT_FAILED`; if this occurs for *every* chunk, treat the whole manifest as invalid and do not present a partially-decrypted file to the user |
 | Large-tier fetch traverses the fast/onion bulk path, exposing the fact/approximate size of the transfer to a well-positioned observer | N/A (disclosed limit, not a failure) | This is the accepted §6.5 tradeoff for this tier, not an error condition — implementations MUST NOT claim mixnet-grade metadata privacy for large-file chunk fetch |
 
 **Idempotency / retry.** Fully idempotent per chunk (content-addressed fetch of an immutable
@@ -1929,7 +1931,7 @@ bob: fetch-chunk(chunk_hash=blake3:aa01..., sources=[alice_node, dave_node (alre
 bob → alice_node, dave_node: request chunk blake3:aa01... (parallel, 2 of ≤8 allowed sources)
 dave_node → bob: chunk_bytes (arrives first — dave had it cached from an earlier fetch)
 bob: verify blake3(chunk_bytes) == aa01...                        # OK
-bob: decrypt chunk_bytes under manifest.key                        # OK
+bob: decrypt chunk_bytes under Attachment.key                        # OK
 bob: chunk 1/50 complete; repeat for remaining 49 chunks (parallel, ≤8 at a time)
 bob: (alice_node's response arrives late/redundant — discarded, already have this chunk)
 bob: all 50 chunks verified → file reconstructed → available to further swarm requesters

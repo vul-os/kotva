@@ -956,7 +956,7 @@ never be reinterpreted as an internal node (second-preimage defense):
 
 ```
 ; 1. Chunking & per-chunk hash (chunks are encrypted, then hashed)
-enc_i  = AEAD_encrypt(Manifest.key, plaintext_chunk_i)         ; suite AEAD, per §2.5
+enc_i  = AEAD_encrypt(Attachment.key, plaintext_chunk_i)       ; key from the sealed MOTE, NOT the Manifest (§5.5)
 h_i    = 0x1e ‖ BLAKE3-256( enc_i )                            ; the value stored in Manifest.chunks
 
 ; 2. Merkle tree over the ORDERED chunk hashes h_0 … h_{n-1}
@@ -1072,18 +1072,22 @@ Payload = {
 
 Headers = {
   ? 1 => bytes, ? 2 => tstr, ? 3 => tstr,
-  4 => [* ik-pub], ? 5 => { * tstr => any },
+  4 => [* ik-pub], ? 5 => { * tstr => ext-value },
 }
+ext-value = bool / int / bytes / tstr / [* ext-value] / { * tstr => ext-value }
 Body = tstr / bytes
 
 Attachment = {
   1 => tstr, 2 => tstr, 3 => u64,
-  ? 4 => bytes, ? 5 => ManifestRef, 6 => enc-key,
+  ? 4 => bytes, ? 5 => ManifestRef, 6 => enc-key,   ; key lives HERE (sealed MOTE), never in Manifest
 }
 ManifestRef = { 1 => hash, 2 => u64, 3 => u32 }
 
+; Manifest has NO key field (§5.5/§18.3.8): it is a swarm-distributed content-addressed blob,
+; so an embedded key would leak to every holder that serves it. Key 5 is reserved-FORBIDDEN;
+; a Manifest carrying key 5 MUST be rejected (ERR_MANIFEST_KEY_PRESENT, 0x0808).
 Manifest = {
-  1 => hash, 2 => u64, 3 => u32, 4 => [+ hash], 5 => enc-key, 6 => suite,
+  1 => hash, 2 => u64, 3 => u32, 4 => [+ hash], 6 => suite,
 }
 
 ; ── identity layer (§1) ────────────────────────────────────────────
