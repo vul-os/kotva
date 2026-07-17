@@ -113,6 +113,10 @@ accepted on the fast path). See §9 for the grammar, issuer-trust rules, and eac
 0x40–0x7f  reserved for extensions (§10)
 ```
 
+`0x40 pub_announce` is allocated from the extension range to the DMTAP-PUB extension (§22): a
+public signed announcement, plaintext, openly signed by the publisher identity (no sealed
+sender).
+
 Kinds `mail` and `chat` differ only in default client rendering and default privacy tier
 (§6): `mail` defaults to the `private` tier, `chat` MAY use the `fast` tier when both
 parties are online. Both are the same object over the same transport.

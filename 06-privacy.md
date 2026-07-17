@@ -222,6 +222,16 @@ hostile-buffer scenarios.
     permanence. Relatedly, **deletion is cooperative-only**: you can stop serving *your* copy but
     **cannot force-delete** bytes another party has pinned (§5.5.4) — the storage analogue of the
     `redact`/`expires` un-share bound (item 8).
+11. **Publishing a public object (§22) is irrevocable.** Unlike a sealed file (item 10, item 8),
+    a DMTAP-PUB object is content-addressed and swarmed by design — once published, it **cannot
+    be unpublished**: any holder may continue serving it indefinitely, and there is no protocol
+    mechanism to force its removal from the network. Publication is a deliberate, one-way act
+    (§22), not a reversible share.
+12. **Holders of public objects are not blind.** A sealed-file holder serves opaque ciphertext
+    (item 5.5, §5.5.3) and cannot inspect it; a DMTAP-PUB holder serves **plaintext** it can read.
+    Serving public content therefore shifts an operator's moderation/liability posture in a way
+    serving sealed chunks does not — hence public-object serving is a **per-operator opt-in**
+    (`pub-1`, §10.2, §22), never a default-on behavior of a conformant node.
 
 DMTAP states these boundaries in-product. Honest, disclosed limits beat a false "perfectly
 anonymous."

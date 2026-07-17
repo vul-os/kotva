@@ -469,6 +469,16 @@ Properties:
   confirmation attack and a social-graph leak). DMTAP **sacrifices cross-user plaintext dedup for
   privacy** and picks the private default; the earlier "identical files stored once globally"
   framing was a convergent-encryption overclaim and does not hold under ciphertext addressing.
+
+  **Public-object carve-out (normative).** Plaintext content addressing remains **forbidden**
+  for the sealed files defined in this section. It is permitted **only** under the DMTAP-PUB
+  public-blob profile (§22), which uses a **distinct** domain-separation tag,
+  `DMTAP-PUB-v0/manifest`, and only for content published by an explicit, irrevocable act
+  (§6.6). There, the CAS-confirmation attack described above is **accepted-by-design**: the
+  publisher's holding is public *on purpose*, so there is no social-graph leak to defend
+  against. A DMTAP-PUB public manifest is **type-incompatible** with a sealed `Manifest` —
+  the distinct DS-tag is never carried as a boolean flag on one shared object; a verifier
+  MUST fail closed on any DS-tag mismatch between the two.
 - **Streamable** — consume in manifest order before full download.
 - **Integrity** — every chunk self-verifies against its hash; the manifest self-verifies
   against `id`.

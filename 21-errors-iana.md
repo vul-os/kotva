@@ -46,7 +46,8 @@ Subsystem bytes:
 | `0x06` | Gateway — legacy SMTP bridge (§7) |
 | `0x07` | Anti-Abuse & Postage (§9) |
 | `0x08` | Files (§5.5, §6.7) |
-| `0x09`–`0xEF` | Unassigned — reserved for future subsystems (§21.25) |
+| `0x09` | DMTAP-PUB extension (§22, ROADMAP) — `ERR_PUB_*`; individual code points defined in §22, §21.24b |
+| `0x0A`–`0xEF` | Unassigned — reserved for future subsystems (§21.25) |
 | `0xF0`–`0xFE` | Private Use (experimental/vendor subsystems) |
 | `0xFF` | Reserved |
 
@@ -529,6 +530,21 @@ extension procedure in §21.25. Allocation policies use the standard terms of RF
 | **Allocation policy** | **Specification Required** for portable, cross-implementation attestation kinds; **`0xE0`–`0xFE` Private Use**; `0x00`/`0xFF` Reserved. Every extensible field in DMTAP has an IANA registry; the gateway-attestation discriminator is no exception. A new attestation kind MUST specify its signature preimage (extending §18.9.11), what it attests, and how a recipient verifies it — and MUST NOT weaken the honest-provenance guarantee (an accepted message with no `provenance` was never plaintext at a gateway, §18.3.5). |
 | **Initial contents** | `1` — **legacy-inbound bridge attestation** (§7.2a): "received via gateway G at T," signed by the recipient-domain `_dmtap-gw` key. |
 | **Forward-compatibility rule** | An **unknown** `disc` value MUST be treated as an **unverifiable** attestation (`ERR_GATEWAY_ATTESTATION_INVALID`, `0x0601`, DROP_SILENT at the recipient), **never** silently ignored — an attestation whose kind a verifier cannot check is not a pass. This is the fail-closed analogue of the unknown-suite rule (§1.1), applied to provenance. |
+
+## 21.24b First extension registration — DMTAP-PUB (§22, ROADMAP)
+
+The following allocations are registered per the §21.25 extension procedure, for the DMTAP-PUB
+public-objects extension (§22, ROADMAP.md). This is the first exercise of the extension
+machinery this appendix defines. The registrations below reserve the identifiers; the objects
+themselves, their wire encodings, and the individual `ERR_PUB_*` code points are normatively
+defined in §22, not here.
+
+| Registry | Allocation |
+|---|---|
+| Message Kinds (§21.16) | `0x40 pub_announce` — Specification Required, extension range (§2.3, §21.16); a public signed announcement, plaintext, openly signed by the publisher identity (no sealed sender). |
+| Capability Tokens (§21.22) | `pub-1` — Specification Required; node/operator opt-in to serving public objects (§10.2, §22). |
+| Error/Status Codes (§21.14) | Subsystem byte `0x09` (`0x0900`–`0x09FF`), allocated under the new-subsystem-byte / Standards Action policy of §21.14, reserved to the DMTAP-PUB extension (`ERR_PUB_*`); individual code points defined in §22. Verified against §21.3–§21.11 at registration time: `0x09` was previously wholly unassigned (formerly part of the `0x09`–`0xEF` reserved range), so this allocation collides with no existing code. |
+| Signature DS-tags (§18.9 convention) | `DMTAP-PUB-v0/manifest`, `DMTAP-PUB-v0/announce`, `DMTAP-PUB-v0/feed` — reserved identifiers, distinct from every `DMTAP-v0/…` DS-tag in §18.9. `DMTAP-PUB-v0/manifest` in particular is **type-incompatible** with the sealed `Manifest` DS-tag (§5.5): a verifier fails closed on any DS-tag mismatch, never branches on a boolean "public" flag carried on one shared object. |
 
 ## 21.25 Extension & versioning procedure (normative)
 
