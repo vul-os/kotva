@@ -21,9 +21,9 @@
     "construction-todo": "byte-exact construction recipe given; vector still to be generated as the subsystem gains a fixed-input KAT"
   },
   "vectors_file": "vectors/vectors.json",
-  "vectors_count": 67,
-  "referenced_vectors_count": 32,
-  "vectors_count_note": "vectors_count is the number of entries in vectors/vectors.json; referenced_vectors_count (32) is how many of them the byte-backed cases currently drive (several drive more than one case). The remaining 35 are pre-generated for construction-todo families not yet wired to a case.",
+  "vectors_count": 68,
+  "referenced_vectors_count": 33,
+  "vectors_count_note": "vectors_count is the number of entries in vectors/vectors.json; referenced_vectors_count (33) is how many of them the byte-backed cases currently drive (several drive more than one case). The remaining 35 are pre-generated for construction-todo families not yet wired to a case.",
   "notes": [
     "reject cases map to spec §21 (137-code registry); error_code + error_name + disposition (Action column) are normative.",
     "self-contained CBOR reject cases assert a deterministic-CBOR (RFC 8949 §4.2 / §18.1.1) decoder rejects the given bytes.",
@@ -727,17 +727,14 @@
       "req": "MUST",
       "clause": [
         "§1.1",
-        "§18.1.4"
+        "§18.1.4",
+        "§18.2"
       ],
-      "checks": "unknown suite 0x03 rejected",
+      "checks": "suite id 0x03 (reserved AEAD-diverse) is a known reserved id and decodes; an object whose crypto USES 0x03 MUST still fail closed until the suite is implemented",
       "operation": "suite_decode",
-      "vector": "suite_reject_0x03",
+      "vector": "suite_accept_0x03",
       "expect": {
-        "outcome": "reject",
-        "error_code": "0x0101",
-        "error_name": "ERR_UNKNOWN_SUITE",
-        "action": "FAIL_CLOSED_BLOCK",
-        "envelope_context_code": "0x0201"
+        "outcome": "accept"
       },
       "status": "vectored"
     },
@@ -815,6 +812,27 @@
       "vector": "suite_accept_0x02",
       "expect": {
         "outcome": "accept"
+      },
+      "status": "vectored"
+    },
+    {
+      "id": "DMTAP-SUITE-07",
+      "level": "Core",
+      "category": "SUITE",
+      "req": "MUST",
+      "clause": [
+        "§1.1",
+        "§18.1.4"
+      ],
+      "checks": "unregistered suite 0x04 rejected on decode (never guess)",
+      "operation": "suite_decode",
+      "vector": "suite_reject_0x04",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0101",
+        "error_name": "ERR_UNKNOWN_SUITE",
+        "action": "FAIL_CLOSED_BLOCK",
+        "envelope_context_code": "0x0201"
       },
       "status": "vectored"
     },

@@ -42,7 +42,7 @@ and on `reject` MUST map it to the named §21 error code with that code's `Actio
 | **Core** — signing preimages (`PRE`) | 3 | 3 | 0 | 0 |
 | **Core** — key-name (`NAME`) | 6 | 6 | 0 | 0 |
 | **Core** — safety number (`SAFE`) | 2 | 2 | 0 | 0 |
-| **Core** — suite fail-closed (`SUITE`) | 6 | 6 | 0 | 0 |
+| **Core** — suite fail-closed (`SUITE`) | 7 | 7 | 0 | 0 |
 | **Core** — §2.7 validation pipeline (`VAL`) | 15 | 0 (2 reuse ADDR/PRE) | 0 | 15 |
 | **Core** — identity / KT / naming (`IDENT`) | 6 | 0 | 0 | 6 |
 | **Core** — aliases (`ALIAS`) | 3 | 0 | 0 | 3 |
@@ -60,9 +60,9 @@ and on `reject` MUST map it to the named §21 error code with that code's `Actio
 | **Core** — device attestation (`ATTEST`) | 2 | 0 | 0 | 2 |
 | **Core** — profile / avatar (`PROFILE`) | 2 | 0 | 0 | 2 |
 | **Optional** — push wake-signaling (`PUSH`) | 2 | 0 | 0 | 2 |
-| **Total** | **124** | **33** | **6** | **85** |
+| **Total** | **125** | **34** | **6** | **85** |
 
-The 33 vectored + 6 self-contained cases (**39**) are fully machine-runnable **today** from
+The 34 vectored + 6 self-contained cases (**40**) are fully machine-runnable **today** from
 `vectors.json` + the inline bytes here, with **no reference implementation required**. They pin the
 entire deterministic, security-critical Core spine — canonical CBOR, content addressing, the two
 MOTE signature preimages (§18.9.1/§18.9.2), Ed25519 (with RFC 8032 cross-checks), the 8-word
@@ -74,13 +74,13 @@ identity/KT fail-closed, the higher levels, the wave-2 hardening families —
 wake-signaling guards, and the `FILE` durability guards `DMTAP-FILE-05`–`-09`); each becomes byte-backed
 when the corresponding subsystem gains a fixed-input KAT in `vectors.json` (see README "Coverage vs.
 deferred"). **Sync status:** `SUITE.md` and [`suite.json`](suite.json) are **in sync** — both carry
-the same **124** case ids (the wave-2 `DENIABLE`/`KTV1` families, the `PROFILE` cases, the
+the same **125** case ids (the wave-2 `DENIABLE`/`KTV1` families, the `PROFILE` cases, the
 optional `PUSH` cases, the `FILE` durability cases, and the wave-3 `SYNC` (device-cluster),
 `ALIAS`, `GWALIAS`, and `RESOLVE` families are mirrored into `suite.json`). The changed deniable objects (§5.2.1 dedicated-`idk`) are still to be
 re-vectored when the reference regenerates `vectors.json`.
 
-> All 39 byte-backed cases correspond one-for-one to entries in `vectors.json`
-> (they drive **32 of the 67 vectors** in the file — several vectors drive more than one case;
+> All 40 byte-backed cases correspond one-for-one to entries in `vectors.json`
+> (they drive **33 of the 68 vectors** in the file — several vectors drive more than one case;
 > the remaining 35 are pre-generated for construction-todo families not yet wired to a case).
 > No case references a `vectors.json` entry that does not exist; see
 > [Vector cross-reference](#vector-cross-reference).
@@ -168,11 +168,12 @@ crypto/encoding case below is a prerequisite the higher levels inherit.
 | id | req | clause | checks | input | expect | status |
 |----|-----|--------|--------|-------|--------|--------|
 | DMTAP-SUITE-01 | MUST | §1.1, §18.1.4 | unknown suite `0x00` MUST be rejected on decode (never guess) | vector `suite_reject_0x00` | reject → `ERR_UNKNOWN_SUITE` (0x0101) / `ERR_UNKNOWN_VERSION_OR_SUITE` (0x0201) | vectored |
-| DMTAP-SUITE-02 | MUST | §1.1, §18.1.4 | unknown suite `0x03` rejected | vector `suite_reject_0x03` | reject → 0x0101 / 0x0201 | vectored |
+| DMTAP-SUITE-02 | MUST | §1.1, §18.1.4, §18.2 | suite id `0x03` (reserved AEAD-diverse) is a **known reserved id** and decodes; note an object whose crypto actually **uses** `0x03` MUST still fail closed until the suite is implemented | vector `suite_accept_0x03` | accept (id) | vectored |
 | DMTAP-SUITE-03 | MUST | §1.1, §18.1.4 | unknown suite `0x05` rejected | vector `suite_reject_0x05` | reject → 0x0101 / 0x0201 | vectored |
 | DMTAP-SUITE-04 | MUST | §1.1, §18.1.4 | unknown suite `0xff` rejected | vector `suite_reject_0xff` | reject → 0x0101 / 0x0201 | vectored |
 | DMTAP-SUITE-05 | MUST | §1.1, §18.1.4 | known suite id `0x01` (classical) decodes | vector `suite_accept_0x01` | accept | vectored |
 | DMTAP-SUITE-06 | MUST | §1.1, §18.1.4, §18.2 | suite id `0x02` (reserved PQ) is a **known id** and decodes; note an object whose crypto actually **uses** `0x02` MUST still fail closed until the PQ suite is implemented (§18.2) | vector `suite_accept_0x02` | accept (id) | vectored |
+| DMTAP-SUITE-07 | MUST | §1.1, §18.1.4 | unregistered suite `0x04` rejected on decode (never guess) | vector `suite_reject_0x04` | reject → 0x0101 / 0x0201 | vectored |
 
 ### VAL — the §2.7 ordered recipient-validation pipeline
 
@@ -435,7 +436,7 @@ local-parts, and legacy→native mapping that fails closed on an unmappable alia
 ## Vector cross-reference
 
 Every `vectored` case above maps to an existing entry in `vectors/vectors.json`
-(**32 of the 67 vectors** in the file are referenced by cases). Cross-check (case → vector):
+(**33 of the 68 vectors** in the file are referenced by cases). Cross-check (case → vector):
 
 | vectors.json entry | driven by case(s) |
 |--------------------|-------------------|
@@ -449,8 +450,8 @@ Every `vectored` case above maps to an existing entry in `vectors/vectors.json`
 | `keyname_zero_key` / `_key_ones` / `_key_twos` / `_real_pubkey` | NAME-01 / -02 / -03 / -04 (-05 derives from -02/-03) |
 | `keyname_typo_rejected` | NAME-06 |
 | `safety_number_pair_ab` / `_order_independent` | SAFE-01 / SAFE-02 |
-| `suite_reject_0x00` / `_0x03` / `_0x05` / `_0xff` | SUITE-01 / -02 / -03 / -04 |
-| `suite_accept_0x01` / `_0x02` | SUITE-05 / SUITE-06 |
+| `suite_reject_0x00` / `_0x05` / `_0xff` / `_0x04` | SUITE-01 / -03 / -04 / -07 |
+| `suite_accept_0x01` / `_0x02` / `_0x03` | SUITE-05 / SUITE-06 / SUITE-02 |
 | `cbor_identity` / `cbor_device_cert` / `cbor_payload` / `cbor_envelope` | CBOR-01 / -02 / -03 / -04 |
 
 No case references a vector that is absent from `vectors.json`. The six `self-contained` CBOR

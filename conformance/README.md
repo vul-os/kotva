@@ -12,13 +12,13 @@ The suite has two coupled artifacts plus this guide:
 | [`suite.json`](suite.json) | The **machine-readable** form of those cases (mirroring their case ids; see the sync note below) — a runner in any language drives it. |
 | [`vectors/vectors.json`](vectors/vectors.json) | The **byte-exact known-answer inputs** the vectored cases dispatch on. |
 
-`SUITE.md` catalogs **124** numbered cases and `suite.json` mirrors all **124** — the two are **in
+`SUITE.md` catalogs **125** numbered cases and `suite.json` mirrors all **125** — the two are **in
 sync** (the wave-2 deniable-1:1 and KT-v1-hardening families, the `PROFILE` display-data cases, the
 optional `PUSH` wake-signaling cases, the `FILE` durability cases, the wave-3 device-cluster
 `SYNC`, `ALIAS`, and gateway-alias `GWALIAS` families, and the pluggable-resolver `RESOLVE` family
 are mirrored) and MUST stay so.
-39 cases are byte-runnable
-today (33 backed by
+40 cases are byte-runnable
+today (34 backed by
 a `vectors.json` entry, 6 self-contained CBOR-reject cases whose bytes are inline); 70 are
 `construction-todo` — each carries an exact construction recipe and the
 expected §21 error, and becomes byte-backed as its subsystem gains a fixed-input KAT (see
@@ -114,8 +114,8 @@ is what a conforming implementation MUST produce.
 | 4 | `safety_number` | `safety_number_pair_ab`, `safety_number_order_independent` | The §3.4.1 OOB safety number: a deterministic fingerprint of a **pair** of identity keys, **order-independent** (swapping the two keys yields the identical value). |
 | 5 | `ed25519_sign` / `ed25519_verify` | `ed25519_rfc8032_test{1,2}`, `ed25519_domain_separated`, `ed25519_verify_{ok,tampered_msg,tampered_sig}` | Deterministic Ed25519 signatures (incl. two RFC 8032 cross-checks and DMTAP's domain-separated `sign_domain`), and that verification fails closed on a tampered message or signature. |
 | 6 | `cbor_encode` | `cbor_{identity,device_cert,payload,envelope}` | Exact deterministic CBOR bytes of a signed `Identity` (+ its content address), a `DeviceCert`, a `Payload`, and an `Envelope`. The self-check additionally round-trips each (`decode(encode(x)) == x`, and re-encode is byte-identical). |
-| 7 | `suite_decode` | `suite_{reject_0x00,reject_0x03,reject_0x05,reject_0xff,accept_0x01,accept_0x02}` | Suite fail-closed (§1.1, §18.1.4): an unknown suite byte MUST be rejected on decode; `0x01`/`0x02` are known ids. |
-| 8 | `ed25519_sign` / `ed25519_verify` | `mote_sender_sig`, `mote_sender_sig_verify`, `mote_payload_sig` | The two MOTE signature KATs (§2.7 steps 3 & 8): the `sender_sig` preimage `id ‖ to ‖ ts_be64 ‖ kind ‖ challenge` under the ephemeral key, and the `payload_sig` preimage `BLAKE3-256(CBOR(payload with sig cleared))` under the IK — both with their exact domain-separation labels. |
+| 7 | `suite_decode` | `suite_{reject_0x00,reject_0x04,reject_0x05,reject_0xff,accept_0x01,accept_0x02,accept_0x03}` | Suite fail-closed (§1.1, §18.1.4): an unregistered suite byte MUST be rejected on decode; `0x01`/`0x02`/`0x03` are known (reserved) ids that decode. |
+| 8 | `ed25519_sign` / `ed25519_verify` | `mote_sender_sig`, `mote_sender_sig_verify`, `mote_payload_sig` | The two MOTE signature KATs (§2.7 steps 3 & 8): the `sender_sig` preimage `id ‖ to ‖ ts_be64 ‖ kind ‖ challenge` under the ephemeral key, and the `payload_sig` preimage `BLAKE3-256(CBOR(payload with sig cleared) ‖ u8(kind) ‖ u64be(ts) ‖ CBOR(to))` under the IK — both with their exact domain-separation labels. |
 
 The **MOTE validation ordering** (§2.7) is expressed as KATs #2 (content-address, checked before
 decryption) and #8 (the two signature checks), which is the deterministic core of the ordered
@@ -163,7 +163,7 @@ so they cannot silently disagree.
 **Covered (deterministic, known-answer):** content addressing; the key-name (encode + checksum);
 safety numbers; Ed25519 sign/verify (incl. RFC 8032 cross-checks + domain separation); canonical
 CBOR of `Identity` / `DeviceCert` / `Payload` / `Envelope` (+ round-trip); suite fail-closed; and
-the MOTE content-address and signature KATs. **32 vectors** across 9 operations.
+the MOTE content-address and signature KATs. **33 vectors** across 9 operations.
 
 **Deferred, and why:**
 
