@@ -278,12 +278,16 @@ loss window is disclosed and irreducible; here it is fully closed by never `250`
 |------|------|--------------|---------|:---------:|--------|
 | `0x0801` | `ERR_MANIFEST_HASH_MISMATCH` | Manifest integrity check (§5.5) | `Manifest.id` does not match the recomputed BLAKE3 Merkle root over `chunks`. | No | DROP_SILENT — do not begin fetch |
 | `0x0802` | `ERR_CHUNK_HASH_MISMATCH` | Per-chunk integrity check (§5.5) | A fetched chunk fails to verify against its listed hash. | Yes (re-fetch from a different swarm holder) | ROTATE_RETRY |
-| `0x0803` | `ERR_CHUNK_UNAVAILABLE` | Swarm fetch (§5.5 availability tiers) | No current holder serves a required chunk. | Yes (best-effort tier) | ROTATE_RETRY; REJECT_NOTIFY once retry budget is exhausted |
+| `0x0803` | `ERR_CHUNK_UNAVAILABLE` | Swarm fetch (§5.5.3 repair; §5.5.1 tiers) | No current holder serves a required chunk. Whole-file unavailability is `0x0809`. | Yes (best-effort tier) | ROTATE_RETRY; REJECT_NOTIFY once retry budget is exhausted |
 | `0x0804` | `ERR_SIZE_TIER_MISMATCH` | Size-tier classification (§2.5, §6.5) | The declared/observed size does not match the tier (inline/normal/large) the MOTE was routed under. | No | DROP_SILENT / DENY_POLICY — MUST NOT silently downgrade the privacy tier to compensate |
 | `0x0805` | `ERR_FILE_KEY_MISSING_OR_REVOKED` | Post-removal file access (§6.7) | A former group member's file key has been rotated out after removal from a shared folder. | No | DENY_POLICY — the member must be re-added and re-shared |
 | `0x0806` | `ERR_STORAGE_QUOTA_EXCEEDED` | Operator storage `Policy` (§12.2) | Hosted-operator storage cap reached. Self-host default is unlimited. | Yes | DENY_POLICY |
 | `0x0807` | `ERR_ATTACHMENT_KEY_INVALID` | Attachment/chunk decryption (§2.5) | The per-file content `key` fails to decrypt the referenced inline blob or chunk. | No | DROP_SILENT |
 | `0x0808` | `ERR_MANIFEST_KEY_PRESENT` | Manifest decode (§5.5, §18.3.8) | A received `Manifest` carries an embedded content key (reserved-forbidden field `5`). A manifest is a swarm-distributed blob, so an embedded key would leak to every holder that serves it. | No | FAIL_CLOSED_BLOCK — reject the manifest, MUST NOT use the embedded key; the legitimate key travels only in `Attachment.key` inside the sealed MOTE (§18.3.7) |
+| `0x0809` | `ERR_FILE_UNAVAILABLE` | Referenced-file fetch, durability contract (§5.5.2, §5.5.3) | The **whole file** has no reachable holder and no durability contract can be satisfied — the disclosed **origin-hold** residual realized (the origin dropped before the recipient fetched), as distinct from a single missing chunk (`0x0803`). | Yes, while any holder may still appear | REJECT_NOTIFY — surface to the user that a best-effort (origin-hold) referenced file is gone; closed prospectively by pinning/replicating (§5.5.2, §6.6 item 10) |
+| `0x080A` | `ERR_FILE_MANIFEST_INVALID` | `ManifestRef.durability` validation (§5.5.2, §18.3.7) | A **Referenced** file's `ManifestRef` is missing its REQUIRED `durability`, carries an **unknown** `class`, a `cluster-replicated` (`class = 2`) with `replicas < 1`/absent, or a `pinned` (`class = 3`) with no `retention` — a malformed/underspecified durability contract. | No | FAIL_CLOSED_BLOCK — reject; MUST NOT treat an unspecified contract as durable, nor silently downgrade to best-effort |
+| `0x080B` | `ERR_FILE_RETENTION_EXPIRED` | `pinned(term)` retention check (§5.5.2, §5.5.4, §16.4) | A `pinned` (`class = 3`) contract's `retention` term has elapsed (or a holder is asked to serve past its committed retention); the pin is no longer honored and the bytes MAY have been GC'd. | Yes, if re-pinned before GC | REJECT_NOTIFY — renew/re-pin before expiry (§5.5.2); a retention-expiry race is closed by renewing ahead of the term |
+| `0x080C` | `ERR_SPOOL_OVERFLOW` | Inbound push admission, spool cap (§5.5.5, §16.4) | A **pushed** Inline/Attached file would exceed the recipient's inbound spool cap for that sender — a storage-based DoS (spool-fill) attempt. Refused, never silently accepted or silently dropped. | Yes, after the recipient frees space / the sender proves legitimacy | DENY_POLICY — fail closed; an unproven/cold sender's pushes also spend the requests-area + anti-abuse budget (§2.7a, §9, §16.5) |
 
 ## 21.12 Traceability matrix
 
@@ -345,6 +349,10 @@ auditability:
 | WakePing unauthenticated / AEAD open failed | `0x0314` |
 | WakePing rate-limited (battery abuse) | `0x0315` |
 | WakePing replayed by relay (nonce already seen) | `0x0316` |
+| Referenced file permanently unavailable (origin-hold residual) | `0x0809` (whole file), `0x0803` (single chunk) |
+| File durability contract missing/malformed (Referenced tier) | `0x080A` |
+| Pinned-term retention expired / retention-expiry race | `0x080B` |
+| Spool overflow (pushed-attachment storage DoS) | `0x080C` (push admission), `0x0806` (hosted quota) |
 
 ---
 
@@ -371,7 +379,7 @@ extension procedure in §21.25. Allocation policies use the standard terms of RF
 | **Registry name** | DMTAP Error/Status Codes |
 | **Reference** | §21.1–§21.11 (this document) |
 | **Allocation policy** | New subsystem byte (`0x09`–`0xEF`): Standards Action. New code point within an existing subsystem (`NN` = `0x01`–`0x7F`): Specification Required. `NN` = `0x80`–`0xFE` within any subsystem: Private Use (implementation-local diagnostics; MUST map to the nearest standard code's Responder Action, §21.2, for any behavior visible to another implementation). `SS`/`NN` = `0x00` or `0xFF`: Reserved. |
-| **Initial contents** | The 117 codes enumerated in §21.3–§21.11. |
+| **Initial contents** | The 121 codes enumerated in §21.3–§21.11. |
 | **Registry discipline** | Append-only. A retired code MUST be marked Deprecated, never deleted or reassigned to a different meaning (mirroring the append-only philosophy of the KT log, §3.5). |
 
 ## 21.15 Algorithm Suites Registry (`suite` u8)
@@ -530,7 +538,7 @@ fragmenting."
 
 ## 21.26 Summary
 
-- **Error/status codes defined:** 117 (`0x0101`–`0x011B`: 27, incl. the KT-v1 detection codes
+- **Error/status codes defined:** 121 (`0x0101`–`0x011B`: 27, incl. the KT-v1 detection codes
   `0x0110`–`0x0112`, the org-administration codes `0x0113`–`0x0115` (§3.10), `0x0116`
   device-attestation and `0x0118` attestation-expired (§1.2a), `0x0117` KT leaf-hash mismatch
   (§3.5, §18.4.9), and the `Profile` display-data codes `0x0119` (signature invalid), `0x011A`
@@ -548,7 +556,9 @@ fragmenting."
   signature-forbidden guard;
   `0x0501`–`0x050B`: 11, incl. `0x050B` capability-revoked (§13.5, §18.7.3); `0x0601`–`0x0604`: 4,
   plus the informative SMTP mapping table of §21.9;
-  `0x0701`–`0x070E`: 14; `0x0801`–`0x0808`: 8, incl. `0x0808` manifest-key-present (§5.5)),
+  `0x0701`–`0x070E`: 14; `0x0801`–`0x080C`: 12, incl. `0x0808` manifest-key-present (§5.5) and the
+  file-durability codes `0x0809`–`0x080C` (§5.5.1–§5.5.5) — file-unavailable (origin-hold residual),
+  manifest-durability-invalid, retention-expired, and spool-overflow (pushed-attachment storage DoS)),
   spanning the 8 requested subsystems, with every code resolving to exactly one of the 13
   defined responder actions (§21.2) — no undefined behavior remains.
 - **IANA registries defined:** **11 registries + 1 extension/versioning procedure** — the 8

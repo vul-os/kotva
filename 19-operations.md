@@ -2245,6 +2245,11 @@ ordinary `deliver`, §19.3.1), and — implicitly — every future chunk-swarm p
   | **normal** | ≤ 4 MiB (≤ 4 chunks) | Manifest in the MOTE; chunks fetched via the **mixnet** (full privacy) |
   | **large** | > 4 MiB | Manifest in the MOTE; chunks fetched via the **fast/onion bulk path** (weaker privacy, §6.5) |
 
+  This table is the **privacy** axis (which transfer *path* the chunks take). It is **orthogonal**
+  to the **durability** axis (whether the chunks are **pushed** with the offer or **pulled** on
+  demand, step 5): a ≤ 25 MiB file is **Attached** (pushed, durable recipient copy) whichever path
+  it takes; a > 25 MiB file is **Referenced** (pulled) and MUST carry a `durability` class (§5.5.1).
+
 **Preconditions.** The file's chunks (for normal/large tiers) already exist, content-addressed
 and encrypted under `Attachment.key`, held by at least the origin node (§5.5).
 
@@ -2260,6 +2265,17 @@ and encrypted under `Attachment.key`, held by at least the origin node (§5.5).
 4. Recipient's `deliver` (§19.3.1) processes the control MOTE exactly like any other message;
    the manifest + key are now known to the recipient, who can begin `fetch-chunk` (§19.8.2)
    using the tier-appropriate path.
+5. **Durability delivery (normative, §5.5.1–§5.5.2 — orthogonal to the privacy tier above).**
+   The size/privacy tier (inline/normal/large) governs *metadata privacy*; the **delivery/durability
+   tier** governs *who ends up holding the bytes*:
+   - **Attached** (≤ 25 MiB, §16.4): the sender **pushes** the chunks with the offer into the
+     recipient's store — so once delivered they are the recipient's **durable copy**, surviving the
+     sender dropping. A push that would exceed the recipient's inbound spool cap for that sender is
+     refused **`ERR_SPOOL_OVERFLOW`** (`0x080C`, §5.5.5), never silently accepted.
+   - **Referenced** (> 25 MiB): chunks are **pulled on demand** (§19.8.2); the `ManifestRef` **MUST**
+     carry a `durability` descriptor with a known `class` (§5.5.2, §18.3.7) — a missing/malformed one
+     is rejected **`ERR_FILE_MANIFEST_INVALID`** (`0x080A`). The recipient **SHOULD** auto-pull-and-pin
+     below the §16.4 auto-pull threshold to convert **origin-hold → recipient-pinned**.
 
 **Success result.** The recipient holds the manifest + key and can begin fetching chunks; for
 inline files, the recipient already has the complete file from this operation alone.
@@ -2270,7 +2286,9 @@ inline files, the recipient already has the complete file from this operation al
 |---|---|---|
 | `size` computed inconsistently with the actual chunk set (manifest doesn't match declared size) | Reject (at the recipient, during chunk verification, §19.8.2) | Not detectable at offer time by the sender's own honest computation, but a *received* manifest that self-contradicts is rejected at fetch time — chunk hashes and the Merkle root are what's authoritative, not the `size` field alone |
 | Control MOTE itself fails any `deliver` precondition (§19.3.1's ordinary failure modes) | Per §19.3.1 | Identical handling — `offer-file` is not a distinct wire mechanism from ordinary MOTE delivery, only a payload-shape convention |
-| Origin node goes offline before any chunk is fetched (large/normal tier) | Defer | The manifest/key already delivered are durable at the recipient; chunk fetch (§19.8.2) simply has no source yet until the origin (or any other holder, once swarmed) comes back online |
+| Origin node goes offline before any chunk is fetched (large/normal tier) | Defer | The manifest/key already delivered are durable at the recipient; chunk fetch (§19.8.2) simply has no source yet until the origin (or any other holder, once swarmed) comes back online. For an **origin-hold** Referenced file this may become permanent (`ERR_FILE_UNAVAILABLE`, `0x0809`, §6.6 item 10) — closed prospectively by pinning/replicating (§5.5.2) |
+| **Referenced** (> 25 MiB) offer's `ManifestRef` lacks a valid `durability` class (missing / unknown class / `cluster-replicated` `replicas<1` / `pinned` without `retention`) | Reject | `ERR_FILE_MANIFEST_INVALID` (`0x080A`, FAIL_CLOSED_BLOCK) — a Referenced file MUST declare its durability contract (§5.5.2); MUST NOT be treated as durable or silently downgraded to best-effort |
+| **Pushed** Attached file would exceed the recipient's inbound spool cap for that sender (spool-fill storage DoS) | Reject | `ERR_SPOOL_OVERFLOW` (`0x080C`, DENY_POLICY) — refuse fail-closed; a cold/unproven sender's push also spends the requests-area + anti-abuse budget (§2.7a, §9, §5.5.5) |
 
 **Idempotency / retry.** The control MOTE follows ordinary MOTE retry/dedup semantics
 (§19.3.1/§19.3.3); re-offering the identical manifest produces a MOTE with a different `id`
@@ -2327,9 +2345,9 @@ completion, §5.5).
 
 | Condition | Class | Response |
 |---|---|---|
-| A fetched blob does not hash to `chunk_hash` (corrupt or malicious source) | Reject | Discard; retry from a different source — content addressing makes a bad source immediately detectable, never silently accepted |
-| No source currently holds the chunk (origin offline, no swarm cache yet) | Defer | Retry later (bounded by the fetcher's own patience/UI, not a fixed protocol deadline distinct from the file offer's own `expires` if any); this is the honest cost of best-effort availability (§5.5's tier table) absent a paid durable/always-available replica |
-| Decryption under `Attachment.key` fails (wrong key, corrupted manifest) | Reject | `CHUNK_DECRYPT_FAILED`; if this occurs for *every* chunk, treat the whole manifest as invalid and do not present a partially-decrypted file to the user |
+| A fetched blob does not hash to `chunk_hash` (corrupt or malicious source) | Reject | `ERR_CHUNK_HASH_MISMATCH` (`0x0802`); discard and retry from a different source — content addressing (BLAKE3 CR) makes a bad/poisoning source immediately detectable, never silently accepted, so swarm-fetch poisoning is reduced to wasted bandwidth bounded by the ≤ 8-source parallelism cap (§5.5.3) |
+| No source currently holds the chunk (origin offline, no swarm cache yet) | Defer, then Reject | `ERR_CHUNK_UNAVAILABLE` (`0x0803`) while retry may still succeed; if the **whole file** has no reachable holder and no durability contract (§5.5.2) can be satisfied, `ERR_FILE_UNAVAILABLE` (`0x0809`, REJECT_NOTIFY). For an **origin-hold** (best-effort, unpinned) file this is the disclosed durability residual (§6.6 item 10), closed prospectively by pinning/replication (§5.5.2); a `pinned(term)` served past its retention is `ERR_FILE_RETENTION_EXPIRED` (`0x080B`) |
+| Decryption under `Attachment.key` fails (wrong key, corrupted manifest) | Reject | `ERR_ATTACHMENT_KEY_INVALID` (`0x0807`); if this occurs for *every* chunk, treat the whole manifest as invalid and do not present a partially-decrypted file to the user |
 | Large-tier fetch traverses the fast/onion bulk path, exposing the fact/approximate size of the transfer to a well-positioned observer | N/A (disclosed limit, not a failure) | This is the accepted §6.5 tradeoff for this tier, not an error condition — implementations MUST NOT claim mixnet-grade metadata privacy for large-file chunk fetch |
 
 **Idempotency / retry.** Fully idempotent per chunk (content-addressed fetch of an immutable

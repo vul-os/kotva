@@ -59,13 +59,28 @@ above and for ordering hints.
 
 ## 16.4 File tiers & transfer
 
+**Size / privacy sub-tiers** (metadata-privacy axis, §6.5 — mixnet vs. bulk):
+
 | Parameter | Default | Notes |
 |-----------|---------|-------|
-| Inline attachment threshold | ≤ 64 KiB | rides the message (§2.5); = top bucket-ladder rung (32 Sphinx cells, §16.3) |
+| Inline attachment threshold | ≤ 64 KiB | rides the message (§2.5); = top bucket-ladder rung (32 Sphinx cells, §16.3). NOT larger: a bigger inline cap forces a MOTE above the top bucket → cannot ride the `private` mixnet (§5.5.1) |
 | Normal-file threshold | ≤ 4 MiB (≤ 4 chunks) | chunks via mixnet — full privacy (§6.5) |
-| Chunk size | 1 MiB | fixed; content-addressed (§5.5) |
+| Chunk size | 1 MiB | fixed; content-addressed over **ciphertext** (§5.5, §18.9.5) |
 | Large-file bulk | > 4 MiB | fast/onion bulk path — weaker privacy (§6.5) |
-| Swarm parallelism | ≤ 8 sources | per-file concurrent fetch |
+| Swarm parallelism | ≤ 8 sources | per-file concurrent fetch; bounds swarm-poisoning wasted bandwidth (§5.5.3) |
+
+**Delivery / durability tiers** (durability axis, §5.5.1–§5.5.5 — orthogonal to the privacy axis
+above; inline/push/pull governs durability, mixnet/bulk governs metadata privacy):
+
+| Parameter | Default | Notes |
+|-----------|---------|-------|
+| Inline tier cap (durable-by-delivery) | ≤ 64 KiB | bytes in the sealed MOTE (`Attachment.inline`); = the inline attachment threshold above (§5.5.1) |
+| Attached tier cap (pushed, durable recipient copy) | ≤ 25 MiB | chunks **pushed** into the recipient's store on delivery — survives the sender dropping (§5.5.1) |
+| Referenced tier (pull-on-demand) | > 25 MiB | `ManifestRef` + key in the MOTE; chunks pulled from a holder; MUST carry a `durability` class (§5.5.2) |
+| Auto-pull-to-durable threshold | ≤ 256 MiB | a client SHOULD auto-pull-and-pin a Referenced file below this on receipt, converting origin-hold → recipient-pinned (§5.5.2) |
+| Default `cluster-replicated` N | 3 | replicas across a box-cluster (§5.6, §14); tolerates N−1 holder loss (§5.5.2) |
+| Default `pinned(term)` retention | 90 days | minimum paid-pin retention term; renew before expiry (mirrors inactive-account purge §16.6); after it the host MAY GC (`0x080B`, §5.5.4) |
+| Inbound spool cap (per unproven sender) | ≤ 64 MiB aggregate | a pushed Inline/Attached file exceeding this for that sender is refused fail-closed (`0x080C`, storage-DoS / spool-fill defense, §5.5.5); tunable by operator policy, generous on self-host |
 
 ## 16.5 Anti-abuse
 

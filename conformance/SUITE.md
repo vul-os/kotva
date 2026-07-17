@@ -46,7 +46,7 @@ and on `reject` MUST map it to the named §21 error code with that code's `Actio
 | **Core** — §2.7 validation pipeline (`VAL`) | 15 | 0 (2 reuse ADDR/PRE) | 0 | 15 |
 | **Core** — identity / KT / naming (`IDENT`) | 6 | 0 | 0 | 6 |
 | **Private** (`PRIV`) | 7 | 0 | 0 | 7 |
-| **Groups & Files** (`GRP`, `FILE`) | 7 | 0 | 0 | 7 |
+| **Groups & Files** (`GRP`, `FILE`) | 12 | 0 | 0 | 12 |
 | **Legacy** (`LEG`) | 2 | 0 | 0 | 2 |
 | **Clients** (`CLI`) | 1 | 0 | 0 | 1 |
 | **Auth** (`AUTH`) | 5 | 0 | 0 | 5 |
@@ -56,21 +56,21 @@ and on `reject` MUST map it to the named §21 error code with that code's `Actio
 | **Core** — device attestation (`ATTEST`) | 2 | 0 | 0 | 2 |
 | **Core** — profile / avatar (`PROFILE`) | 2 | 0 | 0 | 2 |
 | **Optional** — push wake-signaling (`PUSH`) | 2 | 0 | 0 | 2 |
-| **Total** | **104** | **33** | **6** | **65** |
+| **Total** | **109** | **33** | **6** | **70** |
 
 The 33 vectored + 6 self-contained cases (**39**) are fully machine-runnable **today** from
 `vectors.json` + the inline bytes here, with **no reference implementation required**. They pin the
 entire deterministic, security-critical Core spine — canonical CBOR, content addressing, the two
 MOTE signature preimages (§18.9.1/§18.9.2), Ed25519 (with RFC 8032 cross-checks), the 8-word
-key-name, safety numbers, and suite fail-closed. The 65 `construction-todo` cases give the exact
+key-name, safety numbers, and suite fail-closed. The 70 `construction-todo` cases give the exact
 recipe and expected §21 error for every remaining normative branch (the full §2.7 pipeline,
 identity/KT fail-closed, the higher levels, the wave-2 hardening families —
 `DENIABLE`/`ORG`/`KTV1`/`ATTEST` — the `PROFILE` display-data guards, and the optional `PUSH`
-wake-signaling guards); each becomes byte-backed
+wake-signaling guards, and the `FILE` durability guards `DMTAP-FILE-05`–`-09`); each becomes byte-backed
 when the corresponding subsystem gains a fixed-input KAT in `vectors.json` (see README "Coverage vs.
 deferred"). **Sync status:** `SUITE.md` and [`suite.json`](suite.json) are **in sync** — both carry
-the same **104** case ids (the wave-2 `DENIABLE`/`KTV1` families, the `PROFILE` cases, and the
-optional `PUSH` cases are mirrored into `suite.json`). The changed deniable objects (§5.2.1 dedicated-`idk`) are still to be
+the same **109** case ids (the wave-2 `DENIABLE`/`KTV1` families, the `PROFILE` cases, the
+optional `PUSH` cases, and the `FILE` durability cases are mirrored into `suite.json`). The changed deniable objects (§5.2.1 dedicated-`idk`) are still to be
 re-vectored when the reference regenerates `vectors.json`.
 
 > All 39 byte-backed cases correspond one-for-one to entries in `vectors.json`
@@ -241,6 +241,11 @@ opaquely by DMTAP and are not vectored (README "deferred"); the DMTAP-native Mer
 | DMTAP-FILE-02 | MUST | §5.5 | a fetched chunk whose hash ≠ its `Manifest.chunks` entry is rejected | reject → `ERR_CHUNK_HASH_MISMATCH` (0x0802) | construction-todo |
 | DMTAP-FILE-03 | MUST | §2.5 | a file routed on the wrong size-tier path is rejected | reject → `ERR_SIZE_TIER_MISMATCH` (0x0804) | construction-todo |
 | DMTAP-FILE-04 | MUST | §5.5 | a `Manifest` MUST NOT carry the file key (key rides the sealed MOTE, not the manifest) | reject → `ERR_MANIFEST_KEY_PRESENT` (0x0808) | construction-todo |
+| DMTAP-FILE-05 | MUST | §5.5, §18.9.5 | the content address is over **ciphertext**: the **same plaintext** under two **different** per-file keys yields **different** `Manifest.id` (no cross-user/plaintext dedup — CAS-confirmation defense) | match (two distinct roots) | construction-todo |
+| DMTAP-FILE-06 | MUST | §5.5.2, §18.3.7 | a **Referenced** (> 25 MiB) `ManifestRef` missing `durability`, or with an unknown `class` / `cluster-replicated` `replicas < 1` / `pinned` without `retention`, is rejected | reject → `ERR_FILE_MANIFEST_INVALID` (0x080A) | construction-todo |
+| DMTAP-FILE-07 | MUST | §5.5.5, §16.4 | a **pushed** Inline/Attached file exceeding the recipient's inbound spool cap for that sender is refused fail-closed (spool-fill storage DoS), never silently accepted/dropped | reject → `ERR_SPOOL_OVERFLOW` (0x080C) | construction-todo |
+| DMTAP-FILE-08 | MUST | §5.5.4, §5.5.2 | a `pinned(term)` (`class = 3`) fetch past its elapsed `retention` is rejected (host MAY have GC'd) | reject → `ERR_FILE_RETENTION_EXPIRED` (0x080B) | construction-todo |
+| DMTAP-FILE-09 | MUST | §5.5.2, §5.5.3, §6.6 | a **Referenced** origin-hold file with no reachable holder and no satisfiable durability contract fails at the file level (distinct from a single missing chunk, 0x0803) | reject → `ERR_FILE_UNAVAILABLE` (0x0809) | construction-todo |
 
 ---
 

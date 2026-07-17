@@ -207,6 +207,21 @@ hostile-buffer scenarios.
    cover traffic, it composes with item 1: under the **High-security profile** (§4.4.10) wake
    jitter/batching is therefore a **MUST** (§4.9.1), so the wake path does not reintroduce the
    recipient-arrival timing channel the profile's constant-rate cover closes.
+10. **Referenced-file availability is a contract, not a property of the hash.** A content address
+    stays useful only while **some node still serves the bytes**, so "forever access even after the
+    peer drops" is **not free**. DMTAP does not treat this as unaddressed: **Inline** files are
+    durable-by-delivery and **Attached** files are pushed into the recipient's own store (§5.5.1),
+    so neither depends on the sender staying online; a **Referenced** file carries an explicit
+    **durability class** (§5.5.2) and clients **SHOULD auto-pull-and-pin** small referenced files
+    to convert best-effort → durable. **After all that**, one residual is irreducible: a Referenced
+    file left at the **origin-hold** default (best-effort, no pin, no replica) **MAY become
+    permanently unavailable** if the origin node drops before the recipient fetches
+    (`ERR_FILE_UNAVAILABLE`, §21) — a **durability**, not a confidentiality, limit. It is closed by
+    choosing `recipient-pinned`, `cluster-replicated(N)`, or `pinned(term)` (§5.5.2), each of which
+    costs real storage; the default is disclosed as best-effort rather than silently implying
+    permanence. Relatedly, **deletion is cooperative-only**: you can stop serving *your* copy but
+    **cannot force-delete** bytes another party has pinned (§5.5.4) — the storage analogue of the
+    `redact`/`expires` un-share bound (item 8).
 
 DMTAP states these boundaries in-product. Honest, disclosed limits beat a false "perfectly
 anonymous."

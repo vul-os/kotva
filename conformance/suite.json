@@ -25,7 +25,7 @@
   "referenced_vectors_count": 32,
   "vectors_count_note": "vectors_count is the number of entries in vectors/vectors.json; referenced_vectors_count (32) is how many of them the byte-backed cases currently drive (several drive more than one case). The remaining 35 are pre-generated for construction-todo families not yet wired to a case.",
   "notes": [
-    "reject cases map to spec §21 (117-code registry); error_code + error_name + disposition (Action column) are normative.",
+    "reject cases map to spec §21 (121-code registry); error_code + error_name + disposition (Action column) are normative.",
     "self-contained CBOR reject cases assert a deterministic-CBOR (RFC 8949 §4.2 / §18.1.1) decoder rejects the given bytes.",
     "construction-todo cases are non-deterministic to seal (sealed Envelope/Payload) or belong to subsystems not yet vectored (README 'Coverage vs. deferred')."
   ],
@@ -1489,6 +1489,103 @@
         "outcome": "reject",
         "error_code": "0x0808",
         "error_name": "ERR_MANIFEST_KEY_PRESENT"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-FILE-05",
+      "level": "Groups & Files",
+      "category": "FILE",
+      "req": "MUST",
+      "clause": [
+        "§5.5",
+        "§18.9.5"
+      ],
+      "checks": "the content address is over ciphertext: the same plaintext under two different per-file keys yields two different Manifest.id values (no cross-user/plaintext dedup; CAS-confirmation defense)",
+      "operation": "manifest_root",
+      "construction": "encrypt one fixed plaintext under two distinct per-file random keys; compute both manifest roots; assert they differ",
+      "expect": {
+        "outcome": "match",
+        "field": "distinct_roots"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-FILE-06",
+      "level": "Groups & Files",
+      "category": "FILE",
+      "req": "MUST",
+      "clause": [
+        "§5.5.2",
+        "§18.3.7"
+      ],
+      "checks": "a Referenced (> 25 MiB) ManifestRef missing durability, or with an unknown class / cluster-replicated replicas<1 / pinned without retention, is rejected fail-closed",
+      "operation": "manifest_ref_validate",
+      "construction": "a Referenced ManifestRef with no Durability (and variants: class=99 unknown; class=2 replicas=0; class=3 no retention)",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x080A",
+        "error_name": "ERR_FILE_MANIFEST_INVALID",
+        "action": "FAIL_CLOSED_BLOCK"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-FILE-07",
+      "level": "Groups & Files",
+      "category": "FILE",
+      "req": "MUST",
+      "clause": [
+        "§5.5.5",
+        "§16.4"
+      ],
+      "checks": "a pushed Inline/Attached file exceeding the recipient's inbound spool cap for that sender is refused fail-closed (spool-fill storage DoS), never silently accepted or dropped",
+      "operation": "push_admission",
+      "construction": "an Attached push whose size exceeds the per-sender inbound spool cap",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x080C",
+        "error_name": "ERR_SPOOL_OVERFLOW",
+        "action": "DENY_POLICY"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-FILE-08",
+      "level": "Groups & Files",
+      "category": "FILE",
+      "req": "MUST",
+      "clause": [
+        "§5.5.4",
+        "§5.5.2"
+      ],
+      "checks": "a pinned(term) (class=3) fetch past its elapsed retention is rejected (the host MAY have GC'd)",
+      "operation": "retention_check",
+      "construction": "a Durability class=3 with retention in the past, fetched after expiry",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x080B",
+        "error_name": "ERR_FILE_RETENTION_EXPIRED"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-FILE-09",
+      "level": "Groups & Files",
+      "category": "FILE",
+      "req": "MUST",
+      "clause": [
+        "§5.5.2",
+        "§5.5.3",
+        "§6.6"
+      ],
+      "checks": "a Referenced origin-hold file with no reachable holder and no satisfiable durability contract fails at the file level, distinct from a single missing chunk (0x0803)",
+      "operation": "file_fetch",
+      "construction": "a Referenced origin-hold ManifestRef whose origin and all swarm holders are unreachable",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0809",
+        "error_name": "ERR_FILE_UNAVAILABLE"
       },
       "status": "construction-todo"
     },

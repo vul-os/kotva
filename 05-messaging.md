@@ -420,7 +420,17 @@ Properties:
 - **Any size** — no protocol cap; the file is bounded only by the owner's storage.
 - **Resumable / parallel / swarmed** — fetch chunks from any holder, restart per chunk,
   BitTorrent-style; a popular file becomes *more* available as more nodes hold it.
-- **Deduplicated** — identical chunks (and identical files) stored once by content address.
+- **Deduplicated — but only within one key scope (privacy, normative).** The content address is
+  computed over **ciphertext** chunks (`h_i = prefix ‖ BLAKE3-256(AEAD(key, plaintext_i))`,
+  §18.9.5), **never over plaintext**. Two users (or two groups) holding the *same* plaintext file
+  encrypt it under **different per-file random keys** (§2.5), so their chunks hash **differently**
+  and do **not** collide — dedup is therefore **intra-user / intra-group only**, and there is
+  **no cross-user, cross-group dedup**. This is deliberate: hashing plaintext (convergent
+  encryption) would let a storage node — or any attacker who can guess or possess a candidate
+  plaintext — **confirm which identities hold which file by comparing content addresses** (a CAS
+  confirmation attack and a social-graph leak). DMTAP **sacrifices cross-user plaintext dedup for
+  privacy** and picks the private default; the earlier "identical files stored once globally"
+  framing was a convergent-encryption overclaim and does not hold under ciphertext addressing.
 - **Streamable** — consume in manifest order before full download.
 - **Integrity** — every chunk self-verifies against its hash; the manifest self-verifies
   against `id`.
@@ -433,16 +443,98 @@ Properties:
   received with a key embedded MUST be rejected as a leak (`ERR_MANIFEST_KEY_PRESENT`, §21), not
   used.
 
-**Availability tiers** (files reintroduce storage economics):
+### 5.5.1 Delivery tiers & the durability contract (normative)
 
-| Tier | Mechanism | Cost |
-|------|-----------|------|
-| Best-effort | origin node online + swarm from holders | $0 |
-| Durable | encrypted peer-cache / replica | peer reciprocity |
-| Always-available | paid replica / managed host | real storage cost |
+A content address is only useful while **some node still serves the bytes**. "Forever access
+even after the peer drops" is therefore **not automatic** — it is a *contract*, not a property of
+the hash. DMTAP makes the contract explicit with three **delivery tiers** (thresholds in §16.4)
+and a **durability descriptor** carried in the sealed MOTE.
 
-The always-on box gives best-effort/durable for free; "Dropbox-like always available" for
-large files is where a paid replica re-enters. Transfer uses the fast/direct tier (§4.5).
+| Tier | Size (§16.4) | Mechanism | Durability guarantee |
+|------|-------------|-----------|----------------------|
+| **Inline** | ≤ 64 KiB | bytes ride **inside** the sealed MOTE payload (`Attachment.inline`, §18.3.7) | **durable-by-delivery** — the bytes land in the recipient's mailbox; no separate fetch; keeps MOTEs light for the mixnet (rides the top bucket rung, §16.3) |
+| **Attached** | > 64 KiB, ≤ 25 MiB | content-addressed + chunked, but the chunks are **pushed with the message** into the recipient's store / cloud spool | **durable recipient copy** — once delivered the chunks are the recipient's own copy; **survives the sender dropping permanently** |
+| **Referenced** | > 25 MiB (any size) | `ManifestRef` + key travel in the MOTE; chunks are **pulled on demand** from a holder | **best-effort by default** — durable only as strong as the file's **durability class** (below) |
+
+The Inline cap is deliberately **64 KiB (= the top Sphinx bucket rung, §16.3), not larger**: an
+inline attachment inflates the MOTE, and a MOTE above the top bucket cannot ride the `private`
+mixnet at all (§4.4.1) — a larger inline cap would silently force the fast tier and drop mixnet
+privacy. The delivery tier (durability axis: inline / push / pull) is **orthogonal** to the
+size/privacy sub-tier of §16.4 (mixnet ≤ 4 MiB vs. bulk > 4 MiB): a 25 MiB **Attached** file is
+pushed *and* transits the weaker bulk path (§6.5) — push-vs-pull governs durability, mixnet-vs-bulk
+governs metadata privacy.
+
+### 5.5.2 Durability descriptor (normative — the key fix)
+
+A **Referenced** file (and OPTIONALLY an Attached one) carries a `durability` descriptor in its
+`ManifestRef` (§18.3.7 — inside the **sealed, signed** MOTE, so it is per-delivery, tamper-proof,
+and **not** part of the immutable content-addressed `Manifest`, so re-pinning never changes the
+content address). Its `class` is one of:
+
+| `class` | Who serves | Guarantee | Disclosed residual |
+|---------|-----------|-----------|--------------------|
+| **origin-hold** (0) | the owner's origin node | best-effort while the origin is online + swarm | **MAY become permanently unavailable** if the origin drops **before** the recipient fetches (`ERR_FILE_UNAVAILABLE`, §21). This is the honest default residual, §6.6 item 10. |
+| **recipient-pinned** (1) | the recipient pinned a copy | durable at the recipient (survives origin drop) | none beyond the recipient's own storage |
+| **cluster-replicated (N)** (2) | a **box-cluster** (§5.6, §14) holds N replicas | tolerates loss of up to **N−1** holders; repair re-replicates from any survivor | file lost only if **all N** holders drop simultaneously |
+| **pinned(term)** (3) | a paid relay / pinning host, for a **retention term** | durable until the retention term elapses | after `retention` the host MAY GC (`ERR_FILE_RETENTION_EXPIRED`, §21) — renew before expiry |
+
+Normative rules:
+
+- A **Referenced** file's `ManifestRef` **MUST** carry a `durability` with a **known** `class`;
+  a missing/unknown class, a `cluster-replicated` with `replicas < 1`, or a `pinned` with no
+  `retention` is malformed → **`ERR_FILE_MANIFEST_INVALID`** (§21), FAIL_CLOSED_BLOCK. Inline and
+  Attached files are durable by construction (delivery / push) and MAY omit the descriptor.
+- A client **SHOULD auto-pull-and-pin** a Referenced file **below the auto-pull-to-durable
+  threshold** (§16.4) on receipt, converting **origin-hold (best-effort) → recipient-pinned
+  (durable)** so that a later origin drop cannot lose it. Above the threshold, pinning is an
+  explicit user act (it costs real storage).
+- `holder_hint` in the descriptor is an **advisory** locator only; a fetcher **MUST** still
+  content-verify every chunk (§18.9.5) regardless of where it fetched — a hint cannot forge bytes
+  (§5.5.3).
+
+### 5.5.3 Serving integrity, swarm poisoning & repair (normative)
+
+- **A holder cannot serve wrong-but-accepted bytes.** Every chunk self-verifies against its
+  BLAKE3-256 content address before use (§18.9.5); a mismatch is **`ERR_CHUNK_HASH_MISMATCH`**
+  (`0x0802`) → rotate to another holder. BLAKE3's collision resistance means a malicious holder
+  **cannot** substitute different bytes under the same hash, so swarm-fetch **poisoning** is
+  reduced to *wasted bandwidth*, bounded by the swarm parallelism cap (≤ 8 sources, §16.4): a
+  poisoning holder is detected on first chunk and dropped.
+- **Partial-chunk loss & repair.** Under `cluster-replicated(N)` a chunk survives while ≥ 1 of its
+  N holders is reachable; **repair** = any survivor re-replicates it (chunks are self-verifying, so
+  repair needs no trusted source). If **every** holder of a required chunk is gone the fetch fails
+  **`ERR_CHUNK_UNAVAILABLE`** (`0x0803`); if the **whole file** has no reachable holder and no
+  durability contract can be satisfied it fails **`ERR_FILE_UNAVAILABLE`** (§21). v0 durability is
+  **replication**, not erasure coding; erasure/erasure-repair is an OPTIONAL future profile.
+
+### 5.5.4 GC, retention & deletion (normative, honest)
+
+- **Ref-counted, retention-driven GC.** A holder ref-counts each chunk against the durability
+  contracts that reference it and **GCs a chunk once no live contract references it** (and, for
+  `pinned(term)`, once `retention` has elapsed).
+- **You cannot force-delete bytes others pinned.** Deleting *your* copy stops *you* serving it; it
+  does **not** reach a recipient-pinned or cluster copy someone else holds. "Delete for everyone"
+  is **cooperative-only**, never a guarantee — the same un-share bound as `redact`/`expires`
+  (§6.6 item 8, §6.7). This is stated honestly rather than implied away.
+
+### 5.5.5 Storage-DoS & spool overflow (normative)
+
+Because **Attached** files are *pushed* into the recipient's store, a sender can attempt to
+**fill a victim's spool** (a storage-based DoS). Defenses:
+
+- **Inbound spool cap (fail-closed).** A pushed Inline/Attached file that would exceed the
+  recipient's inbound spool cap for that sender (§16.4) is **refused**, not silently accepted or
+  silently dropped → **`ERR_SPOOL_OVERFLOW`** (§21). An **unproven / cold** sender's pushes count
+  against the requests-area budget (§2.7a, §16.5) and the per-poster anti-abuse budget (§9), so a
+  cold sender cannot push large attachments to fill a spool before proving legitimacy.
+- **Hosted quota exhaustion is fail-closed, never a silent hole.** A hosted-operator storage cap
+  reached is **`ERR_STORAGE_QUOTA_EXCEEDED`** (`0x0806`, DENY_POLICY); self-host default is
+  unlimited (§12.2, §12.3 — storage exhaustion MUST NOT be a security/crypto gate, only a policy
+  deny).
+
+The always-on box gives origin-hold / recipient-pinned for free; "Dropbox-like always available"
+for large files is where **pinned(term)** (paid replica / managed host) re-enters. Transfer uses
+the fast/direct tier for bulk (§4.5, §6.5).
 
 ## 5.6 Multi-device (the personal cluster)
 
@@ -492,7 +584,12 @@ vs `reader`. Management operations are **MLS Commits** ordered by the group comm
 authorized by role:
 
 - **Add / remove member** — Add uses the invitee's KeyPackage (§5.3) + Welcome; Remove triggers
-  file-key rotation for shared folders (§6.7). Requires `admin`.
+  file-key rotation for shared folders (§6.7). Requires `admin`. **Forward-only bound (normative):**
+  re-keying protects only files **created (or re-encrypted) under the new, rekeyed epoch** — a
+  content-addressed file is **immutable**, so a removed member who already fetched a file keeps the
+  per-file key and bytes they hold; immutability means past files **cannot be retroactively
+  locked**. Group-file access revocation is thus **forward-only** — it stops the removed member
+  reading *future* files, never *already-fetched* ones (§6.7; the un-share limit).
 - **Role change / transfer ownership** — requires `admin`/`owner`.
 - **Policy change** (posting model, membership visibility, join policy) — requires `admin`.
 - **Join policy:** `closed` (invite only), `request` (request → admin approval; a request with no

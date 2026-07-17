@@ -12,11 +12,12 @@ The suite has two coupled artifacts plus this guide:
 | [`suite.json`](suite.json) | The **machine-readable** form of those cases (mirroring their case ids; see the sync note below) — a runner in any language drives it. |
 | [`vectors/vectors.json`](vectors/vectors.json) | The **byte-exact known-answer inputs** the vectored cases dispatch on. |
 
-`SUITE.md` catalogs **104** numbered cases and `suite.json` mirrors all **104** — the two are **in
-sync** (the wave-2 deniable-1:1 and KT-v1-hardening families, the `PROFILE` display-data cases, and
-the optional `PUSH` wake-signaling cases are mirrored) and MUST stay so. 39 cases are byte-runnable
+`SUITE.md` catalogs **109** numbered cases and `suite.json` mirrors all **109** — the two are **in
+sync** (the wave-2 deniable-1:1 and KT-v1-hardening families, the `PROFILE` display-data cases, the
+optional `PUSH` wake-signaling cases, and the `FILE` durability cases are mirrored) and MUST stay so.
+39 cases are byte-runnable
 today (33 backed by
-a `vectors.json` entry, 6 self-contained CBOR-reject cases whose bytes are inline); 65 are
+a `vectors.json` entry, 6 self-contained CBOR-reject cases whose bytes are inline); 70 are
 `construction-todo` — each carries an exact construction recipe and the
 expected §21 error, and becomes byte-backed as its subsystem gains a fixed-input KAT (see
 [Coverage vs. deferred](#coverage-vs-deferred)).

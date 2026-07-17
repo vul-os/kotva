@@ -404,6 +404,18 @@ ManifestRef = {
   1 => hash,            ; id        BLAKE3 Merkle-DAG root of the Manifest (§18.9.5)
   2 => u64,             ; size      total plaintext size
   3 => u32,             ; chunks    NUMBER of chunks (a count)
+  ? 4 => Durability,    ; durability delivery/retention contract (§5.5.2); MUST for Referenced tier
+}
+
+; The durability contract for THIS delivery. It rides in the ManifestRef — inside the
+; sealed, signed MOTE — NOT in the content-addressed Manifest (§18.3.8), so re-pinning /
+; upgrading durability never changes the file's content address, and a holder cannot tamper
+; with it (it is covered by Payload.sig, §18.9.2). Advisory locator only for holder_hint.
+Durability = {
+  1 => uint,            ; class      0=origin-hold 1=recipient-pinned 2=cluster-replicated 3=pinned
+  ? 2 => uint,          ; retention  unix seconds; retention term for class 3 (pinned); absent ⇒ indefinite
+  ? 3 => uint,          ; replicas   N for class 2 (cluster-replicated), MUST be ≥ 1; absent otherwise
+  ? 4 => tstr,          ; holder_hint advisory pull-locator hint; NOT authoritative (§5.5.2)
 }
 ```
 
@@ -418,6 +430,11 @@ ManifestRef = {
 | `ManifestRef` | `id` | 1 | `hash` | MUST | Content address = Merkle-DAG root of the `Manifest` over its ordered chunk hashes (§18.9.5). |
 | | `size` | 2 | `u64` | MUST | Total plaintext size, equal to `Manifest.size`. |
 | | `chunks` | 3 | `u32` | MUST | **Count** of chunks (⚠ note: in `ManifestRef`, `chunks` is a *number*; in `Manifest`, `chunks` is the *list of hashes* — §18.11). |
+| | `durability` | 4 | `Durability` | OPTIONAL (**MUST** for the Referenced tier, §16.4) | The delivery/retention contract (§5.5.2). A **Referenced** file (> 25 MiB) MUST carry it with a known `class`; Inline/Attached files are durable by construction and MAY omit it. |
+| `Durability` | `class` | 1 | `uint` | MUST | `0` origin-hold (best-effort, disclosed residual §6.6 item 10), `1` recipient-pinned, `2` cluster-replicated, `3` pinned(term). An unknown value ⇒ `ERR_FILE_MANIFEST_INVALID` (§21). |
+| | `retention` | 2 | `uint` | MUST **iff** `class = 3` | Unix-seconds retention term for a `pinned` contract; absent ⇒ indefinite. A `class = 3` with no `retention` ⇒ `ERR_FILE_MANIFEST_INVALID`. After it elapses the host MAY GC (`ERR_FILE_RETENTION_EXPIRED`, §21). |
+| | `replicas` | 3 | `uint` | MUST **iff** `class = 2` | Replica count N for `cluster-replicated`; **MUST be ≥ 1**. A `class = 2` with `replicas < 1` (or absent) ⇒ `ERR_FILE_MANIFEST_INVALID`. Tolerates N−1 holder loss (§5.5.2). |
+| | `holder_hint` | 4 | `tstr` | OPTIONAL | Advisory pull-locator hint; **NOT authoritative** — a fetcher MUST still content-verify every chunk (§18.9.5) regardless of the hint (§5.5.2). |
 
 ### 18.3.8 `Manifest` (§5.5)
 
