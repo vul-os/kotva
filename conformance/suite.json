@@ -18,7 +18,8 @@
   "status_values": {
     "vectored": "byte-backed by a named entry in vectors/vectors.json",
     "self-contained": "input bytes given inline (input.cbor_hex); reference-independent",
-    "construction-todo": "byte-exact construction recipe given; vector still to be generated as the subsystem gains a fixed-input KAT"
+    "construction-todo": "byte-exact construction recipe given; vector still to be generated as the subsystem gains a fixed-input KAT",
+    "manual-attestation": "a client-UX/process MUST with no wire bytes to recompute (e.g. §22.7's explicit-publish-act and irrevocability-warning disclosures); verified by implementer/reviewer attestation, not by a byte-level runner"
   },
   "vectors_file": "vectors/vectors.json",
   "vectors_count": 68,
@@ -2447,6 +2448,644 @@
         "outcome": "match"
       },
       "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-PUB-01",
+      "level": "Core",
+      "category": "PUB",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "clause": [
+        "§22.2.2"
+      ],
+      "checks": "PubManifest.id over a single plaintext chunk: h_0=0x1e||BLAKE3-256(plaintext_0), id=0x1e||leaf(h_0), leaf(h)=BLAKE3-256(DS||0x00||h), DS='DMTAP-PUB-v0/manifest'||0x00",
+      "operation": "pub_manifest_root",
+      "vector": "pub_manifest_single_chunk",
+      "expect": {
+        "outcome": "match",
+        "field": "id_hex"
+      },
+      "status": "vectored"
+    },
+    {
+      "id": "DMTAP-PUB-02",
+      "level": "Core",
+      "category": "PUB",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "clause": [
+        "§22.2.2"
+      ],
+      "checks": "PubManifest.id over 3 ordered plaintext chunks (RFC 6962 split, k=2): MTH(h0,h1,h2) = node(node(leaf(h0),leaf(h1)),leaf(h2))",
+      "operation": "pub_manifest_root",
+      "vector": "pub_manifest_three_chunks",
+      "expect": {
+        "outcome": "match",
+        "field": "id_hex"
+      },
+      "status": "vectored"
+    },
+    {
+      "id": "DMTAP-PUB-03",
+      "level": "Core",
+      "category": "PUB",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "clause": [
+        "§22.3.1"
+      ],
+      "checks": "PubAnnounce.sig signing preimage: Ed25519(signer_seed).sign(DS||det_cbor(PubAnnounce minus key 9)), DS='DMTAP-PUB-v0/announce'||0x00",
+      "operation": "ed25519_sign",
+      "vector": "pub_announce_signing_preimage",
+      "expect": {
+        "outcome": "match",
+        "field": [
+          "pubkey_hex",
+          "sig_hex"
+        ]
+      },
+      "status": "vectored"
+    },
+    {
+      "id": "DMTAP-PUB-04",
+      "level": "Core",
+      "category": "PUB",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "clause": [
+        "§22.3.1",
+        "§18.9.4"
+      ],
+      "checks": "announce_id = 0x1e||BLAKE3-256(det_cbor(PubAnnounce)) over the complete, signed object (derived-anchor rule; no self-id field)",
+      "operation": "content_address",
+      "vector": "pub_announce_id",
+      "expect": {
+        "outcome": "match",
+        "field": "id_hex"
+      },
+      "status": "vectored"
+    },
+    {
+      "id": "DMTAP-PUB-05",
+      "level": "Core",
+      "category": "PUB",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "clause": [
+        "§22.4.1"
+      ],
+      "checks": "FeedEntry.prev-chain: genesis (seq=0, no prev) -> entry (seq=1, prev=genesis id) -> entry (seq=2, prev=prior id); FeedEntry_id is content-addressed by the generic §2.2 rule (see the vector's note: §22.4.1 does not spell this formula out the way §22.3.1 does for announce_id)",
+      "operation": "pub_feed_entry_root",
+      "vector": "pub_feed_entry_chain",
+      "expect": {
+        "outcome": "match",
+        "field": "entry_ids_hex",
+        "note": "and accept (prev_chain_valid)"
+      },
+      "status": "vectored"
+    },
+    {
+      "id": "DMTAP-PUB-06",
+      "level": "Core",
+      "category": "PUB",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "clause": [
+        "§22.4.1"
+      ],
+      "checks": "FeedHead.sig signing preimage over v,suite,pub,seq,tip,ts,signer: Ed25519(signer_seed).sign(DS||det_cbor(FeedHead minus key 8)), DS='DMTAP-PUB-v0/feed'||0x00; tip transitively commits the whole log via the prev-chain",
+      "operation": "ed25519_sign",
+      "vector": "pub_feed_head_signing_preimage",
+      "expect": {
+        "outcome": "match",
+        "field": [
+          "pubkey_hex",
+          "sig_hex"
+        ]
+      },
+      "status": "vectored"
+    },
+    {
+      "id": "DMTAP-PUB-07",
+      "level": "Core",
+      "category": "PUB",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "clause": [
+        "§22.2.3"
+      ],
+      "checks": "Manifest DS-tag confusion (sealed <-> public): the SAME ordered chunk-hash list, rooted once under the public DS-tagged tree and once under the §18.9.5 bare sealed tree (no DS fold), MUST yield different roots",
+      "operation": "pub_manifest_type_mismatch",
+      "vector": "pub_manifest_type_incompatibility",
+      "expect": {
+        "outcome": "match",
+        "note": "public_root_hex != sealed_style_root_hex",
+        "error_code": "0x0903",
+        "error_name": "ERR_PUB_MANIFEST_TYPE_MISMATCH",
+        "action": "FAIL_CLOSED_BLOCK"
+      },
+      "status": "vectored"
+    },
+    {
+      "id": "DMTAP-PUB-08",
+      "level": "Core",
+      "category": "PUB",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "clause": [
+        "§22.2.1"
+      ],
+      "checks": "a PubManifest CBOR map carrying the forbidden key 5 MUST be rejected — a public blob has no key by construction",
+      "operation": "det_cbor_decode_pub_manifest",
+      "vector": "pub_manifest_key5_forbidden",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0902",
+        "error_name": "ERR_PUB_MANIFEST_KEY_PRESENT",
+        "action": "FAIL_CLOSED_BLOCK"
+      },
+      "status": "vectored"
+    },
+    {
+      "id": "DMTAP-PUB-09",
+      "level": "Core",
+      "category": "PUB",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "clause": [
+        "§22.2.2"
+      ],
+      "checks": "a recomputed DS-tagged Merkle root that does not equal PubManifest.id MUST be rejected before fetch begins",
+      "operation": "pub_manifest_root",
+      "construction": "flip one byte of a chunk hash in pub_manifest_three_chunks and recompute the root",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0909",
+        "error_name": "ERR_PUB_MANIFEST_HASH_MISMATCH",
+        "action": "DROP_SILENT"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-PUB-10",
+      "level": "Core",
+      "category": "PUB",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "clause": [
+        "§22.2.2",
+        "§5.5.3"
+      ],
+      "checks": "a fetched plaintext chunk whose recomputed h_i disagrees with its listed PubManifest.chunks entry MUST be rejected and refetched from another holder",
+      "operation": "pub_chunk_verify",
+      "construction": "tamper one byte of a chunk from pub_manifest_three_chunks and recompute h_i",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x090A",
+        "error_name": "ERR_PUB_CHUNK_HASH_MISMATCH",
+        "action": "ROTATE_RETRY"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-PUB-11",
+      "level": "Core",
+      "category": "PUB",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "clause": [
+        "§22.3.1",
+        "§22.3.3"
+      ],
+      "checks": "a recomputed announce_id that does not equal the address the object was fetched by MUST be rejected",
+      "operation": "pub_announce_verify",
+      "construction": "mutate one byte of the pub_announce_id vector's bytes_hex and recompute announce_id",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0905",
+        "error_name": "ERR_PUB_ANNOUNCE_ID_MISMATCH",
+        "action": "DROP_SILENT",
+        "note": "retryable (re-fetch)"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-PUB-12",
+      "level": "Core",
+      "category": "PUB",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "clause": [
+        "§22.3.1",
+        "§22.3.3"
+      ],
+      "checks": "sig failing under signer, or signer not authorized by pub (no valid DeviceCert chain), MUST be rejected",
+      "operation": "pub_announce_verify",
+      "construction": "flip one bit of pub_announce_signing_preimage's sig_hex and re-verify against pubkey_hex",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0904",
+        "error_name": "ERR_PUB_ANNOUNCE_SIG_INVALID",
+        "action": "FAIL_CLOSED_BLOCK"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-PUB-13",
+      "level": "Core",
+      "category": "PUB",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "clause": [
+        "§22.3.4",
+        "§22.3.3 step 5"
+      ],
+      "checks": "a supersedes reference to an announce whose pub differs from this announce's pub MUST be rejected; a publisher may only supersede its own announcements",
+      "operation": "pub_supersede_check",
+      "vector": [
+        "pub_announce_supersede_same_author_valid",
+        "pub_announce_supersede_cross_author_invalid"
+      ],
+      "expect": {
+        "outcome": "accept (same author) / reject (cross author)",
+        "error_code": "0x090B",
+        "error_name": "ERR_PUB_SUPERSEDE_INVALID",
+        "action": "FAIL_CLOSED_BLOCK"
+      },
+      "status": "vectored"
+    },
+    {
+      "id": "DMTAP-PUB-14",
+      "level": "Core",
+      "category": "PUB",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "clause": [
+        "§22.4.2"
+      ],
+      "checks": "a FeedHead.seq strictly below the highest accepted for that pub MUST be rejected; equal seq + identical tip is an idempotent accept (cacheable re-fetch, never an error); equal seq + different tip is equivocation (-> PUB-15), never a rollback",
+      "operation": "pub_feed_anti_rollback",
+      "vector": [
+        "pub_feed_rollback_strict_less_than",
+        "pub_feed_equal_seq_identical_tip_idempotent"
+      ],
+      "expect": {
+        "outcome": "reject (strict-less-than) / accept (equal+identical)",
+        "error_code": "0x0907",
+        "error_name": "ERR_PUB_FEED_ROLLBACK",
+        "action": "FAIL_CLOSED_BLOCK"
+      },
+      "status": "vectored"
+    },
+    {
+      "id": "DMTAP-PUB-15",
+      "level": "Core",
+      "category": "PUB",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "clause": [
+        "§22.4.2"
+      ],
+      "checks": "two FeedEntrys at one seq with the same prev (or a prev not resolving to seq-1) is evidence of a rewritten/equivocated author log",
+      "operation": "pub_feed_anti_rollback",
+      "vector": "pub_feed_equal_seq_different_tip_fork",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0908",
+        "error_name": "ERR_PUB_FEED_CHAIN_BROKEN",
+        "action": "HALT_ALERT"
+      },
+      "status": "vectored"
+    },
+    {
+      "id": "DMTAP-PUB-16",
+      "level": "Core",
+      "category": "PUB",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "clause": [
+        "§22.4.1"
+      ],
+      "checks": "a genesis entry (seq=0) carrying a prev field, or a non-genesis entry (seq!=0) lacking one, is malformed",
+      "operation": "det_cbor_decode_feed_entry",
+      "vector": [
+        "pub_feed_genesis_carries_prev_malformed",
+        "pub_feed_nongenesis_missing_prev_malformed"
+      ],
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0908",
+        "error_name": "ERR_PUB_FEED_CHAIN_BROKEN",
+        "action": "HALT_ALERT"
+      },
+      "status": "vectored"
+    },
+    {
+      "id": "DMTAP-PUB-17",
+      "level": "Core",
+      "category": "PUB",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "clause": [
+        "§22.4.1"
+      ],
+      "checks": "FeedHead.sig failing under the signer/pub chain MUST be rejected",
+      "operation": "pub_feed_head_verify",
+      "construction": "flip one bit of pub_feed_head_signing_preimage's sig_hex and re-verify",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0906",
+        "error_name": "ERR_PUB_FEED_SIG_INVALID",
+        "action": "FAIL_CLOSED_BLOCK"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-PUB-18",
+      "level": "Core",
+      "category": "PUB",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "clause": [
+        "§22.3.1",
+        "§22.4.1"
+      ],
+      "checks": "a PubAnnounce/PubManifest/FeedHead carrying a v/suite the implementation does not support MUST be rejected, never guessed",
+      "operation": "pub_object_decode",
+      "construction": "PubAnnounce with v=1 (any value != 0)",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0901",
+        "error_name": "ERR_PUB_UNSUPPORTED_VERSION",
+        "action": "FAIL_CLOSED_BLOCK"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-PUB-19",
+      "level": "Core",
+      "category": "PUB",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "clause": [
+        "§22.6.2"
+      ],
+      "checks": "a holder declining to serve a requested public object per its own serve policy is a policy deny at the holder, never a correctness error; the fetcher rotates to another holder",
+      "operation": "pub_serve_policy",
+      "construction": "holder policy configured to decline a given announce_id/manifest_root",
+      "expect": {
+        "outcome": "reject (at holder)",
+        "error_code": "0x090C",
+        "error_name": "ERR_PUB_NOT_SERVED",
+        "action": "DENY_POLICY",
+        "note": "fetcher ROTATE_RETRY"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-PUB-20",
+      "level": "Core",
+      "category": "PUB",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "clause": [
+        "§22.6.3"
+      ],
+      "checks": "exceeding a serving node's admission policy (object size / per-publisher quota / feed-append rate) is a policy deny, never a security/crypto gate",
+      "operation": "pub_serve_policy",
+      "construction": "publish/append past a configured per-publisher storage quota",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x090D",
+        "error_name": "ERR_PUB_SERVE_QUOTA",
+        "action": "DENY_POLICY"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-PUB-21",
+      "level": "Core",
+      "category": "PUB",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "clause": [
+        "§22.7"
+      ],
+      "checks": "a client MUST NOT create/announce/serve a public object except as the direct result of an explicit user publish act; MUST warn, before completing a publish, that publishing is irrevocable; MUST express retraction only as a successor supersedes announcement, never as deletion",
+      "operation": "client_ux_attestation",
+      "construction": "implementer/UX review against the three §22.7 sub-requirements",
+      "expect": {
+        "outcome": "non-conformant if any of the three sub-requirements is missing"
+      },
+      "status": "manual-attestation"
+    },
+    {
+      "id": "DMTAP-CAD-01",
+      "clause": [
+        "§23.4",
+        "§23.10 CAD-1"
+      ],
+      "checks": "every artifact pub_announce's ArtifactMetadata carries a license field (SPDX expression); an announce omitting it is malformed for this profile",
+      "construction": "ArtifactMetadata with key 7 (license) omitted",
+      "expect": {
+        "outcome": "reject",
+        "note": "profile-level; a generic §22 node still stores/serves it unaffected"
+      },
+      "level": "Core",
+      "category": "CAD",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "operation": "cad_profile_check",
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-CAD-02",
+      "clause": [
+        "§23.3.4",
+        "§23.10 CAD-2"
+      ],
+      "checks": "formats contains at least one entry",
+      "construction": "ArtifactMetadata with formats (key 4) an empty array",
+      "expect": {
+        "outcome": "reject"
+      },
+      "level": "Core",
+      "category": "CAD",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "operation": "cad_profile_check",
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-CAD-03",
+      "clause": [
+        "§23.3.4",
+        "§23.10 CAD-3"
+      ],
+      "checks": "exactly one formats entry carries role=canonical-source (non-assembly kinds) or role=structure (assembly kind); an assembly with no structure entry is malformed",
+      "construction": "two role=1 entries (ambiguous canonical source); and separately, an assembly-kind with no role=3 entry",
+      "expect": {
+        "outcome": "reject (both variants)"
+      },
+      "level": "Core",
+      "category": "CAD",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "operation": "cad_profile_check",
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-CAD-04",
+      "clause": [
+        "§23.3.4",
+        "§23.10 CAD-4"
+      ],
+      "checks": "no format_id=3 (glTF/mesh) entry ever carries role=1 (canonical-source) — a lossy tessellation is never the artifact of record",
+      "construction": "ArtifactFormat{format_id:3, role:1, manifest_root:<any hash>}",
+      "expect": {
+        "outcome": "reject"
+      },
+      "level": "Core",
+      "category": "CAD",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "operation": "cad_profile_check",
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-CAD-05",
+      "clause": [
+        "§23.3.4",
+        "§23.10 CAD-5"
+      ],
+      "checks": "every role=2 (derived-rendition) entry carries derived_from_format (key 4)",
+      "construction": "ArtifactFormat{format_id:1, role:2} with derived_from_format omitted",
+      "expect": {
+        "outcome": "reject"
+      },
+      "level": "Core",
+      "category": "CAD",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "operation": "cad_profile_check",
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-CAD-06",
+      "clause": [
+        "§23.3.3",
+        "§23.10 CAD-6"
+      ],
+      "checks": "units.length_unit is present and explicit; a client MUST NOT default or infer it",
+      "construction": "Units with key 1 (length_unit) omitted",
+      "expect": {
+        "outcome": "reject",
+        "note": "client MUST refuse to interpret geometry; MAY still show name/description/license"
+      },
+      "level": "Core",
+      "category": "CAD",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "operation": "cad_profile_check",
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-CAD-07",
+      "clause": [
+        "§23.3.1",
+        "§23.10 CAD-7"
+      ],
+      "checks": "deprecated=true is always accompanied by deprecation_reason (key 9)",
+      "construction": "ArtifactMetadata{deprecated: true} with key 9 absent",
+      "expect": {
+        "outcome": "reject",
+        "note": "flagged by a CAD-aware index"
+      },
+      "level": "Core",
+      "category": "CAD",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "operation": "cad_profile_check",
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-CAD-08",
+      "clause": [
+        "§23.5",
+        "§23.10 CAD-8"
+      ],
+      "checks": "deprecation/yank is expressed ONLY as a successor announcement (supersedes + deprecated=true), never as a deletion — no operation removes a previously published revision",
+      "construction": "attempt to model 'deletion' of a prior revision (no protocol operation exists; a CAD-aware client MUST NOT present one)",
+      "expect": {
+        "outcome": "reject (no-such-operation)",
+        "note": "client MUST NOT imply deletion"
+      },
+      "level": "Core",
+      "category": "CAD",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "operation": "cad_profile_check",
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-CAD-09",
+      "clause": [
+        "§23.6.1",
+        "§23.10 CAD-9"
+      ],
+      "checks": "assembly children reference exclusively by pin (ref_kind=1, a manifest_root) or track (ref_kind=2, a pub_announce id)",
+      "construction": "AssemblyChild.ref_kind outside {1,2}",
+      "expect": {
+        "outcome": "reject"
+      },
+      "level": "Core",
+      "category": "CAD",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "operation": "cad_profile_check",
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-CAD-10",
+      "clause": [
+        "§23.6.3",
+        "§23.10 CAD-10"
+      ],
+      "checks": "a BOM-walking client MUST detect and reject a cycle in an assembly's resolved DAG (a track reference can form one across revisions) rather than recurse indefinitely or silently drop it",
+      "construction": "assembly A tracks part B; B's publisher later republishes B as an assembly that tracks back to A; walk A's BOM",
+      "expect": {
+        "outcome": "reject",
+        "note": "abort the walk at the cycle and surface it — never infinite-recurse, never silently drop"
+      },
+      "level": "Core",
+      "category": "CAD",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "operation": "cad_profile_check",
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-CAD-11",
+      "clause": [
+        "§23.7",
+        "§23.10 CAD-11"
+      ],
+      "checks": "no client treats any single index (category/search/workshop) as authoritative over the signed announces/feeds it was derived from",
+      "construction": "two independently-built indexes over the same feed set disagree (different crawl coverage)",
+      "expect": {
+        "outcome": "accept",
+        "note": "neither index is 'wrong'; ground truth is always the signed announces, re-derivable by any client"
+      },
+      "level": "Core",
+      "category": "CAD",
+      "req": "MUST",
+      "optional_capability": "pub-1",
+      "operation": "cad_profile_check",
+      "status": "construction-todo"
     }
-  ]
+  ],
+  "pub_vectors_file": "vectors/pub_vectors.json",
+  "pub_vectors_count": 15,
+  "pub_referenced_vectors_count": 15,
+  "pub_vectors_count_note": "pub_vectors.json is a SEPARATE file from vectors.json, generated by vectors/gen_pub_vectors.py (this repo), not by the dmtap-core reference crate (which does not yet implement the DMTAP-PUB extension, §22, ROADMAP.md). All 15 of its vectors are referenced by PUB cases below (several PUB cases reference more than one pub_vectors.json entry)."
 }

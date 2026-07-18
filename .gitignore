@@ -3,3 +3,5 @@ build/node_modules/
 build/dmtap.html
 .DS_Store
 *.swp
+__pycache__/
+*.pyc

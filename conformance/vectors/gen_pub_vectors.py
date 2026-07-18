@@ -1,0 +1,564 @@
+#!/usr/bin/env python3
+"""
+gen_pub_vectors.py — generates conformance/vectors/pub_vectors.json
+
+Throwaway, deterministic vector generator for the DMTAP-PUB (spec §22) and CAD/artifact
+profile (spec §23) conformance suite.
+
+Why a separate script (and not the dmtap-core reference crate that generates
+`vectors.json`): dmtap-core does not yet implement the DMTAP-PUB extension (ROADMAP.md
+"Envoir node/gateway pub-1 serving" is still a follow-up wave). Everything DMTAP-PUB needs
+is deterministic (BLAKE3-256 content addressing + Ed25519 signing, exactly like the Core
+vectors), so it is fully reproducible from this ~300-line script with no reference
+implementation required. See README.md's "Provenance" section for how this differs from
+the dmtap-core-generated vectors.
+
+Dependencies: `pip install blake3 cryptography` (both pure Python-callable, no network at
+run time). Everything below is a FIXED constant: fixed 32-byte Ed25519 seeds, fixed
+timestamps, fixed plaintext chunk bytes. No randomness, no wall-clock reads.
+
+Run: python3 conformance/vectors/gen_pub_vectors.py > conformance/vectors/pub_vectors.json
+"""
+import json
+import blake3
+from cryptography.hazmat.primitives.asymmetric import ed25519
+from cryptography.hazmat.primitives import serialization
+
+# ── fixed test constants (no randomness, no timestamps read from the clock) ──────────────
+SEED_PUB_A = bytes([0xAA] * 32)   # publisher A's IK (also used as the operational `signer` key)
+SEED_PUB_B = bytes([0xBB] * 32)   # publisher B's IK — a *different* author, for the same-author check
+TS_FIXED = 1_700_000_050_000      # ms epoch; an arbitrary fixed instant, matches the style of the
+                                   # existing mote_payload_sig vector's ts=1700000000000 (vectors.json)
+SUITE_V0 = 1                       # suite = 0x01 (classical), same id used throughout vectors.json
+
+DS_MANIFEST = b"DMTAP-PUB-v0/manifest" + b"\x00"
+DS_ANNOUNCE = b"DMTAP-PUB-v0/announce" + b"\x00"
+DS_FEED = b"DMTAP-PUB-v0/feed" + b"\x00"
+
+
+# ── BLAKE3-256, and the v0 content-address / multihash-style prefix (§18.1.5) ────────────
+def b3(data: bytes) -> bytes:
+    return blake3.blake3(data).digest()
+
+
+def content_address(data: bytes) -> bytes:
+    """0x1e || BLAKE3-256(data) — the generic §2.2/§18.1.5 content-address rule."""
+    return b"\x1e" + b3(data)
+
+
+def chunk_hash(plaintext: bytes) -> bytes:
+    """h_i = 0x1e || BLAKE3-256(plaintext_i) — §22.2.2 public (PLAINTEXT) chunk hash."""
+    return content_address(plaintext)
+
+
+# ── §22.2.2 DS-tagged RFC 6962 Merkle tree (public/PUB manifest) ─────────────────────────
+def pub_leaf(h_i: bytes) -> bytes:
+    return b3(DS_MANIFEST + b"\x00" + h_i)
+
+
+def pub_node(left: bytes, right: bytes) -> bytes:
+    return b3(DS_MANIFEST + b"\x01" + left + right)
+
+
+def pub_mth(hashes):
+    """RFC 6962 split rule: k = largest power of 2 < n."""
+    n = len(hashes)
+    if n == 1:
+        return pub_leaf(hashes[0])
+    k = 1
+    while k * 2 < n:
+        k *= 2
+    return pub_node(pub_mth(hashes[:k]), pub_mth(hashes[k:]))
+
+
+def pub_manifest_root(plaintext_chunks):
+    hashes = [chunk_hash(c) for c in plaintext_chunks]
+    root = pub_mth(hashes)
+    return b"\x1e" + root, hashes
+
+
+# ── §18.9.5 bare (sealed-style) RFC 6962 Merkle tree — NO DS-tag fold — for the
+#    type-incompatibility vector, applied to the SAME h_i list as the public tree above.
+def sealed_leaf(h_i: bytes) -> bytes:
+    return b3(b"\x00" + h_i)
+
+
+def sealed_node(left: bytes, right: bytes) -> bytes:
+    return b3(b"\x01" + left + right)
+
+
+def sealed_mth(hashes):
+    n = len(hashes)
+    if n == 1:
+        return sealed_leaf(hashes[0])
+    k = 1
+    while k * 2 < n:
+        k *= 2
+    return sealed_node(sealed_mth(hashes[:k]), sealed_mth(hashes[k:]))
+
+
+def sealed_style_root_over_same_hashes(hashes):
+    return b"\x1e" + sealed_mth(hashes)
+
+
+# ── minimal deterministic (RFC 8949 §4.2 canonical) CBOR encoder ─────────────────────────
+# Integer-keyed maps, ascending key order, definite lengths, shortest-form integers.
+# Sufficient subset for the objects this script encodes (uint, bstr, tstr, array, map).
+def enc_uint(n: int) -> bytes:
+    return _enc_head(0, n)
+
+
+def _enc_head(major: int, n: int) -> bytes:
+    m = major << 5
+    if n < 24:
+        return bytes([m | n])
+    if n < 2**8:
+        return bytes([m | 24, n])
+    if n < 2**16:
+        return bytes([m | 25]) + n.to_bytes(2, "big")
+    if n < 2**32:
+        return bytes([m | 26]) + n.to_bytes(4, "big")
+    return bytes([m | 27]) + n.to_bytes(8, "big")
+
+
+def enc_bstr(b: bytes) -> bytes:
+    return _enc_head(2, len(b)) + b
+
+
+def enc_tstr(s: str) -> bytes:
+    b = s.encode("utf-8")
+    return _enc_head(3, len(b)) + b
+
+
+def enc_array(items) -> bytes:
+    out = _enc_head(4, len(items))
+    for it in items:
+        out += it
+    return out
+
+
+def enc_map(pairs) -> bytes:
+    """pairs: list of (int_key, encoded_value_bytes); sorted ascending by key (canonical)."""
+    pairs = sorted(pairs, key=lambda kv: kv[0])
+    out = _enc_head(5, len(pairs))
+    for k, v in pairs:
+        out += enc_uint(k) + v
+    return out
+
+
+# ── Ed25519 (RFC 8032, deterministic per seed) ────────────────────────────────────────────
+def keypair(seed: bytes):
+    sk = ed25519.Ed25519PrivateKey.from_private_bytes(seed)
+    pk = sk.public_key().public_bytes(
+        encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw
+    )
+    return sk, pk
+
+
+def sign_domain(sk, domain: bytes, msg: bytes) -> bytes:
+    return sk.sign(domain + msg)
+
+
+SK_A, PK_A = keypair(SEED_PUB_A)
+SK_B, PK_B = keypair(SEED_PUB_B)
+
+vectors = []
+
+
+def add(name, operation, input_, expected, note):
+    vectors.append({"name": name, "operation": operation, "input": input_, "expected": expected, "note": note})
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════
+# 1. PubManifest — plaintext chunk hashing + DS-tagged Merkle root (§22.2.2)
+# ══════════════════════════════════════════════════════════════════════════════════════
+
+# 1a. single chunk
+chunk_single = b"dmtap-pub: one published chunk"
+root_single, hashes_single = pub_manifest_root([chunk_single])
+add(
+    "pub_manifest_single_chunk",
+    "pub_manifest_root",
+    {"plaintext_chunks_hex": [chunk_single.hex()]},
+    {"chunk_hashes_hex": [h.hex() for h in hashes_single], "id_hex": root_single.hex()},
+    "PubManifest.id over a single plaintext chunk (n=1): MTH([h_0]) = leaf(h_0), "
+    "leaf(h)=BLAKE3-256(DS||0x00||h), DS='DMTAP-PUB-v0/manifest'||0x00 (§22.2.2). "
+    "id = 0x1e || MTH(...).",
+)
+
+# 1b. three chunks (RFC 6962 split rule: n=3 -> k=2 -> node(MTH(h0,h1), MTH(h2)))
+chunks_three = [b"chunk-0-of-3: dmtap-pub artifact bytes", b"chunk-1-of-3: dmtap-pub artifact bytes", b"chunk-2-of-3: dmtap-pub artifact bytes"]
+root_three, hashes_three = pub_manifest_root(chunks_three)
+add(
+    "pub_manifest_three_chunks",
+    "pub_manifest_root",
+    {"plaintext_chunks_hex": [c.hex() for c in chunks_three]},
+    {"chunk_hashes_hex": [h.hex() for h in hashes_three], "id_hex": root_three.hex()},
+    "PubManifest.id over 3 ordered plaintext chunks (n=3, RFC 6962 split k=2): "
+    "MTH(h0,h1,h2) = node(node(leaf(h0),leaf(h1)), leaf(h2)), DS-tag folded into every "
+    "leaf/node (§22.2.2).",
+)
+
+# 1c. type-incompatibility: the SAME h_i list, tree-rooted under the public (DS-tagged) rule
+#     vs the sealed (§18.9.5 bare 0x00/0x01, no DS-tag) rule -> MUST differ (§22.2.3).
+sealed_style_root = sealed_style_root_over_same_hashes(hashes_three)
+add(
+    "pub_manifest_type_incompatibility",
+    "pub_manifest_type_mismatch",
+    {"chunk_hashes_hex": [h.hex() for h in hashes_three]},
+    {
+        "public_root_hex": root_three.hex(),
+        "sealed_style_root_hex": sealed_style_root.hex(),
+        "roots_differ": True,
+    },
+    "Same ordered chunk-hash list (h0,h1,h2 from pub_manifest_three_chunks), rooted two "
+    "ways: 'public_root' folds DS-tag 'DMTAP-PUB-v0/manifest'||0x00 into every leaf/node "
+    "(§22.2.2); 'sealed_style_root' uses the §18.9.5 bare tree (leaf=BLAKE3-256(0x00||h), "
+    "node=BLAKE3-256(0x01||l||r), no DS fold) over the identical h_i list. The two MUST be "
+    "different values (§22.2.3 type-incompatibility) — demonstrates the DS-tag alone "
+    "prevents a sealed/public root collision even before considering that real sealed "
+    "h_i are additionally over ciphertext, not plaintext.",
+)
+
+# 1d. key-5-forbidden rejection: a PubManifest CBOR object carrying the forbidden key 5.
+pm_id, pm_hashes = root_single, hashes_single
+valid_pm_fields = [
+    (1, enc_bstr(pm_id)),
+    (2, enc_uint(len(chunk_single))),
+    (3, enc_uint(1024)),
+    (4, enc_array([enc_bstr(h) for h in pm_hashes])),
+    (6, enc_uint(SUITE_V0)),
+]
+valid_pm_cbor = enc_map(valid_pm_fields)
+forbidden_key_bytes = b"\x00" * 32  # placeholder "key" bytes — content is irrelevant; presence is the violation
+pm_with_key5_fields = valid_pm_fields + [(5, enc_bstr(forbidden_key_bytes))]
+pm_with_key5_cbor = enc_map(pm_with_key5_fields)
+add(
+    "pub_manifest_key5_forbidden",
+    "det_cbor_decode_pub_manifest",
+    {
+        "cbor_hex": pm_with_key5_cbor.hex(),
+        "derivation": "the pub_manifest_single_chunk PubManifest (keys 1,2,3,4,6) with a forbidden "
+        "key 5 (32 zero bytes) inserted in sorted position",
+        "valid_cbor_hex_for_reference": valid_pm_cbor.hex(),
+    },
+    {
+        "outcome": "reject",
+        "error_code": "0x0902",
+        "error_name": "ERR_PUB_MANIFEST_KEY_PRESENT",
+        "action": "FAIL_CLOSED_BLOCK",
+    },
+    "§22.2.1: a PubManifest MUST NOT carry key 5 (no AEAD, no per-file key by "
+    "construction). A decoder that finds key 5 MUST reject, never use it.",
+)
+
+# ══════════════════════════════════════════════════════════════════════════════════════
+# 2. PubAnnounce — det_cbor signing preimage under DS 'DMTAP-PUB-v0/announce' (§22.3.1)
+# ══════════════════════════════════════════════════════════════════════════════════════
+
+
+def encode_pub_announce(pub_pk, roots, meta_pairs, supersedes, ts, signer_pk):
+    fields = [
+        (1, enc_uint(0)),                      # v = 0
+        (2, enc_uint(SUITE_V0)),                # suite
+        (3, enc_bstr(pub_pk)),                  # pub
+        (4, enc_array([enc_bstr(r) for r in roots])),  # roots
+        (5, enc_map(meta_pairs)),               # meta
+        (7, enc_uint(ts)),                      # ts
+        (8, enc_bstr(signer_pk)),               # signer
+    ]
+    if supersedes is not None:
+        fields.append((6, enc_bstr(supersedes)))
+    return enc_map(fields)
+
+
+# 2a. announce A0 — genesis announce by publisher A, roots=[pub_manifest_single_chunk.id]
+announce_A0_body = encode_pub_announce(PK_A, [pm_id], [], None, TS_FIXED, PK_A)
+sig_A0 = sign_domain(SK_A, DS_ANNOUNCE, announce_A0_body)
+announce_A0_full = enc_map(
+    [
+        (1, enc_uint(0)), (2, enc_uint(SUITE_V0)), (3, enc_bstr(PK_A)),
+        (4, enc_array([enc_bstr(pm_id)])), (5, enc_map([])), (7, enc_uint(TS_FIXED)),
+        (8, enc_bstr(PK_A)), (9, enc_bstr(sig_A0)),
+    ]
+)
+announce_A0_id = content_address(announce_A0_full)
+
+add(
+    "pub_announce_signing_preimage",
+    "ed25519_sign",
+    {
+        "domain_hex": DS_ANNOUNCE.hex(),
+        "msg_hex": announce_A0_body.hex(),
+        "seed_hex": SEED_PUB_A.hex(),
+    },
+    {"pubkey_hex": PK_A.hex(), "sig_hex": sig_A0.hex()},
+    "§22.3.1: PubAnnounce.sig = Ed25519(signer_seed).sign(DS || det_cbor(PubAnnounce "
+    "minus key 9)), DS='DMTAP-PUB-v0/announce'||0x00. msg_hex is det_cbor of the "
+    "genesis announce A0 (v=0,suite=1,pub=PK_A,roots=[pub_manifest_single_chunk.id],"
+    "meta={},ts=1700000050000,signer=PK_A), keys 1,2,3,4,5,7,8 ascending (key 6 "
+    "supersedes absent; key 9 sig excluded from the preimage by construction).",
+)
+
+add(
+    "pub_announce_id",
+    "content_address",
+    {"bytes_hex": announce_A0_full.hex()},
+    {"id_hex": announce_A0_id.hex()},
+    "§22.3.1: announce_id = 0x1e || BLAKE3-256(det_cbor(PubAnnounce)) over the "
+    "COMPLETE, SIGNED object (including key 9 sig) — the derived-anchor rule of "
+    "§18.9.4, applied to announce A0 above (full CBOR bytes = "
+    "det_cbor with keys 1,2,3,4,5,7,8,9 ascending).",
+)
+
+# 2b. same-author supersedes (VALID): announce A1 by publisher A, supersedes = announce_A0_id
+announce_A1_body = encode_pub_announce(PK_A, [pm_id], [], announce_A0_id, TS_FIXED + 1000, PK_A)
+sig_A1 = sign_domain(SK_A, DS_ANNOUNCE, announce_A1_body)
+announce_A1_full = enc_map(
+    [
+        (1, enc_uint(0)), (2, enc_uint(SUITE_V0)), (3, enc_bstr(PK_A)),
+        (4, enc_array([enc_bstr(pm_id)])), (5, enc_map([])), (6, enc_bstr(announce_A0_id)),
+        (7, enc_uint(TS_FIXED + 1000)), (8, enc_bstr(PK_A)), (9, enc_bstr(sig_A1)),
+    ]
+)
+announce_A1_id = content_address(announce_A1_full)
+
+add(
+    "pub_announce_supersede_same_author_valid",
+    "pub_supersede_check",
+    {
+        "predecessor_pub_hex": PK_A.hex(),
+        "predecessor_announce_id_hex": announce_A0_id.hex(),
+        "successor_cbor_hex": announce_A1_full.hex(),
+        "successor_pub_hex": PK_A.hex(),
+        "successor_supersedes_hex": announce_A0_id.hex(),
+    },
+    {"outcome": "accept", "note": "successor.pub == predecessor.pub — a valid same-author revision"},
+    "§22.3.3 step 5, §22.3.4: announce A1 (publisher A) supersedes announce A0 "
+    "(also publisher A) — same-author, MUST be accepted as a valid revision link.",
+)
+
+# 2c. cross-author supersedes (INVALID): announce B0 by publisher B, supersedes = announce_A0_id
+announce_B0_body = encode_pub_announce(PK_B, [pm_id], [], announce_A0_id, TS_FIXED + 2000, PK_B)
+sig_B0 = sign_domain(SK_B, DS_ANNOUNCE, announce_B0_body)
+announce_B0_full = enc_map(
+    [
+        (1, enc_uint(0)), (2, enc_uint(SUITE_V0)), (3, enc_bstr(PK_B)),
+        (4, enc_array([enc_bstr(pm_id)])), (5, enc_map([])), (6, enc_bstr(announce_A0_id)),
+        (7, enc_uint(TS_FIXED + 2000)), (8, enc_bstr(PK_B)), (9, enc_bstr(sig_B0)),
+    ]
+)
+announce_B0_id = content_address(announce_B0_full)
+
+add(
+    "pub_announce_supersede_cross_author_invalid",
+    "pub_supersede_check",
+    {
+        "predecessor_pub_hex": PK_A.hex(),
+        "predecessor_announce_id_hex": announce_A0_id.hex(),
+        "successor_cbor_hex": announce_B0_full.hex(),
+        "successor_pub_hex": PK_B.hex(),
+        "successor_supersedes_hex": announce_A0_id.hex(),
+    },
+    {
+        "outcome": "reject",
+        "error_code": "0x090B",
+        "error_name": "ERR_PUB_SUPERSEDE_INVALID",
+        "action": "FAIL_CLOSED_BLOCK",
+    },
+    "§22.3.3 step 5, §22.3.4: announce B0 (publisher B) attempts to supersede announce "
+    "A0 (publisher A) — different pub — MUST be rejected; a publisher may only "
+    "supersede its own announcements.",
+)
+
+# ══════════════════════════════════════════════════════════════════════════════════════
+# 3. FeedEntry / FeedHead — prev-chain, tip commitment, signing preimage, anti-rollback,
+#    genesis rules (§22.4)
+# ══════════════════════════════════════════════════════════════════════════════════════
+#
+# NOTE (spec-feedback candidate): §22.4.1 defines FeedEntry.prev / FeedHead.tip as "content
+# address of the FeedEntry at seq-N" but — unlike PubAnnounce.announce_id, which §22.3.1
+# spells out explicitly ("Following the Identity-anchor rule (§18.9.4) ... announce_id =
+# 0x1e || BLAKE3-256(det_cbor(PubAnnounce))") — never gives FeedEntry's content-address
+# formula explicitly. We use the generic §2.2/§18.1.5 rule applied directly to the
+# deterministic CBOR of the FeedEntry (no DS-tag fold — FeedEntry carries no signature of
+# its own, so there is no signing-preimage DS-tag to fold in; only FeedHead has one):
+#     FeedEntry_id = 0x1e || BLAKE3-256(det_cbor(FeedEntry))
+# This is the natural reading (every other content-addressed object without its own DS-tag
+# uses this same rule) but it is an INFERENCE, not a literal quotation — flagged for the
+# spec to make explicit.
+
+
+def encode_feed_entry(seq, announce_id, prev, ts):
+    fields = [(1, enc_uint(seq)), (2, enc_bstr(announce_id)), (4, enc_uint(ts))]
+    if prev is not None:
+        fields.append((3, enc_bstr(prev)))
+    return enc_map(fields)
+
+
+# genesis entry (seq=0, no prev), publisher A's feed, pointing at announce A0
+entry0 = encode_feed_entry(0, announce_A0_id, None, TS_FIXED)
+entry0_id = content_address(entry0)
+
+# entry 1 (seq=1, prev=entry0_id), pointing at announce A1 (the supersede)
+entry1 = encode_feed_entry(1, announce_A1_id, entry0_id, TS_FIXED + 1000)
+entry1_id = content_address(entry1)
+
+# entry 2 (seq=2, prev=entry1_id) — extends the chain one more hop, reusing announce A1's id
+# again is not meaningful publish-wise but exercises a 3-entry chain deterministically;
+# reuse announce_A0_id here just to keep the vector self-contained without a 3rd announce.
+entry2 = encode_feed_entry(2, announce_A0_id, entry1_id, TS_FIXED + 2000)
+entry2_id = content_address(entry2)
+
+add(
+    "pub_feed_entry_chain",
+    "pub_feed_entry_root",
+    {
+        "entries_cbor_hex": [entry0.hex(), entry1.hex(), entry2.hex()],
+    },
+    {
+        "entry_ids_hex": [entry0_id.hex(), entry1_id.hex(), entry2_id.hex()],
+        "prev_chain_valid": True,
+    },
+    "§22.4.1 prev-chain: entry0 (seq=0, genesis, no prev) -> entry1 (seq=1, "
+    "prev=entry0_id) -> entry2 (seq=2, prev=entry1_id). FeedEntry_id = 0x1e || "
+    "BLAKE3-256(det_cbor(FeedEntry)) (generic §2.2 rule; see NOTE above — §22.4.1 "
+    "does not spell this formula out explicitly the way §22.3.1 does for announce_id). "
+    "A verifier walks prev from a signed FeedHead.tip and checks each link.",
+)
+
+# FeedHead signing preimage + tip commitment: tip = entry1_id, seq = 1 (commits to entry0+entry1)
+feed_head_body = enc_map(
+    [
+        (1, enc_uint(0)), (2, enc_uint(SUITE_V0)), (3, enc_bstr(PK_A)),
+        (4, enc_uint(1)), (5, enc_bstr(entry1_id)), (6, enc_uint(TS_FIXED + 1500)),
+        (7, enc_bstr(PK_A)),
+    ]
+)
+sig_head1 = sign_domain(SK_A, DS_FEED, feed_head_body)
+
+add(
+    "pub_feed_head_signing_preimage",
+    "ed25519_sign",
+    {
+        "domain_hex": DS_FEED.hex(),
+        "msg_hex": feed_head_body.hex(),
+        "seed_hex": SEED_PUB_A.hex(),
+    },
+    {"pubkey_hex": PK_A.hex(), "sig_hex": sig_head1.hex()},
+    "§22.4.1: FeedHead.sig = Ed25519(signer_seed).sign(DS || det_cbor(FeedHead minus "
+    "key 8)), DS='DMTAP-PUB-v0/feed'||0x00. FeedHead: v=0,suite=1,pub=PK_A,seq=1,"
+    "tip=entry1_id (from pub_feed_entry_chain),ts=1700000051500,signer=PK_A. Because "
+    "entry1.prev=entry0_id, signing tip=entry1_id transitively commits to entry0 too "
+    "(§22.4.1's 'tip transitively commits to the entire log').",
+)
+
+# anti-rollback: strict less-than -> reject
+add(
+    "pub_feed_rollback_strict_less_than",
+    "pub_feed_anti_rollback",
+    {"last_accepted_seq": 1, "presented_seq": 0, "presented_tip_hex": entry0_id.hex()},
+    {
+        "outcome": "reject",
+        "error_code": "0x0907",
+        "error_name": "ERR_PUB_FEED_ROLLBACK",
+        "action": "FAIL_CLOSED_BLOCK",
+    },
+    "§22.4.2: a reader that has already accepted seq=1 for this pub MUST reject a "
+    "FeedHead presenting seq=0 (strictly less than) — stale-replay / suppression.",
+)
+
+# anti-rollback: equal seq + identical tip -> idempotent accept
+add(
+    "pub_feed_equal_seq_identical_tip_idempotent",
+    "pub_feed_anti_rollback",
+    {"last_accepted_seq": 1, "last_accepted_tip_hex": entry1_id.hex(), "presented_seq": 1, "presented_tip_hex": entry1_id.hex()},
+    {"outcome": "accept", "note": "equal seq, identical tip: idempotent re-fetch, not an error"},
+    "§22.4.2: equal seq is NOT a rollback. Re-presenting the SAME tip at the SAME seq "
+    "(a reader legitimately re-fetching a cacheable FeedHead) MUST be accepted as a "
+    "no-op.",
+)
+
+# anti-rollback: equal seq + different tip -> fork/equivocation (0x0908, never a rollback)
+# construct an alternate tip at seq=1 that differs from entry1_id (e.g. an entry whose
+# announce differs), demonstrating two heads claiming the same position.
+entry1_alt = encode_feed_entry(1, announce_B0_id, entry0_id, TS_FIXED + 1000)
+entry1_alt_id = content_address(entry1_alt)
+add(
+    "pub_feed_equal_seq_different_tip_fork",
+    "pub_feed_anti_rollback",
+    {
+        "last_accepted_seq": 1,
+        "last_accepted_tip_hex": entry1_id.hex(),
+        "presented_seq": 1,
+        "presented_tip_hex": entry1_alt_id.hex(),
+        "presented_tip_cbor_hex": entry1_alt.hex(),
+    },
+    {
+        "outcome": "reject",
+        "error_code": "0x0908",
+        "error_name": "ERR_PUB_FEED_CHAIN_BROKEN",
+        "action": "HALT_ALERT",
+        "note": "equivocation, NEVER treated as ERR_PUB_FEED_ROLLBACK (0x0907)",
+    },
+    "§22.4.2: two distinct FeedEntry values at the SAME seq=1 (entry1_id from "
+    "pub_feed_entry_chain vs entry1_alt_id here, both with prev=entry0_id) is "
+    "equivocation/fork — the author's own log was rewritten. Handled HALT_ALERT, the "
+    "same posture as a committer fork (0x0404) / cluster-journal break (0x0412).",
+)
+
+# genesis rules: a genesis entry (seq=0) carrying a `prev` is malformed
+entry0_bad_has_prev = enc_map(
+    [(1, enc_uint(0)), (2, enc_bstr(announce_A0_id)), (3, enc_bstr(entry0_id)), (4, enc_uint(TS_FIXED))]
+)
+add(
+    "pub_feed_genesis_carries_prev_malformed",
+    "det_cbor_decode_feed_entry",
+    {
+        "cbor_hex": entry0_bad_has_prev.hex(),
+        "derivation": "the genesis entry0 (seq=0) with a `prev` field (key 3) wrongly present",
+    },
+    {
+        "outcome": "reject",
+        "error_code": "0x0908",
+        "error_name": "ERR_PUB_FEED_CHAIN_BROKEN",
+        "action": "HALT_ALERT",
+    },
+    "§22.4.1: `prev` is present for every entry EXCEPT genesis (seq=0); a genesis "
+    "entry carrying one is malformed.",
+)
+
+# genesis rules: a non-genesis entry (seq=1) lacking `prev` is malformed
+entry1_bad_no_prev = enc_map([(1, enc_uint(1)), (2, enc_bstr(announce_A1_id)), (4, enc_uint(TS_FIXED + 1000))])
+add(
+    "pub_feed_nongenesis_missing_prev_malformed",
+    "det_cbor_decode_feed_entry",
+    {
+        "cbor_hex": entry1_bad_no_prev.hex(),
+        "derivation": "entry at seq=1 with `prev` (key 3) omitted",
+    },
+    {
+        "outcome": "reject",
+        "error_code": "0x0908",
+        "error_name": "ERR_PUB_FEED_CHAIN_BROKEN",
+        "action": "HALT_ALERT",
+    },
+    "§22.4.1: a non-genesis entry (seq != 0) lacking `prev` is malformed.",
+)
+
+# ══════════════════════════════════════════════════════════════════════════════════════
+out = {
+    "format": "dmtap-conformance-vectors/1",
+    "suite": "DMTAP-PUB (§22) + CAD/artifact profile (§23) — suite 0x01 (classical): Ed25519 / BLAKE3-256",
+    "generated_by": "conformance/vectors/gen_pub_vectors.py (this repo) — NOT the dmtap-core reference "
+    "crate, which does not yet implement the DMTAP-PUB extension (ROADMAP.md). Independently "
+    "cross-checked by conformance/vectors/verify_pub_vectors.py, a from-scratch second "
+    "implementation of the same formulas that does not import this script.",
+    "methodology": "All values computed from FIXED seeds/inputs by this script; no randomness, no "
+    "wall-clock reads. Ed25519 is deterministic (RFC 8032); BLAKE3-256 and CBOR are deterministic. "
+    "CBOR here is the same §18-canonical, integer-keyed (COSE/CWT-style) deterministic encoding "
+    "(RFC 8949 §4.2) used by conformance/vectors/vectors.json — a second implementer following "
+    "§18.1.1/§18.1.2 and §22 alone reproduces these bytes without running this script.",
+    "vectors": vectors,
+}
+print(json.dumps(out, indent=2))

@@ -88,5 +88,5 @@ Workshop (decentralized CAD part sharing) as the first production application.
 - [x] Track 3 `23-cad-artifact-profile.md`
 - [x] Cross-document consistency verify (allocations, links; build script auto-globs `NN-*.md`, so §22/§23 enter the HTML/PDF build with no list edit — rebuild pending)
 - [x] Track 4 kerf ADR + roadmap (landed in the kerf repo)
-- [ ] `conformance/` suites for PUB + CAD profile (follow-up wave)
+- [x] `conformance/` suites for PUB + CAD profile (follow-up wave)
 - [ ] Envoir node/gateway `pub-1` serving (follow-up wave)

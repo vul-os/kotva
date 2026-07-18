@@ -22,9 +22,9 @@ Each case has:
 | **req** | `MUST` or `SHOULD` (RFC 2119). A level passes only if every `MUST` at that level passes. |
 | **clause** | The exact normative spec clause (§-ref) the case pins. |
 | **checks** | What behaviour is asserted. |
-| **input** | A **vector id** in `vectors.json`, an inline **self-contained construction** (bytes given here), or a **construction** described from other vectors. |
+| **input** | A **vector id** in `vectors.json` (or, for the `PUB`/`CAD` categories, `vectors/pub_vectors.json` — see those sections), an inline **self-contained construction** (bytes given here), or a **construction** described from other vectors. |
 | **expect** | The required outcome: `match` (recompute a KAT and get the committed answer), `accept` (validation passes), or `reject` + the **§21 error code** the reject maps to. |
-| **status** | `vectored` (byte-backed by `vectors.json`), `self-contained` (bytes given inline, reference-independent), or `construction-todo` (recipe given; byte-exact vector still to be generated). |
+| **status** | `vectored` (byte-backed by `vectors.json` or `pub_vectors.json`), `self-contained` (bytes given inline, reference-independent), `construction-todo` (recipe given; byte-exact vector still to be generated), or `manual-attestation` (a client-UX/process MUST with no wire bytes to recompute — e.g. §22.7's publish-consent disclosures; verified by implementer/reviewer attestation, not by a runner). |
 
 **Outcome vocabulary.** `match` = the operation is a deterministic known-answer test; recompute
 it over the fixed input and the result MUST equal the committed `expected`. `accept` / `reject` =
@@ -34,55 +34,64 @@ and on `reject` MUST map it to the named §21 error code with that code's `Actio
 
 ## Coverage summary
 
-| Level | Cases | Vectored | Self-contained | Construction-todo |
-|-------|------:|---------:|---------------:|------------------:|
-| **Core** — canonical CBOR (`CBOR`) | 12 | 4 | 6 | 2 |
-| **Core** — content address (`ADDR`) | 6 | 6 | 0 | 0 |
-| **Core** — Ed25519 (`SIG`) | 6 | 6 | 0 | 0 |
-| **Core** — signing preimages (`PRE`) | 3 | 3 | 0 | 0 |
-| **Core** — key-name (`NAME`) | 6 | 6 | 0 | 0 |
-| **Core** — safety number (`SAFE`) | 2 | 2 | 0 | 0 |
-| **Core** — suite fail-closed (`SUITE`) | 7 | 7 | 0 | 0 |
-| **Core** — §2.7 validation pipeline (`VAL`) | 15 | 0 (2 reuse ADDR/PRE) | 0 | 15 |
-| **Core** — identity / KT / naming (`IDENT`) | 6 | 0 | 0 | 6 |
-| **Core** — aliases (`ALIAS`) | 3 | 0 | 0 | 3 |
-| **Core** — resolver framework (`RESOLVE`) | 3 | 0 | 0 | 3 |
-| **Private** (`PRIV`) | 7 | 0 | 0 | 7 |
-| **Groups & Files** (`GRP`, `FILE`) | 12 | 0 | 0 | 12 |
-| **Groups & Files** — device-cluster sync (`SYNC`) | 5 | 0 | 0 | 5 |
-| **Legacy** (`LEG`) | 3 | 0 | 0 | 3 |
-| **Legacy** — gateway alias mapping (`GWALIAS`) | 3 | 0 | 0 | 3 |
-| **Clients** (`CLI`) | 1 | 0 | 0 | 1 |
-| **Auth** (`AUTH`) | 5 | 0 | 0 | 5 |
-| **Private** — deniable 1:1 mode (`DENIABLE`) | 5 | 0 | 0 | 5 |
-| **Core** — org administration (`ORG`) | 5 | 0 | 0 | 5 |
-| **Private** — KT-v1 hardening (`KTV1`) | 4 | 0 | 0 | 4 |
-| **Core** — device attestation (`ATTEST`) | 2 | 0 | 0 | 2 |
-| **Core** — profile / avatar (`PROFILE`) | 2 | 0 | 0 | 2 |
-| **Optional** — push wake-signaling (`PUSH`) | 2 | 0 | 0 | 2 |
-| **Total** | **125** | **34** | **6** | **85** |
+| Level | Cases | Vectored | Self-contained | Construction-todo | Manual |
+|-------|------:|---------:|---------------:|-------------------:|-------:|
+| **Core** — canonical CBOR (`CBOR`) | 12 | 4 | 6 | 2 | 0 |
+| **Core** — content address (`ADDR`) | 6 | 6 | 0 | 0 | 0 |
+| **Core** — Ed25519 (`SIG`) | 6 | 6 | 0 | 0 | 0 |
+| **Core** — signing preimages (`PRE`) | 3 | 3 | 0 | 0 | 0 |
+| **Core** — key-name (`NAME`) | 6 | 6 | 0 | 0 | 0 |
+| **Core** — safety number (`SAFE`) | 2 | 2 | 0 | 0 | 0 |
+| **Core** — suite fail-closed (`SUITE`) | 7 | 7 | 0 | 0 | 0 |
+| **Core** — §2.7 validation pipeline (`VAL`) | 15 | 0 (2 reuse ADDR/PRE) | 0 | 15 | 0 |
+| **Core** — identity / KT / naming (`IDENT`) | 6 | 0 | 0 | 6 | 0 |
+| **Core** — aliases (`ALIAS`) | 3 | 0 | 0 | 3 | 0 |
+| **Core** — resolver framework (`RESOLVE`) | 3 | 0 | 0 | 3 | 0 |
+| **Private** (`PRIV`) | 7 | 0 | 0 | 7 | 0 |
+| **Groups & Files** (`GRP`, `FILE`) | 12 | 0 | 0 | 12 | 0 |
+| **Groups & Files** — device-cluster sync (`SYNC`) | 5 | 0 | 0 | 5 | 0 |
+| **Legacy** (`LEG`) | 3 | 0 | 0 | 3 | 0 |
+| **Legacy** — gateway alias mapping (`GWALIAS`) | 3 | 0 | 0 | 3 | 0 |
+| **Clients** (`CLI`) | 1 | 0 | 0 | 1 | 0 |
+| **Auth** (`AUTH`) | 5 | 0 | 0 | 5 | 0 |
+| **Private** — deniable 1:1 mode (`DENIABLE`) | 5 | 0 | 0 | 5 | 0 |
+| **Core** — org administration (`ORG`) | 5 | 0 | 0 | 5 | 0 |
+| **Private** — KT-v1 hardening (`KTV1`) | 4 | 0 | 0 | 4 | 0 |
+| **Core** — device attestation (`ATTEST`) | 2 | 0 | 0 | 2 | 0 |
+| **Core** — profile / avatar (`PROFILE`) | 2 | 0 | 0 | 2 | 0 |
+| **Optional** — push wake-signaling (`PUSH`) | 2 | 0 | 0 | 2 | 0 |
+| **Core** — DMTAP-PUB extension, optional `pub-1` (`PUB`) | 21 | 12 | 0 | 8 | 1 |
+| **Core** — CAD/artifact profile, optional `pub-1` (`CAD`) | 11 | 0 | 0 | 11 | 0 |
+| **Total** | **157** | **46** | **6** | **104** | **1** |
 
-The 34 vectored + 6 self-contained cases (**40**) are fully machine-runnable **today** from
-`vectors.json` + the inline bytes here, with **no reference implementation required**. They pin the
-entire deterministic, security-critical Core spine — canonical CBOR, content addressing, the two
-MOTE signature preimages (§18.9.1/§18.9.2), Ed25519 (with RFC 8032 cross-checks), the 8-word
-key-name, safety numbers, and suite fail-closed. The 85 `construction-todo` cases give the exact
-recipe and expected §21 error for every remaining normative branch (the full §2.7 pipeline,
-identity/KT fail-closed, the higher levels, the wave-2 hardening families —
+The 46 vectored + 6 self-contained cases (**52**) are fully machine-runnable **today** from
+`vectors.json` / `pub_vectors.json` + the inline bytes here, with **no reference implementation
+required**. They pin the entire deterministic, security-critical Core spine — canonical CBOR,
+content addressing, the two MOTE signature preimages (§18.9.1/§18.9.2), Ed25519 (with RFC 8032
+cross-checks), the 8-word key-name, safety numbers, suite fail-closed — **and, as of this wave, the
+full DMTAP-PUB manifest/announce/feed KAT set** (§22.2/§22.3/§22.4: plaintext chunk hashing +
+DS-tagged Merkle root, the announce and feed-head signing preimages, `announce_id`, the prev-chain,
+type-incompatibility with sealed manifests, the same-author supersede rule, and feed anti-rollback
+incl. the idempotent-refetch and fork/equivocation branches). The 104 `construction-todo` cases give
+the exact recipe and expected §21 error for every remaining normative branch (the full §2.7
+pipeline, identity/KT fail-closed, the higher levels, the wave-2 hardening families —
 `DENIABLE`/`ORG`/`KTV1`/`ATTEST` — the `PROFILE` display-data guards, the pluggable-resolver guards
-(`RESOLVE`), the optional `PUSH`
-wake-signaling guards, and the `FILE` durability guards `DMTAP-FILE-05`–`-09`); each becomes byte-backed
-when the corresponding subsystem gains a fixed-input KAT in `vectors.json` (see README "Coverage vs.
-deferred"). **Sync status:** `SUITE.md` and [`suite.json`](suite.json) are **in sync** — both carry
-the same **125** case ids (the wave-2 `DENIABLE`/`KTV1` families, the `PROFILE` cases, the
-optional `PUSH` cases, the `FILE` durability cases, and the wave-3 `SYNC` (device-cluster),
-`ALIAS`, `GWALIAS`, and `RESOLVE` families are mirrored into `suite.json`). The changed deniable objects (§5.2.1 dedicated-`idk`) are still to be
-re-vectored when the reference regenerates `vectors.json`.
+(`RESOLVE`), the optional `PUSH` wake-signaling guards, the `FILE` durability guards
+`DMTAP-FILE-05`–`-09`, the remaining `PUB` fail-closed rows not yet vectored, and the profile-level
+`CAD` checklist); each becomes byte-backed when the corresponding subsystem gains a fixed-input KAT
+(see README "Coverage vs. deferred"). The single `manual-attestation` case (`DMTAP-PUB-21`) is a
+client-UX MUST with no wire bytes to recompute (§22.7). **Sync status:** `SUITE.md` and
+[`suite.json`](suite.json) are **in sync** — both carry the same **157** case ids (the wave-2
+`DENIABLE`/`KTV1` families, the `PROFILE` cases, the optional `PUSH` cases, the `FILE` durability
+cases, the wave-3 `SYNC` (device-cluster), `ALIAS`, `GWALIAS`, and `RESOLVE` families, and the
+wave-4 `PUB`/`CAD` families are all mirrored into `suite.json`). The changed deniable objects
+(§5.2.1 dedicated-`idk`) are still to be re-vectored when the reference regenerates `vectors.json`.
 
-> All 40 byte-backed cases correspond one-for-one to entries in `vectors.json`
-> (they drive **33 of the 68 vectors** in the file — several vectors drive more than one case;
-> the remaining 35 are pre-generated for construction-todo families not yet wired to a case).
-> No case references a `vectors.json` entry that does not exist; see
+> All 46 vectored cases correspond one-for-one to entries in `vectors.json` (34 cases / 33 of its
+> 68 vectors — several vectors drive more than one case; the remaining 35 are pre-generated for
+> construction-todo families not yet wired to a case) or `pub_vectors.json` (12 cases / all 15 of
+> its vectors — several `PUB` cases reference more than one `pub_vectors.json` entry). No case
+> references a vector entry that does not exist in its file; see
 > [Vector cross-reference](#vector-cross-reference).
 
 ---
@@ -433,6 +442,99 @@ local-parts, and legacy→native mapping that fails closed on an unmappable alia
 
 ---
 
+## DMTAP-PUB (§22) — `PUB`
+
+Level **Core**, optional capability **`pub-1`** (§10.2, §21.22, §21.24b) — the identical treatment
+as `PUSH` above: `pub-1` guards are MUST **when a node implements DMTAP-PUB**, never required for
+bare Core conformance, and a node that never advertises `pub-1` is never expected to serve or
+validate these objects. DMTAP-PUB is additive and capability-negotiated (§22, ROADMAP.md); it
+bumps no `Envelope.v`, no DNS `v=` anchor, and introduces no flag day.
+
+Byte-exact vectors live in **[`vectors/pub_vectors.json`](vectors/pub_vectors.json)** — a
+**separate file** from `vectors/vectors.json`, generated by
+**[`vectors/gen_pub_vectors.py`](vectors/gen_pub_vectors.py)** (a throwaway, deterministic Python
+script; fixed Ed25519 seeds, fixed timestamps, fixed plaintext — no randomness), because the
+`dmtap-core` reference crate that generates `vectors.json` does not yet implement the DMTAP-PUB
+extension (ROADMAP.md "Envoir node/gateway `pub-1` serving" is still a follow-up wave). See
+`README.md`'s Provenance section for why the two files are kept separate rather than merged, and
+run `python3 conformance/vectors/gen_pub_vectors.py > conformance/vectors/pub_vectors.json` to
+regenerate `pub_vectors.json` byte-for-byte from the script. A second, independent implementation
+of the same formulas — [`vectors/verify_pub_vectors.py`](vectors/verify_pub_vectors.py), which does
+not import the generator — cross-checks every committed vector (`python3
+conformance/vectors/verify_pub_vectors.py`).
+
+All digests below are **BLAKE3-256 with the v0 `0x1e` content-address prefix** (§18.1.5,
+§22.2.2) and **Ed25519** (§18.1.6) — the same suite `0x01` primitives `vectors.json` uses — so a
+runner that already implements the Core vector dispatch (README "How an implementation runs the
+vectors") needs only two new operations (`pub_manifest_root`, the DS-tagged Merkle tree of
+§22.2.2) plus the existing `ed25519_sign`/`content_address`/`det_cbor_decode`-family dispatch to
+run every `PUB` case below.
+
+### PubManifest / PubAnnounce / FeedEntry·FeedHead — known-answer tests
+
+| id | req | clause | checks | input | expect | status |
+|----|-----|--------|--------|-------|--------|--------|
+| DMTAP-PUB-01 | MUST | §22.2.2 | `PubManifest.id` over a **single** plaintext chunk: `h_0 = 0x1e‖BLAKE3-256(plaintext_0)`, `id = 0x1e‖leaf(h_0)`, `leaf(h)=BLAKE3-256(DS‖0x00‖h)`, `DS="DMTAP-PUB-v0/manifest"‖0x00` | vector `pub_manifest_single_chunk` | match (`id_hex`) | vectored |
+| DMTAP-PUB-02 | MUST | §22.2.2 | `PubManifest.id` over **3** ordered plaintext chunks (RFC 6962 split, `k=2`): `MTH(h_0,h_1,h_2) = node(node(leaf(h_0),leaf(h_1)),leaf(h_2))` | vector `pub_manifest_three_chunks` | match (`id_hex`) | vectored |
+| DMTAP-PUB-03 | MUST | §22.3.1 | `PubAnnounce.sig` signing preimage: `Ed25519(signer_seed).sign(DS‖det_cbor(PubAnnounce ∖ {9}))`, `DS="DMTAP-PUB-v0/announce"‖0x00` | vector `pub_announce_signing_preimage` | match (`pubkey_hex`,`sig_hex`) | vectored |
+| DMTAP-PUB-04 | MUST | §22.3.1, §18.9.4 | `announce_id = 0x1e‖BLAKE3-256(det_cbor(PubAnnounce))` over the **complete, signed** object (the derived-anchor rule, no self-`id` field) | vector `pub_announce_id` | match (`id_hex`) | vectored |
+| DMTAP-PUB-05 | MUST | §22.4.1 | `FeedEntry.prev`-chain: genesis (`seq=0`, no `prev`) → entry (`seq=1`, `prev=`genesis id) → entry (`seq=2`, `prev=`prior id); each `FeedEntry_id` is content-addressed (§2.2 generic rule — see the vector's `note` for the inference this makes explicit, since §22.4.1 does not spell the formula out the way §22.3.1 does for `announce_id`) | vector `pub_feed_entry_chain` | match (`entry_ids_hex`), accept (chain valid) | vectored |
+| DMTAP-PUB-06 | MUST | §22.4.1 | `FeedHead.sig` signing preimage over `v,suite,pub,seq,tip,ts,signer`: `Ed25519(signer_seed).sign(DS‖det_cbor(FeedHead ∖ {8}))`, `DS="DMTAP-PUB-v0/feed"‖0x00`; because `tip`'s entry chains `prev` back to genesis, signing `tip` transitively commits the whole log | vector `pub_feed_head_signing_preimage` | match (`pubkey_hex`,`sig_hex`) | vectored |
+
+### §22.8 fail-closed table — individually-identified checks
+
+Each row of the normative §22.8 table, as its own case, in the table's own order. A conformant
+`pub-1` implementation enforces every one.
+
+| id | req | clause | checks | input | expect | status |
+|----|-----|--------|--------|-------|--------|--------|
+| DMTAP-PUB-07 | MUST | §22.2.3 | **Manifest DS-tag confusion (sealed ↔ public):** the *same* ordered chunk-hash list, rooted once under the public DS-tagged tree (§22.2.2) and once under the §18.9.5 bare sealed tree (no DS fold), MUST yield **different** roots — a verifier expecting one type recomputing over the other's bytes can never match | vector `pub_manifest_type_incompatibility` | match; `public_root_hex` ≠ `sealed_style_root_hex` → reject `ERR_PUB_MANIFEST_TYPE_MISMATCH` (0x0903), FAIL_CLOSED_BLOCK | vectored |
+| DMTAP-PUB-08 | MUST | §22.2.1 | **Public manifest carries a key field:** a `PubManifest` CBOR map carrying the forbidden key `5` MUST be rejected — a public blob has no key by construction | vector `pub_manifest_key5_forbidden` | reject → `ERR_PUB_MANIFEST_KEY_PRESENT` (0x0902), FAIL_CLOSED_BLOCK | vectored |
+| DMTAP-PUB-09 | MUST | §22.2.2 | **Public manifest self-verification:** a recomputed DS-tagged Merkle root that does not equal `PubManifest.id` MUST be rejected **before fetch begins** | construction: flip one byte of a chunk hash in `pub_manifest_three_chunks` and recompute the root | reject → `ERR_PUB_MANIFEST_HASH_MISMATCH` (0x0909), DROP_SILENT | construction-todo |
+| DMTAP-PUB-10 | MUST | §22.2.2, §5.5.3 | **Public chunk self-verification:** a fetched plaintext chunk whose recomputed `h_i` disagrees with its listed `PubManifest.chunks` entry MUST be rejected and refetched from another holder | construction: tamper one byte of a chunk from `pub_manifest_three_chunks` and recompute `h_i` | reject → `ERR_PUB_CHUNK_HASH_MISMATCH` (0x090A), ROTATE_RETRY | construction-todo |
+| DMTAP-PUB-11 | MUST | §22.3.1, §22.3.3 | **Announce content-address bind:** a recomputed `announce_id` that does not equal the address the object was fetched by MUST be rejected | construction: mutate one byte of the `pub_announce_id` vector's `bytes_hex` and recompute `announce_id` | reject → `ERR_PUB_ANNOUNCE_ID_MISMATCH` (0x0905), DROP_SILENT (retryable — re-fetch) | construction-todo |
+| DMTAP-PUB-12 | MUST | §22.3.1, §22.3.3 | **Announce signature + IK chain:** `sig` failing under `signer`, or `signer` not authorized by `pub` (no valid `DeviceCert` chain), MUST be rejected | construction: flip one bit of `pub_announce_signing_preimage`'s `sig_hex` and re-verify against `pubkey_hex` | reject → `ERR_PUB_ANNOUNCE_SIG_INVALID` (0x0904), FAIL_CLOSED_BLOCK | construction-todo |
+| DMTAP-PUB-13 | MUST | §22.3.4, §22.3.3 step 5 | **Supersede is same-author:** a `supersedes` reference to an announce whose `pub` differs from this announce's `pub` MUST be rejected; a publisher may only supersede its own announcements | vectors `pub_announce_supersede_same_author_valid` (accept) + `pub_announce_supersede_cross_author_invalid` (reject) | accept (same author) / reject → `ERR_PUB_SUPERSEDE_INVALID` (0x090B), FAIL_CLOSED_BLOCK (cross author) | vectored |
+| DMTAP-PUB-14 | MUST | §22.4.2 | **Feed `seq` anti-rollback:** a `FeedHead.seq` strictly below the highest accepted for that `pub` MUST be rejected; equal `seq` + identical `tip` is an idempotent accept (a cacheable re-fetch, never an error); equal `seq` + different `tip` is equivocation (→ DMTAP-PUB-15), never a rollback | vectors `pub_feed_rollback_strict_less_than` (reject) + `pub_feed_equal_seq_identical_tip_idempotent` (accept) | reject → `ERR_PUB_FEED_ROLLBACK` (0x0907), FAIL_CLOSED_BLOCK (strict-less-than) / accept (equal+identical) | vectored |
+| DMTAP-PUB-15 | MUST | §22.4.2 | **Feed hash-chain integrity (fork):** two `FeedEntry`s at one `seq` with the same `prev` (or a `prev` not resolving to `seq-1`) is evidence of a rewritten/equivocated author log — halted on, same posture as a committer fork (0x0404) / cluster-journal break (0x0412) | vector `pub_feed_equal_seq_different_tip_fork` (two distinct entries at `seq=1`, same `prev`) | reject → `ERR_PUB_FEED_CHAIN_BROKEN` (0x0908), HALT_ALERT | vectored |
+| DMTAP-PUB-16 | MUST | §22.4.1 | **Feed genesis rule:** a genesis entry (`seq=0`) carrying a `prev` field, or a non-genesis entry (`seq≠0`) lacking one, is malformed | vectors `pub_feed_genesis_carries_prev_malformed` + `pub_feed_nongenesis_missing_prev_malformed` | reject → `ERR_PUB_FEED_CHAIN_BROKEN` (0x0908), HALT_ALERT | vectored |
+| DMTAP-PUB-17 | MUST | §22.4.1 | **Feed head signature:** `FeedHead.sig` failing under the `signer`/`pub` chain MUST be rejected | construction: flip one bit of `pub_feed_head_signing_preimage`'s `sig_hex` and re-verify | reject → `ERR_PUB_FEED_SIG_INVALID` (0x0906), FAIL_CLOSED_BLOCK | construction-todo |
+| DMTAP-PUB-18 | MUST | §22.3.1, §22.4.1 | **Unknown PUB version/suite:** a `PubAnnounce`/`PubManifest`/`FeedHead` carrying a `v`/`suite` the implementation does not support MUST be rejected, never guessed | construction: `PubAnnounce` with `v=1` (any value ≠ 0) | reject → `ERR_PUB_UNSUPPORTED_VERSION` (0x0901), FAIL_CLOSED_BLOCK | construction-todo |
+| DMTAP-PUB-19 | MUST | §22.6.2 | **Serve refusal is policy, not fault:** a holder declining to serve a requested public object per its own serve policy is a policy deny at the holder, never a correctness error; the fetcher rotates to another holder | construction: holder policy configured to decline a given `announce_id`/`manifest_root` | reject (at holder) → `ERR_PUB_NOT_SERVED` (0x090C), DENY_POLICY; fetcher ROTATE_RETRY | construction-todo |
+| DMTAP-PUB-20 | MUST | §22.6.3 | **Serving resource limit:** exceeding a serving node's admission policy (object size / per-publisher quota / feed-append rate) is a policy deny, never a security/crypto gate | construction: publish/append past a configured per-publisher storage quota | reject → `ERR_PUB_SERVE_QUOTA` (0x090D), DENY_POLICY | construction-todo |
+| DMTAP-PUB-21 | MUST | §22.7 | **Publish is explicit + irrevocable (client UX, no wire bytes):** a client MUST NOT create/announce/serve a public object except as the direct result of an explicit user publish act; MUST warn, before completing a publish, that publishing is irrevocable; MUST express retraction only as a successor `supersedes` announcement, never as deletion | manual attestation (implementer/UX review — see "How to read a case" `status: manual-attestation`) | non-conformant if any of the three sub-requirements is missing | manual-attestation |
+
+---
+
+## CAD/Artifact profile (§23) — `CAD`
+
+An **application profile** over DMTAP-PUB, not a new wire mechanism (§23.1): it allocates no
+message kind, capability token, DS-tag, or error block. Conformance to this profile is therefore
+**additive and orthogonal** to §22/§21 conformance — a node can be Core/`pub-1`-conformant without
+ever having heard of this document, and a CAD-aware client is `pub-1`-conformant-by-construction
+because it is only ever a consumer/producer of ordinary §22 objects (`ArtifactMetadata` rides
+inside an already-signed `pub_announce.meta["artifact"]`, §23.3.1). The 11 checks below are the
+**§23.10 conformance checklist**, one case per row, in the checklist's own order. None allocates a
+§21 error code (the profile has none); "reject" below means a CAD-aware client/index MUST refuse
+to treat the artifact as usable/well-formed, not that a §22/§21 wire error is raised — a
+non-CAD-aware §22 node stores and serves the same bytes unaffected (§23.2).
+
+| id | req | clause | checks | input | expect | status |
+|----|-----|--------|--------|-------|--------|--------|
+| DMTAP-CAD-01 | MUST | §23.4, §23.10 CAD-1 | every artifact `pub_announce`'s `ArtifactMetadata` carries a `license` field (SPDX expression); an announce omitting it is malformed for this profile | construction: `ArtifactMetadata` with key 7 (`license`) omitted | reject (profile-level; generic §22 node still stores/serves it) | construction-todo |
+| DMTAP-CAD-02 | MUST | §23.3.4, §23.10 CAD-2 | `formats` contains **at least one** entry | construction: `ArtifactMetadata` with `formats` (key 4) an empty array | reject | construction-todo |
+| DMTAP-CAD-03 | MUST | §23.3.4, §23.10 CAD-3 | exactly one `formats` entry carries `role = canonical-source` (non-`assembly` kinds) or `role = structure` (`assembly` kind); an `assembly` with no `structure` entry is malformed | construction: two `role=1` entries (ambiguous canonical source); and separately, an `assembly`-kind with no `role=3` entry | reject (both variants) | construction-todo |
+| DMTAP-CAD-04 | MUST | §23.3.4, §23.10 CAD-4 | no `format_id = 3` (glTF/mesh) entry ever carries `role = 1` (canonical-source) — the profile's central integrity guarantee: a lossy tessellation is never the artifact of record | construction: `ArtifactFormat{format_id:3, role:1, manifest_root:<any hash>}` | reject | construction-todo |
+| DMTAP-CAD-05 | MUST | §23.3.4, §23.10 CAD-5 | every `role = 2` (derived-rendition) entry carries `derived_from_format` (key 4) | construction: `ArtifactFormat{format_id:1, role:2}` with `derived_from_format` omitted | reject | construction-todo |
+| DMTAP-CAD-06 | MUST | §23.3.3, §23.10 CAD-6 | `units.length_unit` is present and explicit; a client MUST NOT default or infer it | construction: `Units` with key 1 (`length_unit`) omitted | reject (client MUST refuse to interpret geometry; MAY still show name/description/license) | construction-todo |
+| DMTAP-CAD-07 | MUST | §23.3.1, §23.10 CAD-7 | `deprecated = true` is always accompanied by `deprecation_reason` (key 9) | construction: `ArtifactMetadata{deprecated: true}` with key 9 absent | reject (flagged by a CAD-aware index) | construction-todo |
+| DMTAP-CAD-08 | MUST | §23.5, §23.10 CAD-8 | deprecation/yank is expressed **only** as a successor announcement (`supersedes` + `deprecated=true`), never as a deletion — no operation removes a previously published revision | construction: attempt to model "deletion" of a prior revision (no protocol operation exists; a CAD-aware client MUST NOT present one) | reject (no-such-operation; client MUST NOT imply deletion) | construction-todo |
+| DMTAP-CAD-09 | MUST | §23.6.1, §23.10 CAD-9 | assembly children reference exclusively by `pin` (`ref_kind=1`, a `manifest_root`) or `track` (`ref_kind=2`, a `pub_announce` id) | construction: `AssemblyChild.ref_kind` outside `{1,2}` | reject | construction-todo |
+| DMTAP-CAD-10 | MUST | §23.6.3, §23.10 CAD-10 | a BOM-walking client MUST detect and reject a cycle in an assembly's resolved DAG (a `track` reference can form one across revisions) rather than recurse indefinitely or silently drop it | construction: assembly A `track`s part B; B's publisher later republishes B as an assembly that `track`s back to A; walk A's BOM | reject (abort the walk at the cycle; surface it to the user — never infinite-recurse, never silently drop) | construction-todo |
+| DMTAP-CAD-11 | MUST | §23.7, §23.10 CAD-11 | no client treats any single index (category/search/workshop) as authoritative over the signed announces/feeds it was derived from | construction: two independently-built indexes over the same feed set disagree (different crawl coverage) | accept (neither index is "wrong"; ground truth is always the signed announces, re-derivable by any client) | construction-todo |
+
+---
+
 ## Vector cross-reference
 
 Every `vectored` case above maps to an existing entry in `vectors/vectors.json`
@@ -459,3 +561,29 @@ reject cases (CBOR-05…CBOR-10) carry their bytes inline here and in `suite.jso
 reference implementation. The `construction-todo` cases carry a byte-exact recipe and the expected
 §21 error; they are wired byte-for-byte as their subsystems gain fixed-input KATs (README
 "Coverage vs. deferred").
+
+Every `vectored` `PUB` case maps to an entry in the **separate** file
+[`vectors/pub_vectors.json`](vectors/pub_vectors.json) (**all 15 of its 15 vectors** are referenced
+by cases — none orphaned). Cross-check (case → vector):
+
+| pub_vectors.json entry | driven by case(s) |
+|-------------------------|-------------------|
+| `pub_manifest_single_chunk` | PUB-01 |
+| `pub_manifest_three_chunks` | PUB-02 (also the base fixture for PUB-09/-10's construction-todo tamper recipes) |
+| `pub_announce_signing_preimage` | PUB-03 (also the base fixture for PUB-12's construction-todo recipe) |
+| `pub_announce_id` | PUB-04 (also the base fixture for PUB-11's construction-todo recipe) |
+| `pub_feed_entry_chain` | PUB-05 |
+| `pub_feed_head_signing_preimage` | PUB-06 (also the base fixture for PUB-17's construction-todo recipe) |
+| `pub_manifest_type_incompatibility` | PUB-07 |
+| `pub_manifest_key5_forbidden` | PUB-08 |
+| `pub_announce_supersede_same_author_valid` / `_cross_author_invalid` | PUB-13 |
+| `pub_feed_rollback_strict_less_than` / `pub_feed_equal_seq_identical_tip_idempotent` | PUB-14 |
+| `pub_feed_equal_seq_different_tip_fork` | PUB-15 |
+| `pub_feed_genesis_carries_prev_malformed` / `pub_feed_nongenesis_missing_prev_malformed` | PUB-16 |
+
+`pub_vectors.json` is generated by [`vectors/gen_pub_vectors.py`](vectors/gen_pub_vectors.py), not
+by the `dmtap-core` reference crate (see the `PUB` section above and README.md's Provenance note)
+— it is independently re-derivable by anyone with `pip install blake3 cryptography`, no Rust
+toolchain required. The `CAD` cases carry no vectors (the profile allocates no wire bytes of its
+own, §23.1); all 11 are `construction-todo` recipes over the `ArtifactMetadata`/`AssemblyStructure`
+CDDL of §23.
