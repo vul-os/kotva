@@ -61,13 +61,36 @@ subsystem gains a fixed-input KAT (see [Coverage vs. deferred](#coverage-vs-defe
 
 ### Reference runner
 
-The reference runner is the `dmtap-core` crate's self-checking test
-(`crates/dmtap-core/tests/conformance_vectors.rs`, run with `cargo test -p dmtap-core`): it is
-exactly the vector-dispatch loop below plus the drift guard of
-[Provenance & drift protection](#provenance--drift-protection). It is a **proof**, not the
+> **This repo (`dmtap`) is the specification + conformance vectors only — it has no Rust code.**
+> The reference runner, the `dmtap-core` crate, lives in the separate **Envoir** repository
+> (`envoir/crates/dmtap-core`), which implements the spec and is proven against these vectors.
+> There is nothing to `cargo test` in this checkout; see
+> [What you can actually run in this repo](#what-you-can-actually-run-in-this-repo) below for the
+> self-checks this repo does ship.
+
+The reference runner is `dmtap-core`'s self-checking test
+(`crates/dmtap-core/tests/conformance_vectors.rs` in the **Envoir** repo, run from *that* repo's
+root with `cargo test -p dmtap-core`): it is exactly the vector-dispatch loop below plus the drift
+guard of [Provenance & drift protection](#provenance--drift-protection). It is a **proof**, not the
 definition — the spec + `SUITE.md` + `suite.json` + `vectors.json` are authoritative (§10.4). A
-third-party runner in any language is written directly against those four; it does not need the
-reference crate.
+third-party runner in any language — including one in this repo, if one is ever added — is written
+directly against those four; it does not need the reference crate.
+
+### What you can actually run in this repo
+
+No Rust toolchain needed for any of this — `pip install blake3 cryptography` is the only
+dependency. Run from the repo root:
+
+| Command | What it checks |
+|---|---|
+| `python3 conformance/vectors/verify_pub_vectors.py` | Independently re-derives every entry in `pub_vectors.json` from scratch (a second implementation of the BLAKE3/Ed25519/CBOR formulas that does not import the generator) and exits nonzero on any mismatch. This is the closest thing this repo has to `dmtap-core`'s self-check, for the `PUB`/`CAD` families. |
+| `python3 conformance/vectors/gen_pub_vectors.py \| diff - conformance/vectors/pub_vectors.json` | Regenerates `pub_vectors.json` from its generator and confirms the committed file is byte-identical (drift check). |
+| `python3 conformance/vectors/gen_sync_vectors.py \| diff - conformance/vectors/sync_vectors.json` | Same drift check for the substrate Sync capability vectors (see [`../substrate/SYNC.md`](../substrate/SYNC.md) §10). |
+
+`vectors.json` (the Core/Private/Groups&Files/Legacy/Clients/Auth vectors) has **no** Python
+self-check — it is generated and proven correct only by `dmtap-core`'s own test, in the Envoir
+repo. To reproduce or verify those vectors, clone Envoir and run the commands in
+[Provenance & drift protection](#provenance--drift-protection) from there.
 
 ## Byte-exact known-answer vectors
 
@@ -152,12 +175,14 @@ guard (below); use it as the executable specification of the dispatch.
 
 ## Provenance & drift protection
 
-The vectors are generated and continuously verified by `dmtap-core`:
+The vectors are generated and continuously verified by `dmtap-core` — from the **Envoir** repo
+checkout (`envoir/crates/dmtap-core`), not from this one; this repo only carries the resulting
+`vectors.json` as a committed artifact:
 
-- **Generate:** `cargo run -p dmtap-core --example gen_vectors` recomputes `vectors.json` from the
-  reference crate.
-- **Self-check:** `cargo test -p dmtap-core` (test file `tests/conformance_vectors.rs`) proves,
-  on every test run, that
+- **Generate:** from the Envoir repo root, `cargo run -p dmtap-core --example gen_vectors`
+  recomputes `vectors.json` from the reference crate.
+- **Self-check:** from the Envoir repo root, `cargo test -p dmtap-core` (test file
+  `tests/conformance_vectors.rs`) proves, on every test run, that
   1. every input-determined vector **re-derives from `dmtap-core`** to its committed `expected`
      value (the vectors are correct against the reference, not guessed), and
   2. the committed `vectors.json` **byte-for-byte matches** what the current reference generates —
@@ -166,8 +191,9 @@ The vectors are generated and continuously verified by `dmtap-core`:
 
   plus CBOR round-trips and the suite fail-closed property directly.
 
-The generator and the checker share one source of truth (`crates/dmtap-core/vectors_gen.rs.inc`),
-so they cannot silently disagree.
+The generator and the checker share one source of truth (`crates/dmtap-core/vectors_gen.rs.inc` in
+Envoir), so they cannot silently disagree. Regenerating updates Envoir's copy; keeping this repo's
+`conformance/vectors/vectors.json` in sync is a manual step when the reference changes.
 
 ## Coverage vs. deferred
 
