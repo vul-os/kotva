@@ -4,6 +4,7 @@
   "generated_by": "conformance/vectors/gen_sync_vectors.py (this repo) \u2014 NOT the dmtap-core reference crate, which does not implement the Sync substrate capability (it is substrate/SYNC.md's own 'one genuinely new normative specification', ungrounded in any single existing numbered section). Every value here is a direct, mechanical application of substrate/SYNC.md's \u00a73/\u00a74/\u00a76/\u00a77 rules to fixed inputs \u2014 no randomness, no wall-clock reads.",
   "methodology": "Fixed 32-byte Ed25519 seeds (0xCC/0xDD/0xEE) via the `cryptography` package; BLAKE3-256 via the `blake3` package. Ed25519 (RFC 8032) is deterministic, so the one signature vector (SYNC-OP-02) is a reproducible known answer with no RNG involved. CBOR here is the same \u00a718-canonical, integer-keyed deterministic encoding (RFC 8949 \u00a74.2) used by conformance/vectors/vectors.json and conformance/vectors/pub_vectors.json; all content addresses use the \u00a718.1.5 v0 form 0x1e || BLAKE3-256(DS-tag || 0x00 || body) with the \u00a721.24c DMTAP-SYNC-v0 DS-tags.",
   "scope_note": "This file freezes ALL 20 of substrate/SYNC.md \u00a710's conformance stubs. The five that were previously NOT-FROZEN \u2014 SYNC-OP-02 (COSE_Sign1 envelope framing), SYNC-TREE-01 (which side of a concurrent-move cycle loses), SYNC-SNAP-01/02 (canonical observable-state schema) and SYNC-RECON-01 (range-Merkle fingerprint fold) \u2014 were each resolved by adding normative frozen text to the specification FIRST (\u00a74.1, \u00a74.8, \u00a76.1.1, \u00a75.3 respectively, each with its rationale) and only then vectored here. No decision in this file originates in this file: substrate/SYNC.md is authoritative.",
+  "corrections_note": "Regenerated after substrate/SYNC.md \u00a714's corrections C-01..C-04, all of which were surfaced by an independent Rust implementation of SYNC.md (envoir `dmtap-sync`), not by review: C-01 changed \u00a74.6's PN-counter merge from per-author max of P/N to the per-author UNION of op-id-keyed deltas (the max join is non-associative and LOSES writes when replicas hold different subsets of one author's deltas \u2014 a NORMATIVE merge-semantics correction); C-02 fixed SYNC-PN-01, whose 'replay' op carried a different HLC and was therefore a distinct op; C-03 fixed SYNC-RGA-02's atom_order_incl_tombstones, which contradicted \u00a74.7 and the vector's own note; C-04 fixed SYNC-SNAP-02's snapshot_covers_cbor_hex, which encoded an integer-keyed map where \u00a75.1 specifies ik-pub bstr keys. Vector count is unchanged at 20.",
   "vectors": [
     {
       "name": "sync_op_lww_canonical",
@@ -260,7 +261,12 @@
         "ops_cbor_hex": [
           "a601050260036673746f636b310463717479050506a3011b0000018bcfe6eea00200035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
           "a601050260036673746f636b310463717479052106a3011b0000018bcfe6eea0020003582068460ebef3b138164ec7fd8610e95800df7598f70f2f2ea7db5172ac74ebc144",
-          "a601050260036673746f636b310463717479050506a3011b0000018bcfe6eea00201035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+          "a601050260036673746f636b310463717479050506a3011b0000018bcfe6eea00200035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+        ],
+        "op_ids_hex": [
+          "1ea2245a7695ab52c8add0c78d1a0c460a1675d99d382c42b101dd31576c287c70",
+          "1e0992ac8741d89dd2c979074a27ea91156a79e3bdf1e54d10d25b6b1283899414",
+          "1ea2245a7695ab52c8add0c78d1a0c460a1675d99d382c42b101dd31576c287c70"
         ],
         "deltas": [
           {
@@ -274,9 +280,19 @@
           {
             "author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
             "delta": 5,
-            "note": "replay of author A's own contribution"
+            "note": "TRUE replay of author A's own op: byte-identical SyncOp, hence the identical op-id as ops_cbor_hex[0] \u2014 not merely 'another +5 from A'"
           }
-        ]
+        ],
+        "partial_merge_subcase": {
+          "replica_1_op_indices": [
+            0
+          ],
+          "replica_2_op_indices": [
+            1,
+            2
+          ],
+          "note": "union of op-id-keyed deltas: replica_1 \u2294 replica_2 = the full state below, in any grouping or order. A per-author MAX join would collapse differing subsets of one author's deltas to the larger subtotal and lose the rest."
+        }
       },
       "expected": {
         "P": {
@@ -288,9 +304,11 @@
           "68460ebef3b138164ec7fd8610e95800df7598f70f2f2ea7db5172ac74ebc144": 2
         },
         "total": 3,
-        "replay_is_noop": true
+        "replay_is_noop": true,
+        "distinct_op_ids": 2,
+        "merge_is_associative": true
       },
-      "note": "\u00a74.6: author A contributes +5 (P[A]=5), author B contributes -2 (N[B]=2). Merge is per-author MAX of P and of N, so a replayed +5(A) does not double-count (max(5,5)=5). Total = \u03a3P - \u03a3N = 5 - 2 = 3."
+      "note": "\u00a74.6 (corrected \u2014 see SYNC.md \u00a714 C-01/C-02): author A contributes +5 (P[A]=5), author B contributes -2 (N[B]=2). The merge is the per-author UNION of the author's op-id-keyed deltas \u2014 commutative, ASSOCIATIVE and idempotent \u2014 so the third op, which is byte-identical to the first and therefore carries the identical op-id, re-inserts a key already present and is a no-op: only 2 distinct op-ids exist here. Total = \u03a3P - \u03a3N = 5 - 2 = 3. NOTE the earlier form of this vector gave the third op hlc.counter=1, making it a DISTINCT op (different det_cbor \u21d2 different op-id) whose delta \u00a74.6 correctly accumulates to P[A]=10 / total=8 \u2014 it was never a replay, and the fix is the identical HLC used here. The merge is deliberately NOT per-author max of P/N: max is sound only when both replicas hold an author's COMPLETE op prefix, and silently loses deltas when they hold different subsets."
     },
     {
       "name": "sync_pn_counter_foreign_reject",
@@ -363,14 +381,15 @@
         "resolves": true,
         "reject": false,
         "atom_order_incl_tombstones": [
-          "Z",
-          "x(tombstoned)"
+          "x(tombstoned)",
+          "Z"
         ],
+        "atom_order_incl_tombstones_is": "a human-readable LABEL list, not normative bytes: it names the atoms in sequence order, tombstones included",
         "visible_sequence": [
           "Z"
         ]
       },
-      "note": "\u00a74.7: `seq-remove(x)` tombstones atom \"x\" (tombstones are retained until GC). A concurrent `seq-insert` (\"Z\") whose left-origin `ref` names \"x\" still resolves against the retained tombstone \u2014 it is buffered/rejected only if the origin is genuinely absent (`ERR_SYNC_SEQ_ORIGIN_MISSING`, 0x0A07), never merely because the origin was removed. \"Z\" sorts immediately after \"x\"'s (tombstoned) position; the visible (non-tombstoned) sequence is just [\"Z\"]."
+      "note": "\u00a74.7: `seq-remove(x)` tombstones atom \"x\" (tombstones are retained until GC). A concurrent `seq-insert` (\"Z\") whose left-origin `ref` names \"x\" still resolves against the retained tombstone \u2014 it is buffered/rejected only if the origin is genuinely absent (`ERR_SYNC_SEQ_ORIGIN_MISSING`, 0x0A07), never merely because the origin was removed. \"Z\" sorts immediately AFTER \"x\"'s (tombstoned) position \u2014 the \u00a74.7 insert-after rule \u2014 so the atom order INCLUDING tombstones is [\"x(tombstoned)\", \"Z\"] and the visible (non-tombstoned) sequence is just [\"Z\"]. (Corrected \u2014 SYNC.md \u00a714 C-03: this array previously read [\"Z\", \"x(tombstoned)\"], the opposite of both \u00a74.7 and this note. The note was right.)"
     },
     {
       "name": "sync_tree_concurrent_move_cycle",
@@ -515,8 +534,8 @@
       "name": "sync_snapshot_fast_join_equals_replay",
       "operation": "sync_snapshot_fast_join",
       "input": {
-        "snapshot_covers_note": "per-author max HLC folded into the snapshot: A@(W,4), B@(W,7)",
-        "snapshot_covers_cbor_hex": "a201a3011b0000018bcfe6eea00204035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb02a3011b0000018bcfe6eea0020703582068460ebef3b138164ec7fd8610e95800df7598f70f2f2ea7db5172ac74ebc144",
+        "snapshot_covers_note": "per-author max HLC folded into the snapshot: A@(W,4), B@(W,7). \u00a75.1 VersionVector = { * ik-pub => Hlc }: ik-pub BYTE-STRING keys, canonically ordered by encoded key bytes (B's key sorts before A's).",
+        "snapshot_covers_cbor_hex": "a2582068460ebef3b138164ec7fd8610e95800df7598f70f2f2ea7db5172ac74ebc144a3011b0000018bcfe6eea0020703582068460ebef3b138164ec7fd8610e95800df7598f70f2f2ea7db5172ac74ebc1445820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeba3011b0000018bcfe6eea00204035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
         "snapshot_observable_state_cbor_hex": "8681826474616773626531818364646f6331657469746c65616e81836673746f636b31637174790381826472656331667265646163748182656c696e6531836561746f6d30615961588283614161426131836142606162",
         "snapshot_root_hex": "1e63918ccc89f4d158e4dda9b09510876d87205348efd6093713379b598559119a",
         "post_covers_ops_cbor_hex": [

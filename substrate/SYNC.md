@@ -237,15 +237,53 @@ expiries, policy removals), the death dimension **dominates** the OR-Set.
 
 No §5.6 analogue exists; specified here for products that count (inventory on-hand, votes, quotas).
 
-- **State.** Two per-author maps `P` (increments) and `N` (decrements): `P[a], N[a] ∈ u64`.
+- **State (normative).** Per `(target, field)`, per author `a`, the **set of that author's applied
+  deltas keyed by `op-id`**: `D[a] : op-id → int`. The per-author aggregates are *derived*, never stored
+  as the merge unit:
+
+  ```
+  P[a] = Σ { d  : (id, d) ∈ D[a], d ≥ 0 }        N[a] = Σ { |d| : (id, d) ∈ D[a], d < 0 }
+  ```
 - **`counter` (kind 5)** carries a **signed delta** in `value` and applies to the **author's own**
-  entry: a positive delta `d` sets `P[author] += d`; a negative delta `−d` sets `N[author] += d`. An
-  author may only advance its **own** `P[author]`/`N[author]` (a signed op from author `a` MUST NOT
-  mutate `P[b]`), enforced by the op signature — `ERR_SYNC_COUNTER_FOREIGN` (`0x0A06`) otherwise.
-- **Value.** `Σ_a P[a] − Σ_a N[a]`.
-- **Merge** is per-author **max** of `P` and of `N` (a join) — idempotent and order-independent, so
-  redelivered deltas never double-count. The `hlc` orders an author's own successive deltas; because the
-  merge is max-per-author, replay is a no-op.
+  entry: applying an op with delta `d` inserts `(op-id, d)` into `D[author]`, so a positive delta `d`
+  advances `P[author]` by `d` and a negative delta `−d` advances `N[author]` by `d`. An author may only
+  advance its **own** entry (a signed op from author `a` MUST NOT mutate `D[b]`/`P[b]`/`N[b]`), enforced
+  by the op signature — `ERR_SYNC_COUNTER_FOREIGN` (`0x0A06`) otherwise.
+- **Value.** `Σ_a P[a] − Σ_a N[a]` — equivalently, `Σ_a Σ_{(id,d) ∈ D[a]} d`.
+- **Merge (normative — `SYNC-PN-01`).** Per author, the **union of the `op-id`-keyed delta sets**:
+  `(D₁ ⊔ D₂)[a] = D₁[a] ∪ D₂[a]`. Because an `op-id` is the content address of the whole `SyncOp`
+  (§4.1), the same key always carries the same delta, so the union is an ordinary **set union over
+  `(op-id, delta)` pairs**: **commutative, associative, and idempotent** — a join in the §2.2 sense.
+  Redelivery of an op re-inserts a key already present and is therefore a no-op (no double-counting);
+  the `hlc` still orders an author's own successive deltas for display and for the version vector, but
+  the merge does **not** depend on it.
+  - **Associativity is a REQUIREMENT, not an incidental property.** Replicas merge in arbitrary
+    groupings — a partition heals in one order here and another order there — so `(A ⊔ B) ⊔ C` **MUST**
+    equal `A ⊔ (B ⊔ C)` for every partial state `A`, `B`, `C`, including states that hold **different
+    subsets of one author's ops**. Set union satisfies this unconditionally.
+  - **Why the naive per-author `max` is wrong (correction — see §14).** Earlier text specified the merge
+    as per-author `max` of `P` and of `N`, the classical *state-based* PN-counter join. That join is
+    sound only when each replica's `P[a]` is derived from the **whole** of `a`'s op prefix — but §4.2
+    kind 5 carries a **delta**, so two replicas can legitimately hold *different subsets* of one
+    author's deltas (partition, sparse backfill, snapshot fast-join, range-Merkle drill-down that has
+    not yet completed). Under `max` those two partial states collapse to the larger subtotal and the
+    other subset's deltas are **silently lost**: with `a`'s deltas `+5` and `+3`, a replica holding only
+    `+5` and one holding only `+3` merge to `P[a]=5`, and merging the third replica that holds both
+    gives `P[a]=8` — so the result depends on the grouping, `max` is **not associative** over
+    delta-carrying ops, and the "merge" is not a join at all. This is a *soundness* defect (lost
+    writes), not a performance one, and it was found by an implementation's property test rather than
+    by review. Keying by `op-id` fixes it without changing anything else: **whenever both replicas hold
+    complete op sets — the only case the old text actually described — union and `max` compute
+    identical `P`, `N`, and total**, so the corrected rule is a strictly stronger statement of the same
+    semantics, not a different CRDT.
+- **Compaction (relationship to §6.2).** Retaining one entry per delta forever is unnecessary. Below the
+  **stability cut** (§6.2) every live replica is known to hold the *complete* prefix of every author's
+  deltas, which is exactly the completeness condition under which the `max` reading is sound; a replica
+  MAY therefore fold all of an author's below-cut deltas into a single retained entry — an aggregate
+  `(P_cut[a], N_cut[a])` pair keyed by the cut HLC — and join those aggregates by **max** while joining
+  the above-cut deltas by union. Aggregates at *different* cuts join by max soundly because each is a
+  prefix sum of the same op order. Compaction thus never changes the observable total (§6.2), and no
+  replica may fold a delta it cannot prove is below the cut (fail-closed: no cut ⇒ no folding).
 
 > **Alternative for immutable ledgers.** A product whose counter is a sum of immutable facts (flowstock's
 > `stock_movements`, summed at read time) MAY instead model each movement as a `set-add` of an immutable
@@ -334,6 +372,14 @@ VersionVector = { * ik-pub => Hlc }   ; author => the max HLC applied from that 
 
 Grounded in flowstock's `SELECT author, MAX(hlc) GROUP BY author`. A vector is not causal-delivery state;
 it is a compact summary of "what I already have," used to compute the difference to ship.
+
+**Encoding (normative).** The keys are the authors' raw `ik-pub` **byte strings** — never an ordinal, an
+index, or any other stand-in — and the map is deterministic CBOR (§2.2): definite length, entries sorted
+**ascending by encoded key bytes** (which, for equal-length `bstr` keys, is ascending by the raw public
+key). §2.2's "integer-keyed maps sorted by encoded key" names the common case (`SyncOp`, `Hlc`,
+`Snapshot`, COSE headers); the sorting rule is the general RFC 8949 §4.2.1 one and applies to this
+`bstr`-keyed map identically. An author absent from the vector means "I hold nothing from this author,"
+never "this author has nothing" (§7, absence is not authority).
 
 ### 5.2 Endpoints (baseline, grounded in flowstock)
 
@@ -489,7 +535,8 @@ tree  = [ * [ node: tstr, parent: tstr, ord: tstr ] ]    ; each non-root node's 
 - **Sort keys are byte comparisons of the deterministic-CBOR encoding** of each entry (or, for `rga`, of
   `det_cbor(target)`), so ordering is implementation-independent — the same rule §5.6 already uses
   (`cells.sort_by(|a,b| cbor(a).cmp(&cbor(b)))`).
-- **Only *observable* state appears.** OR-Set add-tags/tombstones, PN-counter per-author `P`/`N` maps,
+- **Only *observable* state appears.** OR-Set add-tags/tombstones, the PN-counter's per-author
+  `op-id`-keyed delta sets and their derived `P`/`N` aggregates (§4.6),
   RGA element ids and tombstones, `Live` death cells, and superseded LWW cells are all internal — two
   replicas that converge on the *observable* projection produce byte-identical `ObservableState`, hence a
   byte-identical `root`, regardless of internal bookkeeping or apply order. This is the strong-eventual-
@@ -592,10 +639,13 @@ known-answer test with byte-exact inputs/outputs where the wire encoding is full
 document's text alone. **All 20 are now byte-exact**, generated by
 [`../conformance/vectors/gen_sync_vectors.py`](../conformance/vectors/gen_sync_vectors.py) into
 [`../conformance/vectors/sync_vectors.json`](../conformance/vectors/sync_vectors.json) — the same
-throwaway-script provenance model as [`pub_vectors.json`](../conformance/vectors/pub_vectors.json) (no
-reference implementation exists for this wire shape yet; every value is a direct, mechanical application
-of §3/§4/§5/§6/§7 to fixed inputs, no randomness — Ed25519 is deterministic, so even the one signature
-vector is a reproducible known answer).
+throwaway-script provenance model as [`pub_vectors.json`](../conformance/vectors/pub_vectors.json): every
+value is a direct, mechanical application of §3/§4/§5/§6/§7 to fixed inputs, no randomness — Ed25519 is
+deterministic, so even the one signature vector is a reproducible known answer. An **independent Rust
+implementation** of this document now exists and executes these vectors; it is what surfaced the §14
+corrections C-01…C-04, and the vectors below are the ones it must reproduce byte-for-byte. Generation
+stays in the script, so the vectors remain an independent check on any implementation rather than a
+restatement of one.
 
 Five of these were previously **NOT-FROZEN** stubs: `SYNC-OP-02` (the `COSE_Sign1` envelope framing),
 `SYNC-TREE-01` (an outright contradiction between the stub's expectation and §4.8's replay algorithm),
@@ -616,13 +666,13 @@ specification already states.
 | `SYNC-ORSET-02` | Future-add remove rejected | `set-remove` citing an add-tag with HLC > remove's HLC | reject `0x0A03` | **Frozen** — `sync_orset_future_add_remove_rejected` |
 | `SYNC-DEATH-01` | Remove-wins domination | `death(redact)` at h1, concurrent `set-add` at h2>h1 | object **absent** (death dominates regardless of h2) | **Frozen** — `sync_death_domination` |
 | `SYNC-DEATH-02` | Tie fail-safe | `death` and `live` at identical HLC | `Deleted` wins (fail-safe) | **Frozen** — `sync_death_tie_failsafe` |
-| `SYNC-PN-01` | Counter convergence | authors a,b: `+5(a)`, `−2(b)`, replay `+5(a)` | total `3`; replay is a no-op (max-per-author) | **Frozen** — `sync_pn_counter_convergence` |
+| `SYNC-PN-01` | Counter convergence | authors a,b: `+5(a)`, `−2(b)`, **true replay** of `+5(a)` (byte-identical op ⇒ identical `op-id`) | `P[a]=5`, `N[b]=2`, total `3`; the replay is a no-op (union of `op-id`-keyed deltas) | **Frozen** — `sync_pn_counter_convergence`. **Corrected (§14):** the merge is the §4.6 per-author **union of `op-id`-keyed deltas**, not per-author `max`; and the vector's third op previously carried `hlc.counter=1` where the first carried `0`, making it a *distinct* op (different `det_cbor` ⇒ different `op-id`) whose two `+5` deltas correctly sum to `P[a]=10`, total `8` — contradicting the vector's own stated expectation. The third op now carries the **same** HLC as the first, so it is genuinely the same op and dedup by `op-id` (§5.2) makes it a no-op, reproducing `total=3` |
 | `SYNC-PN-02` | Foreign-entry reject | op from `a` mutating `P[b]` | reject `0x0A06` | **Frozen** — `sync_pn_counter_foreign_reject` (declarative author/entry-author fields; the wire shape of a *malformed* op is implementation-internal, not spec-given) |
 | `SYNC-RGA-01` | Concurrent insert order | two `seq-insert` same origin, ids h1<h2 | order = [h2, h1] (newer-first), identical on both replicas | **Frozen** — `sync_rga_concurrent_sibling_order` |
-| `SYNC-RGA-02` | Insert after tombstone | `seq-remove(x)` then concurrent `seq-insert` with `ref=x` | insert resolves; sequence well-defined | **Frozen** — `sync_rga_insert_after_tombstone` |
+| `SYNC-RGA-02` | Insert after tombstone | `seq-remove(x)` then concurrent `seq-insert` (`"Z"`) with `ref=x` | insert resolves; atom order **including** tombstones is `["x(tombstoned)", "Z"]` (Z sorts *after* its left-origin x); visible sequence `["Z"]` | **Frozen** — `sync_rga_insert_after_tombstone`. **Corrected (§14):** the vector's `atom_order_incl_tombstones` array previously listed `["Z", "x(tombstoned)"]`, contradicting both §4.7 (`seq-insert` places an atom **after** its left-origin `ref`) and the vector's own note. The **note was right**; the array was wrong and is now `["x(tombstoned)", "Z"]`. The array is a **human-readable label list**, not normative bytes — the normative artifacts of this vector are the three op encodings and the visible sequence; the label list pins order and membership only |
 | `SYNC-TREE-01` | Concurrent-move cycle | `move(A→B)` at `h1` and `move(B→A)` at `h2`, `h1<h2`, HLC-ordered replay | **earlier**-HLC move (`h1`, A under B) applied, **later** (`h2`, B under A) skipped; tree acyclic; identical on both | **Frozen** — `sync_tree_concurrent_move_cycle`. The contradiction is **resolved in §4.8**: replaying oldest-first, `h1` applies first (A becomes a child of B) and `h2` then *would* close the cycle B→A→B, so the **later** move is the one skipped. The stub's prior expected text ("later-HLC move applied, earlier skipped") was the **erroneous side** and is corrected here; §4.8's ordered-replay algorithm was correct and now states the outcome explicitly. This is Kleppmann's result and is **not** LWW for the colliding pair (LWW governs only repeated moves of the *same* node) |
 | `SYNC-SNAP-01` | Snapshot root determinism | two replicas at the same `covers` vector | identical `root`; mismatch ⇒ `0x0A09` | **Frozen** — `sync_snapshot_root_determinism`. §6.1.1 now pins the canonical `ObservableState`: a fixed six-element positional array (one section per CRDT kind, `orset`/`lww`/`pn`/`death`/`rga`/`tree`), each a section sorted by `det_cbor` of its entries (RGA inner order is sequence order, not re-sorted), and `root = 0x1e ‖ BLAKE3-256("DMTAP-SYNC-v0/snapshot-state" ‖ 0x00 ‖ det_cbor(ObservableState))`. Two replicas at the same `covers` compute identical `root`; mismatch ⇒ `0x0A09` |
-| `SYNC-SNAP-02` | Fast-join equals replay | join via snapshot+post-ops vs full replay | byte-identical observable state | **Frozen** — `sync_snapshot_fast_join_equals_replay`. Same §6.1.1 schema: snapshot-adopt + post-`covers` ops yields byte-identical `ObservableState` (hence identical `root`) to a full replay, because only the observable projection is serialized |
+| `SYNC-SNAP-02` | Fast-join equals replay | join via snapshot+post-ops vs full replay | byte-identical observable state | **Frozen** — `sync_snapshot_fast_join_equals_replay`. Same §6.1.1 schema: snapshot-adopt + post-`covers` ops yields byte-identical `ObservableState` (hence identical `root`) to a full replay, because only the observable projection is serialized. **Corrected (§14):** the vector's `snapshot_covers_cbor_hex` previously encoded an **integer**-keyed map `{1: Hlc, 2: Hlc}`, contradicting §5.1's `VersionVector = { * ik-pub => Hlc }` — the keys are the authors' 32-byte `ik-pub` **byte strings**, ordered by §2.2 canonical map rules (ascending by encoded key bytes). No expectation exercised it, so nothing failed; it is fixed so no implementer is misled |
 | `SYNC-RECON-01` | Range-Merkle finds diff | two replicas differing in 1 op, range-fingerprint round | exactly the 1 differing op surfaced; equal ranges exchange no ops | **Frozen** — `sync_recon_range_merkle_diff`. §5.3 now pins the fold: `fp = 0x1e ‖ BLAKE3-256("DMTAP-SYNC-v0/recon-fp" ‖ 0x00 ‖ det_cbor([* op-id]))` over the range's op ids in ascending-HLC order, plus `count` — a single DS-tagged BLAKE3 hash (matching the §5.6 `recon` reference), **not** a homomorphic combiner. Equal `(fp,count)` ⇒ range identical, no ops exchanged; the one differing op is surfaced by drill-down |
 | `SYNC-NS-01` | Sparse scoping | caller subscribes `{x}`, responder holds `{x,y}` | only `ns=x` ops shipped | **Frozen** — `sync_ns_sparse_scoping` |
 | `SYNC-NS-02` | Cross-namespace ref rejected | RGA `ref` naming a target in another `ns` | reject `0x0A0A` | **Frozen** — `sync_ns_cross_namespace_ref_rejected` |
@@ -690,8 +740,9 @@ mirrored into §10.7.
   OR-Set add-wins, LWW-by-HLC with encoded-value tiebreak, remove-wins death-certificate with the D3
   domination invariant, HLC total order `(wall, counter, author)`, stability-cut GC, hash-chained
   journal. The PN-counter, RGA sequence, and movable tree are **new** here (standard CRDT constructions:
-  state-based PN-counter; Roh et al. RGA; Kleppmann highly-available replicated tree), added to complete
-  the algebra.
+  the PN-counter in its **op/delta** form joined by union of `op-id`-keyed deltas — *not* the textbook
+  state-based per-author-`max` form, which is unsound for delta-carrying ops, §4.6 and §14; Roh et al.
+  RGA; Kleppmann highly-available replicated tree), added to complete the algebra.
 - **Wire protocol** — flowstock stateless sync (`/Users/pc/code/vulos/flowstock`): `GET /sync/vector`,
   `POST /sync/pull`, `POST /sync/ops`, per-author `MAX(hlc)` version vector, symmetric push-then-pull
   round, idempotent oplog dedup, LWW-by-HLC + set-union movements, constant-time bearer auth fail-closed
@@ -705,3 +756,25 @@ mirrored into §10.7.
 Independent implementations MUST be buildable from this document and [`IDENTITY.md`](IDENTITY.md) alone
 (the flowstock test); the reference code above is an existence proof, not the standard, and where it and
 this document disagree, this document governs.
+
+---
+
+## 14. Change log — normative corrections
+
+This document is pre-1.0 and is corrected in the open: a defect found by an implementation is fixed
+here **and recorded here**, never silently edited. Each entry states what changed, whether it changes
+**normative merge semantics** (an implementation MUST be updated) or only a vector/editorial artifact,
+and how it was found.
+
+| # | Change | Class | Found by |
+|---|--------|-------|----------|
+| **C-01** | **§4.6 PN-counter merge: per-author `max` of `P`/`N` → per-author UNION of `op-id`-keyed deltas.** The `max` join is sound only for *state*-based counters where each replica's `P[a]` covers `a`'s whole op prefix; §4.2 kind 5 carries a **delta**, so replicas holding different *subsets* of one author's deltas merged to the larger subtotal and **silently lost the rest** — a lost-write soundness bug, and non-associative (`(A⊔B)⊔C ≠ A⊔(B⊔C)`). The state is now `D[a]: op-id → delta` with `P`/`N` derived; merge is set union over `(op-id, delta)`, which is commutative, associative, and idempotent. The two rules **agree exactly** whenever both replicas hold complete op sets, so this tightens the intended semantics rather than replacing them; §4.6's compaction note reinstates `max` for the below-stability-cut aggregate, the one place completeness is guaranteed. | **NORMATIVE — merge semantics.** An implementation that joins PN-counters by per-author `max` over deltas is **non-conformant** and can lose writes. | A property test in an independent Rust implementation of this document (envoir `dmtap-sync`), not by review — the reason C-01 is recorded loudly. |
+| **C-02** | **`SYNC-PN-01` vector corrected.** Its third op was described as "a replay of author A's own contribution" but carried `hlc.counter=1` where the first carried `0` — a different `det_cbor`, hence a different `op-id`, hence a **distinct** op whose delta §4.6 correctly accumulates (`P[A]=10`, total `8`), contradicting the vector's own expected `P[A]=5`, total `3`. The third op now carries the **same** HLC as the first, so it is genuinely the same op and is deduped by `op-id` (§5.2). | Vector fix; the expectation (`total=3`) was already right, the input was not. | Same implementation: its runner applied the true-replay variant and reproduced the vector's stated expectation exactly. |
+| **C-03** | **`SYNC-RGA-02` vector corrected.** Its note ("Z sorts immediately after x's tombstoned position" — the §4.7 insert-after rule) contradicted its `atom_order_incl_tombstones` array `["Z", "x(tombstoned)"]`. §4.7 governs: the array is now `["x(tombstoned)", "Z"]`. The array is clarified as a **human-readable label list**, not normative bytes. | Vector fix; §4.7 unchanged. | Implementation followed §4.7 and diverged from the array. |
+| **C-04** | **`SYNC-SNAP-02` vector corrected.** `snapshot_covers_cbor_hex` encoded an integer-keyed map `{1: Hlc, 2: Hlc}` where §5.1 specifies `VersionVector = { * ik-pub => Hlc }` (32-byte `bstr` keys). Re-encoded with `ik-pub` keys in canonical order; §5.1 now states the encoding rule explicitly (RFC 8949 §4.2.1 sorting applies to `bstr`-keyed maps just as to integer-keyed ones). | Vector fix, latent — no expectation exercised the field, so nothing failed. | Read-through during the C-01–C-03 fixes. |
+
+**Standing rule.** A defect between this document and a conformance vector is resolved by deciding
+**which side is right on the merits** and correcting the other **in the open** (the §10 discipline: a
+vector may only mechanically apply a decision this document already states). Where the defect is in this
+document's *semantics* — as C-01 was — the correction is recorded as a normative change with its class
+stated, so an implementer can tell at a glance whether they must change code.

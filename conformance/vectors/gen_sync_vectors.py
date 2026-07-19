@@ -19,6 +19,14 @@ earlier/later-wins contradiction) were resolved *in the specification first* —
 plus its rationale — and only then vectored here. The spec, not this script,
 remains the authoritative source of every decision below.
 
+Corrections C-01..C-04 (substrate/SYNC.md §14) are applied here: the §4.6
+PN-counter merge is now the per-author UNION of op-id-keyed deltas (the old
+per-author max is non-associative and loses writes across partial states);
+SYNC-PN-01's third op is a TRUE replay (identical HLC ⇒ identical op-id);
+SYNC-RGA-02's atom order including tombstones is ["x(tombstoned)", "Z"] per
+§4.7's insert-after rule; and SYNC-SNAP-02's `covers` is a §5.1 ik-pub-keyed
+VersionVector, not an integer-keyed map.
+
 Dependencies: `pip install blake3 cryptography` (BLAKE3-256 for content
 addresses / state roots / reconciliation fingerprints; Ed25519 for author keys
 and the SYNC-OP-02 COSE_Sign1 signature). Everything below is a FIXED constant:
@@ -124,6 +132,18 @@ def enc_map(pairs) -> bytes:
     out = _enc_head(5, len(pairs))
     for k, v in pairs:
         out += enc_uint(k) + v
+    return out
+
+
+def enc_bstr_map(pairs) -> bytes:
+    """pairs: list of (bytes_key, encoded_value_bytes) for a bstr-KEYED map — the §5.1
+    `VersionVector = { * ik-pub => Hlc }` shape. RFC 8949 §4.2.1 canonical ordering is by the
+    ENCODED key bytes; all ik-pub keys are the same length, so that is ascending raw-key order."""
+    enc = [(enc_bstr(k), v) for k, v in pairs]
+    enc.sort(key=lambda kv: kv[0])
+    out = _enc_head(5, len(enc))
+    for k, v in enc:
+        out += k + v
     return out
 
 
@@ -466,7 +486,11 @@ add(
 # ══════════════════════════════════════════════════════════════════════════════════════
 hlc_pn_a1 = encode_hlc(HLC_WALL, 0, PK_A)
 hlc_pn_b1 = encode_hlc(HLC_WALL, 0, PK_B)
-hlc_pn_a2 = encode_hlc(HLC_WALL, 1, PK_A)  # replay of the SAME +5(a) contribution
+# A TRUE replay is the byte-identical op, hence the IDENTICAL HLC — an op-id is the content address
+# of the whole SyncOp (§4.1), so bumping the counter to 1 would make this a DISTINCT op whose delta
+# §4.6 correctly accumulates (P[A]=10, total=8), contradicting this vector's own expectation.
+# (Correction C-02, SYNC.md §14.)
+hlc_pn_a2 = hlc_pn_a1  # replay of the SAME +5(a) op: identical bytes ⇒ identical op-id
 op_pn_a1 = encode_sync_op(kind=5, ns="", target="stock1", field="qty", value=enc_int(5), hlc_bytes=hlc_pn_a1)
 op_pn_b1 = encode_sync_op(kind=5, ns="", target="stock1", field="qty", value=enc_int(-2), hlc_bytes=hlc_pn_b1)
 op_pn_a2 = encode_sync_op(kind=5, ns="", target="stock1", field="qty", value=enc_int(5), hlc_bytes=hlc_pn_a2)
@@ -475,21 +499,43 @@ add(
     "sync_pn_merge",
     {
         "ops_cbor_hex": [op_pn_a1.hex(), op_pn_b1.hex(), op_pn_a2.hex()],
+        "op_ids_hex": [content_addr(DS_OP_ID, o).hex() for o in (op_pn_a1, op_pn_b1, op_pn_a2)],
         "deltas": [
             {"author_hex": PK_A.hex(), "delta": 5},
             {"author_hex": PK_B.hex(), "delta": -2},
-            {"author_hex": PK_A.hex(), "delta": 5, "note": "replay of author A's own contribution"},
+            {"author_hex": PK_A.hex(), "delta": 5,
+             "note": "TRUE replay of author A's own op: byte-identical SyncOp, hence the identical "
+                     "op-id as ops_cbor_hex[0] — not merely 'another +5 from A'"},
         ],
+        # The associativity sub-case (§4.6, correction C-01): two replicas holding DIFFERENT
+        # SUBSETS of one author's deltas. Declarative — the ops above are the byte-exact artifact;
+        # this names the partial states an implementation MUST merge losslessly.
+        "partial_merge_subcase": {
+            "replica_1_op_indices": [0],
+            "replica_2_op_indices": [1, 2],
+            "note": "union of op-id-keyed deltas: replica_1 ⊔ replica_2 = the full state below, in "
+                    "any grouping or order. A per-author MAX join would collapse differing subsets "
+                    "of one author's deltas to the larger subtotal and lose the rest.",
+        },
     },
     {
         "P": {PK_A.hex(): 5, PK_B.hex(): 0},
         "N": {PK_A.hex(): 0, PK_B.hex(): 2},
         "total": 3,
         "replay_is_noop": True,
+        "distinct_op_ids": 2,
+        "merge_is_associative": True,
     },
-    "§4.6: author A contributes +5 (P[A]=5), author B contributes -2 (N[B]=2). Merge is "
-    "per-author MAX of P and of N, so a replayed +5(A) does not double-count "
-    "(max(5,5)=5). Total = ΣP - ΣN = 5 - 2 = 3.",
+    "§4.6 (corrected — see SYNC.md §14 C-01/C-02): author A contributes +5 (P[A]=5), author B "
+    "contributes -2 (N[B]=2). The merge is the per-author UNION of the author's op-id-keyed "
+    "deltas — commutative, ASSOCIATIVE and idempotent — so the third op, which is byte-identical "
+    "to the first and therefore carries the identical op-id, re-inserts a key already present and "
+    "is a no-op: only 2 distinct op-ids exist here. Total = ΣP - ΣN = 5 - 2 = 3. NOTE the earlier "
+    "form of this vector gave the third op hlc.counter=1, making it a DISTINCT op (different "
+    "det_cbor ⇒ different op-id) whose delta §4.6 correctly accumulates to P[A]=10 / total=8 — it "
+    "was never a replay, and the fix is the identical HLC used here. The merge is deliberately NOT "
+    "per-author max of P/N: max is sound only when both replicas hold an author's COMPLETE op "
+    "prefix, and silently loses deltas when they hold different subsets.",
 )
 
 add(
@@ -565,15 +611,20 @@ add(
     {
         "resolves": True,
         "reject": False,
-        "atom_order_incl_tombstones": ["Z", "x(tombstoned)"],
+        "atom_order_incl_tombstones": ["x(tombstoned)", "Z"],
+        "atom_order_incl_tombstones_is": "a human-readable LABEL list, not normative bytes: it "
+                                          "names the atoms in sequence order, tombstones included",
         "visible_sequence": ["Z"],
     },
     "§4.7: `seq-remove(x)` tombstones atom \"x\" (tombstones are retained until GC). A "
     "concurrent `seq-insert` (\"Z\") whose left-origin `ref` names \"x\" still resolves "
     "against the retained tombstone — it is buffered/rejected only if the origin is "
     "genuinely absent (`ERR_SYNC_SEQ_ORIGIN_MISSING`, 0x0A07), never merely because the "
-    "origin was removed. \"Z\" sorts immediately after \"x\"'s (tombstoned) position; the "
-    "visible (non-tombstoned) sequence is just [\"Z\"].",
+    "origin was removed. \"Z\" sorts immediately AFTER \"x\"'s (tombstoned) position — the "
+    "§4.7 insert-after rule — so the atom order INCLUDING tombstones is "
+    "[\"x(tombstoned)\", \"Z\"] and the visible (non-tombstoned) sequence is just [\"Z\"]. "
+    "(Corrected — SYNC.md §14 C-03: this array previously read [\"Z\", \"x(tombstoned)\"], "
+    "the opposite of both §4.7 and this note. The note was right.)",
 )
 
 # ══════════════════════════════════════════════════════════════════════════════════════
@@ -719,12 +770,17 @@ op_post = encode_sync_op(kind=3, ns="", target="doc1", field="title", value=enc_
 sect_lww_v2 = [enc_array([enc_tstr("doc1"), enc_tstr("title"), enc_tstr("p")])]
 state_v2 = observable_state(sect_orset, sect_lww_v2, sect_pn, sect_death, sect_rga, sect_tree)
 root_v2 = state_root(state_v2)
-covers_v1 = enc_map([(1, encode_hlc(HLC_WALL, 4, PK_A)), (2, encode_hlc(HLC_WALL, 7, PK_B))])
+# §5.1: a VersionVector is `{ * ik-pub => Hlc }` — the keys are the authors' 32-byte ik-pub BYTE
+# STRINGS, canonically ordered by encoded key bytes. (Correction C-04, SYNC.md §14: this was
+# previously mis-encoded as an integer-keyed map {1: Hlc, 2: Hlc}, which no expectation exercised.)
+covers_v1 = enc_bstr_map([(PK_A, encode_hlc(HLC_WALL, 4, PK_A)), (PK_B, encode_hlc(HLC_WALL, 7, PK_B))])
 add(
     "sync_snapshot_fast_join_equals_replay",
     "sync_snapshot_fast_join",
     {
-        "snapshot_covers_note": "per-author max HLC folded into the snapshot: A@(W,4), B@(W,7)",
+        "snapshot_covers_note": "per-author max HLC folded into the snapshot: A@(W,4), B@(W,7). "
+                                "§5.1 VersionVector = { * ik-pub => Hlc }: ik-pub BYTE-STRING keys, "
+                                "canonically ordered by encoded key bytes (B's key sorts before A's).",
         "snapshot_covers_cbor_hex": covers_v1.hex(),
         "snapshot_observable_state_cbor_hex": state_v1.hex(),
         "snapshot_root_hex": root_v1.hex(),
@@ -926,6 +982,15 @@ out = {
     "(range-Merkle fingerprint fold) — were each resolved by adding normative frozen text to the "
     "specification FIRST (§4.1, §4.8, §6.1.1, §5.3 respectively, each with its rationale) and only then "
     "vectored here. No decision in this file originates in this file: substrate/SYNC.md is authoritative.",
+    "corrections_note": "Regenerated after substrate/SYNC.md §14's corrections C-01..C-04, all of which "
+    "were surfaced by an independent Rust implementation of SYNC.md (envoir `dmtap-sync`), not by review: "
+    "C-01 changed §4.6's PN-counter merge from per-author max of P/N to the per-author UNION of "
+    "op-id-keyed deltas (the max join is non-associative and LOSES writes when replicas hold different "
+    "subsets of one author's deltas — a NORMATIVE merge-semantics correction); C-02 fixed SYNC-PN-01, "
+    "whose 'replay' op carried a different HLC and was therefore a distinct op; C-03 fixed SYNC-RGA-02's "
+    "atom_order_incl_tombstones, which contradicted §4.7 and the vector's own note; C-04 fixed "
+    "SYNC-SNAP-02's snapshot_covers_cbor_hex, which encoded an integer-keyed map where §5.1 specifies "
+    "ik-pub bstr keys. Vector count is unchanged at 20.",
     "vectors": vectors,
 }
 print(json.dumps(out, indent=2))
