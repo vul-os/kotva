@@ -369,12 +369,27 @@ POST /sync/fingerprint { ns, ranges: [ { lo: Hlc, hi: Hlc, fp: hash, count: u64 
    → { mismatched: [ { lo, hi, split: [subrange fingerprints] | ops: [...] } ] }
 ```
 
-- Each side computes, over the HLC-sorted op ids in a range `[lo, hi)`, a **fingerprint** `fp` = a folded
-  BLAKE3 hash of the ordered op content-addresses, plus a `count`. Equal `(fp, count)` ⇒ the ranges are
-  identical, **no data exchanged**. On mismatch, the range is **split** (by op count, into a small fixed
-  fan-out) and the sub-range fingerprints are exchanged recursively; a range that shrinks below a
-  threshold ships its ops directly. This is the standard range-based set-reconciliation algorithm
-  (Meyer/`recon`), operating over the HLC total order so ranges are canonical on both sides.
+- Each side computes, over the op ids in a range `[lo, hi)`, a **fingerprint** `fp` plus a `count`. Equal
+  `(fp, count)` ⇒ the ranges are identical, **no data exchanged**. On mismatch, the range is **split** (by
+  op count, into a small fixed fan-out) and the sub-range fingerprints are exchanged recursively; a range
+  that shrinks below a threshold ships its ops directly. This is the standard range-based set-
+  reconciliation algorithm (Meyer/`recon`), operating over the HLC total order so ranges are canonical on
+  both sides.
+- **The fingerprint fold (normative, frozen — `SYNC-RECON-01`).** Let `R` be the multiset of op ids whose
+  ops have `hlc ∈ [lo, hi)` (an `op-id` is the §4.1 content address `0x1e ‖ BLAKE3-256("DMTAP-SYNC-v0/`
+  `op-id" ‖ 0x00 ‖ det_cbor(SyncOp))`). Sort `R` **ascending by HLC** (the §3 total order `(wall, counter,
+  author)`; distinct authors never tie, so the order is total and identical on both sides), and
+  `fp = 0x1e ‖ BLAKE3-256( "DMTAP-SYNC-v0/recon-fp" ‖ 0x00 ‖ det_cbor([ * op-id ]) )` — one DS-tagged
+  BLAKE3 hash **folding** the range's ordered op ids (their raw 33-byte `hash` bstrs) into a single
+  32-byte digest, with `count = |R|`. "Fold" here is exactly this collapse-to-one-hash, matching the §5.6
+  `recon` reference (`fp = ContentId::of(det_cbor([* id]))` over the range's sorted ids); it is
+  **deliberately not** an incremental/homomorphic combiner (XOR- or addition-of-hashes). A homomorphic
+  fold buys O(1) range updates but admits cancellation (an even number of identical insertions vanishes)
+  and adds an integer-arithmetic corner to the wire — unnecessary here, since a changed range is simply
+  re-hashed, and BLAKE3 over the length-prefixed deterministic-CBOR array is collision-resistant and
+  unambiguous across a range boundary. The `count` guards the degenerate empty-vs-empty and duplicate
+  cases the digest alone could not distinguish. The DS-tag `DMTAP-SYNC-v0/recon-fp` keeps a fingerprint
+  from ever colliding with an `op-id`, a `snapshot-state` root, or any other DMTAP hash.
 - Range-Merkle is a **discovery optimization only** — every op it surfaces is applied through the same
   §4 verify+merge path; it changes *how the difference is found*, never *what converges*. A node
   advertises it as a `sync-1` sub-token; a peer that lacks it falls back to §5.2 baseline `pull`.
@@ -603,7 +618,7 @@ actually made yet.
 | `SYNC-TREE-01` | Concurrent-move cycle | `move(A→B)` at `h1` and `move(B→A)` at `h2`, `h1<h2`, HLC-ordered replay | **earlier**-HLC move (`h1`, A under B) applied, **later** (`h2`, B under A) skipped; tree acyclic; identical on both | **Frozen** — `sync_tree_concurrent_move_cycle`. The contradiction is **resolved in §4.8**: replaying oldest-first, `h1` applies first (A becomes a child of B) and `h2` then *would* close the cycle B→A→B, so the **later** move is the one skipped. The stub's prior expected text ("later-HLC move applied, earlier skipped") was the **erroneous side** and is corrected here; §4.8's ordered-replay algorithm was correct and now states the outcome explicitly. This is Kleppmann's result and is **not** LWW for the colliding pair (LWW governs only repeated moves of the *same* node) |
 | `SYNC-SNAP-01` | Snapshot root determinism | two replicas at the same `covers` vector | identical `root`; mismatch ⇒ `0x0A09` | **Frozen** — `sync_snapshot_root_determinism`. §6.1.1 now pins the canonical `ObservableState`: a fixed six-element positional array (one section per CRDT kind, `orset`/`lww`/`pn`/`death`/`rga`/`tree`), each a section sorted by `det_cbor` of its entries (RGA inner order is sequence order, not re-sorted), and `root = 0x1e ‖ BLAKE3-256("DMTAP-SYNC-v0/snapshot-state" ‖ 0x00 ‖ det_cbor(ObservableState))`. Two replicas at the same `covers` compute identical `root`; mismatch ⇒ `0x0A09` |
 | `SYNC-SNAP-02` | Fast-join equals replay | join via snapshot+post-ops vs full replay | byte-identical observable state | **Frozen** — `sync_snapshot_fast_join_equals_replay`. Same §6.1.1 schema: snapshot-adopt + post-`covers` ops yields byte-identical `ObservableState` (hence identical `root`) to a full replay, because only the observable projection is serialized |
-| `SYNC-RECON-01` | Range-Merkle finds diff | two replicas differing in 1 op, range-fingerprint round | exactly the 1 differing op surfaced; equal ranges exchange no ops | **NOT-FROZEN** — §5.3 specifies `fp` as "a **folded** BLAKE3 hash of the ordered op content-addresses" without fixing the fold function (sequential chaining vs. a Merkle-style fold vs. another combiner all satisfy the prose); picking one would be inventing, not reading, the algorithm |
+| `SYNC-RECON-01` | Range-Merkle finds diff | two replicas differing in 1 op, range-fingerprint round | exactly the 1 differing op surfaced; equal ranges exchange no ops | **Frozen** — `sync_recon_range_merkle_diff`. §5.3 now pins the fold: `fp = 0x1e ‖ BLAKE3-256("DMTAP-SYNC-v0/recon-fp" ‖ 0x00 ‖ det_cbor([* op-id]))` over the range's op ids in ascending-HLC order, plus `count` — a single DS-tagged BLAKE3 hash (matching the §5.6 `recon` reference), **not** a homomorphic combiner. Equal `(fp,count)` ⇒ range identical, no ops exchanged; the one differing op is surfaced by drill-down |
 | `SYNC-NS-01` | Sparse scoping | caller subscribes `{x}`, responder holds `{x,y}` | only `ns=x` ops shipped | **Frozen** — `sync_ns_sparse_scoping` |
 | `SYNC-NS-02` | Cross-namespace ref rejected | RGA `ref` naming a target in another `ns` | reject `0x0A0A` | **Frozen** — `sync_ns_cross_namespace_ref_rejected` |
 | `SYNC-GC-01` | Stability-cut safety | tombstone below the cut dropped; a stale replica excluded from the cut | observable state unchanged; live replica with no watermark ⇒ no GC | **Frozen** — `sync_gc_stability_cut` |
