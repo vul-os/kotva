@@ -90,3 +90,9 @@ Workshop (decentralized CAD part sharing) as the first production application.
 - [x] Track 4 kerf ADR + roadmap (landed in the kerf repo)
 - [x] `conformance/` suites for PUB + CAD profile (follow-up wave)
 - [ ] Envoir node/gateway `pub-1` serving (follow-up wave)
+
+## Future candidates (not scheduled)
+
+- **Sealed-media profile** — a private-content counterpart to §24 (Video/Media over DMTAP-PUB) for the
+  vidmesh `keygrant`/encryption path (access-controlled, non-public video), analogous to how §5.5 sealed
+  files sit beside the §22 public-blob profile; not designed here, noted only as a future candidate.
