@@ -21,18 +21,14 @@ relevant to the product but nothing exists yet.
 
 | Product | Identity ① | Feeds & Blobs ② | Sync ③ | Roles ④ | Wake ⑤ |
 |---|---|---|---|---|---|
-| **envoir** (`/Users/pc/code/vulos/envoir`) | to-spec | to-spec* | to-spec | partial | not built |
+| **envoir** (`/Users/pc/code/vulos/envoir`) | to-spec | to-spec | to-spec | partial | not built |
 | **vulos** (`/Users/pc/code/vulos/vulos`) | independent (×2) | independent | independent (×2) | independent | independent** |
 | **vulos-relay** (`/Users/pc/code/vulos/vulos-relay`) | minimal | to-spec | not built | independent | not built |
 | **ofisi** (`/Users/pc/code/vulos/ofisi`) | minimal | n/a | independent | independent | n/a |
 | **flowstock** (`/Users/pc/code/vulos/flowstock`) | minimal | n/a | independent (partial algebra) | n/a | n/a |
 | **vidmesh** (`/Users/pc/code/vulos/vidmesh`) | independent*** | independent (founder-gated convergence) | n/a | partial | not built |
 | **whatsacc** (`/Users/pc/code/whatsacc`) | minimal | n/a | n/a | n/a | n/a |
-| **kerf-pub** (`/Users/pc/code/exo/kerf/packages/kerf-pub`) | minimal | to-spec**** | n/a | to-spec (cache/pin only) | independent |
-
-\* Types (`PubManifest`/`PubAnnounce`/`FeedEntry`/`FeedHead`, chain verification) exist in
-`dmtap-core::pubobj`, but the `pub_vectors.json` generator's own metadata still describes the Rust core as
-not implementing the PUB extension — it has not been run against the frozen vectors yet. See §2 below.
+| **kerf-pub** (`/Users/pc/code/exo/kerf/packages/kerf-pub`) | minimal | to-spec | n/a | to-spec (cache/pin only) | independent |
 
 \** Uses the correct open standard (Web Push/VAPID) but the payload carries a title/body, so it is not the
 content-free wake the spec requires — see §2.
@@ -40,9 +36,6 @@ content-free wake the spec requires — see §2.
 \*** vidmesh's own key-rotation-with-recovery-precedence design was independently built, then adopted
 *into* [`IDENTITY.md § 5.1`](IDENTITY.md#51-informative--contest-window-finality-for-the-zero-dns--zero-kt-floor)
 as an informative note — convergent by influence, not by wire compatibility.
-
-\**** Reference implementation of §22 with one closed gap in the working tree (as of this writing,
-uncommitted) and one open gap (DeviceCert chains) — see §2.
 
 ---
 
@@ -56,11 +49,16 @@ The reference core (see [`BINDINGS.md`](BINDINGS.md) for the full crate layout).
   `RecoveryPolicy`/`KeyRotation`/`MoveRecord` directly; `keyname` implements the 8-word key-name; `kt`
   implements the RFC 6962 transparency objects. This crate *is* one of the documents' own grounding
   references.
-- **Feeds & Blobs — to-spec, pending vector verification.** `dmtap-core::pubobj` implements
-  `PubManifest`/`PubAnnounce`/`FeedEntry`/`FeedHead`/`verify_feed_chain`/`check_anti_rollback`. **What
-  would close the asterisk:** wire `dmtap-core` into the `pub_vectors.json` conformance run and update the
-  vector generator's metadata once it passes — until then this is "implemented" on inspection, not yet
-  proven byte-identical to the frozen vectors.
+- **Feeds & Blobs — to-spec, now vector-verified.** `dmtap-core::pubobj` implements
+  `PubManifest`/`PubAnnounce`/`FeedEntry`/`FeedHead`/`verify_feed_chain`/`check_anti_rollback`.
+  `conformance-runner` now merges `dmtap/conformance/vectors/pub_vectors.json` into its run (`pub_vectors_path()`
+  in `crates/conformance-runner/src/main.rs`) and, as re-run for this survey, reproduces 20 of the 21 PUB
+  vectors (the 21st, `DMTAP-PUB-21`, is `suite.json`'s own `manual-attestation` case — no bytes for a
+  runner to recompute, an honest skip, not a failure) — this closes the previous asterisk. One stale
+  artifact remains as a housekeeping note, not a functional gap: `conformance/vectors/pub_vectors.json`'s
+  own `generated_by` metadata string (and its generator, `gen_pub_vectors.py`) still describe the Rust
+  core as not implementing the PUB extension yet, which this survey's own run shows is no longer true —
+  out of scope to fix here, flagged for whoever next regenerates that file.
 - **Sync — to-spec.** `dmtap-clustersync` (§5.6 single-owner profile: `Cluster`/`Replica`/`ClusterState`/
   `OrSet`/`LwwMap`/`DeathReg`/`Journal`/`range_fingerprint`) and `dmtap-sync` (the substrate's multi-author
   six-kind algebra, COSE-signed ops) are the crates [`SYNC.md`](SYNC.md) grounds itself in.
@@ -125,7 +123,13 @@ the substrate's shape without speaking its bytes.
 - **Feeds & Blobs — to-spec.** `tunnel/pubcache/*` is a literal §22 implementation: BLAKE3 domain-separated
   Merkle addressing (`"DMTAP-PUB-v0/manifest"`), served at `/.well-known/dmtap-pub/{announce,manifest,
   chunk,feed}` with correct immutable-vs-mutable caching. This is the most spec-faithful code found in
-  either vulos repo. Nothing to close here.
+  either vulos repo. It has since also picked up the OPTIONAL [`FEEDS.md § 5.3`](FEEDS.md#53-optional--chunk-tree-range-proofs-additive-proposal)
+  chunk-tree range-proof endpoint (`tunnel/pubcache/proof.go`, flag-gated behind
+  `-pubcache-serve-proofs`) — encode/decode/generate/verify for `[chunk_index, [sibling_hashes…]]`, correctly
+  taking `nChunks` out-of-band from the manifest header rather than the proof response (the precision
+  [`FEEDS.md § 5.3`](FEEDS.md#53-optional--chunk-tree-range-proofs-additive-proposal) itself was just
+  tightened to require, per this survey — see `docs/PUBCACHE.md` §5 in this repo, which independently
+  reached the same conclusion). Nothing to close here.
 - **Sync — not built.** No CRDT/HLC code found in this repo.
 - **Roles — independent.** `tunnel/rendezvous/*` implements key-addressed announce/resolve/signal/mailbox +
   ICE, Ed25519-signed, content-blind, standalone from the OS repo — structurally faithful to the role
@@ -254,19 +258,25 @@ Its actual current state is **better than that document's text**, which had gone
 - **Identity — minimal.** A local Ed25519 keypair signs announces/heads, but `signer == pub` is
   hard-enforced everywhere (`identity.py`, `objects.py`) — no `DeviceCert` chain support yet, so it is not
   adopting the Identity capability beyond a bare signer key.
-- **Feeds & Blobs — to-spec, with one closed gap (uncommitted) and one open gap.** The wire encoding is
-  genuine deterministic **CBOR** matching the CDDL key numbers exactly (not JSON), and all five
-  `/.well-known/dmtap-pub/*` endpoints exist in `router.py`. The hash scheme has **moved to BLAKE3-256**
-  (`0x1e`) as the write path in the working tree — `SHA2-256` (`0x12`) is kept only for reading
-  pre-cutover objects — with a dependency-free BLAKE3 fallback (`blake3_pure.py`) when the compiled wheel
-  isn't available; this migration vendors and byte-diffs identically against this repository's own
-  `pub_vectors.json`. **As of this writing that migration is uncommitted** (`hashing.py`, `client.py`,
-  `__init__.py` modified; `blake3_pure.py`, the vector tests, and the vendored vectors untracked) — the last
-  committed state is still the SHA2-256 build [`FEEDS.md § 6`](FEEDS.md#6-reference-implementation--kerf-pub-proves-the-http-test)
-  describes, and `cid.py`'s docstring is now stale prose describing the old default. `DeviceCert` chains
-  remain genuinely unimplemented (`signer == pub` hard-enforced, with explicit code comments saying so).
-  **What would close it:** commit the BLAKE3 migration, and implement `DeviceCert` chain verification per
-  [`FEEDS.md § 4.2`](FEEDS.md#42-the-pubannounce-kind-0x40-223) step 4.
+- **Feeds & Blobs — to-spec.** The wire encoding is genuine deterministic **CBOR** matching the CDDL key
+  numbers exactly (not JSON), and all five `/.well-known/dmtap-pub/*` endpoints exist in `router.py`. The
+  hash scheme has **moved to BLAKE3-256** (`0x1e`) as the sole write path — `SHA2-256` (`0x12`) is kept
+  only as a legacy read path for pre-cutover objects, selected by the prefix byte each address already
+  carries — with a dependency-free BLAKE3 fallback (`blake3_pure.py`, ~1700x slower than the compiled
+  wheel, measured, so it keeps a node verifying rather than serving) when the compiled wheel isn't
+  available. This migration was **uncommitted at the time `FEEDS.md § 6` was first written; it has since
+  been committed and pushed** (`f23c8576` migrates the hashing + replays all 15 vendored §22 vectors
+  through the ordinary public API, `cedcddf9` documents the conformance status and corrects the fallback
+  cost estimate) — kerf-pub's `main` now passes **15 of 15** shared `pub_vectors.json` cases with no
+  skips, and `main`/`origin/main` are in sync. **`DeviceCert` chains remain unimplemented, deliberately,
+  as the stricter of the two arms §22.3.3 step 4 permits**: kerf-pub hard-enforces `signer == pub` rather
+  than accepting a `DeviceCert` chain, because a chain-verification path that checked the certificate's
+  signature but not its revocation status (§1.5) would be a **fail-open** — accepting a revoked signer as
+  though it were still authorized. `signer == pub` has no revocation surface to get wrong, so it is
+  correctly the safer of the two conformant postures, not an outstanding defect. **What would close the
+  remaining gap:** implement `DeviceCert` chain verification **with** §1.5 revocation checking (not
+  without it) per [`FEEDS.md § 4.2`](FEEDS.md#42-the-pubannounce-kind-0x40-223) step 4 — a strict
+  superset of the current behavior, never a loosening of it.
 - **Sync — n/a.** Not attempted; kerf-pub is a Feeds/Blobs (+ Wake) server, not a state-sync engine.
 - **Roles — to-spec, cache/pin only.** The `/.well-known/dmtap-pub/*` gateway itself **is** the cache/pin
   role ([`ROLES.md § 6`](ROLES.md#6-cache--pin--serve-content-addressed-objects-profile-of-225-55)),
@@ -293,10 +303,10 @@ retire them" — holds up, with more nuance than the premise implied:
   four can talk to each other today. This is exactly the gap [`BINDINGS.md`](BINDINGS.md) is written to
   close — not by asking four teams to rewrite four times, but by giving Sync one compiled core and four
   thin bindings.
-- **Feeds & Blobs is closer to converged than expected.** vulos-relay's `pubcache` and kerf-pub are both
-  already at or near to-spec, independently. The gap here is not fragmentation so much as reach: two
-  products have it, most don't need it, and vidmesh's convergence is a real, drafted, founder-gated plan
-  rather than an open question.
+- **Feeds & Blobs is closer to converged than expected.** vulos-relay's `pubcache`, kerf-pub, and envoir's
+  `dmtap-core::pubobj` are now all to-spec, independently and vector-verified. The gap here is not
+  fragmentation so much as reach: three products have it, most don't need it, and vidmesh's convergence
+  is a real, drafted, founder-gated plan rather than an open question.
 - **Roles is the most consistently "right shape, wrong bytes" capability** — vulos's peering relay,
   vulos-relay's rendezvous, and ofisi's `FabricClient` are all structurally faithful, independent
   reinventions of announce/resolve/mailbox/relay. This is the capability where a shared binding would
