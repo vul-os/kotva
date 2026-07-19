@@ -229,6 +229,64 @@ routed through the mixnet — there is no metadata to protect. Swarm behavior is
 with the one difference being **global cross-user dedup** (§3.2). Mesh serving **adds** swarming and
 NAT-traversal on top of HTTPS; it is never a prerequisite to speak the capability.
 
+### 5.3 Optional — chunk-tree range proofs (additive proposal)
+
+> **Status: additive, OPTIONAL.** This subsection proposes **one new, optional gateway endpoint**. It
+> allocates no new object, no new signing preimage, and no §21 error code; it is advertised by presence
+> (a 404 means "not offered here," a fetcher falls back to whole-manifest verification). It is drawn from
+> the *vidmesh* protocol's blob sidecar (its `GET /blob/{id}/proof?chunk=i`), surfaced as waist machinery
+> by the convergence work of the [Video/Media profile (§24)](../24-video-profile.md), because it fills a
+> real gap for large media (seek + verify a *middle* chunk without downloading the whole chunk list).
+
+Today a fetcher verifies a chunk by holding the whole `PubManifest` (§3.1): it has all `chunks` hashes,
+so it can check any `chunk/{h}` byte-for-byte. That is fine for small blobs but wasteful for **large
+media** — to verify one 1 MiB chunk in the middle of a multi-gigabyte video, a client must first fetch the
+entire (possibly multi-thousand-entry) chunk-hash list. The DS-tagged Merkle tree over the chunk hashes
+(§3.2) already supports an **O(log n) inclusion proof**; this endpoint exposes it:
+
+```
+GET /.well-known/dmtap-pub/manifest/{id}/proof?chunk=i   → [ i, [ sibling_hashes… ] ]  (application/cbor)  [IMMUTABLE]
+```
+
+- The response is a canonically-encoded CBOR array `[chunk_index, [sibling hashes on the path to the
+  root]]` — exactly the RFC 6962 audit path for leaf `i` under the tree of §3.2. It is **immutable and
+  content-addressed by `(id, i)`** (same `Cache-Control: public, immutable` + CDN-frontable posture as
+  the other four content-addressed endpoints, §5.1).
+- **Verification stays wholly client-side and trustless.** A fetcher recomputes `leaf(h_i)` from the
+  chunk it fetched (`chunk/{h_i}`), folds the returned siblings with the **same `"DMTAP-PUB-v0/manifest"`
+  DS-tagged `leaf`/`node` functions** (§3.2), and checks the result equals the `PubManifest.id` it already
+  trusts from the signed announce. A lying server cannot forge a proof (BLAKE3 collision resistance) — the
+  endpoint is a convenience, never a trust root, identical in spirit to every other §22 read.
+- **Purely additive.** A gateway that does not implement it answers 404 and the client falls back to
+  whole-manifest verification (§5.1); a client that does not need it never calls it. It changes nothing
+  about how objects are signed, addressed, or stored — it only serves a proof the tree already commits to.
+  It is the serving substrate under §24's segmented (HLS/DASH) playback: verify a byte-range segment
+  against the signed rendition root in O(log n) without the full manifest.
+
+### 5.4 Advisory fetch-hint registry (additive proposal)
+
+> **Status: additive, advisory.** A small profile-local registry of **retrieval hints** — where a holder
+> claims to serve a blob — so a fetcher can *find* holders faster. Hints are **advisory and never
+> authoritative**: the content address proves integrity regardless of origin (§5.1), so a client MUST NOT
+> treat a blob fetched from an unlisted source differently, and MUST ignore unrecognized hint types rather
+> than reject. Also drawn from vidmesh (its kernel `Hint` type) via the §24 convergence.
+
+```
+Hint = [ hint_type: uint, value: tstr ]
+```
+
+| `hint_type` | Name | Value |
+|------------:|------|-------|
+| `1` | `https` | URL serving the blob with HTTP Range (a §22 `chunk` surface, or any range server) |
+| `2` | `torrent-v2` | BitTorrent v2 infohash, lowercase hex |
+| `3` | `relay-blob` | base URL of a relay/gateway blob surface (§5.1) |
+| `4` | `bundle` | locator of a self-verifying bundle containing the blob |
+
+A publisher MAY carry `hints` alongside an announce or manifest (as the CAD/Video profiles do, §23/§24);
+a holder MAY advertise which addresses it serves. New transports are new hint types. Because a hint is
+advisory, an implementation that ignores the whole mechanism loses nothing but discovery speed — the
+verification gate (§5.1) is unchanged, and the address, not the hint, is the truth.
+
 ---
 
 ## 6. Reference implementation — kerf-pub proves the HTTP test

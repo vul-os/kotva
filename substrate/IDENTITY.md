@@ -190,6 +190,55 @@ For a non-mail product the key-name is the most valuable single thing this capab
   contacts follow by the pinned key and the signed chain; only a new contact who knows only the old
   key-name is affected (§3.9.6). This is the disclosed price of a coin-free global-unique name.
 
+### 5.1 Informative — contest-window finality for the zero-DNS / zero-KT floor
+
+> **Status: informative, additive.** This note records a rotation-log **fork-resolution rule** proposed
+> for the **zero-DNS, zero-KT floor** — the case where an identity is used purely by key-name (§5) with
+> no DNS binding and no KT log to anchor rotation ordering. It changes no normative core byte; it is a
+> deterministic tiebreak a resolver **MAY** apply when it holds a rotation history but has no transparency
+> log to order it. It is drawn from the *vidmesh* protocol's identity model (its rotation-log fork
+> resolution), surfaced here as the convergence work of the [Video/Media profile (§24)](../24-video-profile.md)
+> turned up a genuinely useful primitive that fills a gap in this exact floor case.
+
+**The gap.** At rung 4 (DNS + KT, §4) the KT log is what makes rotation ordering tamper-evident and
+gives two parties a shared, gossiped, append-only history to agree on. At the **key-name floor** there is
+by definition *no* such log — the whole point is zero infrastructure. So when a resolver holds two
+*validly-signed* rotations of one identity (e.g. a thief who captured a signing key rotates to their own
+key, while the legitimate owner rotates using a **recovery key**, §1.4), it needs a rule to pick the
+**active branch** that (a) requires no external log, (b) is deterministic given a record set, and (c) is
+**partition-safe** — two resolvers with the same records eventually agree.
+
+**The rule (as an option, not a mandate).** Evaluate the held rotations as a tree rooted at genesis and
+select the active branch:
+
+1. **Validity.** Discard any rotation not authorized under the chain state at its parent (§1.5 rules).
+2. **Recovery-over-signing, until finality.** Where a parent has multiple valid children, a
+   **recovery-key-authorized** child supersedes a **signing-key-authorized** child — *unless* the
+   signing-key child is already **final**. A signing-key rotation becomes **final** once the resolver has
+   held it (first observed it) for longer than a declared **contest window** (a per-identity duration
+   published in the rotation itself). Before finality it is provisional and a recovery-key sibling
+   displaces it; after finality it stands. This is the **theft-recovery** property: a thief holding a
+   stolen signing key cannot outrun the legitimate recovery-key holder within the window, while the
+   recovery key cannot rewrite history that has already outlived the window.
+3. **Deterministic tiebreak.** Between two children of the **same** authorization class, the one with the
+   **bytewise-lower record id** wins — arbitrary but deterministic and partition-safe.
+4. **Depth.** Along the selected edges, the deepest node is the current state.
+
+**Why it is partition-safe and infrastructure-free.** First-observation time is *verifier-local*, so two
+resolvers that received the same rotations at different moments MAY transiently disagree about finality —
+but this is inherent to partition tolerance, and they **converge** once both have held the records for the
+window. No shared clock, no log, and no network round-trip is required; the rule is a pure function of
+(record set, local first-seen times). A `contest_window = 0` opts the identity out of recovery precedence
+entirely (rule 2 never fires). Where portable, human/legal-reviewable ordering evidence is wanted on top,
+an external-timestamp anchor (the vidmesh `anchor` pattern, carried as metadata in §24) gives it without
+becoming a trust root — the deterministic rule above is still what resolvers *compute*.
+
+**Relationship to the core.** This does not replace KT (§4.2), which remains the Core-required mechanism
+wherever human `name@domain` is used and gives *tamper-evidence*, not just fork-resolution. It is offered
+for the floor case KT does not cover — an identity that never touches DNS — so that even there, theft of a
+day-to-day signing key is **recoverable** by a recovery key rather than permanent. A product **MAY** adopt
+it for zero-DNS identities; a product that uses KT does not need it.
+
 ---
 
 ## 6. The naming ladder is not inverted

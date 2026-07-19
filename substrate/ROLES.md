@@ -183,6 +183,13 @@ announces — and **pin** them for durability. This is the serving side of [`FEE
 - **Key-addressed.** Public objects are addressed by content hash *and* attributed to a publisher `IK`
   ([`FEEDS.md`](FEEDS.md)); a cache serves by content address and a follower discovers holders by publisher
   key.
+- **Optional range proofs for large blobs (additive).** A cache MAY additionally serve an **O(log n)
+  chunk-tree inclusion proof** so a fetcher can verify a *single middle chunk* of a large blob (e.g. seek
+  into a multi-gigabyte video) without downloading the whole chunk-hash list — the optional
+  `…/manifest/{id}/proof?chunk=i` endpoint proposed in [`FEEDS.md § 5.3`](FEEDS.md). It is advertised by
+  presence (a 404 means the cache does not offer it and the fetcher falls back to whole-manifest
+  verification), stays wholly client-verified against the DS-tagged Merkle root, and adds no trust in the
+  cache. This is the serving substrate under the Video profile's segmented (HLS/DASH) playback (§24.9).
 
 ---
 
