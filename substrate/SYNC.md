@@ -259,6 +259,21 @@ For a tree that multiple authors reparent concurrently (a folder/outline/scene g
   standard "undo-move / redo in order" procedure). This is the only kind whose apply is **not** a pure
   per-op join — it is a deterministic *replay in HLC order* — and a conformant implementation MUST
   produce the acyclic result the ordered replay defines.
+- **Cycle test and which move loses (normative).** Moves are replayed in **ascending HLC order (oldest
+  first)**. A move `(node → new_parent)` **would create a cycle** iff `new_parent == node` **or**
+  `new_parent` is a descendant of `node` in the tree formed by all **strictly-earlier-HLC** moves already
+  applied; a move that would create a cycle is **skipped** (recorded as a no-op). Because each move is
+  evaluated against the state of every lower-HLC move, the **later**-HLC move of a colliding pair is the
+  one skipped and the **earlier** applied. Concretely, for the canonical concurrent-swap collision —
+  `move(A → under B)` at HLC `h1` and `move(B → under A)` at HLC `h2` with `h1 < h2` — replay applies
+  `h1` first (A becomes a child of B; no cycle yet), and when `h2` is evaluated A is *already* a
+  descendant of B, so moving B under A **would** close the cycle B→A→B and `h2` is skipped. The observable
+  result is therefore **`h1` (A under B) applied, `h2` (B under A) skipped**; B keeps its pre-swap parent.
+  This is deliberately **not** last-writer-wins for the colliding *pair*: plain LWW (§4.4) governs only
+  repeated moves of the **same** node (where the greater HLC does win); the cycle rule governs the
+  *interaction* between moves of *different* nodes, and there the ordered replay — not the clock — decides,
+  so that no move is silently lost to a numerically larger wall clock and every replica reaches the
+  identical acyclic tree regardless of arrival order (the property `SYNC-TREE-01` pins).
 
 ### 4.9 Immutable content needs no CRDT
 
@@ -504,7 +519,7 @@ actually made yet.
 | `SYNC-PN-02` | Foreign-entry reject | op from `a` mutating `P[b]` | reject `0x0A06` | **Frozen** — `sync_pn_counter_foreign_reject` (declarative author/entry-author fields; the wire shape of a *malformed* op is implementation-internal, not spec-given) |
 | `SYNC-RGA-01` | Concurrent insert order | two `seq-insert` same origin, ids h1<h2 | order = [h2, h1] (newer-first), identical on both replicas | **Frozen** — `sync_rga_concurrent_sibling_order` |
 | `SYNC-RGA-02` | Insert after tombstone | `seq-remove(x)` then concurrent `seq-insert` with `ref=x` | insert resolves; sequence well-defined | **Frozen** — `sync_rga_insert_after_tombstone` |
-| `SYNC-TREE-01` | Concurrent-move cycle | `move(A→B)` and `move(B→A)`, HLC-ordered | later-HLC move applied, earlier skipped; tree acyclic; identical on both | **NOT-FROZEN** — this stub's own expected-result text ("later-HLC move applied, earlier skipped") appears to contradict §4.8's stated algorithm ("apply in HLC order; any move that *would* create a cycle is skipped" — mechanically, replaying oldest-first means the **later**-HLC move is the one evaluated against a tree the earlier move already changed, so it is the later move that gets skipped, not the earlier one). Freezing a vector here would mean silently picking one reading over the other; that resolution belongs to this document's own text, not to a vector generator |
+| `SYNC-TREE-01` | Concurrent-move cycle | `move(A→B)` at `h1` and `move(B→A)` at `h2`, `h1<h2`, HLC-ordered replay | **earlier**-HLC move (`h1`, A under B) applied, **later** (`h2`, B under A) skipped; tree acyclic; identical on both | **Frozen** — `sync_tree_concurrent_move_cycle`. The contradiction is **resolved in §4.8**: replaying oldest-first, `h1` applies first (A becomes a child of B) and `h2` then *would* close the cycle B→A→B, so the **later** move is the one skipped. The stub's prior expected text ("later-HLC move applied, earlier skipped") was the **erroneous side** and is corrected here; §4.8's ordered-replay algorithm was correct and now states the outcome explicitly. This is Kleppmann's result and is **not** LWW for the colliding pair (LWW governs only repeated moves of the *same* node) |
 | `SYNC-SNAP-01` | Snapshot root determinism | two replicas at the same `covers` vector | identical `root`; mismatch ⇒ `0x0A09` | **NOT-FROZEN** — §6.1 names *what* is serialized (present OR-Set members, sorted LWW cells, PN-counter totals, live RGA sequences, the acyclic tree) but not the exact canonical CBOR *schema* (map shape, key scheme) for a mixed-type "observable state" — that schema is a design choice this document has not yet made |
 | `SYNC-SNAP-02` | Fast-join equals replay | join via snapshot+post-ops vs full replay | byte-identical observable state | **NOT-FROZEN** — depends on the same unresolved "observable state" schema as `SYNC-SNAP-01` |
 | `SYNC-RECON-01` | Range-Merkle finds diff | two replicas differing in 1 op, range-fingerprint round | exactly the 1 differing op surfaced; equal ranges exchange no ops | **NOT-FROZEN** — §5.3 specifies `fp` as "a **folded** BLAKE3 hash of the ordered op content-addresses" without fixing the fold function (sequential chaining vs. a Merkle-style fold vs. another combiner all satisfy the prose); picking one would be inventing, not reading, the algorithm |
