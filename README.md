@@ -55,6 +55,44 @@ flowchart TD
   SUB --> LOGIN["🔓 Web login<br/>“Sign in with your key”"]
 ```
 
+## The narrow waist: one substrate, many products — mail is the flagship
+
+Five of DMTAP's capabilities turned out to be **general** — nothing about them is about mail. They form a
+**narrow waist** that products beyond mail (inventory, office, CAD, and more) can adopt **à la carte**,
+without reading a line of the mail spec. In this framing, **DMTAP-mail is the *first profile* built on the
+waist**, not the whole protocol — it stands beside the other products, adopting all five capabilities and
+adding the sealed, metadata-private message spine (§2, §5, §6) and the legacy bridge (§7) on top.
+
+The strategy is deliberate: **monolithic messaging protocols (XMPP, Matrix) died of their mandatory
+weight; tiny cores (HTTP, Nostr, AT Protocol) won by being small enough to adopt piecemeal.** The waist is
+DMTAP's tiny core, pulled to the surface.
+
+```mermaid
+flowchart TD
+  subgraph W["The narrow waist — substrate/"]
+    C1["① Identity"]; C2["② Feeds & Blobs"]; C3["③ Sync"]; C4["④ Infra Roles"]; C5["⑤ Wake"]
+  end
+  W --> MAIL["<b>DMTAP-mail</b> — the flagship profile<br/>§2 · §5 · §7 · §8"]
+  W --> OTHER["other products<br/><i>inventory · office · CAD · …</i>"]
+```
+
+The five capabilities, and where each is specified:
+
+| # | Capability | What it is | Substrate doc | Core home |
+|---|------------|------------|---------------|-----------|
+| ① | **Identity** | keypair = identity: Ed25519 `IK`, `DeviceCert`, `name→key` + KT, 8-word key-name floor | [`substrate/IDENTITY.md`](substrate/IDENTITY.md) | §1, §3 |
+| ② | **Feeds & Blobs** | signed append-only author feeds + public content-addressed blobs, over plain HTTPS | [`substrate/FEEDS.md`](substrate/FEEDS.md) | §22 |
+| ③ | **Sync** | signed multi-author CRDT op algebra + reconciliation + snapshots + sparse sync (**the one new spec**) | [`substrate/SYNC.md`](substrate/SYNC.md) | new; grounded in §5.6 |
+| ④ | **Infra Roles** | open, key-addressed roles: announce/resolve, signaling, circuit relay, content-blind mailbox, cache/pin | [`substrate/ROLES.md`](substrate/ROLES.md) | §4, §14 |
+| ⑤ | **Wake** | content-free, sender-blind push wake-signaling | [`substrate/ROLES.md § Wake`](substrate/ROLES.md#wake) | §4.9 |
+
+Start at [`substrate/README.md`](substrate/README.md) for the waist model, the adoption rules (*a product
+MAY adopt any subset; if it implements a capability's function it MUST speak that capability's spec*), and
+the two litmus tests that keep the waist honest — the **flowstock test** (sync inventory by reading only
+the waist docs) and the **HTTP test** (transports pluggable, HTTPS first-class). The substrate directory is
+**additive**: it re-presents parts of §1–§23 as a standalone waist and cross-references them; it renumbers
+and changes nothing in the numbered sections, which remain the normative source of truth.
+
 ## How a message moves
 
 Messages are **sealed-sender** (intermediaries never see who sent them), **end-to-end encrypted**
@@ -194,6 +232,19 @@ reference code. Where the reference and the spec disagree, **the spec wins**. By
 | 23 | [`23-cad-artifact-profile.md`](23-cad-artifact-profile.md) | **CAD / artifact profile** over DMTAP-PUB — artifact metadata & licensing (SPDX), revisions/forks, assembly Merkle-DAG / BOM |
 
 A typeset PDF ([`dmtap.pdf`](dmtap.pdf)) is generated from these files.
+
+**The substrate (the narrow waist).** The [`substrate/`](substrate/) directory re-presents five general
+capabilities as a small, standalone waist that products beyond mail adopt à la carte — see *The narrow
+waist* above. It is **additive**: it profiles and cross-references §1–§23 without renumbering or changing
+them (the numbered sections govern the normative bytes).
+
+| File | Capability | Contents |
+|------|-----------|----------|
+| [`substrate/README.md`](substrate/README.md) | — | The waist model: five capabilities, adoption rules, the flowstock & HTTP litmus tests, how mail is the first profile |
+| [`substrate/IDENTITY.md`](substrate/IDENTITY.md) | ① Identity | Profile of §1/§3: `IK`, `DeviceCert`, `name→key` + KT, the 8-word key-name floor, for non-mail use |
+| [`substrate/FEEDS.md`](substrate/FEEDS.md) | ② Feeds & Blobs | Standalone extraction of §22 DMTAP-PUB: signed author feeds + public blobs over plain HTTPS |
+| [`substrate/SYNC.md`](substrate/SYNC.md) | ③ Sync | **The one new spec** — signed multi-author CRDT ops, version-vector + range-Merkle reconciliation, signed snapshots, sparse namespace sync |
+| [`substrate/ROLES.md`](substrate/ROLES.md) | ④ Roles + ⑤ Wake | Infrastructure roles as an open key-addressed protocol + content-free wake (RFC 8030/8291/8292) |
 
 **Conformance coverage (honest status).** The [`conformance/`](conformance/) catalog has **157
 numbered cases** (SUITE.md ≡ suite.json). **52 are byte-runnable today** — 46 vectored cases
