@@ -39,8 +39,8 @@ publishing identity.
 
 This profile is built entirely on §22 primitives it does not redefine: **`pub_announce`**
 (kind `0x40`, §22.3, a signed plaintext CBOR announcement referencing a manifest root +
-structured metadata, with `supersedes` for revision chains); **public-blob manifests** (§22
-item 2, plaintext-addressed under DS-tag `DMTAP-PUB-v0/manifest`, type-incompatible with the
+structured metadata, with `supersedes` for revision chains); **public-blob manifests** (§22.2,
+plaintext-addressed under DS-tag `DMTAP-PUB-v0/manifest`, type-incompatible with the
 sealed manifests of §5.5); **author feeds** (§22.4, per-identity append-only monotonic-`seq`
 logs); **gateway HTTP serving** (§22.5, plain-HTTPS feed/announce/manifest/chunk endpoints,
 §23.8); and **irrevocability** (§22.7, §6.6 item 11 — a published object cannot be
@@ -61,6 +61,13 @@ schema keeps the compact integer-keyed per-object-type convention of the core wi
 though it is not itself part of the core registry (§21). The embedded bytes ride inside the
 signed announce body, so they are covered by the announce's signature like every other `meta`
 value (§22.3.1).
+
+**Forward compatibility (normative).** A CAD client MUST ignore unrecognized integer keys in
+`ArtifactMetadata`, `ArtifactFormat`, `AssemblyStructure`, and `AssemblyChild`, MUST NOT treat
+their presence as fatal, and MUST preserve them on re-serialize; keys **≥ 64** are reserved for
+future revisions of this profile. (These are *unsigned* application maps embedded in an
+already-signed announce, so §18.1.2's unsigned-object ignore rule is the one that applies —
+there is no signing preimage of their own to keep unambiguous.)
 
 ```cddl
 ArtifactMetadata = {
@@ -113,6 +120,7 @@ them is a matter of revising this profile, not the core protocol.
 | `4` | ECAD (KiCad and equivalent PCB/schematic formats) | canonical-source (for `pcb`/`schematic` kinds) |
 | `5` | PDF drawing | derived-rendition (typically), or canonical-source for a `drawing`-kind artifact authored directly as PDF |
 | `6` | assembly-structure (the `AssemblyStructure` CBOR document, §23.6.2) | structure |
+| `7` | opaque dataset/document blob (arbitrary bytes with no assumed CAD structure — simulation data, test logs, material tables, prose documents) | canonical-source (for `dataset`/`doc` kinds, §23.3.4) or derived-rendition |
 
 | `role` | Meaning |
 |-------:|---------|
@@ -171,7 +179,10 @@ record. Concretely:
   kinds, or a directly-authored `format_id = 5` PDF for a `drawing`-kind artifact with no separate
   source). A STEP (AP242) entry (`format_id = 1`) MAY serve as canonical-source **only** when no
   native parametric source is published for that artifact (a pure interchange-only publication);
-  where a native source exists, STEP MUST be `role = 2` (derived-rendition).
+  where a native source exists, STEP MUST be `role = 2` (derived-rendition). For a `dataset`
+  (`artifact_kind = 6`) or `doc` (`artifact_kind = 7`) artifact — which has no parametric source
+  by nature — the canonical-source entry MAY be a `format_id = 7` (opaque dataset/document blob)
+  entry: the opaque bytes *are* the artifact of record for these kinds.
 - For `artifact_kind = assembly`, exactly one entry MUST carry `role = 3` (structure,
   `format_id = 6`, §23.6.2); a native assembly-authoring file, if published, MAY additionally
   carry `role = 1`. An assembly with no `structure` entry is malformed for this profile.
@@ -428,6 +439,12 @@ this profile.
 | CAD-9 | Assembly children reference exclusively by `pin` (manifest root) or `track` (announce id) | §23.6.1 |
 | CAD-10 | A BOM-walking client MUST detect and reject a cycle in an assembly's resolved DAG rather than recurse indefinitely or silently drop it | §23.6.3 |
 | CAD-11 | No client treats any single index (category/search/workshop) as authoritative over the signed announces it was derived from | §23.7 |
+
+> **Conformance-suite note.** The `format_id = 7` (opaque dataset/document blob) addition in
+> §23.3.2/§23.3.4 widens the admissible canonical-source formats for `dataset`/`doc` kinds, which
+> touches the semantics exercised by the CAD-2/CAD-3 cases in `conformance/SUITE.md` /
+> `conformance/suite.json`. Those artifacts are maintained by the conformance workstream and are
+> **not** updated here; they require a suite regeneration to cover `format_id = 7`.
 
 ## Appendix A: Mapping to the kerf Workshop (informative)
 

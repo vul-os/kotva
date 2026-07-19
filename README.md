@@ -190,16 +190,20 @@ reference code. Where the reference and the spec disagree, **the spec wins**. By
 | 19 | [`19-operations.md`](19-operations.md) | **Appendix B** — Operations: every op (params/pre/post/errors) + worked traces; JMAP mapping |
 | 20 | [`20-state-machines.md`](20-state-machines.md) | **Appendix C** — State machines: delivery, validation, resolution, group/committer, auth, node |
 | 21 | [`21-errors-iana.md`](21-errors-iana.md) | **Appendix D** — Error/status registry + IANA registries + extension/versioning procedure |
+| 22 | [`22-public-objects.md`](22-public-objects.md) | **DMTAP-PUB** (extension) — public signed announces, plaintext-addressed public blobs, author feeds, trustless serving |
+| 23 | [`23-cad-artifact-profile.md`](23-cad-artifact-profile.md) | **CAD / artifact profile** over DMTAP-PUB — artifact metadata & licensing (SPDX), revisions/forks, assembly Merkle-DAG / BOM |
 
 A typeset PDF ([`dmtap.pdf`](dmtap.pdf)) is generated from these files.
 
-**Conformance coverage (honest status).** The [`conformance/`](conformance/) catalog has **124
-numbered cases** (SUITE.md ≡ suite.json). **39 are byte-runnable today** (33 backed by
-`vectors/vectors.json` known-answer vectors + 6 self-contained canonical-CBOR reject cases); the
-remaining **85 carry an exact construction recipe** and expected §21 error, pending vectors for
-subsystems not yet byte-pinned (mixnet / MLS / gateway / auth and the wave-2/3 families). Every
-reject case names one of the **137 codes** in the §21 registry. So the runnable ratio is **39/124
-today**, growing as each subsystem gains a fixed-input KAT.
+**Conformance coverage (honest status).** The [`conformance/`](conformance/) catalog has **157
+numbered cases** (SUITE.md ≡ suite.json). **52 are byte-runnable today** — 46 vectored cases
+backed by known-answer vectors (**68 core vectors** in `vectors/vectors.json` + **15 DMTAP-PUB
+vectors** in `vectors/pub_vectors.json`) plus 6 self-contained canonical-CBOR reject cases; **104
+carry an exact construction recipe** and expected §21 error, pending vectors for subsystems not
+yet byte-pinned (mixnet / MLS / gateway / auth and the wave-2/3 families); and 1 is a
+manual-attestation case (46 + 6 + 104 + 1 = 157). Every reject case names one of the **140
+codes** in the §21 registry. So the runnable ratio is **52/157 today**, growing as each subsystem
+gains a fixed-input KAT.
 
 ## Building the PDF
 

@@ -7,12 +7,14 @@ SMTP-submission, SMTP MX/relay, CalDAV, and CardDAV — lives **only on the gate
 is the sole home of all legacy protocols and the sole legacy-client reachability ingress. This
 draws a clean line: **native client sync = JMAP on the node; legacy client access = the gateway**.
 
-> **Two different "relays" — do not conflate them.** The **native mesh relay** (Circuit
-> Relay v2 / DCUtR, §4.3) is node↔node reachability: nodes work together peer-to-peer, and it
-> **stays on the node** — it is native, not legacy. The **legacy-client reachability ingress**
-> (the SNI-passthrough / stream routing that accepts a raw IMAP/TLS connection from, e.g., an
-> iPhone Mail app and serves its mailbox) lives **only on the gateway** (§7.15); it exists
-> solely to serve clients that cannot speak the mesh.
+> **Four different "relays" — do not conflate them** (defined in the §0 glossary). (1) The
+> **native mesh relay** (Circuit Relay v2 / DCUtR, §4.1, §4.3) is node↔node reachability: it
+> **stays on the node** and is native, not legacy. (2) The **legacy-client reachability
+> ingress** (the SNI-passthrough / stream routing that accepts a raw IMAP/TLS connection from,
+> e.g., an iPhone Mail app and serves its mailbox) lives **only on the gateway** (§7.15.2) and
+> exists solely to serve clients that cannot speak the mesh. (3) The **Relay node class**
+> (§14.1) is any public-IP node performing (1) as a role. (4) The **relay-mailbox** (§14.3) is
+> the hosted, content-blind queue a mobile-only user drains.
 
 ## 8.1 JMAP (native — the node's only client surface)
 
@@ -39,7 +41,7 @@ server; the legacy surfaces and their reachability ingress are specified normati
   legacy clients authenticate without touching the keypair.
 - **Honest-privacy consequence (normative).** To speak IMAP/POP the gateway MUST **decrypt** the
   mailbox — so a legacy client's mail is **visible to whatever gateway serves it**. A **private**
-  gateway (your own, §7.15.2) is a **zero-third-party** arrangement; a **public** gateway is a
+  gateway (your own, §7.15.4) is a **zero-third-party** arrangement; a **public** gateway is a
   **deliberate trust decision** (like choosing Gmail) in which that operator can read the mail.
   This is unlike the node's native path: JMAP + the mesh (§8.1) remain **zero-access /
   zero-intermediary**. A client MUST NOT present gateway-served legacy access as end-to-end when

@@ -35,7 +35,7 @@ Envelope {
   suite:    u8,             // algorithm suite (§1.1)
   id:       bytes,          // content address of `ciphertext` (§2.2, hash-agile)
   to:       DeliveryTag,    // routing target: recipient key, group id, or blinded tag (§2.2a)
-  epoch:    ?bytes,         // MLS epoch / group context ref, if group (§5)
+  epoch:    ?bytes,         // MLS group epoch / group context ref, if group (§5)
   ts:       u64,            // sender timestamp (ms epoch)
   kind:     u8,             // message kind (§2.3)
   keypkg:   ?KeyPackageRef, // present iff this initiates an MLS session (async join, §5.3)
@@ -44,8 +44,8 @@ Envelope {
   ciphertext: bytes,        // MLS or HPKE sealed Payload (§2.4)
   sender_key: bytes,        // EPHEMERAL per-message PUBLIC key; the verification key for
                             //   `sender_sig`. Fresh per message ⇒ unlinkable, reveals no identity.
-  sender_sig: bytes,        // detached sig by `sender_key`'s secret over
-                            //   (id‖to‖ts‖kind‖challenge); gates abuse, reveals no identity
+  sender_sig: bytes,        // detached sig by `sender_key`'s secret over the §18.9.1
+                            //   preimage; gates abuse, reveals no identity
 }
 ```
 
@@ -76,8 +76,9 @@ Envelope {
 - the recipient's **identity key** (default, simplest); or
 - a **group id** (for MLS group messages, §5); or
 - a **blinded delivery tag** — a per-contact value `BT = HKDF(shared_secret, epoch_day)` derived
-  from a secret established at first contact, which the recipient's node recognizes but which is
-  **unlinkable across time and across observers** to the recipient's persistent key.
+  from a secret established at first contact (`epoch_day` is the **day-counter epoch**, §0.8 —
+  distinct from an MLS group epoch or a mix-key epoch), which the recipient's node recognizes but
+  which is **unlinkable across time and across observers** to the recipient's persistent key.
 
 Blinded tags are RECOMMENDED for the `private` tier. **Honest limit (reconciled with §6.4):**
 even a blinded tag does not hide *that a packet was delivered to a particular node* from the
@@ -117,6 +118,10 @@ accepted on the fast path). See §9 for the grammar, issuer-trust rules, and eac
 public signed announcement, plaintext, openly signed by the publisher identity (no sealed
 sender). Unlike the kinds above, a `pub_announce` is a **bare signed object, not a MOTE** — it
 never rides inside an `Envelope`; it is fetched by content address (§22.3).
+
+**Unknown kinds (normative).** A recipient MUST NOT `ack` a kind it does not implement.
+Unknown kinds — unassigned, or assigned but unimplemented — are **ignored** (not surfaced, not
+acked, MAY be discarded or held), never rejected as malformed (§21.16, §2.7 unknown-kind gate).
 
 Kinds `mail` and `chat` differ only in default client rendering and default privacy tier
 (§6): `mail` defaults to the `private` tier, `chat` MAY use the `fast` tier when both
@@ -158,9 +163,10 @@ sealed sender + payload encryption buys.
 
 ## 2.5 Attachments and files
 
-Small attachments MAY be inlined into `Payload.attach`. Larger files MUST be referenced by
-a content-addressed **manifest** and transferred out-of-band (direct/fast tier, §4.5),
-which is what makes DMTAP a file-share of arbitrary size (no protocol cap).
+Small attachments MAY be inlined into `Payload.attach`. Larger files MUST be referenced by a
+content-addressed **manifest**; **normal-tier** chunks (≤ 4 MiB) transfer **via the mixnet**
+like messages, **large-tier** chunks via the fast/onion bulk path (§4.5). This is what makes
+DMTAP a file-share of arbitrary size (no protocol cap).
 
 ```
 Attachment {
@@ -177,11 +183,14 @@ ManifestRef { id: bytes, size: u64, chunks: u32 }   // BLAKE3 Merkle-DAG root (�
 
 The manifest lists chunk hashes (a BLAKE3 Merkle DAG). Chunks are fixed-size, individually
 encrypted and content-addressed, enabling **resumable, parallel, swarmed, deduplicated**
-transfer. Only the manifest + `key` travel in the (private) MOTE; the bulk chunks travel
-direct (§4.5). See §5.5 for the full file model.
+transfer. Only the manifest + `key` travel in the (private) MOTE; the chunks travel per the
+size tier below — normal-tier via the mixnet, large-tier direct (§4.5). See §5.5 for the full
+file model.
 
-**Size tiers (normative threshold, reconciles §2.5 / §4.5 / §6.5).** A file is handled by one of
-three paths, by size:
+**Metadata-privacy size tiers (normative threshold, reconciles §2.5 / §4.5 / §6.5).** These are
+**metadata-privacy tiers** — they fix which *path* the bytes take and what an observer can
+learn; the **durability tiers** of §5.5.1 (who holds the bytes, and for how long) are an
+orthogonal axis. A file is handled by one of three paths, by size:
 
 | Tier | Size | Path | Metadata privacy |
 |------|------|------|------------------|
@@ -210,10 +219,15 @@ ack(id)               → recipient confirms receipt of MOTE `id`.
   authenticate the confirmation. Acks are not themselves acked (no ack storm).
 - **Durability = the sender's node retries** until `ack`, with exponential backoff and an
   `expires`-bounded deadline. The mixnet/relay holds nothing durably.
-- **Deduplication.** A recipient that already holds `id` acks immediately without
-  re-processing.
-- **Ordering.** MOTEs are not globally ordered; `ts` + `refs` + (for groups) MLS `epoch`
-  provide causal/threading order. Clients MUST tolerate out-of-order and duplicate delivery.
+- **Deduplication.** A recipient re-acks only an `id` it has **previously acked** (a stored,
+  inbox-delivered MOTE): such a redelivery is acked immediately without re-processing. An `id`
+  held **only in the deferred requests area** (§2.7a) is NOT acked on redelivery — re-acking it
+  would leak, to an unproven sender probing with a duplicate, exactly the existence confirmation
+  the requests-area no-ack rule withholds.
+- **Retry deadline when `expires` is absent.** When `expires` is absent, the retry deadline is
+  the §16.1 default maximum retry lifetime; retry is always bounded.
+- **Ordering.** MOTEs are not globally ordered; `ts` + `refs` + (for groups) the MLS group
+  `epoch` provide causal/threading order. Clients MUST tolerate out-of-order and duplicate delivery.
 
 ## 2.7 Validation (recipient MUST)
 
@@ -223,8 +237,10 @@ in order:
 
 1. Reject unknown `v`/`suite` (fail closed).
 2. Verify `id` matches the content address of `ciphertext` (§2.2); drop on mismatch.
-3. Verify `sender_sig` over `(id‖to‖ts‖kind‖challenge)` under **`sender_key`** — the ephemeral
-   per-message public key carried in the same envelope (cheap; no decryption). Drop on failure.
+3. Verify `sender_sig` over the **§18.9.1 preimage** (DS-tagged; `to` as deterministic CBOR,
+   `ts` as u64 big-endian, `kind` as one byte, absent `challenge` as `0xf6`) under
+   **`sender_key`** — the ephemeral per-message public key carried in the same envelope (cheap;
+   no decryption). Drop on failure.
    `sender_key` is trusted only as the abuse-gate key for *this* envelope; it asserts no identity
    (identity is authenticated later, inside `ciphertext`, at step 8). The `challenge` at step 6
    MUST be bound to `sender_key` (§9.4), so this step also fixes which ephemeral key the abuse
@@ -242,38 +258,57 @@ in order:
    advances the ratchet); the plaintext is a `DeniablePayload` (§18.3.10). A decrypt/ratchet
    failure is `ERR_DENIABLE_RATCHET_AUTH_FAILED` (`0x040D`, drop/hold-for-resync), never an
    MLS/HPKE decrypt attempt.
-8. Verify `Payload.sig` under `Payload.from`; **on failure, discard silently and do not `ack`**
-   (fail closed, matching steps 1–3). The `Payload.sig` preimage **binds the envelope's `kind`,
-   `ts`, and `to`** (§18.9.2), so the recipient MUST recompute it using the received `Envelope`'s
-   `kind`/`ts`/`to` and **reject any MOTE whose envelope `kind`/`ts`/`to` differ from the signed
-   context** (`ERR_ENVELOPE_CONTEXT_MISMATCH`, `0x0211`) — this stops a re-emitter from re-minting
-   the anyone-can-mint `sender_sig` (step 3) over an altered `kind`/`ts`/`to` (rewriting timestamp/
-   causal-order, or relabeling `kind` to change rendering or force a silent decrypt-fail). Otherwise
-   verify `from` matches the pinned identity for a known contact, or TOFU-pin on first contact
-   (§3.4). For a cold sender whose `from` is now
-   revealed, re-apply block/allow lists. **Deniable fork (`kind = 0x0b`):** a `DeniablePayload`
-   carries **no** `sig` — the substitute authenticator is the **Double-Ratchet AEAD tag** (the
-   shared-key MAC) already checked at step 7, so at this step the recipient verifies that tag
-   *instead of* `Payload.sig`, binds `DeniablePayload.from` to the X3DH-authenticated `IK` (matching
-   the pinned identity, §3.4), and **MUST reject any `DeniablePayload` that carries a signature
-   field** (`ERR_DENIABLE_SIGNATURE_PRESENT`, `0x040F`) — a present signature would defeat the
-   mode. **Suite-ratchet check:** now that the sender identity is
-   known, verify `Envelope.suite` is **not below** this contact's pinned suite high-water-mark
-   (§1.3); a below-water-mark suite is a downgrade attempt → reject to the requests area with a
-   security warning (`ERR_SUITE_DOWNGRADE`, §21.4), never accept. (This must occur here, not at
-   step 1, because sealed sender hides the sender until decryption; a recipient that has retired a
-   suite for *itself* MAY additionally reject that `Envelope.suite` at step 1 as its own floor.)
+8. **Authenticate the sender and bind the envelope context**, as ordered sub-steps:
+   - **(a) Payload signature (normal path).** Verify `Payload.sig` under `Payload.from`; **on
+     failure, discard silently and do not `ack`** (fail closed, matching steps 1–3).
+   - **(b) Envelope-context binding.** The `Payload.sig` preimage **binds the envelope's `kind`,
+     `ts`, and `to`** (§18.9.2): recompute it using the received `Envelope`'s `kind`/`ts`/`to`
+     and **reject any MOTE whose envelope `kind`/`ts`/`to` differ from the signed context**
+     (`ERR_ENVELOPE_CONTEXT_MISMATCH`, `0x0211`). This stops a re-emitter from re-minting the
+     anyone-can-mint `sender_sig` (step 3) over an altered `kind`/`ts`/`to` — rewriting the
+     timestamp/causal order, or relabeling `kind` to change rendering or force a silent
+     decrypt-fail.
+   - **(c) Pin check.** Otherwise verify `from` matches the pinned identity for a known contact,
+     or TOFU-pin on first contact (§3.4). For a cold sender whose `from` is now revealed,
+     re-apply block/allow lists.
+   - **(d) Deniable fork (`kind = 0x0b`).** A `DeniablePayload` carries **no** `sig` — the
+     substitute authenticator is the **Double-Ratchet AEAD tag** (the shared-key MAC) already
+     checked at step 7. The recipient verifies that tag *instead of* `Payload.sig` (sub-steps
+     (a)–(b); the deniable path binds the envelope context inside the ratchet AD instead,
+     §18.9.10), binds `DeniablePayload.from` to the X3DH-authenticated `IK` (matching the pinned
+     identity, §3.4), and **MUST reject any `DeniablePayload` that carries a signature field**
+     (`ERR_DENIABLE_SIGNATURE_PRESENT`, `0x040F`) — a present signature would defeat the mode.
+   - **(e) Suite-ratchet check (last — requires the now-revealed sender identity).** Verify
+     `Envelope.suite` is **not below** this contact's pinned suite high-water-mark (§1.3); a
+     below-water-mark suite is a downgrade attempt → reject to the requests area with a security
+     warning (`ERR_SUITE_DOWNGRADE`, §21.4), never accept. This check MUST occur here, not at
+     step 1, because sealed sender hides the sender until decryption; a recipient that has
+     retired a suite for *itself* MAY additionally reject that `Envelope.suite` at step 1 as its
+     own floor.
+
+   **Unknown-kind gate (between steps 8 and 9, normative).** If `Envelope.kind` is unassigned,
+   or assigned but not implemented by this node, the node MUST NOT `ack` and MUST NOT surface
+   the MOTE; it MAY discard it or hold it (e.g. pending an upgrade). A node MUST NOT
+   store-and-ack a kind it cannot validate (§21.16 forward-compatibility rule, §10.1) — an ack
+   asserts validated delivery, which is impossible for semantics the node cannot check.
 9. Apply `expires`, `refs`, `kind` semantics; store; `ack`.
 
 Known contacts MAY skip step 6 (they are pre-authorized). Only known-contact MOTEs reach
 decryption on the fast path; unknown senders must pass the anonymous abuse gate first.
+
+**Dedup ordering (normative).** Deduplication by `id` (§2.6) runs **after** classification
+(step 5), never before: a duplicate of a previously **acked** `id` is then re-acked immediately
+without further processing, while a duplicate of an `id` held only in the deferred requests area
+follows §2.7a unchanged — held, not acked. Running dedup earlier would let a duplicate probe
+short-circuit the abuse gate and turn the ack itself into an existence oracle.
 
 ### 2.7a Outcome of a failed/absent challenge (normative)
 
 To reconcile §2.7 and §9.2, the disposition is by *degree*:
 
 - **Invalid or forged** `challenge`, or failed `sender_sig`/`id` → **discard silently**, no
-  user-visible effect, do not `ack` (except a duplicate `id`, which is acked).
+  user-visible effect, do not `ack` (except a duplicate of a previously **acked** `id`, which is
+  re-acked per §2.6; a duplicate of an `id` held only in the requests area is never acked).
 - **Absent or below policy threshold** (a cold sender with no/weak proof) → **defer to a
   "requests" area** (not the inbox), rate-limited, never silently dropped and never surfaced as
   a normal message, and **not `ack`ed** (a deferred cold MOTE is durably held but no receipt is

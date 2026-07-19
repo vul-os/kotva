@@ -184,3 +184,54 @@ global *active* adversary with unlimited resources is not claimed; see §6.
 - Real-time voice/video (separate WebRTC/SFU architecture).
 - Blockchain/consensus (except optional self-sovereign naming in §3).
 - Server-side search or server-side spam ML (search is on-device; anti-abuse is §9).
+
+## 0.8 Conventions & normative glossary
+
+**Requirement language.** The key words MUST, MUST NOT, SHOULD, SHOULD NOT, MAY are to be
+interpreted as described in BCP 14 (RFC 2119, RFC 8174) when, and only when, in all capitals.
+
+**Glossary (normative).** The following terms are defined once here and used with these meanings
+throughout. Where a term has several senses, the qualified forms below are the canonical ones;
+body text uses the qualified form wherever the sense is not unambiguous from context, and the
+listed deprecated synonyms are read as their canonical term.
+
+- **MOTE** — the atomic unit of DMTAP: a signed, encrypted, content-addressed message object
+  (§2). Mail, chat, file offers, group events, and identity announcements are all MOTEs.
+- **identity key (IK)** — the root identity keypair (§1.2); its public half *is* the identity.
+  Canonical term. The synonyms "address key" and "identity public key" are **deprecated** — they
+  name the same thing, the IK's public half.
+- **key-name** — the zero-authority name derived from the IK (`BLAKE3-256(ik)`, word-rendered,
+  §3.9.6); the floor of the naming ladder (§3.13).
+- **sealing** — four distinct mechanisms, each with its own qualified term, never interchanged:
+  **sealed sender** (routing privacy: no sender identity outside the encrypted payload, §2.2,
+  §6.2); **payload sealing** (MLS/HPKE encryption of `Payload` into `Envelope.ciphertext`,
+  §2.4); **backup sealing** (encrypting the portable mailbox backup under a recovery-derived
+  key, §1.4); and the **sealed attestation chain** (the gateway-attestation chain carried inside
+  the sealed payload, §2.4, §7.8).
+- **epoch** — three unrelated counters, always qualified: the **MLS group epoch** (the group
+  ratchet state counter, §5.1); the **mix-key epoch** (the 24 h Sphinx-key rotation period,
+  §4.4.4); and the **day-counter epoch** (`epoch_day`, the KDF input of the blinded delivery
+  tag, §2.2a).
+- **suite** — three distinct registries: the **Envelope suite** (the u8 of §1.1, registry
+  §21.15); the **MLS ciphersuite** (the u16 of RFC 9420, §5.1); and the **mix suite** (the
+  Sphinx packet-format tag, §4.4.12, §21.23). Their downgrade floors are policed independently
+  (§5.1).
+- **relay** — four senses: the **mesh circuit relay** (libp2p Circuit Relay v2, rung 3 of the
+  reachability ladder, §4.3); the **legacy-client ingress** (a gateway edge surface that
+  terminates legacy client protocols, §7.15); the **Relay node class** (§14.1); and the
+  **relay-mailbox** (a hosted, content-blind, short-TTL buffer, §14.3; scaling §14.5).
+- **private** — qualified per sense: the **`private` transport tier** (the mixnet
+  metadata-privacy tier, §4.6); the **private gateway operator mode** (a self-operated gateway
+  serving only its operator, §7.15.4); and the **private DHT** (a closed deployment's own
+  routing prefix, §4.2).
+- **attestation** — three senses: **gateway attestation** (signed provenance of a
+  legacy-bridged message, §7.8); **device attestation** (platform/hardware-keystore evidence
+  over a device key, §1.2a); and **operator attestation** (a DNS/KT record binding an
+  infrastructure node to an accountable operator domain — `_dmtap-gw` §7.2a, `_dmtap-mix`
+  §4.4.8).
+- **requests area** — the quarantine where a cold sender's unproven MOTEs are deferred: held,
+  rate-limited, never surfaced as inbox mail and never acked (§2.7a).
+- **key transparency (KT) log** — canonical term for the append-only Merkle log that makes
+  `name → key` bindings tamper-evident (§3.5); "KT" alone always refers to it.
+- **ARC token** — an Anonymous Rate-limited Credential (Privacy Pass ARC) presented by a cold
+  sender as an envelope-level abuse proof (§2.2b, §9.3).

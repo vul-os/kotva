@@ -309,9 +309,10 @@ defense); a directory lacking a full stratified layer set makes path-building fa
 
 ### 4.4.4 Mix key rotation & epochs
 
-- **Epochs.** Mix keys are **epoch-scoped**; the v0 epoch is **24 h** (a §16.3 parameter). The
-  `MixDirectory.epoch` names the current epoch and each `MixKeyEntry` (§18.5.2) binds a Sphinx mix
-  public key to an epoch and a `valid_until`.
+- **Mix-key epochs.** Mix keys are scoped to the **mix-key epoch** (§0.8 — distinct from an MLS
+  group epoch); the v0 mix-key epoch is **24 h** (a §16.3 parameter). The `MixDirectory.epoch`
+  names the current epoch and each `MixKeyEntry` (§18.5.2) binds a Sphinx mix public key to an
+  epoch and a `valid_until`.
 - **Rotation with overlap.** A mix MUST generate a fresh Sphinx keypair each epoch and SHOULD
   advertise **both the current and the next** epoch key (an overlap window) so senders can
   pre-build paths across an epoch boundary without a gap. Old epoch private keys are **deleted at
@@ -615,7 +616,9 @@ disclosed as the frontier, not silently deferred.
 
 ## 4.5 Bulk / file transfer
 
-Large blobs (§5.5) MUST NOT traverse the mixnet (impractical bandwidth/latency). Instead:
+**Large-tier** blobs (> 4 MiB, §2.5, §5.5) MUST NOT traverse the mixnet (impractical
+bandwidth/latency); **normal-tier** chunks (≤ 4 MiB, §2.5) DO ride the mixnet like messages
+(§6.5). For the large tier:
 
 - The **control MOTE** (`file_offer`: manifest + key) travels the **private** tier.
 - The **chunks** transfer **direct** (fast tier), content-encrypted, **swarmed** from any
@@ -624,7 +627,11 @@ Large blobs (§5.5) MUST NOT traverse the mixnet (impractical bandwidth/latency)
 Honest tradeoff: the *fact and size* of a bulk transfer between two nodes is observable
 (direct), though the content is encrypted and the control message is private. See §6.
 
-## 4.6 Privacy tiers
+## 4.6 Metadata-privacy tiers (`private` / `fast`)
+
+`private` here is the **transport-tier** sense of the word (§0.8) — distinct from the private
+gateway operator mode (§7.15.4) and the private DHT (§4.2). These tiers are the
+**metadata-privacy** axis of §2.5; the **durability tiers** of §5.5.1 are orthogonal.
 
 | Tier | Path | Latency | Metadata privacy | Default for |
 |------|------|---------|------------------|-------------|
@@ -651,7 +658,9 @@ stateDiagram-v2
   EXPIRED --> [*]
 ```
 
-Durability lives entirely in this sender-side queue. The middle is stateless.
+Durability lives entirely in this sender-side queue. The middle is stateless. The `EXPIRED`
+deadline is the MOTE's `expires`; when `expires` is absent it is the §16.1 default maximum
+retry lifetime (§2.6) — retry is always bounded.
 
 **RETRY re-sealing by tier (normative).** On `RETRY → IN_FLIGHT`, a `fast` MOTE MAY re-dispatch the
 identical sealed bytes (`id` is stable, §2.2), but a `private` MOTE **MUST re-onion-wrap first** —

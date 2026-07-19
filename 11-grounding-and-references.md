@@ -1,5 +1,7 @@
 # 11. Grounding & References
 
+This section is **informative**; where it restates requirements, the owning section governs.
+
 This section records the standards each design choice rests on, the corrections applied after
 verification, and a consolidated statement of honest limits. DMTAP deliberately **composes
 existing standards**; the novelty is the composition and transport, not new cryptography.
@@ -95,6 +97,8 @@ existing standards**; the novelty is the composition and transport, not new cryp
   mature interop reference — a deliberate memory-safety-vs-maturity trade.
 
 ## 11.5 Selected bibliography
+
+§15 is the authoritative reference list; this subsection is a reading guide, not a registry.
 
 - Danezis & Goldberg, *Sphinx: A Compact and Provably Secure Mix Format*, IEEE S&P 2009.
 - Piotrowska, Hayes, Elahi, Meiser, Danezis, *The Loopix Anonymity System*, USENIX Sec 2017.

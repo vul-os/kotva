@@ -117,6 +117,9 @@ fixed here once so the tables can cite them tersely without re-explaining each t
 | `0x011F` | `ERR_RESOLVER_TYPE_UNSUPPORTED` | Resolver-type recognition (§3.12.2) | A name in a resolver type (§21.18) the verifier does not implement, or that is unregistered — the "unknown ⇒ reject, never guess" discipline (as for an unknown suite §1.1 or transport substrate §4.1). The name is unresolvable; the identity is unaffected (its other resolvers and the key-name §3.9.6 still resolve it). | No | FAIL_CLOSED_BLOCK — treat the name as unresolvable; MUST NOT guess a binding |
 | `0x0120` | `ERR_RESOLVER_DISAGREEMENT` | Multi-resolver cross-check (§3.12.3) | Two independent resolvers, **each having passed step 2 (KT / bidirectional verification, §3.12.1)**, return **different** `ik` for the **same** name (e.g. a `dns` `_dmtap` pointer and a `name-chain` record the owner also publishes disagree). Since a genuine identity has exactly one key, the disagreement is treated as a potential attack, never silently reconciled to one key. A pointer that **fails** its own step 2 is discarded as unresolved (its own code, e.g. `0x011E`/`0x0114`/`0x0111`) and is **not** counted as a disagreeing peer, so one bogus published record cannot force a halt (§3.12.3). Distinct from `0x011E` (`ERR_NAMECHAIN_BINDING_UNVERIFIED`, the *bidirectional* key↔name mismatch **within one** name-chain resolution): `0x0120` is *inter-resolver* disagreement **across** resolver types (§3.12.3), strengthening the anti-equivocation posture of §3.5. | No | HALT_ALERT — MUST NOT pin; raise a security alert and fall back to KT-quorum (§3.5.2(b)) or out-of-band verification (§3.4.1) to decide the true key |
 | `0x0121` | `ERR_KEYROTATION_UNAUTHORIZED` | `KeyRotation` authorization check (§1.5, §18.4.5) | A `KeyRotation` for an identity that has a published `RecoveryPolicy` (§1.4) is signed by `old_ik` **alone** — it carries **neither** a valid `rotate_threshold` co-signature (`rotate_quorum`, path (a)) **nor** has it been published to KT and passed its §16.8 veto/delay window (path (b)). Installing a new authoritative `IK` is at least as powerful as a recovery-weakening change (§1.4 rule 3), so `old_ik` alone MUST NOT effect it: this closes the stolen-`IK` un-vetoable eviction and the `recover_threshold`-only-reconstruct-then-rotate takeover. In fork resolution a `rotate_threshold`-backed branch is preferred over an `old_ik`-alone branch (§1.5). | Conditional (a quorum-backed re-issue, or the same rotation once its published veto window elapses un-aborted, is accepted) | FAIL_CLOSED_BLOCK — reject or hold; MUST NOT advance the pin to `new_ik`; HALT_ALERT if it competes with a quorum-backed branch at the same chain position (via `0x0104`) |
+| `0x0122` | `ERR_NAME_LABEL_MIXED_SCRIPT` | Name-label script check at registration/pin (§3.9.7) | A single name label mixes Unicode scripts (the single-script-per-label rule) — a homograph-spoofing vector (e.g. Cyrillic `а` inside a Latin label). | No | FAIL_CLOSED_BLOCK — reject the label; MUST NOT register or pin it |
+| `0x0123` | `ERR_NAME_CONFUSABLE_WITH_PIN` | Confusable-skeleton check at pin time (§3.9.7, §3.4) | A name reduces (UTS #39 confusable skeleton) to the **same skeleton** as an already-pinned contact's name — a visually-confusable impersonation of an existing pin. | No | FAIL_CLOSED_BLOCK — reject the pin; surface the collision to the user; prefer OOB verification (§3.4.1) |
+| `0x0124` | `ERR_DEVICE_UNAUTHORIZED` | Device authorization-policy check (§1.4) | An authorization-**policy** failure: a well-attested device (valid `DeviceCert`, valid attestation) is nonetheless **not authorized** by the identity's §1.4 policy for the attempted act. Distinct from `0x010D` (`ERR_DEVICE_CERT_INVALID`, a cryptographically bad/over-capped cert): here the cert is valid but the policy says no. | No, without a policy change | FAIL_CLOSED_BLOCK — refuse the act; MUST NOT proceed on an unauthorized device |
 
 ## 21.4 Delivery & Validation — the MOTE object (`0x02xx`)
 
@@ -343,6 +346,9 @@ its defining clause or from this matrix.
 | Name-chain bidirectional key↔name binding disagrees (within one resolution) | `0x011E` |
 | Resolver type unimplemented/unregistered (unknown ⇒ reject, never guess) | `0x011F` |
 | Multi-resolver disagreement (two resolvers, different keys, same name) | `0x0120` |
+| Name label mixes Unicode scripts (single-script-per-label, homograph defense) | `0x0122` |
+| Name confusable-skeleton collides with an already-pinned contact | `0x0123` |
+| Device well-attested but not §1.4-policy-authorized | `0x0124` |
 | Committer-fork-detected | `0x0404` |
 | Committer-unreachable | `0x0405` |
 | Deniable prekey invalid/exhausted | `0x040B` |
@@ -418,7 +424,7 @@ extension procedure in §21.25. Allocation policies use the standard terms of RF
 | **Registry name** | DMTAP Error/Status Codes |
 | **Reference** | §21.1–§21.11 (this document) |
 | **Allocation policy** | New subsystem byte (`0x09`–`0xEF`): Standards Action. New code point within an existing subsystem (`NN` = `0x01`–`0x7F`): Specification Required. `NN` = `0x80`–`0xFE` within any subsystem: Private Use (implementation-local diagnostics; MUST map to the nearest standard code's Responder Action, §21.2, for any behavior visible to another implementation). `SS`/`NN` = `0x00` or `0xFF`: Reserved. |
-| **Initial contents** | The 137 codes enumerated in §21.3–§21.11. |
+| **Initial contents** | The 140 codes enumerated in §21.3–§21.11. |
 | **Registry discipline** | Append-only. A retired code MUST be marked Deprecated, never deleted or reassigned to a different meaning (mirroring the append-only philosophy of the KT log, §3.5). |
 
 ## 21.15 Algorithm Suites Registry (`suite` u8)
@@ -566,7 +572,7 @@ fragmenting."
    portable; no registration for `x`-prefixed experimentation (§21.20). A receiver MUST ignore
    an unrecognized key rather than fail validation.
 
-4. **New challenge type, name backend, DNS parameter, or capability token.** Specification
+4. **New challenge type, Identity Resolver Type, DNS parameter, or capability token.** Specification
    Required, reviewed by a Designated Expert (below) for two things specific to DMTAP, beyond
    ordinary interoperability: (a) an anti-abuse extension MUST preserve the issuer-trust /
    zero-default-budget rule (§9.3.1) — it MUST NOT create a path for a sender to manufacture
@@ -612,13 +618,13 @@ fragmenting."
 
 ## 21.26 Summary
 
-- **Error/status codes defined:** 137 (`0x0101`–`0x0121`: 33, incl. the KT-v1 detection codes
+- **Error/status codes defined:** 140 (`0x0101`–`0x0124`: 36, incl. the KT-v1 detection codes
   `0x0110`–`0x0112`, the org-administration codes `0x0113`–`0x0115` (§3.10), `0x0116`
   device-attestation and `0x0118` attestation-expired (§1.2a), `0x0117` KT leaf-hash mismatch
   (§3.5, §18.4.9), the `Profile` display-data codes `0x0119` (signature invalid), `0x011A`
   (avatar content-address mismatch) and `0x011B` (avatar URL unsafe / SSRF guard) (§3.9.5,
   §18.4.12), and the alias codes `0x011C` (self-asserted alias fails forward-verify) and `0x011D`
-  (independently-revocable alias revoked) (§3.9.4, §3.11), the resolver codes `0x011E` (name-chain bidirectional binding unverified, §3.12.5(b)), `0x011F` (resolver-type unsupported, §3.12.2) and `0x0120` (inter-resolver disagreement, §3.12.3) (§3.12), and `0x0121` key-rotation-unauthorized (stolen-`IK` / `recover_threshold`-only takeover defense, §1.5); `0x0201`–`0x0211`: 17, incl. `0x020F` suite-downgrade, `0x0210`
+  (independently-revocable alias revoked) (§3.9.4, §3.11), the resolver codes `0x011E` (name-chain bidirectional binding unverified, §3.12.5(b)), `0x011F` (resolver-type unsupported, §3.12.2) and `0x0120` (inter-resolver disagreement, §3.12.3) (§3.12), and `0x0121` key-rotation-unauthorized (stolen-`IK` / `recover_threshold`-only takeover defense, §1.5), the confusable-name codes `0x0122` (mixed-script label) and `0x0123` (confusable-skeleton collision with a pin) (§3.9.7), and `0x0124` device-unauthorized (well-attested but not §1.4-policy-authorized); `0x0201`–`0x0211`: 17, incl. `0x020F` suite-downgrade, `0x0210`
   hybrid-suite-incomplete (intra-suite PQ-strip defense, §1.3), and `0x0211` envelope-context-mismatch (envelope `kind`/`ts`/`to` bound into `Payload.sig`, §18.9.2);
   `0x0301`–`0x0316`: 22, incl. `0x030A` capability-announce
   rollback (§10.2), the mixnet codes `0x030B`–`0x0311` — directory/descriptor/path (`0x030B`–`0x030D`),

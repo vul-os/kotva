@@ -53,8 +53,8 @@ axes are policed independently so neither can silently mask a downgrade on the o
 
 ### CAUTION — epoch ordering is the hard part on a mesh
 
-MLS trusts the DS for exactly one thing: **a total order on epochs** — Commits must be
-applied in an agreed order per group. A leaderless mesh has no natural serialization point,
+MLS trusts the DS for exactly one thing: **a total order on MLS group epochs** (§0.8) —
+Commits must be applied in an agreed order per group. A leaderless mesh has no natural serialization point,
 so **this ordering/consensus of Commits is the real difficulty of "MLS over P2P," not the
 crypto.** DMTAP REQUIRES that MLS **handshake** messages (Proposal / Commit / Welcome) travel
 over an **ordered, reliable channel** per group, while ordinary **application** messages
@@ -72,9 +72,12 @@ node that serializes handshake messages into an append-only, hash-chained per-gr
 - **Failover / liveness & deterministic succession:** if the committer is unreachable, members
   hold pending Proposals and initiate a **takeover that does not depend on the incumbent's
   cooperation**. The successor is **deterministic but not grindable**: among live, non-faulted
-  members the one with the lowest **per-epoch rank** `rank = BLAKE3-256(member_signing_key ‖
-  group_id ‖ epoch)` is the designated next committer (a raw-key byte-order comparison, then
-  earliest join epoch, break the astronomically-unlikely rank tie). Ranking by a per-epoch keyed
+  members the one with the lowest **per-epoch rank** — computed over the **§18.9 committer-rank
+  preimage** (the normative bytes; informally, `rank = BLAKE3-256("DMTAP-v0/committer-rank" ‖
+  0x00 ‖ member_signing_key ‖ group_id ‖ u64be(epoch))`, where `member_signing_key` is the raw
+  MLS leaf signature public key and `epoch` the MLS group epoch) — is the designated next
+  committer (a raw-key byte-order comparison, then earliest join epoch, break the
+  astronomically-unlikely rank tie). Ranking by a per-epoch keyed
   digest — rather than the raw signing key — means a member **cannot grind a low key at join time to
   occupy the committer seat across every epoch**: the winner rotates unpredictably per epoch, so a
   key that wins one epoch does not win the next (a VRF over the same inputs is a stronger,
@@ -154,9 +157,10 @@ distinct, lighter ordering path for **n = 2** and reserves the committer/quorum 
   handshake that member has applied.
 - **Deterministic tie-break on concurrent Commits.** Because either peer may Commit, the two can
   propose **concurrent** Commits against the same epoch. This is resolved without a quorum by a
-  fixed rule: the Commit whose **originator has the lower per-epoch rank** `BLAKE3-256(
-  member_signing_key ‖ group_id ‖ epoch)` (the same non-grindable total order §5.1 uses for
-  successor selection, raw-key then join-epoch as final tie-breaks) is **canonical**; the other
+  fixed rule: the Commit whose **originator has the lower per-epoch rank** over the **§18.9
+  committer-rank preimage** (the same non-grindable total order §5.1 uses for successor
+  selection — the §5.1 formula is informative shorthand of the normative §18.9 bytes; raw-key
+  then join-epoch as final tie-breaks) is **canonical**; the other
   peer's concurrent Commit is **superseded and re-proposed** on top of the winner (its author
   re-applies it at its next `hs_seq`). Because the rank folds in the epoch, neither peer can grind a
   key that wins **every** concurrent-Commit race for the lifetime of the pair; the winner varies per
@@ -491,12 +495,14 @@ Properties:
   received with a key embedded MUST be rejected as a leak (`ERR_MANIFEST_KEY_PRESENT`, §21), not
   used.
 
-### 5.5.1 Delivery tiers & the durability contract (normative)
+### 5.5.1 Durability tiers & the durability contract (normative)
 
 A content address is only useful while **some node still serves the bytes**. "Forever access
 even after the peer drops" is therefore **not automatic** — it is a *contract*, not a property of
-the hash. DMTAP makes the contract explicit with three **delivery tiers** (thresholds in §16.4)
-and a **durability descriptor** carried in the sealed MOTE.
+the hash. DMTAP makes the contract explicit with three **durability tiers** (thresholds in
+§16.4) and a **durability descriptor** carried in the sealed MOTE. These tiers govern *who holds
+the bytes and for how long*; the **metadata-privacy tiers** of §2.5/§4.5 (*which path the bytes
+take*) are an orthogonal axis.
 
 | Tier | Size (§16.4) | Mechanism | Durability guarantee |
 |------|-------------|-----------|----------------------|
@@ -507,10 +513,10 @@ and a **durability descriptor** carried in the sealed MOTE.
 The Inline cap is deliberately **64 KiB (= the top Sphinx bucket rung, §16.3), not larger**: an
 inline attachment inflates the MOTE, and a MOTE above the top bucket cannot ride the `private`
 mixnet at all (§4.4.1) — a larger inline cap would silently force the fast tier and drop mixnet
-privacy. The delivery tier (durability axis: inline / push / pull) is **orthogonal** to the
-size/privacy sub-tier of §16.4 (mixnet ≤ 4 MiB vs. bulk > 4 MiB): a 25 MiB **Attached** file is
-pushed *and* transits the weaker bulk path (§6.5) — push-vs-pull governs durability, mixnet-vs-bulk
-governs metadata privacy.
+privacy. The durability tier (inline / push / pull) is **orthogonal** to the
+metadata-privacy size sub-tier of §2.5/§16.4 (mixnet ≤ 4 MiB vs. bulk > 4 MiB): a 25 MiB
+**Attached** file is pushed *and* transits the weaker bulk path (§6.5) — push-vs-pull governs
+durability, mixnet-vs-bulk governs metadata privacy.
 
 ### 5.5.2 Durability descriptor (normative — the key fix)
 
@@ -870,7 +876,7 @@ A group is an addressable identity (§5.8) with its **own keypair**, so it needs
 discipline as a personal identity (§1) — otherwise a single admin or committer holding the group
 key can unilaterally hijack `team@company.com`.
 
-- **Threshold-held signing key.** The group's identity signing key MUST be **threshold-held by
+- **Threshold-held signing key.** The group's identity signing key SHOULD be **threshold-held by
   the group's `owner`/`admin` set** (FROST-style, reusing the §1.4 recovery machinery), so no
   single admin — and no committer — can sign as the group alone. Group-authoritative acts (below)
   require a threshold of admins, not one.
@@ -878,15 +884,17 @@ key can unilaterally hijack `team@company.com`.
     signature is **bit-for-bit indistinguishable** from a single-signer signature, and the group
     public key is a single point — so the signature *alone* does not prove the key is genuinely
     split, and a coerced admin could hold the whole key while advertising `rotate_threshold > 1`.
-    To make the MUST **verifiable rather than aspirational**, group key establishment MUST publish a
-    **KT-anchored DKG / verifiable-secret-sharing (VSS) commitment** binding the group signing key
-    to per-share commitments held by ≥ `rotate_threshold` **distinct** `owner`/`admin` identity
-    keys; members MUST reject a group `Identity` whose signing key is not accompanied by a valid
-    such commitment and MUST NOT treat an uncommitted group key as threshold-held. **Honest bound:**
-    until a deployment carries this commitment, threshold custody is an operational/governance
-    property, not one members can cryptographically verify from the signature — the byte-exact
-    commitment object is a tracked v0 follow-up (§18), and this is the one group-custody MUST whose
-    enforcement is commitment-gated rather than self-evident from the wire.
+    This is why threshold custody is a SHOULD, not an unverifiable MUST: the custody claim
+    becomes checkable only through a **KT-anchored DKG / verifiable-secret-sharing (VSS)
+    commitment** binding the group signing key to per-share commitments held by ≥
+    `rotate_threshold` **distinct** `owner`/`admin` identity keys. **Where that §18 commitment
+    object is carried, members MUST reject an uncommitted group key** — a group `Identity` whose
+    signing key is not accompanied by a valid commitment MUST NOT be treated as threshold-held.
+    **Honest bound:** until a deployment carries this commitment, threshold custody is an
+    operational/governance property, not one members can cryptographically verify from the
+    signature — the byte-exact commitment object is a tracked v0 follow-up (§18), and this is
+    the one group-custody requirement whose enforcement is commitment-gated rather than
+    self-evident from the wire.
 - **Group `RecoveryPolicy` + `rotate_threshold`.** A group has its own `RecoveryPolicy` (§1.4);
   changes to the group `Identity`, its recovery methods, or its key MUST satisfy the group's
   `rotate_threshold` (the weakening-quorum + veto-window rules of §1.4 apply), so a compromised
@@ -908,8 +916,9 @@ needed; the org-administration layer only adds **who may provision and administe
   directory entry, §3.10.3) — exactly as a member is provisioned (§3.10.2). A group is "a member
   that has members" (§5.8).
 - **Group custody stays threshold-held.** Because the group is domain-addressed and org-critical,
-  its signing key MUST be threshold-held by the group's `owner`/`admin` set (§5.8.6), so neither a
-  single group-admin nor the committer (§5.1) can unilaterally hijack `team@abc.com`. Org
+  its signing key SHOULD be threshold-held by the group's `owner`/`admin` set (§5.8.6 — and where
+  the §18 DKG/VSS commitment object is carried, members MUST reject an uncommitted group key), so
+  neither a single group-admin nor the committer (§5.1) can unilaterally hijack `team@abc.com`. Org
   provisioning does not override §5.8.6: the domain authority grants the *name*, the group's own
   threshold governs the *key*.
 - **Membership maps to the directory.** An org group's roster (§5.8.2) is populated from

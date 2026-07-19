@@ -27,8 +27,8 @@ DMTAP's headline guarantee is **strong metadata privacy against a global *passiv
   elimination — receipt/timing side channels can statistically erode it (Martiny et al.,
   NDSS 2021), which is why cover traffic (§6.3) and mixing are load-bearing, not optional.
 - **Recipient identity** — the mixnet delivers by **push to an always-on node** whose network
-  identity is decoupled from the human identity; there is **no store-and-poll step to hide**,
-  which dissolves the private-retrieval (PIR) problem by architecture (§6.4).
+  identity is decoupled from the human identity; this removes the store-and-poll step PIR
+  exists to protect (§6.4).
 - **Social graph & timing** — **mixnet** (onion routing + Poisson mixing delays) so no node
   sees both ends and timing correlation is defeated; plus **cover traffic** and **size
   padding** (§6.3).
@@ -67,8 +67,9 @@ difference, not a trick. (Note: Loopix itself *does* use provider store-and-poll
 offline clients; DMTAP's always-on-push is a deliberate divergence, not an inherent property
 of mixnets.)
 
-**But push delivery is not "recipient anonymity, solved."** Three residual exposures remain
-and MUST be handled:
+**But push delivery is not "recipient anonymity, solved."** Three residual exposures remain.
+The requirements in items 1–2 below are **normative and owned here** (this clause, not the
+honest-limits prose of §6.6, is their home; §6.6 and §6.9 point back to it):
 
 1. **Last-hop / receipt visibility.** The final mix and a global observer of the recipient's
    link learn that *a packet was delivered to node X*. An always-on node has a **stable,
@@ -81,7 +82,8 @@ and MUST be handled:
 3. **Long-term intersection / statistical-disclosure attacks.** Persistent presence is
    exposed to correlation across many rounds; cover traffic bounds but does not eliminate this
    (cf. Vuvuzela's differential-privacy noise, which degrades over volume). This is inherited,
-   not solved.
+   not solved; the bounding mechanisms (entry guards, operator diversity, cover rates) are
+   normative in §4.4.5 and §4.4.8.
 
 **Offline buffering:** if a node is down, a peer/relay holds sealed ciphertext, retrieved on
 return via an **unlinkable dead-drop token over the mixnet** (the buffer sees an anonymous
@@ -134,6 +136,11 @@ hostile-buffer scenarios.
    the §4.4.7 detector, so it is **bounded, not eliminated**; the trade is that so little is dropped
    it accomplishes little, and the **High-security profile** (faster loops, §4.4.10) tightens the
    detectable floor further.
+   One claim is prohibited outright (normative, owned here): an implementation or operator MUST
+   NOT claim that raising hop count alone defends against colluding entry+exit mixes. Hops buy
+   timing-correlation resistance against *observers*; entry guards + attested operator diversity
+   bound *endpoint collusion* (≈ *f*², §4.4.8, §4.4.10) — and neither substitutes for the other.
+   The measured basis is reported informatively in §6.10.
 2. **Large-file bulk metadata.** Onion-routing + padding + swarming makes it *strong*, not
    *free* and not *perfect* — the fact and approximate volume of a large transfer may remain
    partially observable at high adversary capability.
@@ -143,10 +150,11 @@ hostile-buffer scenarios.
    - **Offline seizure is defended.** The local MOTE store is encrypted with a key **released
      only on device unlock** (biometric/PIN, §6.7), so a powered-off / locked stolen phone yields
      **nothing** — the ciphertext is inert without the unlock secret.
-   - **Key exfiltration is defended.** `IK`/device keys **SHOULD** live in a hardware keystore as
-     **non-exportable** keys (Secure Enclave / TPM / StrongBox / TEE, §1.2a), so even a software
-     compromise cannot *copy* the key out to sign or decrypt elsewhere — it can only *use* it
-     locally while the device is unlocked, and only until revoked.
+   - **Key exfiltration is defended.** `IK`/device keys **MUST** live in a hardware keystore as
+     **non-exportable** keys where the platform provides one (Secure Enclave / TPM / StrongBox /
+     TEE, §1.2a), and SHOULD use the strongest available key-protection class otherwise, so even
+     a software compromise cannot *copy* the key out to sign or decrypt elsewhere — it can only
+     *use* it locally while the device is unlocked, and only until revoked.
    - **Single-device compromise heals.** A device is its own MLS leaf (§5.6); removing/rotating it
      (§1.5, §13.4) advances every epoch (**post-compromise security**) so the evicted key decrypts
      nothing further, and the **lost/stolen-device flow** (§6.7) evicts it from the cluster. One
@@ -170,11 +178,11 @@ hostile-buffer scenarios.
    different histories to different observers (split-view) until v1 gossip/multi-log auditing
    exists (§3.5). In v0, KT is **tamper-evident-after-the-fact and self-monitorable, but not a
    trusted single source** — a network SHOULD run multiple independent logs even in v0, and
-   clients SHOULD treat a single unaudited log as advisory, leaning on OOB verification for
-   high-value contacts. This is a real tension with the sovereignty goal and is stated as such.
-   For **DMTAP-Auth (§13)** specifically, a split view is a **silent per-RP account takeover**, so
-   high-value login RPs MUST require **multi-log consistency or an OOB-verified pin even in v0**
-   (§13.7).
+   clients MUST treat a single unaudited log as advisory (§3.5.1, §3.4.1), leaning on OOB
+   verification for high-value contacts. This is a real tension with the sovereignty goal and is
+   stated as such. For **DMTAP-Auth (§13)** specifically, a split view is a **silent per-RP
+   account takeover**, so high-value login RPs MUST require **multi-log consistency or an
+   OOB-verified pin even in v0** — the owning requirement is §13.7 item 6.
 7. **Group handshake ordering is a metadata concentration point.** The per-group committer/
    ordering channel (§5.1) necessarily sees all of a group's handshake traffic; this is an
    explicit exception to the "no single node sees both ends" framing, bounded by rotating the
@@ -230,8 +238,9 @@ hostile-buffer scenarios.
 12. **Holders of public objects are not blind.** A sealed-file holder serves opaque ciphertext
     (item 5.5, §5.5.3) and cannot inspect it; a DMTAP-PUB holder serves **plaintext** it can read.
     Serving public content therefore shifts an operator's moderation/liability posture in a way
-    serving sealed chunks does not — hence public-object serving is a **per-operator opt-in**
-    (`pub-1`, §10.2, §22), never a default-on behavior of a conformant node.
+    serving sealed chunks does not — hence public-object serving is a **per-operator opt-in**,
+    never a default-on behavior of a conformant node; the owning requirement is §22, negotiated
+    as the `pub-1` capability (§10.2).
 
 DMTAP states these boundaries in-product. Honest, disclosed limits beat a false "perfectly
 anonymous."
@@ -239,13 +248,17 @@ anonymous."
 ## 6.7 Data at rest
 
 - The node encrypts the mailbox, file blobs, and keys **at rest** under a device/identity key.
-- **Unlock-gated store encryption (normative, SHOULD).** The at-rest key SHOULD be **released
+- **Unlock-gated store encryption (normative, MUST).** The at-rest key MUST be **released
   only on device unlock** — wrapped by a key the hardware keystore (§1.2a) yields only after a
   successful biometric/PIN authentication, and **evicted from memory on relock/timeout** (§16.9).
-  This distinguishes two threat cases sharply: an **offline-seized** device (powered off or
-  locked) yields only inert ciphertext (**defended**); a **live, unlocked, in-use** device can
-  read what the user reads (**the residual**, §6.6 item 3). Implementations MUST NOT keep the
-  at-rest key resident indefinitely across a locked device.
+  The sole exception is a platform with **no unlock signal** (e.g. a headless always-on box with
+  no lock/unlock concept), which MUST instead seal the at-rest key to the strongest available
+  boot-time protection (keystore-sealed / full-disk) — the relock eviction it cannot observe
+  does not apply, and everything else here does. This distinguishes two threat cases sharply: an
+  **offline-seized** device (powered off or locked) yields only inert ciphertext (**defended**);
+  a **live, unlocked, in-use** device can read what the user reads (**the residual**, §6.6
+  item 3). Implementations MUST NOT keep the at-rest key resident indefinitely across a locked
+  device.
 - **`sensitive` / non-cached messages (normative, MAY-send / MUST-honor).** A sender MAY mark a
   message `sensitive` (a `Headers` flag, §18.3.6): the receiving client **MUST NOT persist it at
   rest** — it is held in memory for an ephemeral view and dropped, never written to the durable
@@ -564,7 +577,8 @@ With that caveat, the simulator's four measured findings each map to a claimed p
    operator diversity therefore defend **different** attacks: hops buy timing-correlation resistance
    (against observers), diversity + guards buy entry+exit-collusion resistance (against colluding
    mixes), and **neither substitutes for the other** (§4.4.10). Any claim that "just add more hops"
-   defeats a colluding-endpoint adversary is refuted by this measurement and MUST NOT be made.
+   defeats a colluding-endpoint adversary is refuted by this measurement; the normative
+   prohibition on making that claim is owned by §6.6 item 1 — this section stays informative.
 
 **Honest reading.** These results *support* the claims exactly as §6.9 states them and *refute* the
 overclaims §6.6 disallows: passive correlation is driven to the chance floor (not below), active

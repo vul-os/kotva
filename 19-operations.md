@@ -42,6 +42,15 @@ KT:   the key-transparency log (§3.5)
 A trace line is `TAG → OBJECT{fields}` (send) or `TAG ← OBJECT{fields}` (receive), with a
 trailing `# comment`. Fields irrelevant to the point being illustrated are elided with `…`.
 
+**Example traces are informative.** The "Example trace" blocks throughout this appendix
+illustrate the normative Procedure steps; they are non-normative and add no requirements
+(matching §20.8's convention for illustrative material). Where a trace and a Procedure step
+disagree, the Procedure governs.
+
+**Error labels.** Failure-mode tables cite the registered `ERR_*`/`STATUS_*` codes of the §21
+registry; where a condition has no exact registered code, the table cites the **closest**
+registered code and says so — no unregistered wire codes are minted in this appendix.
+
 **Error taxonomy.** Three outcome classes recur across every operation in this appendix, matching
 §2.7a's precedent:
 
@@ -77,7 +86,11 @@ pinned `Identity` chain (§1.3) itself signals a rotation/migration (§3.3 step 
 
 **Procedure (normative; mirrors §3.3, numbered identically).**
 1. DNS/name-backend lookup: query `<local>._dmtap.<domain>. TXT` (§3.2) → `{iks, id, kt,
-   keypkgs}`. If no record resolves: **fail** `NAME_NOT_FOUND`.
+   keypkgs}`. A **transient** resolution failure (timeout, SERVFAIL, no connectivity) is not an
+   answer: retry with backoff (§20.3's `dns_fail_transient`). A **definitive** negative answer
+   (authoritative NXDOMAIN, or the zone publishes no `_dmtap` record): **fail**
+   `ERR_NAME_RESOLUTION_FAILED` (`0x0109`) — terminal for this attempt; re-resolve only when the
+   caller corrects the address or deliberately re-invokes.
 2. **(first contact only)** Fetch a KT `SignedTreeHead` + `InclusionProof` for `id` from `kt`
    (§3.5, §18.4.9/§18.4.10), and verify the proof's committed leaf equals the Identity-entry
    leaf-hash recomputed from the resolved `Identity` (§18.4.9); a mismatch is
@@ -99,7 +112,8 @@ pinned `Identity` chain (§1.3) itself signals a rotation/migration (§3.3 step 
 3. Fetch the full `Identity` object (§1.3) from the mesh by `id`; verify every `sig` in
    `Identity.sig` validates under the corresponding `iks[suite]`, and that the chain (`prev`) is
    consistent with anything previously pinned for this `name`. Reject on any signature failure
-   or chain inconsistency (`CHAIN_INVALID`).
+   or chain inconsistency (`ERR_IDENTITY_SIG_INVALID`/`ERR_IDENTITY_CHAIN_BROKEN`,
+   `0x0103`/`0x0104`).
 4. Pin `(name → iks, id)` locally (TOFU), recording the pin as **unverified** unless step 5 ran.
 5. **(optional, if `require_oob` or user-initiated)** Perform out-of-band safety-number
    comparison (§3.4.1); on match, upgrade the pin to **verified**.
@@ -114,18 +128,20 @@ pinned `Identity` chain (§1.3) itself signals a rotation/migration (§3.3 step 
 
 | Condition | Class | Response |
 |---|---|---|
-| No DNS/name-backend record for `name` | Reject | `NAME_NOT_FOUND`; caller MAY retry after user corrects the address |
+| Definitive NXDOMAIN / no `_dmtap` record for `name` | Reject | `ERR_NAME_RESOLUTION_FAILED` (`0x0109`); terminal — retried only after the user corrects the address (or the owner publishes a record) |
+| Transient DNS failure (timeout, SERVFAIL, no connectivity) | Defer | Retry with backoff (§20.3 `dns_fail_transient`); a transient miss is never surfaced as a definitive "no such name" |
 | KT unreachable at first contact, `require_oob` unset | Reject (default) or Defer (explicit user override) | Refuse to pin; caller MAY re-invoke once KT is reachable, or accept an explicit unverified-pin warning per local policy |
 | KT unreachable, `require_oob` set | Reject | Hard failure; no unverified fallback permitted |
-| `Identity` signature fails to validate under any advertised suite | Reject | `IDENTITY_INVALID`; do not pin |
-| `Identity.prev` chain inconsistent with a previously-seen version for this `name` (rollback/fork) | Reject | `CHAIN_INVALID`; surface as a security warning, never silently update (§3.4) |
-| Only suites the resolving node does not implement are offered | Reject | `NO_COMMON_SUITE`; no silent downgrade (§1.3) |
+| `Identity` signature fails to validate under any advertised suite | Reject | `ERR_IDENTITY_SIG_INVALID` (`0x0103`); do not pin |
+| `Identity.prev` chain inconsistent with a previously-seen version for this `name` (rollback/fork) | Reject | `ERR_IDENTITY_CHAIN_BROKEN` (`0x0104`); surface as a security warning, never silently update (§3.4) |
+| Only suites the resolving node does not implement are offered | Reject | `ERR_SUITE_INTERSECTION_EMPTY` (`0x0102`); no silent downgrade (§1.3) |
 | Resolution succeeds but returns a key that contradicts an **already-pinned** key for `name`, with no valid `KeyRotation`/`Identity` chain bridging old→new | Reject | Security warning; treat as `resolve` failure, not an update (§3.4) |
 
 **Idempotency / retry.** Idempotent: re-invoking with the same `name` after a prior success
-returns the same pin (or a newer one only via a valid chain). Safe to retry on `NAME_NOT_FOUND`
-or KT-unreachable failures with backoff; retrying does not change any durable state until a
-success path completes.
+returns the same pin (or a newer one only via a valid chain). Safe to retry on transient-DNS
+or KT-unreachable failures with backoff (a definitive `0x0109` is retried only after the
+address is corrected); retrying does not change any durable state until a success path
+completes.
 
 **Example trace.**
 ```
@@ -201,10 +217,10 @@ discoverable on the mesh by content hash; existing contacts notified if `announc
 
 | Condition | Class | Response |
 |---|---|---|
-| `version` is not exactly previous+1 | Reject | `VERSION_CONFLICT`; caller must re-fetch the current head and rebuild |
-| `prev` does not match the hash of the currently-published object | Reject | `CHAIN_MISMATCH` (concurrent-publish race — see idempotency below) |
-| Signature set does not cover every suite in `suites` | Reject | `INCOMPLETE_SIGNATURE`; publication refused, not partially accepted |
-| `RecoveryPolicy` change authorized by less than `rotate_threshold` | Reject | `INSUFFICIENT_QUORUM`; §1.4 rule 1 (`ERR_RECOVERY_POLICY_UNAUTHENTICATED`, §21) |
+| `version` is not exactly previous+1 | Reject | `ERR_STALE_ROLLBACK` (`0x0105`, closest registered code — the non-monotonic version); caller MUST re-fetch the current head and rebuild |
+| `prev` does not match the hash of the currently-published object | Reject | `ERR_IDENTITY_CHAIN_BROKEN` (`0x0104`) (concurrent-publish race — see idempotency below) |
+| Signature set does not cover every suite in `suites` | Reject | `ERR_IDENTITY_SIG_INVALID` (`0x0103` — a partial signature set is invalid); publication refused, not partially accepted |
+| `RecoveryPolicy` change authorized by less than `rotate_threshold` | Reject | `ERR_RECOVERY_POLICY_UNAUTHENTICATED` (`0x010B`); §1.4 rule 1 |
 | Factor-**weakening** `RecoveryPolicy` change signed by `IK` alone (no `rotate_threshold` quorum) | Reject | `ERR_RECOVERY_WEAKENING_UNQUORUMED`; §1.4 rule 3 — `IK` alone MUST NOT weaken recovery (stolen-`IK` takeover defense) |
 | Weakening change attempts to take effect before its 72 h veto window elapses, or a lesser-bar weakening is detected within the window | Reject / hold | `ERR_RECOVERY_VETO_WINDOW`; §1.4 rule 4, §16.8 — hold until the window elapses; a `rotate_threshold`-backed veto aborts it |
 | KT log operator unreachable | Defer | Publication is queued/retried; the DNS pointer (step 4) MUST NOT be updated until KT append succeeds, preserving the "never point past the log" invariant |
@@ -212,7 +228,7 @@ discoverable on the mesh by content hash; existing contacts notified if `announc
 
 **Idempotency / retry.** **Not** naturally idempotent (each call advances `version`), but
 concurrent-publish races are made safe by the `prev`-chain precondition: a second publish attempt
-built against a stale `prev` is rejected (`CHAIN_MISMATCH`) rather than silently forking the
+built against a stale `prev` is rejected (`ERR_IDENTITY_CHAIN_BROKEN`, `0x0104`) rather than silently forking the
 identity history, forcing the caller to rebase on the accepted head and retry.
 
 **Example trace.**
@@ -270,9 +286,9 @@ contacts' clients display the new name and continue routing by the unchanged key
 
 | Condition | Class | Response |
 |---|---|---|
-| `from` not in the owner's current `Identity.names` | Reject | `UNKNOWN_SOURCE_NAME` |
-| `move_record.sig` does not validate under pinned `IK` | Reject | `INVALID_MOVE`; refuse to publish |
-| `to` is not yet resolvable (onboarding for `to` incomplete) | Reject | `TARGET_NOT_READY`; caller must complete §3.8 onboarding for `to` first |
+| `from` not in the owner's current `Identity.names` | Reject | `ERR_MOVE_RECORD_INVALID` (`0x010A`, closest registered code — a move naming a source the identity does not hold is an invalid `MoveRecord` in substance) |
+| `move_record.sig` does not validate under pinned `IK` | Reject | `ERR_MOVE_RECORD_INVALID` (`0x010A`); refuse to publish |
+| `to` is not yet resolvable (onboarding for `to` incomplete) | Reject | `ERR_NAME_RESOLUTION_FAILED` (`0x0109`, closest registered code — the target name does not yet resolve); caller MUST complete §3.8 onboarding for `to` first |
 | KT log unreachable | Defer | Queue and retry; do not push the contact-announcement MOTE (step 5) until the log entry (step 2) is durable, so contacts never learn of an unaudited move |
 | A contact's client cannot verify `move_record.sig` against its pinned `IK` (e.g. the contact never actually had `alice` pinned, or the sig fails) | Reject (at the contact) | The contact's client MUST discard the move announcement and continue treating `from` as current; it MUST NOT adopt `to` on the strength of the MOTE content alone |
 
@@ -454,7 +470,7 @@ with the owner's §1.4 authority unchanged either way.
 |---|---|---|
 | Attestation absent/invalid in a gated context | Reject | `ERR_DEVICE_ATTESTATION_INVALID` (`0x0116`), FAIL_CLOSED_BLOCK |
 | Attestation evidence expired / root retired | Reject | `ERR_DEVICE_ATTESTATION_EXPIRED` (`0x0118`), FAIL_CLOSED_BLOCK → re-attest |
-| Device not §1.4-authorized (however well-attested) | Reject | Rejected on authorization grounds (`0x010D`), regardless of attestation |
+| Device not §1.4-authorized (however well-attested) | Reject | Rejected on authorization grounds (`ERR_DEVICE_UNAUTHORIZED`, `0x0124`), regardless of attestation |
 
 **Idempotency / retry.** `attest-verify` is a pure read over the cert; re-verifying is safe.
 `attest-enroll` re-issued for the same key updates the `DeviceCert` (higher version supersedes).
@@ -505,7 +521,7 @@ a `lookup-location` for `ik` by any peer within `ttl` returns this record.
 | Condition | Class | Response |
 |---|---|---|
 | `seq` not strictly greater than the node's last-published value | Reject (local, before send) | Node MUST increment and retry locally; never publish a stale-or-equal `seq` |
-| Signing device key expired/revoked | Reject | `DEVICE_UNAUTHORIZED`; node must re-derive from a current device key |
+| Signing device key expired/revoked | Reject | `ERR_DEVICE_CERT_INVALID` (`0x010D` — no current `DeviceCert` backs the signer); node MUST re-derive from a current device key |
 | Fewer than a usable quorum of the K closest peers accept the store (partial write, e.g. under active eclipse) | Defer | Retry via disjoint paths; the record is still *discoverable* if any honest peer among the K holds it — full failure is silent only in the sense that the initiator cannot always detect an eclipse (§4.2 caution: this is the DHT's structurally weakest point, not a gap in this operation's definition) |
 | No DHT peers reachable at all (total network partition) | Defer | Rely on non-DHT paths for existing contacts (cached direct addresses, relay-reservation/rendezvous addresses, §4.2) until connectivity returns; republish resumes automatically |
 
@@ -557,7 +573,7 @@ attempt non-DHT paths first regardless of whether it has ever contacted `ik` bef
 4. If multiple returned records disagree (different peers return different "highest" records) —
    a signature that the eclipse/censorship caution (§4.2) warns can happen — prefer the record
    with the highest `seq` that a majority of the disjoint-path queries agree on; if no majority
-   exists, treat as `LOCATION_UNRESOLVED` (do not guess).
+   exists, treat as `ERR_LOCATION_UNREACHABLE` (`0x0303`) — do not guess.
 
 **Success result.** A verified `LocationRecord` for `ik`, usable to attempt the reachability
 ladder (§19.2.3).
@@ -566,11 +582,11 @@ ladder (§19.2.3).
 
 | Condition | Class | Response |
 |---|---|---|
-| No cached, rendezvous, or DHT record found | Defer | `LOCATION_UNRESOLVED`; caller falls back to store-and-forward via mixnet/relay buffering (§4.7) and retries the lookup on its own schedule |
+| No cached, rendezvous, or DHT record found | Defer | `ERR_LOCATION_UNREACHABLE` (`0x0303`); caller falls back to store-and-forward via mixnet/relay buffering (§4.7) and retries the lookup on its own schedule |
 | A found record's `sig` does not validate under `ik`'s current pinned devices | Reject | Discard the record; treat as not found |
 | A found record's `seq` is ≤ the highest `seq` already seen for `ik` (stale/replayed/rollback) | Reject | Discard; this is expected background noise from an aggressively-republished DHT, not necessarily an attack, but MUST NOT be accepted as fresher |
-| Disjoint-path queries disagree with no majority (possible eclipse, §4.2 caution) | Defer | `LOCATION_UNRESOLVED`; do not act on a minority-returned record; retry with different peer set / wait for re-publish |
-| `allow_dht=false` and no non-DHT path exists | Reject | `LOCATION_UNRESOLVED`; the deployment's own policy has excluded the only remaining path |
+| Disjoint-path queries disagree with no majority (possible eclipse, §4.2 caution) | Defer | `ERR_LOCATION_UNREACHABLE` (`0x0303`; escalate to `ERR_ECLIPSE_SUSPECTED`, `0x0304`, if persistent); do not act on a minority-returned record; retry with different peer set / wait for re-publish |
+| `allow_dht=false` and no non-DHT path exists | Reject | `ERR_LOCATION_UNREACHABLE` (`0x0303`); the deployment's own policy has excluded the only remaining path |
 
 **Idempotency / retry.** Fully idempotent (a pure read); safe to retry at will. Because DHT
 record lifetimes are short (§16.2 TTL 2 h), a caller SHOULD NOT cache a `lookup-location` result
@@ -635,7 +651,7 @@ worked, over which `deliver` (§19.3.1) proceeds.
 | Rung 1 fails (no direct path) | Defer (internal to the ladder) | Fall to rung 2; not a caller-visible failure |
 | Rung 2 fails (hole-punch coordination fails or one side is not simultaneously online) | Defer | Fall to rung 3 |
 | Rung 3 fails (no relay reachable, or all relay reservations exhausted, §16.6 caps) | Defer | Fall to store-and-forward (§4.7); caller sees the MOTE enter `RETRY` state (§4.7's sender state machine), not an immediate error |
-| All rungs fail and `deadline` elapses | Reject (to the caller of the *higher-level* `deliver` operation, not this one) | The delivery attempt reports `PEER_UNREACHABLE` for this attempt; the outer retry/backoff (§19.3.3) governs what happens next — this is not the same as `EXPIRED` (§16.1), which is the sender-retry-deadline outcome |
+| All rungs fail and `deadline` elapses | Reject (to the caller of the *higher-level* `deliver` operation, not this one) | The delivery attempt reports `ERR_LOCATION_UNREACHABLE` (`0x0303` — no resolved address could be dialed) for this attempt; the outer retry/backoff (§19.3.3) governs what happens next — this is not the same as `EXPIRED` (§16.1), which is the sender-retry-deadline outcome |
 
 **Idempotency / retry.** The ladder itself is stateless per attempt; re-running it is always
 safe and is exactly what the sender-retry state machine (§19.3.3, §4.7) does on each backoff
@@ -1027,8 +1043,8 @@ is known.
 | Condition | Class | Response |
 |---|---|---|
 | No `KeyPackage` bundle published (or bundle empty — full exhaustion) | Defer | Retry later; if the owner's node has genuinely exhausted even its last-resort package, the initiator falls back to queuing the intent and re-fetching on the owner's next replenishment (out of scope for wire format — a client-level retry) |
-| Fetched `KeyPackage`'s signature does not validate under any current device key | Reject | `KEYPACKAGE_INVALID`; do not use it — try another if the bundle has more |
-| No common suite between sender and `ik`'s advertised suites | Reject | `NO_COMMON_SUITE`; session cannot be initiated (§1.3: fail closed, no downgrade) |
+| Fetched `KeyPackage`'s signature does not validate under any current device key | Reject | `ERR_KEYPACKAGE_INVALID_OR_EXHAUSTED` (`0x0402`); do not use it — try another if the bundle has more |
+| No common suite between sender and `ik`'s advertised suites | Reject | `ERR_SUITE_INTERSECTION_EMPTY` (`0x0102`); session cannot be initiated (§1.3: fail closed, no downgrade) |
 | A one-time `KeyPackage` is fetched by two concurrent initiators (race) | Defer (for the loser) | The owner's node is authoritative for consumption; the second initiator's `Add`/`Welcome` (§19.4.2) will be rejected by the owner as referencing an already-consumed package, and MUST re-fetch a fresh package and retry — not treated as a security failure, just a race |
 
 **Idempotency / retry.** Fetching is idempotent as a read; consuming a one-time package is
@@ -1094,9 +1110,9 @@ the new member, once it processes the `Welcome`, holds full current group state.
 
 | Condition | Class | Response |
 |---|---|---|
-| Initiator lacks `admin` capability for a pre-existing group | Reject | `INSUFFICIENT_ROLE` (§5.8.2) |
+| Initiator lacks `admin` capability for a pre-existing group | Reject | `ERR_GROUP_POLICY_VIOLATION` (`0x0409`, §5.8.2) |
 | Committer unreachable to accept the Commit | Defer | See §19.5.5 (failover) — members hold the pending proposal until the committer returns or a new one is elected |
-| `keypackage` already consumed (race with another initiator, §19.4.1) | Reject | `KEYPACKAGE_CONSUMED`; initiator must `fetch-keypackage` again and resubmit |
+| `keypackage` already consumed (race with another initiator, §19.4.1) | Reject | `ERR_KEYPACKAGE_INVALID_OR_EXHAUSTED` (`0x0402` — the consumed-package case); initiator MUST `fetch-keypackage` again and resubmit |
 | `Welcome` MOTE is deferred to the invitee's requests area because the inviter is not yet a known contact of the invitee (§2.7a) | Defer (at the invitee) | The `Welcome` sits in the requests area like any cold-sender MOTE until the invitee promotes the sender (pins them) or the recipient's policy otherwise clears it — **this is a real interaction point**: an `Add` from a stranger does not bypass the invitee's own anti-abuse gate merely by being a `group_event` kind. Implementations SHOULD document this explicitly to avoid a "why didn't my invite arrive" support issue |
 | Two concurrent `Add`s for the same group produce conflicting Commits at the same log position | Reject (fork) | Fork-detection halt applies (§19.5's fork-detection operation) — members MUST halt and alert, not silently pick one |
 
@@ -1163,16 +1179,16 @@ state directly from `group_info` without needing any existing member online to s
 
 | Condition | Class | Response |
 |---|---|---|
-| Join policy is `closed` | Reject | `JOIN_NOT_PERMITTED`; the group does not accept external commits at all — invite-only via `add-member` (§19.4.2) |
+| Join policy is `closed` | Reject | `ERR_GROUP_POLICY_VIOLATION` (`0x0409` — the join policy denies it); the group does not accept external commits at all — invite-only via `add-member` (§19.4.2) |
 | `request`/`vouch` policy and no valid proof supplied | Defer | Request queued for admin approval (`request`) or rejected pending a vouch (`vouch`); not immediately rejected outright if the group's policy defines an approval queue, but not admitted until approved |
-| `group_info.epoch` is stale (group has since advanced past what the joiner's `ExternalCommit` was built against) | Reject | `EPOCH_STALE`; the committer rejects a Commit built on an obsolete tree — joiner must re-fetch current `group_info` and retry |
-| `open` group, rate limit exceeded for this source (anti-abuse, §9.2) | Reject | `RATE_LIMITED`; same treatment as any cold-sender flood |
+| `group_info.epoch` is stale (group has since advanced past what the joiner's `ExternalCommit` was built against) | Reject | `ERR_EXTERNAL_COMMIT_REJECTED` (`0x0408`); the committer rejects a Commit built on an obsolete tree — joiner MUST re-fetch current `group_info` and retry |
+| `open` group, rate limit exceeded for this source (anti-abuse, §9.2) | Reject | `ERR_RATE_LIMIT_EXCEEDED` (`0x070C`); same treatment as any cold-sender flood |
 | Committer unreachable | Defer | Same failover handling as §19.5.5 |
-| Two external commits race at the same `epoch` | Reject (one of them, fork-avoided) | The committer serializes: the first accepted advances `epoch`; the second is rejected as `EPOCH_STALE` and must rebuild against the new tree and retry — this is the ordinary case the committer exists to resolve, not a fork (a fork is two committers disagreeing about which one won, §19.5's fork-detection) |
+| Two external commits race at the same `epoch` | Reject (one of them, fork-avoided) | The committer serializes: the first accepted advances `epoch`; the second is rejected as `ERR_EXTERNAL_COMMIT_REJECTED` (`0x0408`) and MUST rebuild against the new tree and retry — this is the ordinary case the committer exists to resolve, not a fork (a fork is two committers disagreeing about which one won, §19.5's fork-detection) |
 
 **Idempotency / retry.** Not idempotent (each success advances `epoch` once); retries after
-`EPOCH_STALE` MUST rebuild the `ExternalCommit` against the freshly-fetched `group_info`, not
-resubmit the stale one.
+`ERR_EXTERNAL_COMMIT_REJECTED` (`0x0408`) MUST rebuild the `ExternalCommit` against the
+freshly-fetched `group_info`, not resubmit the stale one.
 
 **Example trace (open group).**
 ```
@@ -1317,7 +1333,7 @@ member/owner/committer, ready to accept `join`s (§19.5.4) or `add-member` invit
 
 | Condition | Class | Response |
 |---|---|---|
-| Requested name (`@handle` or `name@domain`) already claimed by another identity | Reject | `NAME_UNAVAILABLE`; same as any identity naming conflict (§3.9.2's anti-squat mechanism applies identically to group handles) |
+| Requested name (`@handle` or `name@domain`) already claimed by another identity | Reject | `ERR_NAME_RESOLUTION_FAILED` (`0x0109`, closest registered code — the name already resolves to a different identity, so the claim fails at the naming layer); same as any identity naming conflict (§3.9.2's anti-squat mechanism applies identically to group handles) |
 | `visibility="hidden"` requested with `posting_model="collaborative"` (channel) | Reject (policy, not protocol) | Implementations SHOULD warn/reject this combination since a member-visible ordered channel is in tension with hidden membership (§5.8.1's table pairs broadcast↔hidden and collaborative↔visible as the typical cases, though the fields are independently settable — an implementation MAY allow the unusual combination but MUST NOT silently drop the visibility guarantee if it does) |
 | `legacy_address` requested but no gateway configured/available for that domain | Defer | Group is created without legacy interop; `legacy_address` can be added later via `policy-change` once a gateway is available |
 
@@ -1389,9 +1405,9 @@ the change, logged and auditable.
 
 | Condition | Class | Response |
 |---|---|---|
-| Initiator lacks the required role | Reject | `INSUFFICIENT_ROLE`; the committer (or, if using signature-gated proposals, any verifying member) refuses to apply an Update/Remove/Add not signed by a sufficiently-privileged member |
-| `group-remove` targets a member not currently in the roster | Reject | `NOT_A_MEMBER` |
-| `group-role-change` attempts to remove the **last** `owner` without designating a successor | Reject | `NO_OWNER_REMAINING`; a group MUST retain at least one `owner` at all times (analogous to the identity layer's requirement that recovery policy changes can't lock the owner out, §1.4) — implementations MUST enforce this as a group-state invariant |
+| Initiator lacks the required role | Reject | `ERR_GROUP_POLICY_VIOLATION` (`0x0409`); the committer (or, if using signature-gated proposals, any verifying member) refuses to apply an Update/Remove/Add not signed by a sufficiently-privileged member |
+| `group-remove` targets a member not currently in the roster | Reject | `ERR_GROUP_POLICY_VIOLATION` (`0x0409`, closest registered code — the change is not applicable to the current roster) |
+| `group-role-change` attempts to remove the **last** `owner` without designating a successor | Reject | `ERR_GROUP_POLICY_VIOLATION` (`0x0409`, closest registered code — a group-state-invariant violation); a group MUST retain at least one `owner` at all times (analogous to the identity layer's requirement that recovery policy changes can't lock the owner out, §1.4) — implementations MUST enforce this as a group-state invariant |
 | `group-policy-change` sets `visibility="hidden"` on a group whose `posting_model="collaborative"` (channel) and members have already seen each other in the shared tree | Reject or warn | The exposure already happened for existing members (§5.8.3's per-member sealed re-fan-out only protects members added *after* the switch); implementations MUST surface that a policy switch is not retroactive |
 | Committer unreachable | Defer | §19.5.5 failover applies |
 | File-key rotation (step 4) fails to reach a remaining member (offline) | Defer | Queued like any other MOTE (sender retry, §19.3.3); the removed member's access is already cryptographically stale for new content regardless of rotation-delivery timing — the risk window is bounded by how quickly rotation completes, not eliminated by this operation alone |
@@ -1430,7 +1446,7 @@ groups, standard MLS fan-out) or the committer acting as fan-out relay (large li
 
 **Preconditions.**
 1. The initiator holds `poster` (or equivalent, per the group's role scheme) capability.
-2. The group's current `epoch` state is held by the initiator (it must encrypt to the current
+2. The group's current `epoch` state is held by the initiator (it MUST encrypt to the current
    epoch's tree/keys).
 3. **Per-poster anti-abuse proof (§9.9).** Because fan-out is an amplification vector, the
    **poster's** own anti-abuse proof (§9) MUST be carried on each fanned-out per-member delivery
@@ -1462,9 +1478,9 @@ each acking independently per §19.3.2.
 
 | Condition | Class | Response |
 |---|---|---|
-| Initiator lacks `poster` capability (`reader`-only role attempting to post) | Reject | `INSUFFICIENT_ROLE`; the message is not accepted into the group's delivery path |
+| Initiator lacks `poster` capability (`reader`-only role attempting to post) | Reject | `ERR_GROUP_POLICY_VIOLATION` (`0x0409`); the message is not accepted into the group's delivery path |
 | Poster exceeds the per-poster fan-out rate limit, or an `open`-join list post exceeds the amplification cap, or a large-list post lacks commensurate postage/PoW (§9.9) | Reject / throttle | Fan-out is rate-limited **per poster** and capped for `open` lists; the poster's proof is evaluated per-recipient against the original poster, so the amplification is bounded and attributable (§9.9, §5.8.4) |
-| Initiator's local `epoch` is behind the group's current `epoch` (missed a recent Commit) | Reject (local) | The initiator must first process pending Commits (sync to current epoch) before it can correctly encrypt; this is a client-side precondition failure, not a network error |
+| Initiator's local `epoch` is behind the group's current `epoch` (missed a recent Commit) | Reject (local) | The initiator MUST first process pending Commits (sync to current epoch) before it can correctly encrypt; this is a client-side precondition failure, not a network error |
 | One member (of many, large-list fan-out) is offline | Defer (per-member) | That member's individual sealed delivery enters the ordinary sender-retry state machine (§19.3.3) independently of the others — one offline subscriber never blocks delivery to the rest |
 | A member has been removed but the sender's cached roster is stale | Reject (at the removed party, silently, per §19.3.1) | The stale send still goes out, but the removed member cannot decrypt it if key rotation (§19.5.2 step 4) has already run for confidential content; for non-confidential/ordinary application messages under a still-current epoch this is not applicable since a removed member is no longer a tree leaf at all post-Remove-Commit |
 
@@ -1530,11 +1546,11 @@ subscriber_1..16,18..40: ack independently
 
 | Condition | Class | Response |
 |---|---|---|
-| `join_policy="closed"` | Reject | `JOIN_NOT_PERMITTED`; must be invited |
+| `join_policy="closed"` | Reject | `ERR_GROUP_POLICY_VIOLATION` (`0x0409`); the requester MUST be invited |
 | `join_policy="request"`, admin never responds | Defer | Request remains pending until the **join-request expiry = 30 days (§16.8)**, then auto-expired/cleaned up (mirrors requests-area retention, §16.5) |
-| `join_policy="vouch"`, voucher is not a current member (removed since issuing the vouch, or never was one) | Reject | `INVALID_VOUCH` |
-| `join_policy="vouch"`, voucher exceeds their own vouch rate limit | Reject | `VOUCH_RATE_LIMITED` (§9.7 anti-farming) |
-| `join_policy="open"`, requester exceeds the group's open-join rate limit | Reject | `RATE_LIMITED` (same as `external-commit`'s failure mode, §19.4.3) |
+| `join_policy="vouch"`, voucher is not a current member (removed since issuing the vouch, or never was one) | Reject | `ERR_VOUCH_INVALID_OR_RATE_LIMITED` (`0x070A`) |
+| `join_policy="vouch"`, voucher exceeds their own vouch rate limit | Reject | `ERR_VOUCH_INVALID_OR_RATE_LIMITED` (`0x070A`, §9.7 anti-farming) |
+| `join_policy="open"`, requester exceeds the group's open-join rate limit | Reject | `ERR_RATE_LIMIT_EXCEEDED` (`0x070C`; same as `external-commit`'s failure mode, §19.4.3) |
 
 **Idempotency / retry.** A repeated `join` request while a `request`-mode approval is pending is
 harmless but SHOULD be deduplicated client-side (no protocol-level harm in an admin seeing two
@@ -1602,7 +1618,7 @@ recorded in the hash-chained log (auditable, §5.8.2).
 
 | Condition | Class | Response |
 |---|---|---|
-| `new_committer_ik` is not a current member | Reject | `NOT_A_MEMBER` |
+| `new_committer_ik` is not a current member | Reject | `ERR_GROUP_POLICY_VIOLATION` (`0x0409`, closest registered code — the rotation names a non-member) |
 | Members disagree on the referenced log head during failover election (partition) | Reject → escalates to fork-detection | Two members proposing rotation against *different* "last agreed" heads, each gathering a disjoint quorum, produces exactly the fork condition of §19.5.6 — this operation does not itself resolve that; it hands off to fork-detection |
 | Old committer returns after a failover rotation already completed | Defer, reconciled | The returning (former) committer MUST accept the newer, member-quorum-agreed Commit as authoritative for its log position (it is, after all, hash-chained and signed) and rejoin as an ordinary member — it MUST NOT attempt to re-assert its old ordering role by appending a competing Commit at the same position (doing so is exactly the forgery-shaped fork case, distinguished from mere staleness by whether it happens *before* or *after* it has seen the quorum's Commit) |
 | No live majority reachable at all (severe partition) | Defer | Group ordering stalls (no Commits accepted) until enough members are simultaneously reachable to agree a log head; application-message delivery over the mixnet (§5.1: "ordinary application messages... MAY travel over the reordering mixnet") is unaffected — only handshake/membership changes stall |
@@ -1656,7 +1672,7 @@ race, §19.5.5).
    handshake-dependent operations (adds/removes/role/policy changes) until resolved; ordinary
    application messages already encrypted under the last-agreed `epoch` MAY continue to be
    processed (the fork concerns *future* handshake state, not already-established message keys).
-4. Resolution is **out of the committer's hands** — members must manually (or via a
+4. Resolution is **out of the committer's hands** — members MUST manually (or via a
    higher-level, out-of-band group-recovery convention, not fixed in v0) agree which branch to
    keep, or re-create the group from the last pre-fork agreed state. This is a deliberate
    consequence of "cannot forge" (every Commit is member-signed) not implying "cannot stall or
@@ -1813,9 +1829,9 @@ design). Responder: the RP, which verifies the result.
 | Condition | Class | Response |
 |---|---|---|
 | Client-observed origin ≠ any origin the ceremony would sign for (a phishing relay presenting a look-alike origin) | Reject | The trusted client (WebAuthn/CTAP2) itself refuses — an assertion produced at `alice-yourdomain.evil.com` structurally cannot validate for `yourdomain` (§13.3.1); this is enforced by the client/authenticator, not by this operation's logic alone |
-| `challenge.nonce` already used, or `exp` elapsed | Reject | `CHALLENGE_INVALID`/`CHALLENGE_EXPIRED`; RP MUST NOT authenticate on a stale/reused challenge |
+| `challenge.nonce` already used, or `exp` elapsed | Reject | `ERR_NONCE_REPLAYED` (`0x0502`) / `ERR_CHALLENGE_EXPIRED` (`0x0503`); RP MUST NOT authenticate on a stale/reused challenge |
 | Remote-node ceremony: node cannot attribute the relayed challenge to an authenticated request channel (§13.3.1 hazard) | Reject | The node MUST refuse to sign; this is the specific defense against a phisher relaying a real challenge to a remote node for blind signing |
-| User declines the user-verification/approval step | Reject | `USER_DECLINED`; no assertion produced |
+| User declines the user-verification/approval step | Reject | No assertion produced — a local, deliberate deny with no dedicated registry code; what the RP eventually observes is the challenge lapsing unanswered (`ERR_CHALLENGE_EXPIRED`, `0x0503`, the closest registered code) |
 | Node in an "approve any challenge" mode | Reject (of the mode itself) | §13.3.1: "Nodes MUST NOT offer 'approve any challenge' modes" — an implementation offering this is non-conformant; this operation's procedure assumes per-login explicit approval is the only conformant mode |
 
 **Idempotency / retry.** Each assertion is bound to a single-use `nonce`; not idempotent or
@@ -1862,15 +1878,15 @@ client, which holds the newly-authorized session key.
      end.
 4. RP records the session as bound to `session_key`'s public half, not to a bare bearer token.
 
-**Success result.** A live, key-bound session; every subsequent API call must be accompanied by a
+**Success result.** A live, key-bound session; every subsequent API call MUST be accompanied by a
 proof of possession of `session_key`.
 
 **Failure modes.**
 
 | Condition | Class | Response |
 |---|---|---|
-| `assertion` fails RP-side verification (shouldn't reach this operation, but defensively) | Reject | `session-establish` MUST NOT be invoked on an unverified assertion; if it is, treat as `ASSERTION_INVALID` |
-| `session_key` generation/authorization fails (device key unavailable) | Reject | `DEVICE_UNAVAILABLE`; retry once a device key is available |
+| `assertion` fails RP-side verification (shouldn't reach this operation, but defensively) | Reject | `session-establish` MUST NOT be invoked on an unverified assertion; if it is, treat as the underlying §21.7 failure per cause (`ERR_ORIGIN_MISMATCH`/`ERR_NONCE_REPLAYED`/`ERR_CHALLENGE_EXPIRED`, `0x0501`/`0x0502`/`0x0503`) |
+| `session_key` generation/authorization fails (device key unavailable) | Reject | `ERR_DEVICE_CERT_INVALID` (`0x010D`, closest registered code — no current device key/cert is available to authorize the session key); retry once a device key is available |
 | A stolen bearer-style token is replayed without the matching `session_key` proof | Reject | DPoP/GNAP proof-of-possession check fails at the RP for every subsequent request — this is the entire point of §13.4, restated as this operation's ongoing per-request postcondition, not a one-time check |
 
 **Idempotency / retry.** Each successful login SHOULD mint a fresh `session_key` (not reuse one
@@ -2059,8 +2075,8 @@ verifier can check **offline**; or a KT-logged revocation that thereafter denies
 
 **Idempotency / retry.** `delegate-capability` with identical parameters (and `nonce`) yields the
 same token content-address — idempotent. `revoke-capability` is idempotent (re-publishing the same
-revocation is a no-op; revocation is monotonic — a token, once revoked, stays revoked, §21.25
-append-only).
+revocation is a no-op; revocation is monotonic — a token, once revoked, stays revoked, §21.14
+append-only registry discipline).
 
 ## 19.7 Gateway operations (§7)
 

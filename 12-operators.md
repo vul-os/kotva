@@ -53,7 +53,7 @@ generic "fail-open to allow" for this capability is prohibited.
 
 ## 12.3 The inviolable rule (normative)
 
-Privacy, cryptography, metadata privacy, and recovery MUST NEVER be behind the seam or a
+Privacy, cryptography, metadata privacy, and recovery MUST NOT be behind the seam or a
 paywall. There MUST be no seam hook, quota, or plan gate capable of disabling encryption,
 weakening the mixnet, reducing metadata privacy, or denying a user access to their own keys or
 mailbox. The seam meters and limits **operations and organizational concerns only**. Premium is
@@ -75,8 +75,9 @@ without a crippled free tier:
 - **The paid layer is a thin, private control-plane** (a *hosted operator*) that implements the
   seam contract and bills **operations**: hosted nodes, storage, legacy egress / IP reputation,
   vanity domains, org/SLA. It withholds no protocol, client, or privacy feature.
-- **The moat is reputation + network + being the best operator**, not the code. Because openness
-  is what lets the network grow large enough to be worth hosting, full openness costs little and
+- **An operator's durable advantage is reputation, network position, and operational quality**,
+  not the code. Because openness is what lets the network grow large enough to be worth hosting,
+  full openness costs little and
   is itself a trust requirement for a privacy product (a closed client cannot credibly claim
   "we can't read your mail"). Competitors hosting DMTAP grow the network the operator is central
   to.
@@ -91,8 +92,9 @@ without a crippled free tier:
 - **No protocol control:** required for adoption, but it means an operator can be out-executed —
   the defense is execution and trust, not a license.
 - **The open-core temptation recurs:** pressure to move "just one" feature behind the paywall
-  will appear. The inviolable rule (§12.3) is the bright line; drift there is fatal to the
-  brand and is prohibited for privacy/crypto features.
+  will appear. The inviolable rule (§12.3) is the bright line — the normative prohibition on
+  paywalling any privacy/crypto feature lives there, not here — and drift across it is fatal to
+  the brand.
 
 ## 12.6 Organization administration & the seam (normative)
 

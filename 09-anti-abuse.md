@@ -45,7 +45,8 @@ signs — both `sender_sig` and the stolen proof then verify). To close this, **
   does not bind the `sender_key` of the carrying envelope. This is what makes the token
   single-holder without deanonymizing it (ARC stays cross-recipient-unlinkable, §9.3).
 - **PowSolution** — already bound: the `epoch_nonce` scope is `id ‖ recipient ‖ nonce(epoch)`
-  (§9.4/§16.5) and `id` is the content address of *this* ciphertext, so a stolen PoW only "works"
+  (`nonce(epoch)` is the recipient's published epoch beacon, defined in §9.4; parameters §16.5)
+  and `id` is the content address of *this* ciphertext, so a stolen PoW only "works"
   on the identical MOTE, which the recipient de-duplicates by `id`. Implementations SHOULD
   additionally fold `sender_key` into the PoW scope for defense in depth.
 - **PostageStamp** — theft is bounded by the online single-use redemption check (§9.5.1): the
@@ -54,7 +55,7 @@ signs — both `sender_sig` and the stolen proof then verify). To close this, **
   so the issuer binds the spend to the presenting ephemeral key.
 - **Vouch** — a stolen vouch lets an attacker past the *abuse gate* only; the message still fails
   identity authentication inside `ciphertext` at §2.7 step 8, so it is discarded. No additional
-  binding is required, but a vouch SHOULD still be rate-limited per `subject` (§9.7).
+  binding is required, but a vouch MUST still be rate-limited per `subject` (§9.7).
 
 Because `challenge` is inside the `sender_sig` preimage (§18.9.1) and `sender_sig` is made by
 `sender_key`, this binding also proves the proof and the signature came from the *same* ephemeral
@@ -111,9 +112,17 @@ delivery tokens; DMTAP generalizes it to open, issuer-scored anonymous tokens.)
 
 ## 9.4 Proof-of-work (fallback)
 
-Where no token issuer is available, a stranger MAY attach a **proof-of-work** (a hashcash-style
-puzzle over the MOTE `id` + recipient + date) whose difficulty the recipient policy sets. PoW
-imposes cost on bulk senders while remaining trivial for a single legitimate message.
+Where no token issuer is available, a stranger MAY attach a **proof-of-work** — a puzzle whose
+scope is `id ‖ recipient ‖ nonce(epoch)` (§16.5) — whose difficulty the recipient policy sets.
+PoW imposes cost on bulk senders while remaining trivial for a single legitimate message.
+
+**The freshness source (normative — this clause defines `nonce(epoch)`, referenced by §9.2a and
+§16.5).** `nonce(epoch)` is the recipient's **current published epoch beacon**: a value
+published in the recipient's directory/`Identity` record and rotated on the §16.5 cadence, so a
+cold sender fetches it from the resolution path it already uses (§3) **without contacting the
+recipient's node**. A recipient that publishes no beacon falls back to the **current UTC date**
+— the coarsest permissible beacon. Either way, the epoch scope is what makes precomputed
+puzzles stale.
 
 **CAUTION.** PoW is a **last-resort** tier, not primary: there is no live standard, and plain
 hashcash asymmetry favors organized spammers (botnets/GPUs) over low-power legitimate senders
@@ -157,8 +166,8 @@ signature. DMTAP specifies the minimum:
   endpoint** (online check) or accept the issuer's signed short-lived spent-list; the issuer
   marks the serial spent atomically. A stamp presented twice is rejected on the second redeem.
 - **Cross-operator settlement:** the redeemer claims the amount from the issuer against the
-  serial; issuers reconcile out-of-band (standard interchange). "Trivial" was an overstatement —
-  it requires an issuer-side ledger, specified here.
+  serial; issuers reconcile out-of-band (standard interchange). Settlement requires an
+  issuer-side serial ledger; this section specifies it.
 - **Failure mode:** if the issuer is unreachable at redemption, the stamp is treated as
   *unverified* (falls back to token/PoW policy), never accepted on faith. No offline bearer
   acceptance of real money.

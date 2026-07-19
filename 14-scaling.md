@@ -124,6 +124,8 @@ cluster device (§5.6) or the **portable encrypted backup** of §1.4 — not the
 
 ## 14.6 Hosted multi-tenant topology (the operator)
 
+*(The vendor-named deployment below is illustrative, non-normative.)*
+
 For an operator hosting many mailboxes (Envoir Cloud, §12), the sensible horizontally-scalable
 shape is **stateless routed front + per-tenant sandboxed compute + object-storage persistence +
 scale-to-zero**:

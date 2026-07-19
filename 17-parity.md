@@ -1,5 +1,7 @@
 # 17. Feature-Parity Audit — Classic Mail/Calendar/Contacts vs DMTAP
 
+This section is **informative**; where it restates requirements, the owning section governs.
+
 This section is a **sense-check**, not a pitch. For every feature a working email/calendar/
 contacts user expects, it states how DMTAP provides it (or doesn't), whether the mapping is
 sound in a decentralized/E2E system, and how the security properties compare to legacy. A
@@ -64,8 +66,8 @@ survive translation, and that is correct, not a bug).
   would have seen anyway.
 - **Open issue:** **Intentional non-gap (v0-final, not deferred protocol work).** No rule language
   is specified in v0 *by design* — filtering is entirely **local to the node**, so it needs no wire
-  interoperability. Sieve itself (RFC 5228, §15.5) MAY be reused verbatim by an implementation
-  running on the node; nothing prevents it. This is deliberately left to implementations and is
+  interoperability. Sieve itself (RFC 5228, which §15.5 lists as informative precedent) may be
+  reused verbatim by an implementation running on the node; nothing prevents it. This is deliberately left to implementations and is
   **not** a pending `Headers.ext`/protocol registration.
 
 #### 4. Search (on-device, no server-side index) — **Different**
@@ -515,8 +517,7 @@ survive translation, and that is correct, not a bug).
 - **Sense-check:** This is not something legacy contacts have *any* analog for — a legacy
   contact card is just a display-name/email string with zero cryptographic binding, which is
   precisely why display-name spoofing and lookalike-domain phishing work at all. Adding real
-  key identity to the contact model is the single most consequential upgrade in this whole
-  audit.
+  key identity to the contact model is a substantial upgrade with no legacy analog.
 - **Security:** Strictly better, not just "different." A "verified contact" (OOB-checked
   safety number) makes impersonation via display-name or lookalike-address cryptographically
   impossible for that relationship — legacy email has no equivalent ceiling on how good contact
@@ -697,7 +698,7 @@ survive translation, and that is correct, not a bug).
 - **How:** Wake-and-fetch (§14.3): push carries no content, only a wake signal (≤4 KiB,
   content-free, §16.6), through APNs/FCM via a notification proxy; the device wakes, opens its
   own authenticated connection, and drains/decrypts locally. "Push is a latency optimization,
-  not delivery" — the client MUST still reconcile on foreground.
+  not delivery" — §14.3 requires the client to still reconcile on foreground.
 - **Sense-check:** Correctly modeled as the *only* architecture that works for a no-always-on-
   box user (§14.3), matching deployed precedent (Delta Chat/Chatmail, Signal, Matrix/Sygnal).
 - **Security:** A real, stated improvement: Apple/Google's push infrastructure never sees
@@ -726,13 +727,14 @@ survive translation, and that is correct, not a bug).
 #### 52. Backup/restore — **Different**
 - **How:** Two separate things, and the spec is strong on one and silent on the other. (a)
   **Identity backup** — the recovery policy (§1.4: phrase/device/social-guardian methods,
-  threshold-gated, VSS/FROST-hardened) is genuinely best-in-class: the key itself is
-  effectively un-loseable given redundant recovery factors. (b) **Mailbox-content backup/DR**
+  threshold-gated, VSS/FROST-hardened) is rigorously specified: the key survives the loss of
+  individual factors so long as redundant recovery factors remain (§1.4's own limit — losing
+  `IK` *and* all factors is unrecoverable). (b) **Mailbox-content backup/DR**
   — i.e., "restore my actual mail/calendar/contacts data after data loss," not just "recover my
   key" — is not separately specified as a DMTAP mechanism. It's implicitly provided by (i)
   multi-device replication (§5.6, each device holds/caches a copy, an incidental N-way backup)
   and (ii) whatever the node operator does at the infra layer — self-hosters own this
-  entirely; a hosted hosted-operator (§14.6) presumably backs the per-tenant object-storage
+  entirely; a hosted operator (§14.6) presumably backs the per-tenant object-storage
   bucket, but this is an operator/infra choice, not a protocol guarantee.
 - **Sense-check:** The identity half is exactly the right thing for a decentralized protocol
   to specify rigorously (§1.4 does). The *content*-backup half is legitimately a node/infra

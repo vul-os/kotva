@@ -2,13 +2,12 @@
 
 Identity is the foundation everything else hangs off. The governing principle:
 
-> **Your key is your identity. Your domain, your IP, and your provider are all replaceable
-> pointers to it.**
+> **Your key is your identity; names, domains, and providers are replaceable pointers to it.**
 
 **The `identity ≠ name` invariant (normative).** An identity **IS** the key — the root
 identity key `IK` (§1.2), plus its derived, zero-authority **key-name** (§3.9.6). A **name** is
-only a resolver-provided, replaceable **label** that *points at* that key (§3.12). **No
-conformant implementation may treat a name as the identity**, and none may authenticate,
+only a resolver-provided, replaceable **label** that *points at* that key (§3.12). **A
+conformant implementation MUST NOT treat a name as the identity**, and none may authenticate,
 route to, or grant on a name without resolving it to a key and verifying that binding against
 key transparency (§3.5). This is what makes names — DNS domains, provider handles, crypto
 name-chains, petnames — **swappable forever**, and what makes a change of domain, provider,
@@ -35,6 +34,9 @@ unknown suites (fail closed), never guess.
 Suite `0x02` is the post-quantum migration target. A node MAY hold keys in multiple suites
 during migration; the transparency log records which suite is current. Downgrade is
 prevented by pinning (§3) and by the transparency log's monotonic history.
+
+Allocation of further `suite` code points: §21.15 — `0x01`–`0x1F` Standards Action,
+`0x20`–`0xDF` Specification Required, `0xE0`–`0xFE` Private Use, `0x00`/`0xFF` Reserved.
 
 **AEAD agility is whole-suite-granular (normative).** A `suite` names its AEAD **together with**
 its signature, KEM, and hash — there is no independent AEAD selector, and no way to swap only the
@@ -75,8 +77,9 @@ flowchart TD
 - **KeyPackages** (§5.3) let others start an encrypted MLS session with the identity while
   every device is offline. KeyPackages are signed by a device key; one-time KeyPackages are
   consumed per session.
-- A DMTAP **address key** presented to correspondents is `IK`'s public half (the stable
-  identity). Correspondents pin it on first use (§3).
+- The key presented to correspondents is the **identity key (IK)** — its public half is the
+  stable identity ("address key" is a deprecated synonym, §0.8). Correspondents pin it on
+  first use (§3).
 
 ### DeviceCert (CBOR)
 
@@ -139,8 +142,10 @@ platform supports them, all three are buildable from this text:
   evidence chains only to a **retired** root is treated as expired (re-attest under a current
   root), never silently accepted. Re-attestation changes **no** authorization — the device's §1.4
   authority is unaffected; only the advisory hardware-backing claim is refreshed.
-- **Per-device sealing / compartmentalization (MUST — cross-cluster / post-removal session
-  isolation).** A device's keys **MUST NOT** decrypt content beyond what that device legitimately
+- **Per-device decryption isolation / compartmentalization (MUST — cross-cluster /
+  post-removal session isolation; "per-device sealing" is a deprecated name for this rule —
+  it bounds what a device can *decrypt*, and is none of the four "sealing" mechanisms of
+  §0.8).** A device's keys **MUST NOT** decrypt content beyond what that device legitimately
   holds **across a trust boundary**: not **other identities'** sessions, not sessions/epochs the
   device was **never** admitted to, and not group content **after the device is removed**. This is
   the property enforced by each device being its **own MLS leaf** (§5.1, §5.6) with its own leaf
@@ -167,7 +172,7 @@ pins.
 ```
 Identity {
   suites:   [+ u8],         // algorithm suites this identity supports, preference-ordered
-  iks:      { u8 => bytes },// identity public key per suite (Ed25519 for 0x01, +ML-DSA for 0x02)
+  iks:      { u8 => bytes },// identity key (IK) public half per suite (Ed25519 for 0x01, +ML-DSA for 0x02)
   version:  u64,            // monotonically increasing
   devices:  [* DeviceCert],
   keypkgs:  KeyPackageBundleRef,  // location + hash of the current KeyPackage bundle (§5.3)
@@ -235,8 +240,16 @@ so an identity can hold classical and PQ keys simultaneously during migration. R
 - Per-message suite is negotiated at **KeyPackage granularity** (§5.3): a KeyPackage advertises
   its suite, and the sender selects a recipient KeyPackage of the chosen suite. `Envelope.suite`
   records the suite actually used.
-- A verifier MUST reject an `Identity` whose highest offered suite it cannot validate rather
-  than fall back silently.
+- **Verifier acceptance across suites (normative).** A verifier MUST reject an `Identity` for
+  which it cannot validate **at least one** offered suite it supports; it MUST validate **every**
+  offered suite it *does* support (the hybrid AND-rule above, applied across the `sig` list); and
+  it MUST NOT reject an `Identity` merely because a *higher* offered suite uses primitives the
+  verifier does not implement — that is precisely the legacy-verifier case the multi-suite `sig`
+  list exists for, and rejecting it would make PQ migration a flag day. The anti-downgrade intent
+  is preserved: because `sig` carries one signature per suite over the whole object (including
+  `suites` itself), **stripping** a suite from the offered set alters the signed body and remains
+  detectable under every surviving signature — a stripped-suite `Identity` fails validation
+  rather than passing as a legitimately narrower one.
 
 **`deniable_prekeys` (OPTIONAL).** An identity that offers the deniable 1:1 mode (§5.2.1)
 publishes a `DeniablePrekeyBundle` (§18.4.8) and references it here (same `KeyPackageBundleRef`
@@ -244,8 +257,9 @@ shape as `keypkgs`). Its absence simply means the identity does not offer deniab
 default MLS path is unaffected. Wire key `11`; the identity signature stays key `10` (§18.4.1).
 
 `prev` chains versions into a tamper-evident history mirrored in the transparency log (§3).
-A verifier accepts an `Identity` only if every `sig` validates under the corresponding key in
-`iks` and the chain is consistent with what it has previously pinned/seen.
+A verifier accepts an `Identity` only if every `sig` **of a suite it supports** validates under
+the corresponding key in `iks` (the verifier-acceptance rule above) and the chain is consistent
+with what it has previously pinned/seen.
 
 ## 1.4 Recovery policy (and rotating the recovery methods)
 
@@ -276,6 +290,15 @@ Threshold = { any_of: [+ MethodPredicate] }   // e.g. 1 phrase OR 2 devices OR 2
 A **`MethodPredicate`** names a satisfied factor: `Phrase` (the phrase-derived key), `Devices(n)`
 (any *n* device factors), `Guardians(n)` (any *n* social shares), or `Ik` (the root key itself).
 A `Threshold`'s `any_of` is met when **any** listed predicate is satisfied.
+
+**Quorum-signature wire rule (normative).** A signature that satisfies `rotate_threshold` MUST
+take one of exactly two forms: **(i)** a **single aggregated threshold signature** (FROST-class
+methods — one signature verifying under the threshold-held public key, indistinguishable on the
+wire from a single-signer signature); or **(ii)**, for a multi-device predicate (`Devices(n)`)
+satisfied by *distinct* per-factor signatures, a **quorum-signature array** — one signature per
+contributing factor, each independently verifiable, together satisfying the predicate. The
+byte-exact wire form of the array is a flagged follow-up (wire form tracked in §18); no other
+encoding of a quorum satisfaction is conformant.
 
 Rules:
 
@@ -419,6 +442,14 @@ the pin (**`ERR_KEYROTATION_UNAUTHORIZED`**, §21.3). Nothing here impedes a leg
 scheduled PQ migration or routine-hygiene rotation performed by an owner in possession of `IK`
 simply follows path (a) (co-sign with the recovery quorum) or path (b) (publish and wait out the
 window) — the owner always can; only a partial-compromise attacker cannot.
+
+**First contact during a pending path-(b) window (normative).** A resolver performing **first
+contact** (§3.3) while a path-(b) `KeyRotation` is published but still inside its veto window MUST
+**pin the pre-rotation `IK`** — the rotation is not yet in effect for anyone — and follow the
+signed chain to `IK'` only once the window has elapsed **un-aborted**. Pinning the pending `IK'`
+early would hand a stolen-`IK` attacker exactly the vetoable-window takeover the delay exists to
+block: a rotation the owner is about to abort must not become someone's trusted first pin. (§3.4
+points here.)
 
 **No published `RecoveryPolicy` ⇒ `old_ik` alone remains sufficient.** An identity that has never
 published a `RecoveryPolicy` has no stronger authority than `IK` for a rotation to have bypassed;

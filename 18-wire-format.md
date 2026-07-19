@@ -75,20 +75,40 @@ deterministic CBOR and inherit CBOR's encoding.
 
 ### 18.1.4 Algorithm-suite tagging
 
-Every top-level signed or encrypted object carries a `suite` field (a `u8`, §16.7). The suite
-selects, as a **set**, the signature algorithm, the KEM/PKE, the AEAD, and the content-hash for
-that object:
+Every object carries a **version discriminator** of some form; signed/encrypted objects that
+**select an algorithm** carry a `suite` field (a `u8`, §16.7). The suite selects, as a **set**,
+the signature algorithm, the KEM/PKE, the AEAD, and the content-hash for that object:
 
 | `suite` | Sign | KEM/PKE | AEAD | Hash | Status |
 |--------:|------|---------|------|------|--------|
 | `0x01` | Ed25519 | X25519 (HPKE, RFC 9180) | ChaCha20-Poly1305 | BLAKE3-256 | v0 REQUIRED |
 | `0x02` | Ed25519 + ML-DSA-65 | X-Wing (X25519 + ML-KEM-768) | ChaCha20-Poly1305 | BLAKE3-256 | RESERVED (PQ) |
+| `0x03` | Ed25519 + ML-DSA-65 | X-Wing (X25519 + ML-KEM-768) | **AES-256-GCM** | BLAKE3-256 | RESERVED (AEAD-diverse emergency target, §16.7, §21.15) |
+
+`0x03` shares `0x02`'s byte layout exactly — every suite-governed length is identical (§18.2) —
+differing **only** in the AEAD selector (AES-256-GCM in place of ChaCha20-Poly1305; the AEAD
+content key remains 32 B).
 
 A decoder MUST reject an object whose `suite` it does not implement (fail closed, §1.1); it MUST
 NOT guess. The `suite` value governs the **length and structure** of every `ik-pub`, `sig-val`,
 and encapsulated-key byte string in the same object (§18.2). The DMTAP `suite` (`u8`) is
 **distinct** from the MLS ciphersuite (a `u16`, e.g. `0x0001`, negotiated *inside*
 `Envelope.ciphertext` per RFC 9420, §5.1); the two never share a field.
+
+**Which hook each object carries (normative index).** Not every top-level object carries `suite`
+directly; each has exactly one governing versioning/agility hook, as follows — a decoder MUST
+apply the fail-closed unknown-value rule to whichever hook the object defines:
+
+| Object(s) | Hook |
+|---|---|
+| `Envelope`, `Identity`, `DeviceCert`, `RecoveryPolicy`, `KeyRotation`, `MoveRecord`, `DomainDirectory`, `Profile`, `DeniablePrekeyBundle`, `MixNodeDescriptor`, `MixDirectory`, `GroupState`, `PostageStamp`, `CapabilityToken`, `KeyPackageRef`/`KeyPackageBundleRef` | explicit `suite` field (this section) |
+| `SignedTreeHead` | explicit `suite`, plus `tree_size` as its monotonic version (§18.4.9) |
+| `GatewayAttestation` | `disc` (key 0, §18.3.11) selects the attestation kind; the signature algorithm is that of the published `_dmtap-gw` key (`v=` scheme version, §7.2a) — **no `suite` field** |
+| `LocationRecord` | `seq` (monotonic rollback defense) + `substrate` (transport agility, §21.24); `sig` is governed by the signing device key's `Identity` suite — **no `suite` field** |
+| `Assertion` | inheritance: `sig` is verified under the pinned identity of `from` (§3.4, §13.3), whose `Identity.suites` governs algorithm and lengths — **no `suite` field** |
+| `PushSubscription` | `provider` (key 1, §4.9.3); `sig` is governed by the `device_key`'s `DeviceCert`/`Identity` suite — **no `suite` field** |
+| `GroupEvent` | inheritance: the group's `GroupState.suite` governs `committer_sig`; the opaque `mls` blob is versioned by its own RFC 9420 ciphersuite — **no `suite` field** |
+| `WakePing`, `SphinxCell`, cluster-sync objects (§18.6.3), `InclusionProof`/`ConsistencyProof`, `ProvenanceRecord`, `GatewayAliasMap` | no signature of their own — secured by a different proof system or by the referencing signed object (§18.9) |
 
 ### 18.1.5 Hash-agility prefix
 
@@ -175,8 +195,12 @@ the object's `suite`.
 | HPKE encapsulated key (inside `ciphertext`) | 32 B (X25519) | 32 B ‖ 1088 B (X-Wing) |
 | `hash` digest | 32 B (BLAKE3-256) | 32 B |
 
-The PQ (`0x02`) lengths are RESERVED and given for forward planning; a v0 implementation
-implements only `0x01` and MUST reject `0x02` fail-closed until it supports it.
+**Suite `0x03`** (Ed25519+ML-DSA-65 / X-Wing / AES-256-GCM / BLAKE3-256, §16.7/§21.15) has the
+**identical byte layout to `0x02`** in every row above — including the 32 B `enc-key` — differing
+only in the AEAD selector (AES-256-GCM), so no separate column is needed.
+
+The PQ (`0x02`/`0x03`) lengths are RESERVED and given for forward planning; a v0 implementation
+implements only `0x01` and MUST reject `0x02`/`0x03` fail-closed until it supports them.
 
 ---
 
@@ -1731,6 +1755,22 @@ Other `hash` references to a whole object (`recovery`, `keypkgs.id`, `prev`, `Ke
 `GroupState.log_head`) are computed the same way — `prefix ‖ BLAKE3-256(det_cbor(referenced
 object))` — with no domain separation, since a content address is a pure function of the bytes.
 
+**MLS-native referents (carve-out from the `det_cbor` rule).** Where the referent is an
+**MLS-native object** — a KeyPackage referenced by `KeyPackageRef.ref`, or the bundle referenced
+by `KeyPackageBundleRef.id` — the content address is computed over its **MLS/TLS wire
+serialization** (RFC 9420 `tls_serialize`), not `det_cbor`:
+
+```
+mls_ref = prefix ‖ BLAKE3-256( tls_serialized_bytes )         ; v0 prefix 0x1e
+```
+
+MLS objects are **never re-encoded as DMTAP CBOR** — the address is a pure function of the bytes
+RFC 9420 puts on the wire, so both sides hash the identical serialization. By contrast,
+`GroupState.log_head` references the **DMTAP CBOR committer-log head** (a DMTAP object, §5.1), so
+the generic `det_cbor` rule above applies to it. A **`ClusterOp` op-hash** (as recorded in a
+`JournalEntry.ref`, §18.6.3) is likewise `prefix ‖ BLAKE3-256(det_cbor(ClusterOp))`, with no
+DS-tag — a content address, not a signature preimage.
+
 ### 18.9.5 Merkle-DAG manifest root (`Manifest.id`, `ManifestRef.id`)
 
 The manifest root is an **RFC 6962-style binary Merkle tree** over the ordered chunk hashes, using
@@ -1933,6 +1973,24 @@ forged/unauthenticated wake and is dropped (`ERR_WAKEPING_AUTH_FAILED`, `0x0314`
 (`ERR_WAKEPING_RATE_LIMITED`, `0x0315`, §4.9.4). This mirrors the deniable-mode objects (§18.9.10)
 and `SphinxCell` (§18.9.9): a wire object whose security rests on a different, well-specified proof
 system — here RFC 8291 Web Push encryption — not on a DMTAP signature.
+
+### 18.9.16 Committer-rank preimage (§5.1)
+
+The deterministic committer-election rank (§5.1) is a domain-separated hash, computed
+identically by every member so the election needs no extra round-trips:
+
+```
+rank = BLAKE3-256( "DMTAP-v0/committer-rank" ‖ 0x00
+                 ‖ member_signing_key_bytes            ; raw MLS leaf signature public key
+                 ‖ group_id_bytes                      ; GroupState.group_id (field 1), raw bytes
+                 ‖ u64be(epoch) )                      ; the MLS epoch number, 8 bytes big-endian
+```
+
+`member_signing_key_bytes` is the member's **raw MLS leaf signature public key** exactly as it
+appears in the ratchet tree (RFC 9420), with no CBOR head; `group_id_bytes` is the raw byte
+string of `GroupState.group_id`. This is a **ranking hash, not a signature** — it carries no
+`sig-val` and proves nothing by itself; the DS-tag only ensures a rank can never collide with any
+other DMTAP preimage. Members order candidates by `rank` (lowest first) per §5.1.
 
 ---
 

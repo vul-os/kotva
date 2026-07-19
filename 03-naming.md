@@ -20,7 +20,7 @@ tamper-evident, and how it degrades safely.
 
 **The `identity ≠ name` invariant, restated for naming (normative).** An identity is the key
 (§1.2), plus its derived key-name (§3.9.6); a `name@domain` — or any other name — is only a
-**resolver-provided, replaceable pointer** to it. **No conformant implementation may treat a
+**resolver-provided, replaceable pointer** to it. **A conformant implementation MUST NOT treat a
 name as the identity.** DNS is *one* way to discover the pointer, never the identity and never
 the proof; §3.12 generalizes this to a **pluggable set of resolvers** of which DNS is only the
 default. Because the key is the identity, native **delivery and verification require zero DNS
@@ -101,7 +101,9 @@ v0 trust model:
 
 - On first resolution, **pin** `(name → ik, id)`.
 - Follow the signed `Identity` hash chain (§1.3–1.6) for rotations and migrations; accept a
-  new key only via a valid chain from the pinned key.
+  new key only via a valid chain from the pinned key. During a pending **path-(b) `KeyRotation`
+  veto window** (§1.5), a first-contact resolver MUST pin the **pre-rotation** `IK` and follow
+  the chain to the new key only once the window elapses un-aborted (§1.5).
 - Offer **out-of-band verification** (safety-number / QR comparison of `ik`, §3.4.1) to upgrade a
   TOFU pin to a verified pin.
 - A key that changes *without* a valid chain MUST raise a security warning, never silently
@@ -345,8 +347,8 @@ _dmarc.gw.example TXT     DMARC policy
 
 The **user touches zero DNS.** DMTAP-native delivery is key-based; legacy interop works
 immediately because the shared domain is pre-configured and its IPs are warmed. Per-user
-legacy setup = none. This is Gmail-grade onboarding: you get an address, not a domain — a
-provider-issued `you@gw.example` that is a full, first-class `name@domain` (§3.9.1).
+legacy setup = none. The user receives an address, not a domain — a provider-issued
+`you@gw.example` that is a full, first-class `name@domain` (§3.9.1).
 
 ### Tier C — vanity custom domain (auto-configured)
 
@@ -406,7 +408,7 @@ Why this is the headline:
 - **It's federated — no global-namespace squatting.** Uniqueness is *per-domain*, so there is no
   single global registry to squat or race: `alice@a.org` and `alice@b.org` are different people,
   and neither had to win a landrush.
-- **One familiar format**, already understood by every human and every mail system.
+- **One familiar format**, shared with existing email addressing and its tooling.
 - **It interoperates with legacy email for free** — the shared or owned domain carries
   MX/DKIM/DMARC (§3.8, §7), so `name@domain` is reachable from Gmail/Outlook on day one.
 
@@ -617,6 +619,46 @@ throughout (§3.9.4, §3.11.5): whatever else fails, you remain nameable and rea
   away (§6.6). For a chosen, un-loseable human name a user layers a `name@domain` (§3.9.1) or an
   optional self-sovereign name-chain (§3.6, §3.12) *over* the key-name; none of them replaces it as
   the floor.
+
+### 3.9.7 Canonical name form & confusable defenses (normative)
+
+Every name form above is a string a human reads and an attacker can imitate. This subsection
+fixes the **one canonical form** of a name and the two **spoofing defenses** every conformant
+implementation applies. Both defenses carry registered error codes (§21.3).
+
+**Canonical form (normative).** A `name@domain` has exactly one canonical form, and comparisons,
+pins, KT leaves, and DNS queries all use it:
+
+- the **local part** is Unicode-normalized to **NFC** and **lowercased**;
+- the **domain** is processed under **UTS-46 / IDNA2008**, with the **A-label** (Punycode) form
+  as the **canonical compared form**; DNS qnames (§3.2) are built from A-labels;
+- consequently the **U-label and A-label spellings of one name are ONE identity** — they
+  canonicalize to the same compared form, resolve to the same key, and MUST NOT be treated as
+  two names (two pins, two KT leaves) anywhere.
+
+**(a) Single-script-per-label rule (registration, parse, and pin time).** Each label of a name
+(each dot-separated element of the local part and domain) MUST use characters of **one Unicode
+script**. Characters of script `Common` or `Inherited` are exempt, and three legitimate
+mixed-script combinations are admitted: **Han + Hiragana + Katakana** (Japanese), **Han +
+Hangul** (Korean), and **Han + Bopomofo** (Chinese). Any other mixed-script label — the classic
+`pаypal` Latin/Cyrillic homoglyph — is rejected **fail closed** wherever a name enters the
+system: at registration (a provider/directory MUST NOT allocate it), at parse, and at pin
+(`ERR_NAME_LABEL_MIXED_SCRIPT`, `0x0122`, FAIL_CLOSED_BLOCK, §21.3).
+
+**(b) Pin-time confusable-skeleton check.** Before pinning a newly resolved name (§3.4), the
+client MUST compute a **UTS #39-informed confusable skeleton** of the candidate name and compare
+it against the skeletons of its **existing pins and petnames**. A skeleton collision with a
+**different** pinned name — a candidate that looks like a contact the user already has but
+resolves to a different key — is rejected **fail closed**, never pinned silently
+(`ERR_NAME_CONFUSABLE_WITH_PIN`, `0x0123`, FAIL_CLOSED_BLOCK, §21.3); the client SHOULD steer
+the user to out-of-band verification (§3.4.1) to establish whether the newcomer is genuine.
+This is the local-trust-store complement of rule (a): (a) blocks names that are intrinsically
+mixed-script forgeries; (b) blocks single-script lookalikes (`paypa1`, `rn` for `m`) *relative
+to what this user already trusts*.
+
+Neither defense weakens the invariant that authenticity is the key (§3.1): they protect the
+**human comparison step** — the one place where a lookalike string, not a forged key, is the
+attack.
 
 ## 3.10 Organization & domain administration
 

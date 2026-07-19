@@ -15,11 +15,15 @@ It is **optional** — a node with no legacy correspondents and only native (JMA
 uses one, and at full DMTAP adoption it is unnecessary and MAY be deprecated. It MAY be the node
 binary run in `--gateway` mode by an operator with a reputable IP and a domain.
 
-**Two different "relays," kept distinct.** The gateway's legacy-client reachability ingress
-(§7.15) serves clients that **cannot** speak the mesh; it is a legacy edge surface. It is **not**
-the node's native mesh relay (Circuit Relay v2 / DCUtR, §4.3), which is node↔node reachability
-and lives on the node. Native nodes reach each other peer-to-peer over the mesh with no gateway
-in the path (§7.7); the gateway ingress exists **only** for legacy clients.
+**Four different "relays," kept distinct** (defined in the §0 glossary). The spec uses "relay"
+in four senses: (1) the **native mesh relay** — Circuit Relay v2 / DCUtR (§4.1, §4.3),
+content-blind node↔node reachability that lives on the node; (2) the **legacy-client
+reachability ingress** (§7.15.2) — the *gateway* surface that accepts a raw legacy connection
+and terminates TLS for clients that cannot speak the mesh; (3) the **Relay node class** (§14.1)
+— any public-IP node performing sense (1) as a role; and (4) the **relay-mailbox** (§14.3) — the
+hosted, content-blind queue a mobile-only user drains. Only sense (2) is a legacy edge surface.
+Native nodes reach each other peer-to-peer over the mesh with no gateway in the path (§7.7); the
+gateway ingress exists **only** for legacy clients.
 
 ## 7.1 Responsibilities
 
@@ -30,7 +34,10 @@ in the path (§7.7); the gateway ingress exists **only** for legacy clients.
 - Carry the one irreducible operational cost: **IP reputation** (warmup, feedback loops,
   blocklist remediation, abuse handling).
 
-The gateway is **stateless**: durability is punted to the edges (§7.4).
+The gateway holds **no message queue and no mailbox of record**: message durability is punted to
+the edges (§7.4). It MAY hold *non-message* operational state — random-alias maps (§7.10.2) and
+app-password / legacy-session state (§7.15) — each rebuildable or re-issuable, never a message
+store.
 
 ## 7.2 Inbound
 
@@ -69,6 +76,12 @@ sequenceDiagram
   end
 ```
 
+**Inbound TLS (normative).** The gateway MX MUST offer STARTTLS (RFC 3207) on its SMTP
+listener, SHOULD publish an MTA-STS policy in `enforce` mode (RFC 8461) and/or DANE TLSA records
+(RFC 7672) for its own MX hostname, and MUST NOT silently downgrade its own advertised TLS
+posture inbound: a session that negotiates cleartext where a published policy promised TLS MUST
+be refused (SMTP `4xx`), never served in the clear.
+
 ### 7.2a Attestation key binding (normative)
 
 An attestation is worthless unless its signing key is provably bound to a gateway the domain
@@ -85,6 +98,42 @@ under the recipient's own domain (or an explicitly trusted gateway set), **MUST*
 attestations that do not verify, and **MUST** mark accepted ones as *legacy-origin* (not
 end-to-end encrypted before the gateway). This upgrades the former "MAY verify" to a default-on
 check with a cryptographic anchor.
+
+**Anchor honesty (normative).** The `_dmtap-gw` record is a DNS binding, so the attestation is
+only as strong as the record's own anchor: the record SHOULD be **DNSSEC-signed** and SHOULD be
+**anchored in KT**. Absent both, the binding inherits the DNS-substitution risk of §13.7 item 6
+— a registrar/DNS compromise can substitute the attestation key — and a client MUST NOT present
+the attestation to users as a stronger assurance than DKIM-class domain authentication.
+High-value recipients MUST require the KT-anchored form.
+
+### 7.2b Internationalized and 8-bit mail (normative)
+
+Legacy mail is not ASCII, and a bridge that mangles it corrupts what it bridges. The rules below
+are the v0 floor; the full-EAI path (advertising SMTPUTF8 across all surfaces) is the SHOULD /
+v1 target, and a gateway implementing only the floor conforms.
+
+- **8-bit transparency.** A gateway MUST advertise **8BITMIME** (RFC 6152) and MUST carry 8-bit
+  message data **byte-exact** through verification and wrapping — DKIM is computed over the
+  original bytes, and the bytes wrapped into the MOTE are the bytes received. Lossy re-encoding
+  is forbidden: a body that cannot be transcoded to UTF-8 MUST be carried verbatim as opaque
+  bytes under its original MIME type, with its original charset declaration preserved so the
+  message round-trips exactly.
+- **Header encoding.** RFC 2047 encoded-words MUST be decoded to UTF-8 for the native
+  subject/display fields of the wrapped MOTE, and non-ASCII header values MUST be (re-)encoded
+  per RFC 2047 on the outbound leg.
+- **Internationalized domains.** Domains MUST be converted to **A-label** form (RFC 5890) for
+  DNS resolution, dialing, and SNI; U-labels are display forms, never wire forms.
+- **SMTPUTF8 inbound (RFC 6531).** A v0 gateway SHOULD advertise SMTPUTF8 where its
+  alias/directory machinery can carry EAI local-parts. A gateway that does not advertise it MUST
+  let a conforming EAI sender fail cleanly at the sender's own MTA (RFC 6531 requires the sender
+  to bounce when the capability is absent) — it MUST NOT accept EAI envelopes it cannot carry
+  faithfully (never accept-then-mangle).
+- **SMTPUTF8 outbound.** When a message requires SMTPUTF8 and the destination MX does not
+  advertise it, the gateway MUST fail the send with a specific SMTPUTF8-unsupported error —
+  permanent, surfaced to the sender via the §7.3/§7.4 failure report — and MUST NOT emit a
+  non-conformant 8-bit envelope. When the message body is 8-bit and the peer lacks 8BITMIME, the
+  gateway MUST either down-convert **losslessly** (e.g. content-transfer-encoding) or fail with
+  the same specificity; silent corruption is never an option.
 
 ## 7.3 Outbound & DKIM delegation
 
@@ -116,6 +165,14 @@ sequenceDiagram
   end
 ```
 
+**Outbound TLS (normative).** Where the destination domain publishes **MTA-STS** (RFC 8461) or
+**DANE TLSA** (RFC 7672), the gateway MUST enforce TLS to that policy — no downgrade to
+cleartext or to an unvalidated peer. Where neither is published, the gateway MUST attempt
+opportunistic STARTTLS, and a leg delivered opportunistically or in cleartext MUST be recorded
+as **unauthenticated-transport** in the message's `ProvenanceRecord` (§7.8); an operator MAY
+refuse cleartext egress outright. A gateway MUST NOT present an opportunistic or cleartext leg
+as authenticated transport.
+
 DKIM delegation cleanly separates *deliverability reputation* (the gateway's) from *identity*
 (the user's key, never shared).
 
@@ -123,8 +180,10 @@ DKIM delegation cleanly separates *deliverability reputation* (the gateway's) fr
 
 - Inbound: unreachable recipient → SMTP `4xx` → the **legacy sender** retries.
 - Outbound: send failure → the **user's node** retries.
-- The gateway holds no queue and no mailbox. Restart it and nodes/senders re-drive; nothing to
-  recover or leak.
+- The gateway holds no message queue and no mailbox of record. It MAY hold non-message
+  operational state — random-alias maps (§7.10.2), app-password/legacy-session state (§7.15) —
+  which is rebuildable or re-issuable, never a message store. Restart it and nodes/senders
+  re-drive; no message is lost or leaked.
 
 ## 7.5 Decentralization & economics (summary; anti-abuse in §9)
 
@@ -176,8 +235,7 @@ So DMTAP does not attempt it. Fairness is achieved by the four mechanisms below 
 3. **The accountability layer makes open service viable.** Open relays failed because abuse was
    unattributable. DMTAP attributes every send to an anonymous-but-accountable ARC token +
    optional postage + operator stake (§9), so a gateway *can afford* to serve strangers openly
-   — abuse is priced and per-token-bannable, not a reputation-destroying free-for-all. Openness
-   is no longer suicidal.
+   — abuse is priced and per-token-bannable, not a reputation-destroying free-for-all.
 4. **An optional commons gateway.** A non-profit or protocol-funded operator MAY commit to
    universal, non-discriminatory service (a "public option"), funded by postage/donations, as
    **one operator among many** — not a mandate on all. Reputation ratings (§7.5) reward open
@@ -329,6 +387,14 @@ native address from an ambiguous local-part). A gateway MAY instead use a strict
 packing of `det_cbor([localpart, nativedomain])`; the escaping form above is the normative default so
 two gateways interoperate on encoded aliases.
 
+**IDN / EAI (normative).** `nativedomain` MUST be normalized to its **A-label** form (RFC 5890)
+before encoding, so an encoded local-part is always ASCII. A `localpart` containing non-ASCII
+octets (an EAI local-part, §7.2b) cannot be carried by the encoded form: it MUST be carried
+under the **random** alias form or rejected with `ERR_GATEWAY_ALIAS_ENCODING_INVALID`
+(`0x0606`). A gateway MUST NOT emit a non-ASCII encoded local-part. Decode converts the A-label
+back to its U-label for **display only** — the A-label remains the form used for resolution,
+dialing, and SNI (§7.2b).
+
 **Random form.** A `<rand>@gateway.domain` (a high-entropy localpart) is stored in a
 `GatewayAliasMap` row (§18.3.12) binding `alias → native`, OPTIONALLY scoped to one `correspondent`
 and **burnable** (a per-sender throwaway). It reveals nothing about the native domain, at the cost of
@@ -343,6 +409,19 @@ unmapped/expired/burned random alias, or a non-decodable encoded one, fails
 the §21.9 non-existent-recipient reply, since the bridge owns no identity to defer to), converts the
 RFC 5322 message to a **signed MOTE**, stamps a gateway-touched `GatewayAttestation` /
 `ProvenanceRecord` (§7.2a, §7.8), and delivers to the mesh (§4) at the native key.
+
+### 7.10.3a Bounces and delivery status notifications (normative)
+
+A DSN/NDR (RFC 3464; SMTP envelope `MAIL FROM:<>`) inbound to a gateway alias MUST be
+recognized as such and exempted from the SPF/DMARC hard-fail and cold-sender gates of §7.11.1
+PROVIDED the gateway can correlate it — via `Original-Recipient` and/or the referenced
+`Message-ID` — to an outbound message this gateway relayed for that identity within the node's
+retry window (§7.4). A null-return-path message the gateway cannot correlate is still gated like
+any other inbound (uncorrelated `MAIL FROM:<>` is the classic backscatter/spoof vector). A
+correlated bounce is delivered to the native sender as a **system/bounce MOTE**, so a legacy
+delivery failure is visible, not swallowed. When the node's outbound retry budget (§7.4)
+exhausts, the node MUST surface a permanent-failure notice to the sender — a legacy send never
+fails silently.
 
 ### 7.10.4 Swappable / ephemeral, and the honest residual
 
@@ -392,7 +471,7 @@ user-*chosen* local-part in case (b) — `alice@gw.example`. It is the **only** 
   gateway's domain** (§3.11.5's provider-dependence, applied to the gateway's namespace). It carries the
   same honest residual as any tier-1 vanity (§3.11.2): the gateway MAY de-allocate it, and the **key +
   key-name survive** untouched (§3.9.6).
-- A vanity **MUST yield to, and MUST NEVER shadow, a real network name.** If a resolvable `name@domain`
+- A vanity **MUST yield to, and MUST NOT shadow, a real network name.** If a resolvable `name@domain`
   or name-chain name exists, that anchored name wins; the gateway MUST NOT let a chosen vanity mask or
   intercept delivery to an anchored name.
 
@@ -528,8 +607,8 @@ naming providers: the **interoperable mechanism and the security floor are in-sp
 is free to choose):**
 
 - **quota values, rate limits, and volume caps** — the *numbers*, not *whether* they exist;
-- **usage-tracking / metering mechanics** — §12.2 meters *operations*; how an operator records them is
-  its own;
+- **usage-tracking / metering mechanics** — §12.2 meters *operations*; how an operator records
+  them is its own concern;
 - **pricing and billing** — postage amounts, egress fees, plan structure (§7.5, §7.9, §12).
 
 The dividing rule is identical to §3.11's for names and §12.3's inviolable metering rule: **what two
@@ -625,18 +704,20 @@ legacy protocols have no notion of the DMTAP object encryption. Therefore:
 - This is **unlike** the node's native path. JMAP + the mesh (§8.1) is **zero-access /
   zero-intermediary**: no gateway is in the path and nothing is decrypted by a third party. A
   client MUST NOT present gateway-served legacy access as end-to-end when served by a non-private
-  gateway, and SHOULD surface which gateway (and thus which trust boundary) serves a legacy
+  gateway, and MUST surface which gateway (and thus which trust boundary) serves a legacy
   session.
 
-This supersedes any earlier framing that treated legacy client access as node-local and therefore
-"between parties, not you and your own device." That rationale held only while IMAP was node-local;
-now that legacy is gateway-served, DMTAP states honestly that a non-private gateway is an
-intermediary that can read the mail.
+Legacy client access is gateway-served, and a non-private gateway is an intermediary that can
+read the mail it serves. DMTAP states this plainly rather than presenting the legacy path as
+private.
 
 ### 7.15.4 Operator modes (normative)
 
-A gateway operator **MUST** declare, and MAY enforce, one of three service modes for legacy
-client access; the mode is disclosed to users (and advertised in the directory descriptor, §7.5):
+A gateway operator **MUST declare exactly one** of three service modes for legacy client access
+and **MUST enforce the declared mode**; the mode is disclosed to users (and advertised in the
+directory descriptor, §7.5). Advertising a mode while operating another — e.g. advertising
+`private` while serving third parties — is non-conformant misrepresentation, not a policy
+choice:
 
 | Mode | Who it serves | Trust profile |
 |------|---------------|---------------|

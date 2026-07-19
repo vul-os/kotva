@@ -156,9 +156,11 @@ never by the signer trusting a value handed to it by the RP.
 After login, the RP and client establish a session that is **sender-constrained to the user's
 key**, so a leaked token cannot be replayed by a thief:
 
-- Sessions SHOULD use **DPoP (RFC 9449)** — each request carries a fresh proof-of-possession
-  JWT signed by a session key bound at login — or **GNAP (RFC 9635)** continuation, which is
-  key-based end to end.
+- A native session MUST be key-bound: use **DPoP (RFC 9449)** — each request carries a fresh
+  proof-of-possession JWT signed by a session key bound at login — or **GNAP (RFC 9635)**
+  continuation, which is key-based end to end. A bearer session on the native path is
+  non-conformant; the bridge path's bearer ID Token is the disclosed exception (caveat below,
+  §13.6).
 - Session keys are **per-RP, per-device** ephemeral keys authorized by a device key (§1.2), not
   `IK` itself. This limits blast radius and enables granular revocation.
 - **Revocation:** revoking one app/device session publishes a revocation to the transparency
@@ -342,6 +344,10 @@ Honest limits (stated in-product):
    of a user's bridged logins, nor against the user's own **issuing node/host**, which learns
    *which RP* a login resolves to. To bound the bridge's view, the bridge SHOULD issue
    **pairwise/blinded subject identifiers** (a distinct `sub` per RP), never one global subject.
+   This stays a SHOULD, not a MUST, for one reason: some deployed RP ecosystems require a
+   stable, portable `sub` (cross-service account linkage, or migrating an RP off the bridge to
+   native verification), which pairwise identifiers would break. A bridge that issues a global
+   `sub` MUST disclose to the user that its RPs can correlate the user across sites by it.
 8. **The hosted bridge is a trusted third party.** A bridge-mediated login (§13.6) trusts the
    bridge's signing key **to the same degree as any classical IdP** — a compromised bridge can
    forge logins for its RPs. The embedded user assertion + `cnf` (so an RP MAY verify the user's

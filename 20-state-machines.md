@@ -246,7 +246,9 @@ pinned-follow-chain path for key rotation (§1.5) and name migration (§1.6).
 
 ### Events
 
-`begin_resolve`, `dns_ok`, `dns_fail`, `kt_reachable_confirmed`, `kt_reachable_but_superseded`,
+`begin_resolve`, `dns_ok`, `dns_fail_transient` (timeout / SERVFAIL / no connectivity),
+`dns_fail_definitive` (authoritative NXDOMAIN / no `_dmtap` record),
+`kt_reachable_confirmed`, `kt_reachable_but_superseded`,
 `kt_unreachable` (branches by local policy: `policy=block` / `policy=warn`), `fetch_ok_chain_valid`,
 `fetch_fail`, `sig_chain_invalid`, `oob_verify_ok`, `rotation_or_move_seen`, `chain_valid`,
 `chain_invalid`, `user_accepts_with_warning`, `user_declines`, `user_overrides_with_oob`,
@@ -259,7 +261,8 @@ pinned-follow-chain path for key rotation (§1.5) and name migration (§1.6).
 |---|---|---|---|
 | `UNRESOLVED` | `begin_resolve` | `RESOLVING` | Issue DNS TXT/SVCB query (§3.2). |
 | `RESOLVING` | `dns_ok` | `KT_VERIFY` | This is necessarily first contact (no prior pin exists in `UNRESOLVED`). |
-| `RESOLVING` | `dns_fail` | `UNRESOLVED` | **[fill]** §3.3 does not classify a plain DNS miss (NXDOMAIN/timeout/malformed record) among its three named outcomes — that clause is about *KT* unreachability, not DNS itself. This machine bounces back to `UNRESOLVED` and surfaces "name not found" to the caller (e.g. §20.1's `resolve_or_seal_blocked` → `RETRY`). |
+| `RESOLVING` | `dns_fail_transient` | `UNRESOLVED` | **[fill]** §3.3 does not classify a plain DNS miss among its three named outcomes — that clause is about *KT* unreachability, not DNS itself. A **transient** resolution failure (timeout, SERVFAIL, no connectivity) is not an answer: bounce back to `UNRESOLVED` and retry on the caller's schedule (§20.1's `resolve_or_seal_blocked` → `RETRY`, capped by the caller's own deadline). |
+| `RESOLVING` | `dns_fail_definitive` | `UNRESOLVED` | A **definitive** negative answer (authoritative NXDOMAIN, or the zone exists but publishes no `_dmtap` record) is **terminal for this attempt**: surface `ERR_NAME_RESOLUTION_FAILED` (`0x0109`, §19.1.1) to the caller as "name not found." It MUST NOT be treated as a transient fault to auto-retry — re-resolution happens only when the caller corrects the address or deliberately re-invokes (the owner may have published a record since). Matches §19.1.1's disposition exactly. |
 | `KT_VERIFY` | `kt_reachable_confirmed` | `FETCHING_IDENTITY` | No newer version supersedes the DNS-returned pointer (§3.3 step 2 rollback defense). |
 | `KT_VERIFY` | `kt_reachable_but_superseded` | `RESOLVING` | **[fill]** A newer KT-visible version supersedes what DNS returned (DNS lagging KT): reject the stale pointer and re-query DNS, bounded by the caller's own deadline (§20.1). |
 | `KT_VERIFY` | `kt_unreachable`, policy=block | `FAIL_CLOSED_BLOCKED` | §3.3 normative: MUST NOT silently TOFU-pin; refuse. |
@@ -305,7 +308,7 @@ pinned-follow-chain path for key rotation (§1.5) and name migration (§1.6).
 stateDiagram-v2
   [*] --> UNRESOLVED
   UNRESOLVED --> RESOLVING : begin_resolve
-  RESOLVING --> UNRESOLVED : dns_fail
+  RESOLVING --> UNRESOLVED : dns_fail_transient (retry) / dns_fail_definitive (terminal, 0x0109)
   RESOLVING --> KT_VERIFY : dns_ok
   KT_VERIFY --> RESOLVING : kt_reachable_but_superseded
   KT_VERIFY --> FETCHING_IDENTITY : kt_reachable_confirmed
@@ -422,7 +425,8 @@ Formalizes group epoch advancement and the committer lifecycle of §5.1, converg
 **Events:** `propose`, `application_message` (ordinary traffic, epoch-tagged, no epoch change),
 `commit_received_valid`, `commit_received_fork_evidence`, `additional_proposal_while_pending`,
 `committer_unreachable` (cross-reference to §20.5.2), `applied_locally_ok`, `apply_local_fail`,
-`external_commit_ok`, `external_commit_fail`, `fork_detected`.
+`external_commit_ok`, `external_commit_fail`, `fork_detected`, `recovery_commit_agreed`
+(the quorum-backed exit from `HALT`, §5.1).
 
 | State | Event | → State | Action |
 |---|---|---|---|
@@ -565,6 +569,7 @@ session lifecycle (§13.4).
 | `REVALIDATION_GRACE` | `revalidation_ok` | `SESSION_ACTIVE` | Endpoint reachable again within the grace window and the delegation still validates; cancel the grace timer and resume normal use. |
 | `REVALIDATION_GRACE` | `revalidation_delegation_invalid` | `REVOKED` | Endpoint reachable again but the delegation is now invalid; terminate immediately (§13.4). |
 | `REVALIDATION_GRACE` | `dpop_proof_ok` | `REVALIDATION_GRACE` | Self-loop: requests are still served on the last-validated delegation **only** while the grace window has not elapsed. |
+| `REVALIDATION_GRACE` | `revalidation_endpoint_unreachable` | `REVALIDATION_GRACE` | Self-loop: a re-validation attempt during the grace window finds the endpoint **still** unreachable. The grace timer **MUST NOT be restarted** — it runs monotonically from the *first* entry into `REVALIDATION_GRACE`, so `grace_window_elapsed` fires on schedule regardless of how many unreachable re-checks occur in between (otherwise an endpoint-partitioning attacker could extend a revoked session indefinitely by keeping the endpoint down across checks). |
 | `REVALIDATION_GRACE` | `grace_window_elapsed` | `EXPIRED` | [§16.8: 2× re-validation interval] elapsed still-unreachable → **fail closed** and require re-authentication (§13.4), bounding an attacker's post-revocation persistence to the grace window while tolerating brief outages (mirrors §3.3's fail-closed-on-unreachable-KT). |
 | `REVALIDATION_GRACE` | `revoke_requested` / `device_key_rotated` / `ik_recovered` | `REVOKED` | Any explicit local revocation trigger overrides the grace window immediately. |
 | `REVALIDATION_GRACE` | `session_timeout` | `EXPIRED` | The ordinary TTL/idle timeout (§16.8) may fire first; whichever comes first ends the session. |
@@ -619,7 +624,7 @@ stateDiagram-v2
   SESSION_ACTIVE --> REVOKED : revoke_requested / device_key_rotated / ik_recovered / revalidation_delegation_invalid
   SESSION_ACTIVE --> REVALIDATION_GRACE : revalidation_endpoint_unreachable
   REVALIDATION_GRACE --> SESSION_ACTIVE : revalidation_ok
-  REVALIDATION_GRACE --> REVALIDATION_GRACE : dpop_proof_ok (within grace)
+  REVALIDATION_GRACE --> REVALIDATION_GRACE : dpop_proof_ok / revalidation_endpoint_unreachable (timer NOT restarted)
   REVALIDATION_GRACE --> EXPIRED : grace_window_elapsed (2× interval, §16.8)
   REVALIDATION_GRACE --> REVOKED : revalidation_delegation_invalid / revoke_requested / device_key_rotated / ik_recovered
   REVOKED --> [*]

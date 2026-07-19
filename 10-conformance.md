@@ -76,26 +76,32 @@ The **conformance test suite** is the *operational definition* of compatibility.
 means "passes the suite," not "resembles the reference." This is the primary defense against
 fragmentation. The suite lives in `conformance/` as three coupled artifacts:
 
-- **`conformance/SUITE.md`** — the normative test-case catalog: 125 numbered cases
+- **`conformance/SUITE.md`** — the normative test-case catalog: 157 numbered cases
   (`DMTAP-<category>-<NN>`) grouped by the levels above, each pinning its spec clause, input,
   expected result (accept / reject + the §21 error code), and MUST/SHOULD.
 - **`conformance/suite.json`** — the machine-readable mirror of those cases, so a runner in **any
-  language** can drive them. It mirrors all 125 (SUITE.md and suite.json are in sync — the wave-2
+  language** can drive them. It mirrors all 157 (SUITE.md and suite.json are in sync — the wave-2
   deniable-1:1 and KT-v1-hardening families, the `PROFILE` display-data cases, the optional
   `PUSH` wake-signaling cases, the `FILE` durability cases, the wave-3 device-cluster `SYNC`,
-  `ALIAS`, and gateway-alias `GWALIAS` families, and the pluggable-resolver `RESOLVE` family are
-  mirrored).
-- **`conformance/vectors/vectors.json`** — 32 byte-exact known-answer vectors (derived from the
-  §18 canonical CBOR) that the cases dispatch on.
+  `ALIAS`, and gateway-alias `GWALIAS` families, the pluggable-resolver `RESOLVE` family, and
+  the `PUB` public-object family are mirrored).
+- **`conformance/vectors/`** — the byte-exact known-answer vectors the cases dispatch on:
+  `vectors.json` holds 68 core vectors (derived from the §18 canonical CBOR; 33 of them are
+  driven by cases today, the other 35 are pre-generated for construction-todo families not yet
+  wired to a case) and `pub_vectors.json` holds 15 vectors for the §22 DMTAP-PUB profile (all 15
+  driven by `PUB` cases).
 
-39 cases are byte-runnable today (33 vector-backed + 6 self-contained canonical-CBOR reject cases);
-the remaining 85 carry an exact construction recipe and expected §21 error for the branches whose
-subsystems are not yet vectored (mixnet/MLS/gateway/auth, plus the wave-2 deniable/KT-v1/org/
-device-attestation families, the `FILE` durability guards, the `PROFILE` display-data guards, and the optional `PUSH`
-wake-signaling guards — see `conformance/README.md`). An
+52 cases are byte-runnable today (46 vector-backed against `vectors.json`/`pub_vectors.json` +
+6 self-contained canonical-CBOR reject cases); 1 further case (`DMTAP-PUB-21`, the §22.7
+publish-consent UX MUST) is verified by implementer attestation, having no wire bytes to
+recompute; the remaining 104 carry an exact construction recipe and expected §21 error for the
+branches whose subsystems are not yet vectored (mixnet/MLS/gateway/auth, plus the wave-2
+deniable/KT-v1/org/device-attestation families, the `FILE` durability guards, the `PROFILE`
+display-data guards, and the optional `PUSH` wake-signaling guards — see
+`conformance/README.md`). The partition is exact: 52 + 1 + 104 = 157. An
 implementation conforms at a level iff it passes every `MUST` case of that level and of every level
 it composes. The reference `dmtap-core` self-check test drives the vectors, but the spec plus these
-three files are authoritative (§10.4), not the reference.
+three artifacts are authoritative (§10.4), not the reference.
 
 ## 10.4 The spec is authoritative
 
@@ -218,6 +224,10 @@ Across all four groups the invariant is identical: **a security-relevant downgra
 reaction to adversary pressure or component unavailability.** The seam's `GatewayAuthz` is the sole
 place this interacts with the operator model, and even there it fails **safe**, not open (§12.2,
 distinct from the fail-*open*-to-function stance of metering/quota). A conformant implementation
-satisfies §10.7 iff it enforces **every** MUST row above; the conformance suite (§10.3) carries a
-case per row, and a new downgrade-resistance or fail-closed rule added anywhere in the spec MUST be
+satisfies §10.7 iff it enforces **every** MUST row above. The conformance suite (§10.3) is the
+enforcement vehicle: most rows carry a pinning case, and the rows currently **without** one —
+the §7.4 ack-before-`250` rule, the key-bound half of §7.2a (`0x0602`), the §13.3.1
+bare-node-signed-login rejection, the §13.6 per-RP-audience check, the §13.7 high-value
+multi-log requirement, and the §9.5.1 postage issuer-unreachable fallback — are pending wave-2
+vectors. A new downgrade-resistance or fail-closed rule added anywhere in the spec MUST be
 mirrored here so the set stays complete.

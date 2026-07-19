@@ -18,6 +18,12 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHOULD**, **SHO
 consistent with the rest of this specification. Where this appendix and §18 (wire format) appear to
 differ, §18 governs the byte layout and the intent of this prose governs the semantics (§10.4).
 
+Every DMTAP-PUB wire object is an integer-keyed CBOR map that inherits §18.1.2's conventions
+unchanged: keys assigned per object type starting at `1`, keys **≥ 64 reserved** for
+future/extension fields, and the signed-vs-unsigned unknown-key discipline (a decoder MUST reject
+an unknown key in a **signed** object fail-closed; it MAY ignore unknown keys ≥ 64 in an
+**unsigned** object).
+
 ## 22.1 Goals & non-goals
 
 ### 22.1.1 Goals
@@ -163,7 +169,7 @@ equals a known file leaks nothing the publisher did not already broadcast.
 
 This acceptance has one hard, normative boundary:
 
-> **A `PubManifest` MUST NEVER be derived from content the user has not explicitly published.** An
+> **A `PubManifest` MUST NOT be derived from content the user has not explicitly published.** An
 > implementation MUST NOT plaintext-address, announce, or serve any object except as the result of
 > an **explicit publish act** (§22.7). The CAS-confirmation property is safe *only* for content the
 > user chose to make public; applying plaintext addressing to a user's private files would
@@ -315,9 +321,11 @@ because conformance-vector work showed it was previously only inferable.)*
 
 ### 22.4.2 Anti-rollback (the standard monotonic-`seq` rule)
 
-A feed's `seq` obeys the **identical anti-rollback rule** the spec applies everywhere a monotonic
-counter guards against stale-replay suppression: `caps_version` (§10.2), `Identity.version` (§1.3),
-`LocationRecord.seq` (§4.2), and `GroupState.version` (§5.8.2). Specifically:
+A feed's `seq` obeys the **same anti-rollback rule family** the spec applies everywhere a monotonic
+counter guards against stale-replay suppression — `caps_version` (§10.2), `Identity.version` (§1.3),
+`LocationRecord.seq` (§4.2), and `GroupState.version` (§5.8.2) — **deliberately relaxed for
+pull-fetched heads**: rejection is strict-less-than (`<`) instead of the `≤` those push-delivered
+counters use, since a reader legitimately re-fetches the same tip. Specifically:
 
 - A reader **retains the highest `seq` it has accepted per author feed** (keyed by `pub`).
 - A reader MUST **reject any `FeedHead` whose `seq` is strictly less than** the last accepted for
@@ -561,7 +569,7 @@ be fixed; each is an inherent consequence of the public quadrant, disclosed for 
    addresses), and can run the CAS-confirmation test against any candidate plaintext (§22.2.4). This
    is **inherent and accepted**: the content is public, so its equality to a known file leaks nothing
    the publisher did not broadcast. The single hard boundary is normative and load-bearing: a public
-   manifest MUST NEVER be derived from content the user has not explicitly published (§22.2.4) — the
+   manifest MUST NOT be derived from content the user has not explicitly published (§22.2.4) — the
    property is safe only inside the published set, and the explicit publish act (§22.7) is the sole
    gate into it.
 4. **Availability is not durability.** Serving is best-effort and opt-in (§22.6); DMTAP-PUB adds no
