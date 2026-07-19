@@ -1,0 +1,422 @@
+{
+  "format": "dmtap-conformance-vectors/1",
+  "suite": "Sync substrate capability (substrate/SYNC.md) \u2014 suite 0x01 (classical): Ed25519 / BLAKE3-256 primitives shared with the core; these vectors exercise only the deterministic CBOR + CRDT-algebra layer (no signing math \u2014 see NOT-FROZEN note on SYNC-OP-02 in substrate/SYNC.md \u00a710)",
+  "generated_by": "conformance/vectors/gen_sync_vectors.py (this repo) \u2014 NOT the dmtap-core reference crate, which does not implement the Sync substrate capability (it is substrate/SYNC.md's own 'one genuinely new normative specification', ungrounded in any single existing numbered section). Every value here is a direct, mechanical application of substrate/SYNC.md's \u00a73/\u00a74/\u00a76/\u00a77 rules to fixed inputs \u2014 no randomness, no wall-clock reads.",
+  "methodology": "Fixed 32-byte Ed25519 seeds (0xCC/0xDD/0xEE) via the `cryptography` package for author identity bytes only (no signatures are computed \u2014 this file freezes the CBOR + CRDT-merge layer, not the COSE_Sign1 signing envelope, which substrate/SYNC.md \u00a710 marks NOT-FROZEN pending a frozen COSE profile). CBOR here is the same \u00a718-canonical, integer-keyed deterministic encoding (RFC 8949 \u00a74.2) used by conformance/vectors/vectors.json and conformance/vectors/pub_vectors.json.",
+  "scope_note": "This file freezes 15 of substrate/SYNC.md \u00a710's 20 stubs (SYNC-OP-01, SYNC-AUTH-01, SYNC-LWW-01/02, SYNC-ORSET-01/02, SYNC-DEATH-01/02, SYNC-PN-01/02, SYNC-RGA-01/02, SYNC-NS-01/02, SYNC-GC-01). The remaining 5 (SYNC-OP-02, SYNC-TREE-01, SYNC-SNAP-01/02, SYNC-RECON-01) are left as construction-recipe stubs in substrate/SYNC.md, each marked NOT-FROZEN with the specific underspecified design choice blocking a byte-exact vector \u2014 see that document, not this script.",
+  "vectors": [
+    {
+      "name": "sync_op_lww_canonical",
+      "operation": "sync_op_encode",
+      "input": {
+        "kind": 3,
+        "ns": "",
+        "target": "a",
+        "field": "x",
+        "value_tstr": "v",
+        "hlc": {
+          "wall": 1700000100000,
+          "counter": 0,
+          "author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+        }
+      },
+      "expected": {
+        "cbor_hex": "a60103026003616104617805617606a3011b0000018bcfe6eea00200035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+      },
+      "note": "\u00a74.1 SyncOp{kind:3 (lww-set), ns:\"\", target:\"a\", field:\"x\", value:\"v\", hlc}, keys 1,2,3,4,5,6 ascending (7 observed / 8 ref absent, both OPTIONAL for this kind, \u00a74.2 table). value is the ext-value tstr \"v\" (\u00a718.3.6). Deterministic CBOR (\u00a718.1.1): shortest-form integers, ascending integer keys, definite lengths. Re-decoding MUST round-trip to the same fields and re-encoding MUST reproduce cbor_hex byte-for-byte; the generic canonical-CBOR reject rules (non-preferred ints, unsorted/duplicate keys, indefinite lengths, floats, undefined) already covered by DMTAP-CBOR-05..12 apply identically to SyncOp \u2014 no SYNC-specific reject case is needed for those."
+    },
+    {
+      "name": "sync_author_unauthorized",
+      "operation": "sync_author_admission",
+      "input": {
+        "op_cbor_hex": "a5010102600364646f63310562653106a3011b0000018bcfe6eea00201035820814722de71c5b14e748dff322ae7f7c415cee558766495292cd6c4c0a6a9df28",
+        "op_hlc_author_hex": "814722de71c5b14e748dff322ae7f7c415cee558766495292cd6c4c0a6a9df28",
+        "admitted_authors_hex": [
+          "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+          "68460ebef3b138164ec7fd8610e95800df7598f70f2f2ea7db5172ac74ebc144"
+        ]
+      },
+      "expected": {
+        "outcome": "reject",
+        "error_code": "0x0A01",
+        "error_name": "ERR_SYNC_AUTHOR_UNAUTHORIZED",
+        "action": "FAIL_CLOSED_BLOCK"
+      },
+      "note": "\u00a78, \u00a79: a set-add op whose hlc.author (PK_X) is not a member of the namespace's admitted-author set ({PK_A, PK_B} \u2014 a closed multi-owner member-set, \u00a78 row 2, or the analogous single-owner DeviceCert set, \u00a78 row 1) MUST be rejected regardless of whether its (hypothetical) signature verifies \u2014 admission is checked in addition to, not instead of, signature validity (\u00a74.1, \u00a78 'the authorization check is the same'). This vector tests the admission predicate only; it does not assert anything about COSE_Sign1 envelope bytes (see SYNC-OP-02, NOT-FROZEN)."
+    },
+    {
+      "name": "sync_lww_hlc_winner",
+      "operation": "sync_lww_merge",
+      "input": {
+        "ops_cbor_hex": [
+          "a6010302600364646f633104657469746c6505616d06a3011b0000018bcfe6eea00200035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+          "a6010302600364646f633104657469746c6505616e06a3011b0000018bcfe6eea00201035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+        ],
+        "hlcs": [
+          {
+            "wall": 1700000100000,
+            "counter": 0,
+            "author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+          },
+          {
+            "wall": 1700000100000,
+            "counter": 1,
+            "author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+          }
+        ],
+        "values": [
+          "m",
+          "n"
+        ]
+      },
+      "expected": {
+        "winner_value": "n",
+        "winner_hlc_hex": "a3011b0000018bcfe6eea00201035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+        "apply_order_independent": true
+      },
+      "note": "\u00a74.4: two lww-set on (doc1,title), HLC h1=(wall,0,A) < h2=(wall,1,A) (strictly greater counter, same wall/author). Winner = greater HLC = h2's value \"n\", on either apply order (merge is a join, order-independent)."
+    },
+    {
+      "name": "sync_lww_exact_tie",
+      "operation": "sync_lww_merge",
+      "input": {
+        "ops_cbor_hex": [
+          "a6010302600364646f633104657469746c6505616d06a3011b0000018bcfe6eea00205035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+          "a6010302600364646f633104657469746c6505616e06a3011b0000018bcfe6eea00205035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+        ],
+        "hlc": {
+          "wall": 1700000100000,
+          "counter": 5,
+          "author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+        },
+        "values": [
+          "m",
+          "n"
+        ],
+        "value_cbor_hex": [
+          "616d",
+          "616e"
+        ]
+      },
+      "expected": {
+        "winner_value": "n",
+        "winner_value_cbor_hex": "616e",
+        "rule": "identical HLC on both writes; winner = larger det_cbor(value) byte string"
+      },
+      "note": "\u00a74.4: two lww-set on (doc1,title) with the IDENTICAL hlc (same author+tick \u2014 a forged duplicate or same-tick re-derivation). Tiebreak descends to encoded-value bytes (\u00a72.2 rule 2): det_cbor(\"n\") = 0x616e > det_cbor(\"m\") = 0x616d lexicographically, so \"n\" wins \u2014 identical on every replica regardless of local application order."
+    },
+    {
+      "name": "sync_orset_add_wins",
+      "operation": "sync_orset_merge",
+      "input": {
+        "element": "e1",
+        "ops_cbor_hex": [
+          "a5010102600364746167730562653106a3011b0000018bcfe6eea00200035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+          "a6010202600364746167730562653106a3011b0000018bcfe6eea0020103582068460ebef3b138164ec7fd8610e95800df7598f70f2f2ea7db5172ac74ebc1440781a2015820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb02a3011b0000018bcfe6eea00200035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+          "a5010102600364746167730562653106a3011b0000018bcfe6eea00202035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+        ],
+        "add_tags": [
+          {
+            "author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+            "hlc": {
+              "wall": 1700000100000,
+              "counter": 0,
+              "author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+            }
+          },
+          {
+            "author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+            "hlc": {
+              "wall": 1700000100000,
+              "counter": 2,
+              "author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+            }
+          }
+        ],
+        "tombstoned_add_tags": [
+          {
+            "author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+            "hlc": {
+              "wall": 1700000100000,
+              "counter": 0,
+              "author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "present": true,
+        "surviving_add_tag_hlc_hex": "a3011b0000018bcfe6eea00202035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+      },
+      "note": "\u00a74.3: element \"e1\" has two add-tags \u2014 add0 (wall,0,A), later tombstoned by a remove citing exactly add0 in `observed`, and a concurrent add1 (wall,2,A) the remove never observed. Presence = at least one add-tag not covered by a tombstone: add1 survives, so the element is present (add-wins) even though a remove for the same element exists."
+    },
+    {
+      "name": "sync_orset_future_add_remove_rejected",
+      "operation": "sync_orset_remove_validity",
+      "input": {
+        "op_cbor_hex": "a6010202600364746167730562653206a3011b0000018bcfe6eea0020103582068460ebef3b138164ec7fd8610e95800df7598f70f2f2ea7db5172ac74ebc1440781a2015820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb02a3011b0000018bcfe6eea0020a035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+        "remove_hlc": {
+          "wall": 1700000100000,
+          "counter": 1,
+          "author_hex": "68460ebef3b138164ec7fd8610e95800df7598f70f2f2ea7db5172ac74ebc144"
+        },
+        "cited_add_tag_hlc": {
+          "wall": 1700000100000,
+          "counter": 10,
+          "author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+        }
+      },
+      "expected": {
+        "outcome": "reject",
+        "error_code": "0x0A03",
+        "error_name": "ERR_SYNC_OP_INVALID",
+        "action": "FAIL_CLOSED_BLOCK"
+      },
+      "note": "\u00a74.3 causal integrity: a set-remove citing an add-tag whose HLC (wall,10,A) is GREATER than the remove's own HLC (wall,1,B) \u2014 \"you cannot have observed an add from the future\" \u2014 MUST be rejected. This validity check is state-free (pure HLC comparison), so it never depends on local delivery order."
+    },
+    {
+      "name": "sync_death_domination",
+      "operation": "sync_death_domination",
+      "input": {
+        "death_op_cbor_hex": "a501040260036472656331046672656461637406a3011b0000018bcfe6eea00201035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+        "death_hlc": {
+          "wall": 1700000100000,
+          "counter": 1,
+          "author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+        },
+        "death_class": "redact",
+        "concurrent_add_op_cbor_hex": "a501010260036472656331056c726563312d7061796c6f616406a3011b0000018bcfe6eea0020503582068460ebef3b138164ec7fd8610e95800df7598f70f2f2ea7db5172ac74ebc144",
+        "concurrent_add_hlc": {
+          "wall": 1700000100000,
+          "counter": 5,
+          "author_hex": "68460ebef3b138164ec7fd8610e95800df7598f70f2f2ea7db5172ac74ebc144"
+        }
+      },
+      "expected": {
+        "present": false,
+        "rule": "death dominates regardless of a numerically greater concurrent set-add HLC"
+      },
+      "note": "\u00a74.5 D3 invariant: `death(redact)` at h1=(wall,1,A); a concurrent bare `set-add` at h2=(wall,5,B), h2 > h1. An object is present iff NOT deleted AND the OR-Set says present; a bare set-add never writes the death dimension, so it can never outrank a death certificate even with a strictly greater HLC. Object is absent. Only an explicit `death(\"live\")` write with HLC > h1 would revive it."
+    },
+    {
+      "name": "sync_death_tie_failsafe",
+      "operation": "sync_death_tie",
+      "input": {
+        "death_op_cbor_hex": "a501040260036472656332046672656461637406a3011b0000018bcfe6eea00207035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+        "live_op_cbor_hex": "a50104026003647265633204646c69766506a3011b0000018bcfe6eea00207035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+        "hlc": {
+          "wall": 1700000100000,
+          "counter": 7,
+          "author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+        }
+      },
+      "expected": {
+        "winner": "Deleted",
+        "class": "redact",
+        "rule": "exact-HLC tie: Deleted > Live in the state order"
+      },
+      "note": "\u00a74.5: `death(redact)` and `death(\"live\")` written at the IDENTICAL HLC (wall,7,A) \u2014 only possible same-author-same-tick or a forged duplicate. Winner = greater HLC; at an exact tie, greater DeathState wins, and Deleted > Live by definition (fail-safe toward deletion) \u2014 \"Deleted\" wins."
+    },
+    {
+      "name": "sync_pn_counter_convergence",
+      "operation": "sync_pn_merge",
+      "input": {
+        "ops_cbor_hex": [
+          "a601050260036673746f636b310463717479050506a3011b0000018bcfe6eea00200035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+          "a601050260036673746f636b310463717479052106a3011b0000018bcfe6eea0020003582068460ebef3b138164ec7fd8610e95800df7598f70f2f2ea7db5172ac74ebc144",
+          "a601050260036673746f636b310463717479050506a3011b0000018bcfe6eea00201035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+        ],
+        "deltas": [
+          {
+            "author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+            "delta": 5
+          },
+          {
+            "author_hex": "68460ebef3b138164ec7fd8610e95800df7598f70f2f2ea7db5172ac74ebc144",
+            "delta": -2
+          },
+          {
+            "author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+            "delta": 5,
+            "note": "replay of author A's own contribution"
+          }
+        ]
+      },
+      "expected": {
+        "P": {
+          "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb": 5,
+          "68460ebef3b138164ec7fd8610e95800df7598f70f2f2ea7db5172ac74ebc144": 0
+        },
+        "N": {
+          "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb": 0,
+          "68460ebef3b138164ec7fd8610e95800df7598f70f2f2ea7db5172ac74ebc144": 2
+        },
+        "total": 3,
+        "replay_is_noop": true
+      },
+      "note": "\u00a74.6: author A contributes +5 (P[A]=5), author B contributes -2 (N[B]=2). Merge is per-author MAX of P and of N, so a replayed +5(A) does not double-count (max(5,5)=5). Total = \u03a3P - \u03a3N = 5 - 2 = 3."
+    },
+    {
+      "name": "sync_pn_counter_foreign_reject",
+      "operation": "sync_counter_foreign_check",
+      "input": {
+        "op_hlc_author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+        "target_entry_author_hex": "68460ebef3b138164ec7fd8610e95800df7598f70f2f2ea7db5172ac74ebc144"
+      },
+      "expected": {
+        "outcome": "reject",
+        "error_code": "0x0A06",
+        "error_name": "ERR_SYNC_COUNTER_FOREIGN",
+        "action": "FAIL_CLOSED_BLOCK"
+      },
+      "note": "\u00a74.6: a `counter` op authored by A (hlc.author = PK_A) MUST NOT mutate P[B]/N[B] \u2014 an author may only advance its own P[author]/N[author] entry. A op/entry-author mismatch is rejected; this predicate tests the mismatch check itself (the wire representation of *how* an implementation would even construct a mismatched op is an implementation-internal concern the spec text does not spell out byte-for-byte, hence declarative fields rather than a single self-contained signed op here)."
+    },
+    {
+      "name": "sync_rga_concurrent_sibling_order",
+      "operation": "sync_rga_sibling_order",
+      "input": {
+        "origin_op_cbor_hex": "a50106026003656c696e6531056561746f6d3006a3011b0000018bcfe6eea00200035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+        "sibling_ops_cbor_hex": [
+          "a60106026003656c696e653105615806a3011b0000018bcfe6eea00203035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb08a201656c696e653102a3011b0000018bcfe6eea00200035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+          "a60106026003656c696e653105615906a3011b0000018bcfe6eea00204035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb08a201656c696e653102a3011b0000018bcfe6eea00200035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+        ],
+        "sibling_hlcs": [
+          {
+            "wall": 1700000100000,
+            "counter": 3,
+            "author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+          },
+          {
+            "wall": 1700000100000,
+            "counter": 4,
+            "author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+          }
+        ],
+        "sibling_values": [
+          "X",
+          "Y"
+        ]
+      },
+      "expected": {
+        "order_by_element_id_desc": [
+          "a3011b0000018bcfe6eea00204035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+          "a3011b0000018bcfe6eea00203035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+        ],
+        "order_values": [
+          "Y",
+          "X"
+        ],
+        "rule": "atoms sharing a left-origin are ordered by descending element-id HLC (newer-first)"
+      },
+      "note": "\u00a74.7 RGA order rule: two seq-insert atoms (\"X\" at h1=(wall,3,A), \"Y\" at h2=(wall,4,A), h2>h1) sharing the SAME left-origin (atom0). Same-origin siblings order by descending element-id HLC \u2014 the newer insertion (\"Y\", h2) sorts BEFORE the older (\"X\", h1) among siblings of that origin. Identical on every replica because element ids are HLC-total-ordered."
+    },
+    {
+      "name": "sync_rga_insert_after_tombstone",
+      "operation": "sync_rga_tombstone_origin",
+      "input": {
+        "insert_x_cbor_hex": "a50106026003656c696e653105617806a3011b0000018bcfe6eea00202035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+        "remove_x_cbor_hex": "a50107026003656c696e653106a3011b0000018bcfe6eea0020303582068460ebef3b138164ec7fd8610e95800df7598f70f2f2ea7db5172ac74ebc14408a201656c696e653102a3011b0000018bcfe6eea00202035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+        "insert_y_cbor_hex": "a60106026003656c696e653105615a06a3011b0000018bcfe6eea00204035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb08a201656c696e653102a3011b0000018bcfe6eea00202035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+        "y_ref_origin_hlc": {
+          "wall": 1700000100000,
+          "counter": 2,
+          "author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+        }
+      },
+      "expected": {
+        "resolves": true,
+        "reject": false,
+        "atom_order_incl_tombstones": [
+          "Z",
+          "x(tombstoned)"
+        ],
+        "visible_sequence": [
+          "Z"
+        ]
+      },
+      "note": "\u00a74.7: `seq-remove(x)` tombstones atom \"x\" (tombstones are retained until GC). A concurrent `seq-insert` (\"Z\") whose left-origin `ref` names \"x\" still resolves against the retained tombstone \u2014 it is buffered/rejected only if the origin is genuinely absent (`ERR_SYNC_SEQ_ORIGIN_MISSING`, 0x0A07), never merely because the origin was removed. \"Z\" sorts immediately after \"x\"'s (tombstoned) position; the visible (non-tombstoned) sequence is just [\"Z\"]."
+    },
+    {
+      "name": "sync_ns_sparse_scoping",
+      "operation": "sync_ns_sparse_filter",
+      "input": {
+        "responder_ops_cbor_hex": [
+          "a5010102617803656974656d3105617606a3011b0000018bcfe6eea00200035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb",
+          "a5010102617903656974656d3205617606a3011b0000018bcfe6eea0020003582068460ebef3b138164ec7fd8610e95800df7598f70f2f2ea7db5172ac74ebc144"
+        ],
+        "responder_ops_ns": [
+          "x",
+          "y"
+        ],
+        "caller_subscribed_ns": [
+          "x"
+        ]
+      },
+      "expected": {
+        "shipped_ops_cbor_hex": [
+          "a5010102617803656974656d3105617606a3011b0000018bcfe6eea00200035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+        ],
+        "shipped_ns": [
+          "x"
+        ]
+      },
+      "note": "\u00a77: responder holds ops in namespaces {x,y}; caller subscribes only to {x}. `pull`/`fingerprint`/`ops` are scoped to the intersection \u2014 only the ns=\"x\" op is shipped; the ns=\"y\" op is never sent to a caller that never subscribed to \"y\"."
+    },
+    {
+      "name": "sync_ns_cross_namespace_ref_rejected",
+      "operation": "sync_ns_leak_check",
+      "input": {
+        "op_cbor_hex": "a6010602617803656c696e6531056461746f6d06a3011b0000018bcfe6eea00201035820ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb08a1016c6f746865722d746172676574",
+        "op_ns": "x",
+        "ref_target": "other-target",
+        "ref_target_actual_ns": "y"
+      },
+      "expected": {
+        "outcome": "reject",
+        "error_code": "0x0A0A",
+        "error_name": "ERR_SYNC_NS_LEAK",
+        "action": "FAIL_CLOSED_BLOCK"
+      },
+      "note": "\u00a77 causal soundness: an RGA `ref` (or tree `parent`) MUST name a `target` in the SAME `ns` as the op itself. This op is in ns=\"x\" but its `ref` names a target that lives in ns=\"y\" \u2014 a cross-namespace reference, rejected so a sparse subscriber to \"x\" alone is never forced to fetch \"y\" to converge its own namespace."
+    },
+    {
+      "name": "sync_gc_stability_cut",
+      "operation": "sync_gc_stability_cut",
+      "input": {
+        "live_replica_watermarks": [
+          {
+            "replica": "R1",
+            "max_applied_hlc": {
+              "wall": 1700000100000,
+              "counter": 10,
+              "author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+            }
+          },
+          {
+            "replica": "R2",
+            "max_applied_hlc": {
+              "wall": 1700000100000,
+              "counter": 15,
+              "author_hex": "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb"
+            }
+          }
+        ],
+        "stale_replica_watermark": {
+          "replica": "R3-stale",
+          "max_applied_hlc": {
+            "wall": 1700000100000,
+            "counter": 3,
+            "author_hex": "68460ebef3b138164ec7fd8610e95800df7598f70f2f2ea7db5172ac74ebc144"
+          },
+          "seen_within_liveness_window": false
+        }
+      },
+      "expected": {
+        "stability_cut_counter": 10,
+        "stale_replica_excluded": true,
+        "note_no_watermark_case": "a live replica with NO known watermark yields NO cut at all (fail-closed, never GC on incomplete knowledge)"
+      },
+      "note": "\u00a76.2: stability cut = min, across every LIVE subscribed replica, of that replica's max-applied HLC. R1=counter 10, R2=counter 15 are live -> cut = 10 (the min of the two). R3-stale (counter 3, not seen within the liveness window) is EXCLUDED from the min, so it cannot stall compaction at counter 3. Separately (not a distinct byte input here, stated as a rule): a live replica with no known watermark at all yields no cut whatsoever \u2014 GC never proceeds on incomplete knowledge."
+    }
+  ]
+}
