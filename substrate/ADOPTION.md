@@ -54,11 +54,12 @@ The reference core (see [`BINDINGS.md`](BINDINGS.md) for the full crate layout).
   `conformance-runner` now merges `dmtap/conformance/vectors/pub_vectors.json` into its run (`pub_vectors_path()`
   in `crates/conformance-runner/src/main.rs`) and, as re-run for this survey, reproduces 20 of the 21 PUB
   vectors (the 21st, `DMTAP-PUB-21`, is `suite.json`'s own `manual-attestation` case — no bytes for a
-  runner to recompute, an honest skip, not a failure) — this closes the previous asterisk. One stale
-  artifact remains as a housekeeping note, not a functional gap: `conformance/vectors/pub_vectors.json`'s
-  own `generated_by` metadata string (and its generator, `gen_pub_vectors.py`) still describe the Rust
-  core as not implementing the PUB extension yet, which this survey's own run shows is no longer true —
-  out of scope to fix here, flagged for whoever next regenerates that file.
+  runner to recompute, an honest skip, not a failure) — this closes the previous asterisk.
+  `conformance/vectors/pub_vectors.json`'s `generated_by` metadata string (and its generator,
+  `gen_pub_vectors.py`) previously described the Rust core as not implementing the PUB extension yet;
+  that was corrected in `7ad7d4f` to say what is actually true — the bytes are produced by the script
+  from the spec text, never by the crate, so the vectors remain an INDEPENDENT check on the
+  implementation rather than a restatement of it. No stale artifact remains.
 - **Sync — to-spec.** `dmtap-clustersync` (§5.6 single-owner profile: `Cluster`/`Replica`/`ClusterState`/
   `OrSet`/`LwwMap`/`DeathReg`/`Journal`/`range_fingerprint`) and `dmtap-sync` (the substrate's multi-author
   six-kind algebra, COSE-signed ops) are the crates [`SYNC.md`](SYNC.md) grounds itself in.
