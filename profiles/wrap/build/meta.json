@@ -1,0 +1,12 @@
+{
+  "title": "Work Request & Assignment Protocol (WRAP)",
+  "draftId": "draft-wrap-00",
+  "author": "",
+  "org": "Vula OS Group",
+  "workgroup": "Vula OS Group",
+  "intendedStatus": "Experimental (proposal)",
+  "date": "July 2026",
+  "abstract": "WRAP is an open protocol for coordinating work between independent parties without a central operator. One party issues a *work order*; it is offered to one or more *pools*; performers respond; the issuer assigns exactly one performer; the performer reports progress; and completion is recorded as a signed *attestation* that neither side can later rewrite. Identity is an Ed25519 keypair, so a worker's history and reputation belong to the worker rather than to any platform. All state is a set of signed, content-addressed objects merged by a deterministic CRDT algebra, so participants converge without coordination and keep working while offline or partitioned. WRAP deliberately avoids the hard problems it does not need: assignment is decided by the issuer, who is already the natural authority, so there is no consensus protocol, no leader election, and no distributed lock. The core is domain-neutral — courier delivery, skilled trades, field service, and volunteer dispatch are *profiles* over one object model. WRAP composes existing standards (Ed25519, CBOR, COSE, HLC, RFC 6962 hash chains) and defines two transport bindings: plain HTTP, and the DMTAP substrate. Neither is required by the other; the core depends on neither.",
+  "status": "This Internet-Draft is submitted in full conformance with the provisions of an open, royalty-free specification. Internet-Drafts are working documents; this document is a proposal and is *not* an RFC — an RFC number is assigned only upon publication by the relevant standards body. This is **version 0 and carries no compatibility guarantee**: it describes an implementation in progress and may be updated, replaced, or obsoleted at any time. It is inappropriate to use this document as reference material or to cite it other than as \"work in progress.\"",
+  "requirements": "The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL** in this document are to be interpreted as described in BCP 14 (RFC 2119, RFC 8174) when, and only when, they appear in all capitals, as shown here."
+}

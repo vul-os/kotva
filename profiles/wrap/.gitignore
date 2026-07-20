@@ -1,0 +1,6 @@
+# spec PDF build (Node + headless Chrome; see build/)
+build/node_modules/
+build/wrap.html
+build/package-lock.json
+.DS_Store
+*.swp
