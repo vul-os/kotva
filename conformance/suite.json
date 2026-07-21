@@ -5164,6 +5164,544 @@
         "outcome": "non-conformant if an org-managed account renders indistinguishably from a sovereign one, if the org's capabilities are not shown, or if attestation is presented as more than advisory hardening"
       },
       "status": "manual-attestation"
+    },
+    {
+      "id": "DMTAP-ANCHOR-01",
+      "level": "Core",
+      "category": "ANCHOR",
+      "req": "MUST",
+      "clause": [
+        "§1.2.0",
+        "§1.3",
+        "§21.15"
+      ],
+      "checks": "Verify each signature under the suite of the key that made it. An Identity carries an anchor_suite governing IK and every signature IK itself makes, independent of the operational suite governing everything below. A conformant implementation MUST accept an anchor suite that differs from the operational suite, and MUST NOT verify under a single per-object suite assumed to cover both — the intended anchor profile is SLH-DSA (0x04), whose ~7.9 KB signatures are irrelevant at anchor-signing frequency and whose security rests on no algebraic structure",
+      "operation": "identity_verify",
+      "construction": "an Identity with anchor_suite = 0x04 and operational suite = 0x02, carrying an IK-made DeviceCert signature under 0x04 and a device-made Payload.sig under 0x02",
+      "expect": {
+        "outcome": "accept",
+        "note": "both signatures must verify under their own key's suite; rejecting because the suites differ, or verifying the IK signature under the operational suite, is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-ANCHOR-02",
+      "level": "Core",
+      "category": "ANCHOR",
+      "req": "MUST",
+      "clause": [
+        "§3.1",
+        "§3.2",
+        "§4.2"
+      ],
+      "checks": "DNS points; it never locates and never proves. DNS holds the stable name → key pointer and MUST NOT hold location — that is the mesh's job (§4) — and it is never the proof: KT plus pinning are. A resolver that accepts an address out of a _dmtap record has folded the dynamic layer into the static, cacheable one and has made a stale or hostile zone into a routing authority",
+      "operation": "name_resolve",
+      "construction": "a _dmtap TXT carrying an address/multiaddr-shaped parameter alongside ik; and a valid ik binding presented with no KT verification available",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0106",
+        "error_name": "ERR_KT_UNREACHABLE",
+        "action": "FAIL_CLOSED_BLOCK",
+        "note": "the location-shaped DNS parameter must be ignored, never used for dialing"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-ANCHOR-03",
+      "level": "Core",
+      "category": "ANCHOR",
+      "req": "MUST",
+      "clause": [
+        "§3.2",
+        "§13.6",
+        "§3.4"
+      ],
+      "checks": "A did.json is byte-consistent with DNS + KT, or it is nothing. Where an identity is also published as a did:web document, that document's key MUST be byte-consistent with the DNS name → key binding and its KT entry — same IK, same Identity hash — and a verifier MUST cross-check the two and pin. The DID document is the same discovery-only pointer as DNS, never proof on its own",
+      "operation": "name_resolve",
+      "construction": "did.json whose IK matches DNS but whose pinned Identity hash names an older version; variant: a did.json published for an identity with no DNS binding at all",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0105",
+        "error_name": "ERR_STALE_ROLLBACK",
+        "action": "FAIL_CLOSED_BLOCK",
+        "note": "the DNS-less variant resolves to 0x0109; a DID document never substitutes for the binding it mirrors"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-ANCHOR-04",
+      "level": "Core",
+      "category": "ANCHOR",
+      "req": "MUST",
+      "clause": [
+        "§3.8",
+        "§3.10.1"
+      ],
+      "checks": "DNS is a generated projection, never hand-authored. The identity is a key and DNS is an auto-managed projection of it; a conformant client SHOULD default to Tier B and never require a user to author DNS. For a Tier C own-domain user the domain's own DNS must carry MX/SPF/DKIM/DMARC (DMARC alignment is defined on the From: domain — unavoidable while legacy exists), but that requirement MUST NOT be pushed onto the user as manual record editing",
+      "operation": "onboarding_tier",
+      "construction": "complete onboarding at each tier, recording every step requiring the user to type a DNS record by hand; for Tier C verify the generated zone carries MX/SPF/DKIM/DMARC",
+      "expect": {
+        "outcome": "accept",
+        "note": "no tier may require hand-authored DNS; Tier C's generated projection must carry MX/SPF/DKIM/DMARC"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-ANCHOR-05",
+      "level": "Core",
+      "category": "ANCHOR",
+      "req": "MUST",
+      "clause": [
+        "§3.13.5",
+        "§3.4.1",
+        "§4.2.2"
+      ],
+      "checks": "Out-of-band introduction is the primary first-contact path, and it is optional. A brand-new identity has no key-name anyone can search, no contacts, and no measurements — every mechanism that makes DMTAP graceful is downstream of a first relationship. A client MUST implement at least one out-of-band exchange (QR, invite link or contact card carrying the identity key, a peer hint, and key verification for free), and MUST present it as optional: nothing in DMTAP requires it, and a user who declines still reaches the network by §4.2.2's remaining rungs and is still reachable cold by key-name",
+      "operation": "oob_introduction",
+      "construction": "first-run a node with no contacts and exercise the out-of-band exchange end to end, then first-run a second node and decline every introduction offer",
+      "expect": {
+        "outcome": "accept",
+        "note": "the exchange must work with zero infrastructure and must be optional; a client with no such exchange, or one gating setup on it, is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-ANCHOR-06",
+      "level": "Core",
+      "category": "ANCHOR",
+      "req": "MUST",
+      "clause": [
+        "§3.9.3",
+        "§6.7"
+      ],
+      "checks": "Petnames are a social-graph artifact and are stored encrypted at rest. A petname is local-scope only and never leaves the device cluster; it MUST be stored encrypted at rest with the mailbox. The reason is not tidiness: a petname table is a labelled edge list of the user's social graph, which is exactly the thing §6 spends the rest of the protocol hiding on the wire",
+      "operation": "store_at_rest_key",
+      "construction": "assign petnames, power off, and inspect the on-disk store, any search index and any backup/export artifact for petname strings in the clear",
+      "expect": {
+        "outcome": "accept",
+        "note": "no petname may be recoverable from a powered-off device without the at-rest key; a plaintext petname table, index or export is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GRPGOV-01",
+      "level": "Groups & Files",
+      "category": "GRPGOV",
+      "req": "MUST",
+      "clause": [
+        "§5.8.6",
+        "§5.8.7",
+        "§1.4"
+      ],
+      "checks": "Where the commitment is carried, an uncommitted group key is rejected. Threshold custody is a SHOULD because a threshold Schnorr signature is indistinguishable from a single-signer one, so the signature alone proves nothing. What *is* normative: where the §18 DKG/VSS commitment object is carried, members MUST reject an uncommitted group key — a group Identity whose signing key is not accompanied by a valid commitment MUST NOT be treated as threshold-held. Separately, changes to the group Identity, its recovery methods or its key MUST satisfy the group's rotate_threshold under §1.4's weakening-quorum and veto rules, and group Identity/KeyRotation/RecoveryPolicy events MUST be KT-logged",
+      "operation": "group_identity_verify",
+      "construction": "a deployment carrying commitment objects presents (a) a group Identity with a valid VSS commitment over at least rotate_threshold distinct admin keys, (b) the same Identity with the commitment absent, (c) a group KeyRotation signed by one admin where rotate_threshold = 2",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0121",
+        "error_name": "ERR_KEYROTATION_UNAUTHORIZED",
+        "action": "FAIL_CLOSED_BLOCK",
+        "note": "(a) accepts; (b) must not be treated as threshold-held; a group key event absent from KT is independently non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GRPGOV-02",
+      "level": "Groups & Files",
+      "category": "GRPGOV",
+      "req": "MUST",
+      "clause": [
+        "§5.1.1",
+        "§5.1"
+      ],
+      "checks": "A 1:1 is two symmetric co-committers, and equivocation still halts. The committer-takeover machinery cannot work at n = 2: takeover needs a both-of-two quorum a live peer can never assemble when its counterpart is offline or censoring. So each member serializes its own handshakes under its own strictly-increasing hs_seq chained by prev, concurrent Commits are resolved by the §18.9 committer-rank preimage (folding in the epoch, so neither peer can grind a key that wins every race), and a peer presenting two different handshakes at the same (originator_ik, hs_seq) produces self-signed fork evidence the other member MUST HALT_ALERT on",
+      "operation": "group_1to1_ordering",
+      "construction": "drive concurrent Commits from both members at one epoch and observe convergence across several epochs; then have one member present two distinct handshakes at the same (originator_ik, hs_seq)",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0404",
+        "error_name": "ERR_COMMITTER_FORK_DETECTED",
+        "action": "HALT_ALERT",
+        "note": "the honest branch converges on one epoch chain with no vote and the concurrent-Commit winner varies across epochs"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GRPGOV-03",
+      "level": "Groups & Files",
+      "category": "GRPGOV",
+      "req": "MUST",
+      "clause": [
+        "§5.8.4",
+        "§9.9",
+        "§9.2"
+      ],
+      "checks": "No accountability laundering behind a group address. Fan-out is an amplification vector: one post becomes N deliveries, so each recipient's per-sender policy MUST be applied to the original poster, never to the list identity. The poster's proof MUST be carried on each per-member delivery, and *which* proof depends on the membership model, because ARC is per-origin scoped and does not compose with fan-out: member-visible channels MAY use per-member ARC, while hidden-membership lists MUST use postage or PoW scoped to the list address, since per-member ARC would require the poster to know the members",
+      "operation": "group_fanout_admit",
+      "construction": "post to (a) a member-visible channel carrying per-member ARC, (b) a hidden-membership list carrying a list-scoped postage/PoW proof, (c) the same hidden list carrying only the committer's standing; inspect each per-member delivery and each recipient's policy evaluation",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0206",
+        "error_name": "ERR_CHALLENGE_ABSENT_INSUFFICIENT",
+        "note": "(a) and (b) accept; evaluating the policy against the list identity rather than the poster is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GRPGOV-04",
+      "level": "Groups & Files",
+      "category": "GRPGOV",
+      "req": "MUST",
+      "clause": [
+        "§5.8.4",
+        "§9.9"
+      ],
+      "checks": "Fan-out is rate-limited per poster, open amplification is capped, and large lists cost. A list MUST rate-limit fan-out per poster and cap amplification for open (anyone-can-post) lists, and posting to a large list MUST require postage or PoW commensurate with the fan-out size. Without all three, a single accepted post is an unbounded multiplier, and the cheapest attack on the network is to find one open list",
+      "operation": "group_fanout_admit",
+      "construction": "from one poster, drive posts past the per-poster fan-out budget on an open list of N members; separately, post to a large list carrying no postage or PoW",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x070C",
+        "error_name": "ERR_RATE_LIMIT_EXCEEDED",
+        "action": "DEFER_REQUESTS",
+        "note": "the unpaid large-list post rejects with 0x0206; an open list with no amplification cap is non-conformant before either limit is reached"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GRPGOV-05",
+      "level": "Groups & Files",
+      "category": "GRPGOV",
+      "req": "MUST",
+      "clause": [
+        "§5.8.3",
+        "§5.8.1"
+      ],
+      "checks": "Hidden membership is a supported model, not a setting that leaks anyway. Broadcast lists MUST support hidden membership: members receive via per-member sealed delivery and do not learn each other's keys. MLS's ratchet tree exposes members to one another by default, so a hidden-membership list uses relay/committer fan-out with the list identity re-sealing to each member individually — paying the shared-group efficiency to get the property. Channels use the normal member-visible tree, and the model is chosen per group and disclosed",
+      "operation": "group_membership_privacy",
+      "construction": "create a hidden-membership broadcast list with at least 3 members; from one member's node enumerate everything reachable about the roster and compare with the same enumeration on a member-visible channel",
+      "expect": {
+        "outcome": "accept",
+        "note": "the hidden list must yield no other member's key or count to a member; implementing it over a shared member-visible tree is non-conformant however it is labelled"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GRPGOV-06",
+      "level": "Groups & Files",
+      "category": "GRPGOV",
+      "req": "MUST",
+      "clause": [
+        "§5.6.5",
+        "§16.10",
+        "§5.6.1"
+      ],
+      "checks": "A tombstone is never GC'd before the stability cut — and a dead device cannot stall GC forever. A delete tombstone MAY be reclaimed only once every live cluster member has acknowledged an HLC ≥ the tombstone's and the §16.10 retention floor has elapsed; reclaiming early lets a partitioned device's stale add resurrect a deleted object. The cut is computed over live members only — a device that has not advanced its StabilityMark within the cluster-member-liveness timeout is excluded — so an unrevoked dead device cannot hold the tombstone store open indefinitely. Exclusion affects only when tombstones may be reclaimed, never whether an op is authorized",
+      "operation": "cluster_tombstone_gc",
+      "construction": "three-device cluster; delete an object, hold device C partitioned with a stale add, attempt GC before the cut and after C is excluded by the liveness timeout, then return C and let it backfill",
+      "expect": {
+        "outcome": "accept",
+        "note": "no GC before the stability cut and retention floor; GC proceeds once a stale device is excluded; a returning device must backfill before it may push, and exclusion must not de-authorize its ops"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-ABUSE-01",
+      "level": "Core",
+      "category": "ABUSE",
+      "req": "MUST",
+      "clause": [
+        "§9.3.1",
+        "§9.3"
+      ],
+      "checks": "An unknown issuer's token is no token. A token's granted rate budget is a function of issuer trust at the recipient, not of the token alone, and a token from an unknown or unvetted issuer — explicitly including the sender's own node — carries a default budget of ZERO, forcing fallback to PoW or postage. Self-issuance buys anonymity and no cost relief. This is the rule that makes ARC anti-abuse real rather than bypassable",
+      "operation": "challenge_verify",
+      "construction": "cold MOTE carrying a cryptographically valid ARC presentation from (a) an unseen issuer, (b) the sender's own node as issuer, (c) an issuer in the recipient's trusted set",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0704",
+        "error_name": "ERR_TOKEN_ISSUER_UNTRUSTED",
+        "note": "(c) accepts within its budget; granting budget on signature validity alone is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-ABUSE-02",
+      "level": "Core",
+      "category": "ABUSE",
+      "req": "MUST",
+      "clause": [
+        "§9.3",
+        "§9.2a",
+        "§18.3.3"
+      ],
+      "checks": "ARC-style per-origin binding, not plain Privacy Pass tokens. Vanilla Privacy Pass tokens are issuance-unlinkable but do not, alone, give per-recipient rate-limiting and cross-recipient unlinkability simultaneously; that combination requires per-origin-scoped issuance. DMTAP tokens MUST use ARC-style per-origin binding, the presentation's origin MUST match the verifying node's origin, and its request context MUST bind the envelope's sender_key — so a stripped presentation cannot be replayed under a different ephemeral key",
+      "operation": "challenge_verify",
+      "construction": "(a) an unscoped Privacy Pass token presented as a ChallengeResponse; (b) a valid ARC presentation whose origin names a different recipient; (c) a valid presentation lifted onto an envelope with a different sender_key",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0705",
+        "error_name": "ERR_TOKEN_INVALID_OR_SPENT",
+        "note": "the origin-mismatch branch rejects on scope; accepting an unscoped token collapses the anonymity-plus-accountability guarantee"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-ABUSE-03",
+      "level": "Core",
+      "category": "ABUSE",
+      "req": "MUST",
+      "clause": [
+        "§9.5.1",
+        "§18.3.3"
+      ],
+      "checks": "No offline bearer acceptance of real money. Postage is a bearer instrument for real money, so the redeeming party MUST check the stamp's serial against the issuer's redemption endpoint, or accept the issuer's signed short-lived spent-list; the issuer marks the serial spent atomically and a stamp presented twice is rejected on the second redeem. If the issuer is unreachable the stamp is treated as unverified — falling back to token/PoW policy — never accepted on faith",
+      "operation": "postage_redeem",
+      "construction": "(a) redeem one stamp twice against a live issuer; (b) present a valid unexpired stamp with the issuer's redemption endpoint unreachable; (c) present an expired stamp",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0708",
+        "error_name": "ERR_POSTAGE_DOUBLE_SPEND",
+        "note": "the unreachable-issuer branch is 0x0709 and must fall back to token/PoW policy, never be accepted on faith"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-ABUSE-04",
+      "level": "Core",
+      "category": "ABUSE",
+      "req": "MUST",
+      "clause": [
+        "§9.7",
+        "§18.3.3"
+      ],
+      "checks": "Vouch is a primary tier, and it is itself rate-limited. A vouch is the only anti-abuse mechanism an adversary cannot buy with compute or money — it requires someone the recipient already trusts to spend their own reputation — so implementations MUST offer it wherever a mutual contact exists rather than treating it as an exotic fallback, and it MUST itself be rate-limited to prevent vouch farming. The voucher must be a contact the recipient has pinned, and the vouch is scoped to that recipient",
+      "operation": "challenge_verify",
+      "construction": "cold sender with a mutual contact — check whether the client offers the vouch path; drive vouch issuance past the voucher's anti-farming budget; present a vouch whose recipient names a different node",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x070A",
+        "error_name": "ERR_VOUCH_INVALID_OR_RATE_LIMITED",
+        "note": "the first, in-budget, correctly-scoped vouch accepts and admits the cold contact with no PoW or postage; never surfacing the vouch path where a mutual contact exists is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-ABUSE-05",
+      "level": "Core",
+      "category": "ABUSE",
+      "req": "MUST",
+      "clause": [
+        "§9.8",
+        "§4.4.8",
+        "§2.2b"
+      ],
+      "checks": "An entry mix rate-limits blind; it never inspects a proof it cannot read. The recipient-facing anti-abuse proof is sealed inside the encrypted ciphertext and bound to the recipient, so a mix cannot verify it. Mixnet flood-abuse is therefore bounded by what a content-blind node can actually apply: a per-connection and per-operator rate budget at the entry mix, plus operator-level limits and the attested-operator/ASN-diversity requirements of §4.4.8. A mix that admits on a proof is either decrypting or pretending",
+      "operation": "mix_entry_admit",
+      "construction": "inject Sphinx cells past the per-connection budget from one source and past the per-operator budget across several connections under one upstream operator; probe whether admission varies with the sealed proof inside otherwise-identical cells",
+      "expect": {
+        "outcome": "accept",
+        "note": "both budgets must bind and admission must be identical across cells differing only in sealed contents; per-connection-only limiting is bypassed by opening more connections"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-SEAM-01",
+      "level": "Core",
+      "category": "SEAM",
+      "req": "MUST",
+      "clause": [
+        "§12.2",
+        "§7.11.2"
+      ],
+      "checks": "Fail open to function, fail safe on security. If the party behind the seam is unreachable, the implementation MUST NOT break user-facing mail, chat or files — metering and quota decisions are availability concerns, never security ones. GatewayAuthz is the exception and MUST NOT fail open to \"allow\": on operator unreachability it falls back to a safe default, permitting legacy egress only to already-established relationships, and a cached authorization is operator-independent and MUST NOT be accepted on faith during an outage",
+      "operation": "seam_unreachable",
+      "construction": "partition the node from the seam party, then (a) send and receive native mail, chat and files, (b) attempt legacy egress for a cold/unproven sender, (c) attempt legacy egress for an established relationship, (d) present a cached GatewayAuthz for an unestablished sender",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x070E",
+        "error_name": "ERR_GATEWAYAUTHZ_DENIED",
+        "action": "FAIL_CLOSED_BLOCK",
+        "note": "(a) and (c) must accept; blocking user-facing function is non-conformant and allowing (b) is the open relay"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-SEAM-02",
+      "level": "Core",
+      "category": "SEAM",
+      "req": "MUST",
+      "clause": [
+        "§12.2",
+        "§9.5",
+        "§3.12.5"
+      ],
+      "checks": "Payment rails have no protocol surface, and never will. How a third party collects money is operator policy: no seam capability, registry or extension may introduce a protocol-level payment path, and DMTAP defines no token. Postage (§9.5) is a signed real-money voucher and an anti-abuse mechanism a recipient MAY choose to accept — never a rail the protocol depends on. The check is structural: two implementations must interoperate fully with no agreement on payment of any kind",
+      "operation": "seam_surface_audit",
+      "construction": "two independently-configured deployments — one whose operator charges for legacy egress, one with no operator — exchange native mail, chat and files in both directions and complete an identity/KT/recovery cycle; separately scan the seam surface and the §21 registries for any payment-, currency- or token-typed field",
+      "expect": {
+        "outcome": "accept",
+        "note": "full interop with no shared payment configuration; any capability whose absence blocks native interop is a payment rail by another name"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-SEAM-03",
+      "level": "Core",
+      "category": "SEAM",
+      "req": "MUST",
+      "clause": [
+        "§12.3.2",
+        "§12.3",
+        "§12.3.1",
+        "§7.14"
+      ],
+      "checks": "No operator relationship, no functional difference. A conformant implementation MUST NOT expose any control that violates §12.3.1, MUST NOT consult the seam for any privacy or crypto decision, and MUST NOT ship a build in which any §12.3.1 item is disabled, degraded or delayed by the absence of an operator relationship. A user with no operator relationship at all MUST observe no functional difference on any of the six never-chargeable categories",
+      "operation": "seam_absence_differential",
+      "construction": "differential: the same build run with a fully-configured operator and with none; exercise every §12.3.1 category and compare behaviour and timing; companion: trace every seam call made during a privacy or crypto decision",
+      "expect": {
+        "outcome": "accept",
+        "note": "capability must be identical with and without an operator, with zero seam calls on any privacy or crypto path"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-SEAM-04",
+      "level": "Core",
+      "category": "SEAM",
+      "req": "MUST",
+      "clause": [
+        "§12.6",
+        "§3.10.2",
+        "§18.4.7"
+      ],
+      "checks": "The org controls the name and the operations, never a sovereign member's key. Org administration rides the seam's Provisioning and Policy hooks, but a conformant operator MUST NOT offer a control that escrows a sovereign account's key, or that presents an org-managed account as sovereign. Org-managed escrow is a disclosed per-account arrangement carrying the custody = \"org-managed\" marker — it hides nothing and disables nothing — whereas an escrow hook reaching a sovereign account would be exactly the backdoor §12.3 forbids",
+      "operation": "org_admin_control_audit",
+      "construction": "enumerate every admin control exposed over (a) a sovereign member and (b) an org-managed member; attempt key escrow, key read and lockout against (a); present an org-managed directory entry with the custody marker stripped",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0115",
+        "error_name": "ERR_ORG_MANAGED_UNDISCLOSED",
+        "action": "HALT_ALERT",
+        "note": "admin power over a sovereign member must cover the name and operations only; any exposed control escrowing or reading a sovereign key is non-conformant regardless of use"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-SCALE-01",
+      "level": "Core",
+      "category": "SCALE",
+      "req": "MUST",
+      "clause": [
+        "§14.3",
+        "§4.9"
+      ],
+      "checks": "Push is a latency optimization, never delivery. The client MUST still poll and reconcile on foreground, and DMTAP MUST NOT treat a push as delivery confirmation — platform push is best-effort on both APNs and FCM, so a design that treats a wake as an ack has adopted a delivery guarantee neither platform makes. Push carries no content: it is wake-and-fetch, never deliver-in-push",
+      "operation": "push_wake_semantics",
+      "construction": "deliver to a push-woken thin client with the push path silently dropped, then bring the client to foreground; inspect whether sender-side state advances on the wake alone and inspect the wake payload for content",
+      "expect": {
+        "outcome": "accept",
+        "note": "reconciliation on foreground must recover the message; treating a wake as delivery is non-conformant and content in the wake rejects with 0x0313"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-SCALE-02",
+      "level": "Core",
+      "category": "SCALE",
+      "req": "MUST",
+      "clause": [
+        "§14.3a",
+        "§14.1",
+        "§16.6"
+      ],
+      "checks": "The buffer is an n-of-m role, not a hosted service. A conformant node offers its ciphertext to m holders — peers, the owner's own other devices, optionally a third party — and treats delivery as buffered only when n of them acknowledge custody. No single holder is load-bearing, and a holder that vanishes costs redundancy rather than mail. Holders are content-blind, so raising m adds no trust; single-holder peer buffering is the degenerate n = m = 1 case, which is exactly the measured failure mode",
+      "operation": "buffer_custody",
+      "construction": "configure m >= 3 holders including one of the owner's own devices, require n = 2 acknowledgements, kill one holder permanently and one temporarily, and drain the queue on the recipient's return",
+      "expect": {
+        "outcome": "accept",
+        "note": "buffering requires n custody acknowledgements and survives both holder failures; treating a single holder's ack as buffered cannot pass"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-SCALE-03",
+      "level": "Core",
+      "category": "SCALE",
+      "req": "MUST",
+      "clause": [
+        "§14.5",
+        "§7.4",
+        "§7.1"
+      ],
+      "checks": "A relay is a hop, a gateway queue is not a store, and durability lands at the edge. The gateway's short queue is only the legacy-translation hop and MUST NOT become a store; the buffer role is not a gateway function. Relay-mailbox TTL loses undelivered mail, so durability MUST land at the recipient's edge once fetched, and senders own the retry queue. The honest limit MUST be disclosed: the public libp2p/IPFS DHT and relay path is designed for brief hole-punch assistance, not sustained mailbox sync, and is unsuitable as the sole production discovery/relay path",
+      "operation": "buffer_durability",
+      "construction": "inspect the gateway for any persistent per-message store beyond the §7.4 window; fetch buffered ciphertext at a recipient then destroy the buffer and check the message survives at the edge; review the deployment's documentation for the DHT-suitability disclosure",
+      "expect": {
+        "outcome": "accept",
+        "note": "no gateway store may persist beyond the §7.4 window and the message must be durable at the recipient after fetch; sole reliance on the public DHT without the disclosure is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-SCALE-04",
+      "level": "Core",
+      "category": "SCALE",
+      "req": "MUST",
+      "clause": [
+        "§14.6.2",
+        "§14.6.3",
+        "§4.4.2",
+        "§4.4.9"
+      ],
+      "checks": "A status page is a derived observation, never a registry — and never telemetry. No protocol behaviour may depend on trusting one: a client MUST derive its own profile determination from its own derived fleet view, and MAY use a status page only as human-facing corroboration. A status page that becomes load-bearing has become the directory authority §4.4.2 deleted. It MUST NOT deanonymize a user or reveal any part of the social graph, message-volume and latency series are out of scope — they are exactly the timing corpus the mixnet exists to deny — and an implementation MUST NOT emit per-user telemetry to any such service, nor make participation in measurement a condition of anything",
+      "operation": "status_page_dependency",
+      "construction": "present a status page asserting a Standard-capable fleet while the client's own derived view supports only Bootstrap, and the inverse; trace every outbound report to a measurement service; disable measurement entirely",
+      "expect": {
+        "outcome": "accept",
+        "note": "the profile determination must follow the client's own derived view in both directions and disabling measurement must change nothing else; any per-user or per-mailbox datum in an outbound report is independently non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-SCALE-05",
+      "level": "Core",
+      "category": "SCALE",
+      "req": "MUST",
+      "clause": [
+        "§14.2",
+        "§7.3"
+      ],
+      "checks": "The gateway fleet is shared-nothing, and its one piece of shared state is disclosed. An operator running the gateway role at volume MUST scale as a shared-nothing worker fleet: identical interchangeable instances with no whole-cluster coordination on the hot path, egress IPs owned by an egress layer rather than by instances, DKIM keys distributed read-only and never generated per instance. IP reputation and rate counters are the one thing a shared-nothing fleet cannot make node-local — and that irreducibly shared mutable state MUST be disclosed rather than presented as if the fleet were stateless throughout",
+      "operation": "gateway_fleet_topology",
+      "construction": "add and remove instances under load and observe whether any hot-path operation requires cluster coordination; inspect whether any instance generates its own DKIM key or owns its egress IP; review the operator documentation for the IP-reputation shared-state disclosure",
+      "expect": {
+        "outcome": "accept",
+        "note": "capacity must scale by adding instances with no per-instance DKIM generation and no instance-owned egress IPs, and the shared reputation tier must be disclosed"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-HYBRID-01",
+      "level": "Core",
+      "category": "HYBRID",
+      "req": "MUST",
+      "clause": [
+        "§10.7.1",
+        "§1.3",
+        "§16.7"
+      ],
+      "checks": "A hybrid verifier requires every component. A hybrid-suite (0x02) object whose PQ signature component is missing or fails, while only the classical component validates, presented to a verifier that supports the hybrid suite, is an incomplete/downgraded hybrid: a hybrid verifier MUST require every component signature (AND-composition) and MUST use the X-Wing KEM combiner. Single-component acceptance is for a genuinely legacy verifier only, at that component's lower assurance",
+      "operation": "hybrid_suite_verify",
+      "construction": "a 0x02 object with its PQ signature component stripped (variant: present but invalid), presented to a verifier supporting 0x02 and to one supporting only 0x01",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0210",
+        "error_name": "ERR_HYBRID_SUITE_INCOMPLETE",
+        "action": "FAIL_CLOSED_BLOCK",
+        "note": "a legacy-only verifier may accept at the classical component's lower assurance and must not report that as hybrid-strength verification"
+      },
+      "status": "construction-todo"
     }
   ],
   "pub_vectors_file": "vectors/pub_vectors.json",
