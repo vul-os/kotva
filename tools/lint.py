@@ -292,7 +292,69 @@ def check_suite_status() -> list[Finding]:
     return out
 
 
+def coverage_report() -> int:
+    """Which normative MUSTs have no conformance case citing their clause?
+
+    The suite is the operational definition of compatibility (§10.3), so a MUST
+    with no case is unenforceable — it reads as a requirement and behaves as a
+    suggestion. This turns "52 of 194 byte-runnable" into a prioritised worklist:
+    the sections below are the ones carrying normative weight that nothing tests.
+
+    This is a FLOOR, and deliberately generous: a section counts as covered if any
+    case cites it, not if every MUST in it is exercised. It also under-credits §18,
+    whose encoding rules the byte-exact vectors test implicitly without citing each
+    clause. Read it as "at least this much is untested", never as a pass mark.
+    """
+    suite_md = ROOT / "conformance" / "SUITE.md"
+    if not suite_md.exists():
+        print("no conformance/SUITE.md")
+        return 1
+
+    # Clauses any case cites, plus every prefix (a case on §9.7a covers §9.7a;
+    # a case citing §4.4.10a also evidences §4.4).
+    cited: set[str] = set()
+    for ref in SECREF_RE.findall(read(suite_md)):
+        parts = ref.split(".")
+        for i in range(len(parts), 0, -1):
+            cited.add(".".join(parts[:i]))
+
+    # Count MUST/MUST NOT per section, attributing each line to the most recent
+    # heading. "MUST" only counts in caps (BCP 14, per §0.8).
+    must_re = re.compile(r"\bMUST(?:\s+NOT)?\b")
+    per_section: dict[str, tuple[int, Path]] = {}
+    for p in SPEC_FILES:
+        current = None
+        for line in read(p).splitlines():
+            m = HEADING_RE.match(line)
+            if m:
+                current = m.group(1)
+                continue
+            if current and must_re.search(line):
+                n, _ = per_section.get(current, (0, p))
+                per_section[current] = (n + 1, p)
+
+    uncovered = {sec: v for sec, v in per_section.items() if sec not in cited}
+    total_musts = sum(n for n, _ in per_section.values())
+    unc_musts = sum(n for n, _ in uncovered.values())
+
+    print("NORMATIVE COVERAGE — sections with MUSTs and no conformance case\n")
+    for sec, (n, p) in sorted(uncovered.items(), key=lambda kv: -kv[1][0])[:25]:
+        print(f"  §{sec:<12} {n:>3} MUST(s)   {p.name}")
+    if len(uncovered) > 25:
+        print(f"  ... and {len(uncovered) - 25} more sections")
+
+    print(f"\n  sections with MUSTs : {len(per_section)}")
+    print(f"  of those, uncovered : {len(uncovered)}")
+    print(f"  MUST statements     : {total_musts} total, {unc_musts} in uncovered sections")
+    covered_pct = 100 * (total_musts - unc_musts) / total_musts if total_musts else 0
+    print(f"  normative coverage  : {covered_pct:.0f}% of MUSTs sit in a section some case cites")
+    return 0
+
+
 def main() -> int:
+    if "--coverage" in sys.argv:
+        return coverage_report()
+
     warn_as_error = "--warn-as-error" in sys.argv
     quiet = "--quiet" in sys.argv
 
