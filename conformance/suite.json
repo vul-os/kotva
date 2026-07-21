@@ -1300,6 +1300,27 @@
       "status": "construction-todo"
     },
     {
+      "id": "DMTAP-IDENT-90",
+      "level": "Core",
+      "category": "IDENT",
+      "req": "MUST",
+      "clause": [
+        "\u00a71.4",
+        "\u00a721.3"
+      ],
+      "checks": "rotate_threshold >= recover_threshold, with the comparison as \u00a71.4 rule 2 DEFINES it: for every SAME-KIND pair the rotate count must be >= the recover count; different kinds are incomparable and impose no constraint on each other. This catches a policy where one kind of factor rotates more cheaply than it recovers, while admitting cross-kind policies that are safe under the rule's own rationale.",
+      "operation": "policy_validate",
+      "construction": "(a) recover={Guardians(2)}, rotate={Guardians(1)}; (b) recover={Devices(2),Phrase}, rotate={Devices(1),Ik}; (c) recover={Phrase}, rotate={Ik,Guardians(2)}; (d) recover=rotate={Guardians(3)}; (e) rotate empty",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x010C",
+        "error_name": "ERR_RECOVERY_THRESHOLD_INVALID",
+        "action": "FAIL_CLOSED_BLOCK",
+        "note": "(a) and (b) rejected \u2014 a same-kind factor rotates more cheaply than it recovers, so in (a) any two guardians could evict the owner. (c) ACCEPTED: kinds are incomparable and the phrase-holder recovers without being able to rotate, which is what rule 2 wants \u2014 rejecting it is non-conformant, and a subset-based reading that did so is how the ambiguity was found. (d) accepted: '>=' permits equality, and rule 3 independently gates weakening. (e) rejected as malformed"
+      },
+      "status": "construction-todo"
+    },
+    {
       "id": "DMTAP-PRIV-01",
       "level": "Private",
       "category": "PRIV",

@@ -412,6 +412,32 @@ Rules:
 2. **`rotate_threshold` ≥ `recover_threshold`.** A single compromised factor may (perhaps)
    recover access but MUST NOT be able to unilaterally rewrite the policy and lock the owner
    out.
+
+   **What "≥" means here (normative — it is not a total order).** A `Threshold` is
+   `any_of: [MethodPredicate]`, a **disjunction over heterogeneous predicates** (`Phrase`,
+   `Devices(n)`, `Guardians(n)`, `Ik`). That structure admits no total order: `{Phrase}` and
+   `{Ik, Guardians(2)}` are simply incomparable, and asking which is "greater" has no answer.
+   Stated only as "≥", this rule was **unimplementable**, which is why `0x010C` was registered,
+   cited from here, and raised nowhere — `RecoveryPolicy::verify()` could check only the
+   degenerate empty-`rotate` case. The comparison is therefore defined as:
+
+   > For every predicate `p ∈ recover_threshold.any_of` and every `q ∈ rotate_threshold.any_of`
+   > **of the same kind**, `q`'s count MUST be **≥** `p`'s count. Predicates of **different kinds
+   > are incomparable** and impose no constraint on each other.
+
+   Counts are monotone within a kind — holding 3 device factors satisfies any predicate asking for
+   ≤ 3 — so this catches exactly the dangerous shape the rule exists to forbid: a policy where the
+   *same kind* of factor rotates more cheaply than it recovers, e.g. `recover = {Guardians(2)}`
+   with `rotate = {Guardians(1)}`, under which any two guardians could evict the owner. Equality is
+   permitted, because "≥" permits it and because rule 3 independently requires a quorum for any
+   *weakening* change, so an equal threshold cannot be used to erode recovery unilaterally.
+
+   **Honest limit, stated rather than papered over:** cross-kind pairs are left unconstrained
+   because there is no principled way to rank "a recovery phrase" against "two guardians" — any
+   ordering imposed on them would be invented, and inventing one would reject legitimate policies
+   such as `recover = {Phrase}`, `rotate = {Ik, Guardians(2)}`, which is safe under this rule's own
+   rationale (the phrase-holder recovers but cannot rotate). A deployment wanting cross-kind
+   guarantees must express them by choosing kinds deliberately, not by relying on this check.
 3. **Weakening changes need the quorum, not `IK` alone (compromise defense).** A policy change
    that **removes or weakens any recovery factor** (drops a method, lowers a threshold, evicts a
    guardian/device) MUST satisfy `rotate_threshold` **even when signed by `IK`** — `IK` alone MUST
