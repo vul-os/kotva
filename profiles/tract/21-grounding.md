@@ -10,16 +10,20 @@
 
 ## 21.1 Coverage — read this before citing anything below
 
-Seven areas were researched. **Only three produced claims that survived three-vote adversarial
-verification:** deployed networks, global product identity, and the goods/variant slice of the data
-model.
+Two passes have run. Between them, **four areas produced claims that survived three-vote
+adversarial verification:** deployed networks, global product identity, the goods/variant slice of
+the data model, and — from the second pass (§21.10) — live commerce state.
 
-**Unresearched, and therefore neither supported nor refuted:** logistics standards and consolidation
-optimisation (§8); privacy-preserving analytics (§13); live commerce state, bounded-counter CRDTs
-and reservation semantics (§6); and the whole of trust, dispute, tax and legal (§9.6, §10, §11).
+**Still unresearched after both passes, and therefore neither supported nor refuted:** logistics
+standards and consolidation optimisation (§8); privacy-preserving analytics and fraud (§13); and
+the whole of trust, dispute, tax and legal (§9.6, §10, §11). The second pass targeted all three
+directly and returned **nothing verified** on any of them, which makes them a standing gap rather
+than an oversight.
 
 Those gaps are **absence of evidence, not evidence of absence**, and §8, §10, §11 and §13 must not
-cite this section as support. Within the covered areas, several named systems also produced nothing
+cite this section as support. §11 in particular currently answers by assertion — who the
+marketplace facilitator is when there is no marketplace operator, and how erasure rights are
+satisfied against irrevocable objects, are both unanswered here. Within the covered areas, several named systems also produced nothing
 verified: Particl, Origin Protocol, BOLT12, x402, L402, and ActivityPub-based commerce.
 
 ## 21.2 The finding that most threatens this design
@@ -191,3 +195,66 @@ verdict on structured-commerce complexity is a caution this specification should
   not hypotheticals (§21.6).
 - No section may cite this one as support for logistics, analytics, live-state or legal claims
   (§21.1).
+
+## 21.10 Second pass — live commerce state (July 2026)
+
+A second adversarially-verified pass covered the four areas §21.1 records as unresearched. **Only
+one of them produced surviving claims: live commerce state.** Logistics and delivery, privacy-
+preserving analytics and fraud, and the whole of trust/dispute/tax/legal produced **no verified
+findings and remain unresearched** — §21.1's prohibition on citing this section for them still
+stands, and §8, §10, §11 and §13 are still unevidenced.
+
+### 21.10.1 The good news: no-coordinator oversell prevention is real
+
+A seller running N replicas **can** guarantee no oversell with no coordinator. The mechanism is the
+escrow/demarcation family — O'Neil (1986) → Barbará-Millá & Garcia-Molina (1994) → Balegas et al.,
+SRDS 2015 (`BoundedCounter`), shipped in production as AntidoteDB's `antidote_crdt_counter_b`.
+
+The gap between the counter and its bound is pre-partitioned into transferable **rights**. A replica
+may decrement only from rights it holds locally, and the locally computed right count is always
+conservative — it can under-count but never over-count. So the invariant holds **even from stale
+state**, and the guarantee survives arbitrary message loss, delay, reorder and partition.
+
+The contrast matters: a plain eventually-consistent read-check-decrement counter measurably **does**
+oversell — roughly 200 excess decrements at ~200 concurrent clients in the SRDS'15 experiment. This
+is not a theoretical risk being designed around.
+
+**The guarantee is safety-only and is paid for entirely in liveness:** stranded quota, spurious
+"sold out", and aborted decrements while global stock remains. §6.4 already states that residual.
+
+### 21.10.2 The bad news: four operator-shaped roles inside the counter
+
+Each of these must be accepted or replaced explicitly by §6. None was visible before this pass.
+
+1. **An intra-replica serialization point is mandatory.** A single-writer node, a compare-and-swap,
+   or consensus. **A "replica" therefore cannot itself be a set of mutually uncoordinated nodes** —
+   the coordination is not removed, it is pushed down one level and made local.
+2. **The failure model is crash-recovery with durable state, not Byzantine.** This is the sharpest
+   finding in the pass. **A lying or state-losing replica simply oversells**, and none of this
+   literature covers stock held across *mutually distrusting* parties. The mechanism is sound for a
+   seller's own replicas, which trust each other; it says nothing about a seller who lies.
+3. **Reclaiming a permanently-dead replica's rights requires an agreement or failure-detector
+   decision** — and if that decision is wrong, rights are double-issued and the invariant breaks.
+   Deciding a peer is dead is exactly the kind of judgement a coordinator makes.
+4. **With three or more replicas, transfer is no longer anonymous.** The giver must name the
+   recipient, which reintroduces an allocation policy — and the papers themselves suggest
+   centralising it.
+
+### 21.10.3 Sagas do not provide what multi-party checkout needs
+
+Confirmed rather than assumed: sagas explicitly provide **neither atomicity nor isolation**. Other
+parties observe partial sagas, and there is no abort cascade. So multi-party checkout gets eventual
+amendment, never oversell prevention — **oversell prevention has to sit in the per-replica
+invariant primitive**, not in the checkout flow above it. §6.4's "no cross-seller atomicity" is
+therefore not a limitation to be engineered away later; it is the correct shape.
+
+### 21.10.4 What §6 must now say
+
+- Name the intra-replica serialization requirement rather than implying replicas need no
+  coordination at any level (§21.10.2 item 1).
+- State the **non-Byzantine failure model as a hard boundary**: bounded counters protect a seller
+  from their own concurrency, not a buyer from a dishonest seller. Conflating the two would be a
+  safety claim the literature does not support (item 2).
+- Specify dead-replica right reclamation as an explicit, fallible decision with a stated failure
+  mode, not a background detail (item 3).
+- Acknowledge that transfer names a recipient at N ≥ 3, and say who chooses (item 4).
