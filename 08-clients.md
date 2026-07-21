@@ -12,9 +12,9 @@ draws a clean line: **native client sync = JMAP on the node; legacy client acces
 > **stays on the node** and is native, not legacy. (2) The **legacy-client reachability
 > ingress** (the SNI-passthrough / stream routing that accepts a raw IMAP/TLS connection from,
 > e.g., an iPhone Mail app and serves its mailbox) lives **only on the gateway** (§7.15.2) and
-> exists solely to serve clients that cannot speak the mesh. (3) The **Relay node class**
-> (§14.1) is any public-IP node performing (1) as a role. (4) The **relay-mailbox** (§14.3) is
-> the hosted, content-blind queue a mobile-only user drains.
+> exists solely to serve clients that cannot speak the mesh. (3) The **relay role**
+> (§14.1) is any public-address node performing (1). (4) The **relay-mailbox** (§14.3) is
+> the content-blind, `n`-of-`m`-held queue a mobile-only user drains (§14.3a).
 
 ## 8.1 JMAP (native — the node's only client surface)
 
@@ -123,11 +123,16 @@ implementer UX guidance, not a wire requirement.
   as ordered hops, with any unverified-domain hop flagged as such.
 - **Do not over-claim on `private`.** While the mix fleet is small the client MUST honour the
   §6.6/§4.4.11 disclosure and MUST NOT present `private` as absolute anonymity; the graph shows the
-  **boundary crossings**, not a node-by-node trace.
-- **Tie it to billing transparency.** For a gateway-touched message the client MAY let the user
-  confirm the attestation against the operator's metered legacy operation (§7.9, §12.7) — "this
-  message used the gateway, which is why it was billed" — and MUST NOT show a pure-mesh message as
-  a billable gateway operation.
+  **boundary crossings**, not a node-by-node trace. On the **Bootstrap** profile (§4.4.10a) the
+  client MUST additionally show that metadata privacy is degraded **and why**, and MUST NOT state
+  an anonymity set at all.
+- **Give the user the evidence, not the operator.** For a gateway-touched message the client MAY
+  let the user check the attestation against any usage claim an operator makes (§7.9, §12.7) —
+  "this message used the gateway, which is why it appears on that list" — and MUST NOT show a
+  pure-mesh message as a gateway operation, because no operator was on that path to observe it.
+- **Show the bridge shrinking.** Because the gateway's value is exactly the legacy fraction of a
+  user's correspondence (§7.1c), a client SHOULD make that fraction visible over time rather than
+  presenting legacy bridging as a standing feature.
 
 ## 8.7 Deniable mode, org administration & device attestation (UX guidance)
 

@@ -49,7 +49,7 @@ Workshop (decentralized CAD part sharing) as the first production application.
 4. **Author feeds** — per-identity append-only signed log of announcements; monotonic `seq`
    with the standard anti-rollback rule (same pattern as `caps_version`/`Identity.version`);
    any node can serve any feed; indexes are derived, rebuildable, never authoritative.
-5. **Serving** — gateway HTTP profile (feed endpoint, manifest/chunk fetch) and native mesh
+5. **Serving** — public-object HTTP endpoint (feed endpoint, manifest/chunk fetch) and native mesh
    fetch; swarm rules for popular objects.
 6. **Operator opt-in & anti-abuse** — `pub-1` capability; per-holder serve policy; no
    protocol-level takedown (a holder chooses what it serves); §9 interaction.
@@ -68,17 +68,17 @@ Workshop (decentralized CAD part sharing) as the first production application.
   BOM extraction is a tree walk; dedup composes across assemblies automatically.
 - Workshop conventions: a "workshop" is a set of followed feeds; category/search indexes are
   derived data any node can rebuild.
-- Appendix: mapping to the kerf Workshop (publish flow, gateway endpoints, LFS/sha256
+- Appendix: mapping to the kerf Workshop (publish flow, public-object endpoints, LFS/sha256
   coexistence via the multihash agility prefix).
 
 ## Track 4 — Downstream (not in this repo)
 
 - **kerf**: ADR + roadmap phases — P0 adopt object model (sign, announce, public manifests) over
-  plain HTTPS gateways; P1 mirrors + swarm chunk fetch; P2 native mesh transport + MLS private
+  plain HTTPS PUB servers; P1 mirrors + swarm chunk fetch; P2 native mesh transport + MLS private
   team folders once the Envoir node ships. Clean seam preserved: cloud = billing + provisioning
   + fleet only.
 - **conformance/**: PUB + profile suites (follow-up wave).
-- **Envoir node/gateway**: implement `pub-1` serving (follow-up wave).
+- **Envoir node**: implement `pub-1` serving (follow-up wave).
 
 ## Status
 
@@ -89,7 +89,7 @@ Workshop (decentralized CAD part sharing) as the first production application.
 - [x] Cross-document consistency verify (allocations, links; build script auto-globs `NN-*.md`, so §22/§23 enter the HTML/PDF build with no list edit — rebuild pending)
 - [x] Track 4 kerf ADR + roadmap (landed in the kerf repo)
 - [x] `conformance/` suites for PUB + CAD profile (follow-up wave)
-- [ ] Envoir node/gateway `pub-1` serving (follow-up wave)
+- [ ] Envoir node `pub-1` serving (follow-up wave)
 
 ## Future candidates (not scheduled)
 

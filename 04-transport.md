@@ -157,8 +157,15 @@ specifies bootstrap explicitly, in priority order:
 3. **A signed, multi-operator `BootstrapSet`.** For a genuinely first-run node with no contacts,
    implementations ship a `BootstrapSet`: a signed, versioned, KT-anchored list of long-lived
    entry nodes. Normative constraints:
-   - It MUST name nodes under **≥ 3 disjoint attested operators** (§4.4.8); a single-operator
-     bootstrap list is non-conformant, because it is indistinguishable from a central server.
+   - It MUST name **≥ 3 disjoint nodes under ≥ 3 disjoint announced BGP origin ASNs**; a list whose
+     entries all sit in one network is non-conformant, because it is indistinguishable from a
+     central server. **ASNs, not operators, deliberately:** running a bootstrap entry is an
+     ordinary node role needing no scarce resource and no attestation (§0.2.2, §14.1), so requiring
+     *attested operators* here would impose a credential on the one path a brand-new network has to
+     have working on day one — and would be unsatisfiable at launch, when there are nodes but no
+     operators. ASN-disjointness delivers the property that actually matters (no single network,
+     datacenter, or legal order controls every entry point) and is checkable from the addresses in
+     the list itself.
    - It MUST be **user-inspectable and user-overridable** in the client, and the client MUST
      surface which entry it actually used.
    - It is **discovery only, never trust**: a bootstrap peer can introduce a node to the network
@@ -377,51 +384,81 @@ paths — DMTAP distributes them by **reusing DNS + key transparency**, not a ne
   two. `ERR_MIX_DIRECTORY_SIG_INVALID` (`0x030B`) now applies only to a **cached** directory whose
   contents fail independent verification, never to the absence of an authority signature.
 
-Because the directory is KT-anchored, an authority that shows different fleets to different
-clients (a split view over the mix set) is **detectable exactly like KT equivocation** (`0x0107`,
-§3.5.2) — **but only to the same degree KT itself is, which depends on the KT profile in force.**
-Under **v1-hardening KT** (log-type `0x02`, §3.5.2) a directory split view is gossip-detected and
-quorum-bounded like any equivocation; under **v0-minimal KT** (log-type `0x01`) a single,
+Because the fleet view is derived from KT, a **log** that shows different descriptor sets to
+different clients (a split view over the mix set) is **detectable exactly like KT equivocation**
+(`0x0107`, §3.5.2) — **but only to the same degree KT itself is, which depends on the KT profile in
+force.** Under **v1-hardening KT** (log-type `0x02`, §3.5.2) such a split view is gossip-detected
+and quorum-bounded like any equivocation; under **v0-minimal KT** (log-type `0x01`) a single,
 non-gossiped log can present a split view that is only tamper-evident *after the fact* (§6.6 item
-6), so mix-directory equivocation is **deterred, not reliably detected**, in v0. Therefore, for
-**high-risk** use while on v0, a deployment SHOULD (i) publish the `MixDirectory` under a **set of
-authorities with a `> n/2` quorum** (§3.5.2(b)) rather than a single authority, and (ii) have
-verifiers **OOB-pin** the authority key(s) (§3.4.1) rather than trust a single unaudited anchor.
-This is the mixnet instance of the same v0/v1 caveat, and it compounds with the honest
-single-operator launch-trust disclosure (§4.4.11): early on, one operator running both the fleet
-*and* a single-log directory authority is a concentrated trust point, disclosed as such. The
-directory **indexes; it does not forge**: each `MixNodeDescriptor` self-verifies
-under its own `node_ik`, so a compromised authority can withhold or reorder mixes (a
-denial/annoyance, detectable) but cannot make a sender encrypt to a key an honest mix does not
-hold — the same "convenience enumeration of independently-verifiable bindings" discipline as the
-GAL (§3.10.3). A directory not signed by the pinned authority is rejected
-(`ERR_MIX_DIRECTORY_SIG_INVALID`, `0x030B`); an older-or-equal `version` is rejected (rollback
-defense); a directory lacking a full stratified layer set makes path-building fail
-(`ERR_MIX_PATH_UNBUILDABLE`, `0x030D`).
+6), so mix-set equivocation is **deterred, not reliably detected**, in v0. Therefore, for
+**high-risk** use while on v0, a client SHOULD (i) pin a **set of independently-operated logs and
+require a `> n/2` quorum** (§3.5.2(b)) rather than derive its fleet from one log, and (ii)
+**OOB-pin** the logs' keys (§3.4.1) rather than trust a single unaudited anchor. This is the mixnet
+instance of the same v0/v1 caveat, and it compounds with the honest low-adoption disclosure
+(§4.4.11): early on, few mixes and few logs are a concentrated trust point, disclosed as such. A
+cache **indexes; it does not forge**: each `MixNodeDescriptor` self-verifies under its own
+`node_ik`, so a hostile cache or log can withhold or reorder mixes (a denial/annoyance, detectable)
+but cannot make a sender encrypt to a key an honest mix does not hold — the same "convenience
+enumeration of independently-verifiable bindings" discipline as the GAL (§3.10.3). A **cached**
+`MixDirectory` whose contents fail independent verification against the client's log quorum is
+rejected (`ERR_MIX_DIRECTORY_SIG_INVALID`, `0x030B`); an older-or-equal `version` on a cache is
+rejected (rollback defense); a derived view lacking a full stratified layer set makes path-building
+fail (`ERR_MIX_PATH_UNBUILDABLE`, `0x030D`).
 
-- **Directory freshness — freeze-attack defense (MUST).** Rollback defense (rejecting an
+- **Freshness — freeze-attack defense (MUST).** Rollback defense (rejecting an
   *older-or-equal* `version`) stops an adversary *rewinding* a client, but it does **not** by
-  itself stop an adversary *freezing* one: an on-path adversary (or a censoring authority) that
-  simply **serves the last honest directory forever** presents a validly-signed, non-rolled-back
+  itself stop an adversary *freezing* one: an on-path adversary (or a censoring cache) that
+  simply **serves the last honest view forever** presents a validly-derivable, non-rolled-back
   snapshot while withholding every newer one. Left unbounded, a freeze pins the victim to a
   **stale fleet view** — it never learns of newly-joined, operator-diverse honest mixes (so its
   effective diversity and anonymity set stay artificially small and adversary-favourable) even
   though nothing it can see is *invalid*. This is the exact analogue of the KT **freeze attack**
-  that STH freshness defends (§3.5.2(a), `0x0112`), and the mix directory — being KT-anchored
-  (its root is appended to KT) — MUST inherit the same defense. A client therefore MUST treat a
-  `MixDirectory` older than the **mix-directory freshness window** (§16.3, ≤ one mix-key epoch)
+  that STH freshness defends (§3.5.2(a), `0x0112`), and the derived fleet view — being computed
+  from KT — inherits the same defense. A client therefore MUST treat a derived view (or a cached
+  `MixDirectory`) older than the **mix-directory freshness window** (§16.3, ≤ one mix-key epoch)
   as **stale**, MUST refresh it before building any `private`-tier path, and MUST **fail closed**
-  (§4.4.9 — hold, never downgrade) if it cannot obtain a fresh directory — raising
-  `ERR_MIX_DIRECTORY_STALE` (`0x0311`). Because the authority MUST publish a new directory each
-  epoch and append its root to KT (above), a freeze is **detectable**: the authority's own KT log
-  will show no fresh directory root within the window (a withholding signal, gossiped exactly as
-  an unpublished KT entry is, §3.5.2(a)), and under v1-hardening KT it is attributable to the
-  authority. This makes "withhold newer mixes" a **detected, fail-closed** event rather than a
-  silent shrinking of the anonymity set, completing the trust-minimization triad for the
-  directory authority (minimized §4.4.2 quorum, **detectable** here, fail-closed §4.4.9). In v0,
-  as with all KT, a single-log freeze is only tamper-evident-after-the-fact (§6.6 item 6); the
-  ≤-one-epoch key rotation (§4.4.4) still bounds the freeze window because a frozen directory's
-  keys expire and path-building then fails closed regardless.
+  (§4.4.9 — hold, never downgrade) if it cannot obtain a fresh one — raising
+  `ERR_MIX_DIRECTORY_STALE` (`0x0311`, FAIL_QUEUED per §10.7.0: a liveness failure delays mail, it
+  does not reject it). Because each mix MUST publish a fresh current-epoch descriptor into KT
+  (§4.4.2, §4.4.4), a freeze is **detectable**: the client's own log quorum shows no fresh
+  descriptors within the window (a withholding signal, gossiped exactly as an unpublished KT entry
+  is, §3.5.2(a)), and under v1-hardening KT it is attributable to the withholding log. This makes
+  "withhold newer mixes" a **detected, fail-closed** event rather than a silent shrinking of the
+  anonymity set — and note that with the directory authority removed (§4.4.2) there is no longer a
+  single party whose silence achieves this network-wide; a freeze must now be mounted per-client or
+  per-log. In v0, as with all KT, a single-log freeze is only tamper-evident-after-the-fact (§6.6
+  item 6); the ≤-one-epoch key rotation (§4.4.4) still bounds the freeze window because a frozen
+  view's keys expire and path-building then fails closed regardless.
+
+### 4.4.2a The mix role is default-on for always-on public nodes (normative)
+
+A mixnet with no mixes protects nobody, and DMTAP has no launching operator whose fleet the network
+could borrow (§0.2, §12.4). Left as an opt-in, the mix role would face the standard collective-action
+failure: everyone wants the anonymity set, nobody is individually obliged to enlarge it, and the
+`private` tier — which §10.3 makes the production default for all mail — would be unbuildable at
+exactly the moment a network is small enough for it to matter most. So the fleet must
+**self-provision**:
+
+- **A node that is always-on and has a public address MUST default to serving the mix role**, and
+  MUST publish a `MixNodeDescriptor` (§4.4.2) accordingly. The operator MAY turn it off; the
+  requirement is on the **default**, not on the operator's freedom.
+- **Intermittent devices, battery- or metered-connection devices, and nodes without a public
+  address MUST NOT default to it** — a mix that disappears mid-epoch degrades everyone's paths, and
+  a phone paying for cover traffic is a bad trade for its owner and a poor mix for everyone else.
+- **Cost.** A mix carries constant-rate Sphinx cells and per-hop delay queues: the cover-traffic
+  floor is ≈ 5.6 MB/day (§16.3), and a mix's forwarding load is bounded by its own advertised
+  capacity. For the device class this rule targets — mains-powered, unmetered, already holding the
+  mailbox — the marginal cost is small and the marginal benefit is direct: the node's *own*
+  `private`-tier mail becomes buildable.
+- **Reciprocity is the whole argument.** A mix hides nothing from its own operator's adversary if
+  it is the only mix; the anonymity set is the product being co-produced. This is the one place in
+  the specification where the incentive to consume and the incentive to provide are literally the
+  same incentive, and the default is set to match.
+
+**Consequence for growth.** Because the fleet is a function of always-on public nodes rather than of
+anyone's budget, it grows **in step with adoption** — which is precisely the schedule on which the
+anonymity set needs to grow, and is what makes the Bootstrap → Standard profile progression
+(§4.4.10) a matter of time rather than of funding.
 
 ### 4.4.3 Path selection (3-hop stratified free-route)
 
@@ -478,7 +515,7 @@ tunable — higher rate = more privacy, more bandwidth):
 
 **Constant-rate cover is the default for always-on nodes (normative).** The two cover regimes are
 not merely different settings — they defend against different adversaries, and the stronger one is
-free for exactly the node class that holds the mailbox:
+free for exactly the device class that holds the mailbox (§14.1):
 
 - **Poisson cover** (mean 30 s/msg) *blurs* the relationship between user activity and traffic. A
   short observation cannot distinguish real from cover, but the envelope still **correlates with
@@ -632,8 +669,8 @@ disclosed.
   under the same guard-rotation period; both are conformant, the invariant being *persistent* (not
   per-packet-fresh) entry selection. The value is a §16.3 profile parameter.
   **Disclosed guard observation (NIT).** A pinned entry guard, if adversarial, **necessarily sees**
-  each of the sender's packets it carries — including the **bucket size** (which of the {2,8,32,64}
-  KiB rungs, i.e. the exact **cell count**, §4.4.1) and the **send time**. This is inherent to
+  each of the sender's packets it carries — including the **bucket size** (which of the {8, 64} KiB
+  rungs, i.e. the exact **cell count**, §4.4.1, §16.3) and the **send time**. This is inherent to
   being the first hop and is **not** hidden by the mixnet (padding hides *true* length, not which
   *rung*; cover traffic blurs *rate*, not that *this guard* is used). Constant-rate cover
   (High-security, §4.4.10) is the mitigation that most flattens the send-time signal; the residual
@@ -713,9 +750,12 @@ metadata-private message onto a correlatable tier. DMTAP treats this as an attac
 
 - **The in-force profile's bar IS the fail-closed floor (MUST).** The minimum-viable-path bar is
   **the bar of the profile actually in force for this message**, not a fixed 3-hop base. Under the
-  Standard profile that is **≥ 3 hops, one per stratified layer, under ≥ 3 disjoint operators**
-  (§4.4.8); under the **High-security profile it is ≥ 5 hops and ≥ 5 disjoint operators**
-  (§4.4.10) — and that higher bar is **itself the floor**. A high-security packet that can only
+  **Bootstrap** profile that is ≥ 3 hops, one per layer, with best-effort ≥ 2 ASN diversity
+  (§4.4.10a); under **Standard**, **≥ 3 hops, one per stratified layer, under ≥ 3 disjoint
+  operators** (§4.4.8); under **High-security**, **≥ 5 hops and ≥ 5 disjoint operators** (§4.4.10)
+  — and in each case that profile's own bar is **itself the floor**. The ladder is climbed
+  automatically and **never descended** (§4.4.10a constraints 3–4): a network that has reached
+  Standard MUST NOT drop to Bootstrap, which would be this very attack wearing a friendlier label. A high-security packet that can only
   build a shorter or less-diverse path (e.g. only a 3-hop / 3-operator path is currently buildable)
   MUST **fail closed exactly as if no path existed** — it MUST **NOT** silently satisfy the lesser
   base bar, because delivering a message a user marked high-security over a Standard-strength path
@@ -730,10 +770,11 @@ metadata-private message onto a correlatable tier. DMTAP treats this as an attac
   the MOTE in its retry queue** (§4.7) and retry, surfacing `ERR_PRIVATE_TIER_DOWNGRADE_REFUSED`
   (`0x0310`) to the user if the condition persists to the retry deadline — the same fail-closed
   stance as unreachable KT (§3.3) and unreachable auth status (§13.4). This error covers **both**
-  the tier downgrade (`private → fast`) **and** the profile downgrade (High-security → Standard):
-  either is a refused silent demotion. Downgrading `private → fast`, **or High-security →
-  Standard**, is **only ever a deliberate, user-surfaced choice** (§4.6, §4.4.10), **never** an
-  automatic reaction to mix unavailability. This closes the "DoS the mixnet to strip anonymity"
+  the tier downgrade (`private → fast`) **and** every profile downgrade (High-security → Standard,
+  and Standard → Bootstrap for a contact that has already run at Standard, §4.4.10a): each is a
+  refused silent demotion. Downgrading `private → fast`, **or to any lower profile**, is **only
+  ever a deliberate, user-surfaced choice** (§4.6, §4.4.10), **never** an automatic reaction to mix
+  unavailability. This closes the "DoS the mixnet to strip anonymity"
   vector: an adversary can **delay** delivery but cannot silently **demote** it — not to a weaker
   tier and not to a weaker profile.
 - **Triggered by the detector.** The condition is raised either by an empty minimum-viable-path
@@ -744,11 +785,12 @@ metadata-private message onto a correlatable tier. DMTAP treats this as an attac
 
 The Anonymity Trilemma (§6.6, Das et al. 2018) proves strong anonymity **must** cost latency
 and/or bandwidth; DMTAP therefore exposes that tradeoff as a **selectable profile**, not a fixed
-point — the concrete lever a high-risk user pulls. Two profiles are normative (parameters §16.3):
+point — the concrete lever a high-risk user pulls. Three profiles are normative (parameters §16.3):
 
 | Profile | Hops | Per-hop delay | Cover / loop rate | Entry guards | Operator diversity | Intended use |
 |---------|:----:|---------------|-------------------|:------------:|--------------------|--------------|
-| **Standard** (default) | 3 | exp, mean 5 s | Poisson, mean 30 s; λ_loop mean 30 s | 2 guards / 30 d | 3 disjoint (all hops) | all mail by default |
+| **Bootstrap** (§4.4.10a) | 3 | exp, mean 5 s | Poisson, mean 30 s; λ_loop mean 30 s | guard sample = **as many as exist, floor 3** | **best-effort ≥ 2** | a network too small to support Standard — **no anonymity claim** |
+| **Standard** (default) | 3 | exp, mean 5 s | Poisson, mean 30 s; λ_loop mean 30 s | 2 guards / 30 d, sample 20 | 3 disjoint (all hops) | all mail by default |
 | **High-security** | **5** | exp, **mean 30 s** | **constant-rate** (Poisson) mean **5 s**; λ_loop mean **5 s** | **3 guards / 7 d** | **5 disjoint** (all hops) | high-risk users / messages |
 
 The high-security profile trades minutes → tens-of-minutes latency and higher bandwidth for a
@@ -776,26 +818,91 @@ attacks and neither substitutes for the other — the High-security profile rais
 *and* 5 disjoint operators / 3 tighter guards) precisely because each closes a gap the other
 cannot. This distinction is stated as measured evidence in §6.10.
 
+### 4.4.10a The Bootstrap profile — a small network must still work (normative)
+
+Composed naively, the parameters of §16.3 make a new network **fail closed on every message**: the
+guard sample is 20 attested, ASN-disjoint entry mixes (§4.4.8), a path needs ≥ 3 ASN-disjoint hops,
+and §4.4.9 correctly refuses to build anything below the in-force profile's bar. A network with
+fewer than ~20 ASN-diverse public nodes therefore cannot send `private`-tier mail **at all** — and
+since `private` is the standing default for mail and every control MOTE (§4.6, §10.3), a
+conforming implementation would be **non-functional by its own rules on day one**. That is not a
+safety property; it is a bug that would be worked around in the field, badly, by whoever shipped
+first.
+
+The **Bootstrap profile** is the specified answer:
+
+- **Parameters (§16.3):** 3 hops, one per stratified layer; **guard sample = as many attested entry
+  mixes as exist, with a floor of 3**; **best-effort diversity ≥ 2** disjoint operator ASNs across
+  the path; all other parameters as Standard.
+- **It carries NO anonymity claim.** What it provides is encryption, authentication, sealed sender,
+  and *some* mixing against a network-local observer — nothing more, and nothing that may be
+  described as anonymity.
+
+Four normative constraints keep it from silently becoming permanent:
+
+1. **User-visible (MUST).** A client operating on Bootstrap MUST show that metadata privacy is
+   **degraded**, and MUST say **why** — how many mixes and how many ASNs the network currently
+   offers against the Standard bar. Silence here would convert a temporary shortfall into an
+   invisible one.
+2. **No anonymity claim in-product (MUST NOT).** The prohibition of §4.4.11 becomes a **property of
+   the profile itself**: while Bootstrap is in force, an implementation or operator MUST NOT
+   present the `private` tier as anonymous, MUST NOT report an anonymity-set size, and MUST NOT
+   describe the traffic as unlinkable.
+3. **Auto-upgrade, never fall back (MUST).** A node MUST re-evaluate its derived fleet view each
+   mix-key epoch (§4.4.2, §4.4.4) and MUST move to **Standard** as soon as Standard's bar is
+   satisfiable. It MUST NOT return to Bootstrap thereafter (see 4). **This is load-bearing:** if
+   Bootstrap were reachable as a fallback, an adversary who DoSes or eclipses enough mixes could
+   force every sender down onto it — which is precisely the §4.4.9 downgrade attack, re-opened
+   under a friendlier name. Bootstrap is a **floor a young network starts on**, never a step a
+   working network takes down.
+4. **Per-contact ratchet (MUST).** Profile level ratchets **per correspondent**, exactly like the
+   suite high-water-mark of §1.3: once any message in a relationship has been carried at Standard
+   (or High-security), Bootstrap is **no longer acceptable for that relationship**, and a
+   Bootstrap-tier send to that contact MUST fail closed with
+   `ERR_PRIVATE_TIER_DOWNGRADE_REFUSED` (`0x0310`, §4.4.9) rather than be sent. The ratchet is
+   per-contact rather than global because that is the granularity an attacker must defeat one
+   relationship at a time, and because a new contact on a still-small network must remain reachable
+   while an established one is protected.
+
+**Negotiation and wire impact.** Bootstrap is advertised as the capability token
+`mix-profile-bootstrap` (§10.2, §21.22) — an **additive** capability announcement, exactly like any
+other. **No object gains a field, no CBOR key changes, and the conformance vectors are unaffected**;
+the profile is a constraint on path *construction*, which is a sender-side computation over the
+same `MixNodeDescriptor`s and the same Sphinx packets.
+
+**Relation to §4.4.9.** The fail-closed rule is unchanged and still governs: the **in-force
+profile's** bar is the floor, and no message is silently carried below it. Bootstrap does not
+weaken that rule; it defines a third, honestly-labelled bar for a network that does not yet have
+enough participants for the second one, and constraints 3–4 ensure the direction of travel is
+one-way.
+
 ### 4.4.11 Honest low-adoption model (disclosed, §6.6 style)
 
 A mixnet's privacy **is** its anonymity set, and DMTAP does **not** overclaim a day-one one:
 
-- **Launch = an operator-run mix fleet.** At launch the three stratified layers are staffed by a
-  **small fleet the launching operator runs** (the same operator that runs gateways/relays, §12).
-  With few nodes under one operator, the guarantee is closer to **Tor-with-few-relays / a trusted
-  VPN with mixing** than to a strong global mixnet: it defeats a **network-local passive
+- **Early network = a small, self-provisioned fleet.** DMTAP has no launching operator whose fleet
+  the network starts with (§0.2, §12.4): the mix layers are staffed by whichever always-on public
+  nodes have the role on by default (§4.4.2a), so at the start there are **few mixes, under few
+  distinct operators, in few ASNs**. With a fleet that small the guarantee is closer to
+  **Tor-with-few-relays** than to a strong global mixnet: it defeats a **network-local passive
   observer** and hides the graph from **any single mix**, but a **small set of colluding
-  first-and-last mixes, or the operator itself if it ran an entire path, could correlate** — this
-  is disclosed, not hidden.
-- **Strengthening with the network.** Privacy **increases as independent operators contribute
-  mixes** and the layers come under **disjoint operational control** (the directory SHOULD prefer
-  layer assignments that spread operators, analogous to S/Kademlia disjoint paths, §4.2, and to KT
-  logs under distinct operators, §3.5.2(b)). The design target is many-operator layers where no
-  single party controls a whole path; the launch state is the honest floor, not the end state.
+  first-and-last mixes — or any party that happened to run an entire path — could correlate**. This
+  is disclosed, not hidden, and it is the state the **Bootstrap profile** (§4.4.10a) names
+  explicitly rather than leaving as an unlabelled degradation.
+- **Strengthening with adoption, not with funding.** Privacy **increases as more always-on public
+  nodes join** and the layers come under **disjoint operational control and disjoint ASNs**
+  (§4.4.8; analogous to S/Kademlia disjoint paths, §4.2, and to KT logs under distinct operators,
+  §3.5.2(b)). Because the fleet is a function of participants rather than of anyone's budget, the
+  anonymity set grows on the same schedule as the user base — the design target is many-operator
+  layers where no single party controls a whole path, and the early state is the honest floor, not
+  the end state. The observable thresholds are published as network status (§14.6.3).
 - **No false anonymity-set claims.** Clients MUST NOT present the `private` tier as "anonymous"
-  in absolute terms while the fleet is small; the in-product disclosure follows §6.6. This is the
-  mixnet-specific instance of the weakest-link and global-active-adversary boundaries (§6.6 items
-  1 and 5, §11.3).
+  in absolute terms while the fleet is small; on Bootstrap this is a profile-level MUST NOT
+  (§4.4.10a constraint 2). The in-product disclosure follows §6.6. This is the mixnet-specific
+  instance of the weakest-link and global-active-adversary boundaries (§6.6 items 1 and 5, §11.3).
+- **It may never materialise.** The honest floor beneath the floor: if too few nodes take the mix
+  role, `private` is unbuildable and delivery degrades to the `fast` tier — encrypted and
+  authenticated, without default metadata privacy (§6.6 item 13).
 
 ### 4.4.12 Post-quantum Sphinx (tracked frontier, agility hook)
 

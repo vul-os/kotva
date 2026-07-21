@@ -241,6 +241,43 @@ hostile-buffer scenarios.
     serving sealed chunks does not — hence public-object serving is a **per-operator opt-in**,
     never a default-on behavior of a conformant node; the owning requirement is §22, negotiated
     as the `pub-1` capability (§10.2).
+13. **The volunteer infrastructure may simply fail to materialise.** DMTAP has no commercial engine
+    behind its infrastructure: the mixnet, the KT log set, the rendezvous layer and the buffer
+    holders are all **roles taken reciprocally by participants** (§0.2.2, §4.4.2a, §14.1), not
+    services anyone is paid to provide. Defaults are set to make provision automatic where the cost
+    is negligible — the mix role is default-on for always-on public nodes — but a **default is not a
+    guarantee**. If too few nodes take these roles, the honest consequence is: `private`-tier paths
+    become unbuildable, and delivery **degrades to the `fast` tier** (§4.6) — still end-to-end
+    encrypted, still authenticated, still sealed-sender, but **without default metadata privacy**,
+    with the graph observable to a network observer (§6.5). The intermediate state is named rather
+    than hidden (the **Bootstrap profile**, §4.4.10a, which carries no anonymity claim), the
+    fail-closed rule still forbids a *silent* downgrade (§4.4.9), and the network's actual capacity
+    is publishable and checkable (§14.6.3). This is the price of having nobody paid to keep the
+    lights on, stated up front instead of discovered later.
+14. **A third-party gateway reads your inbound legacy mail in the clear.** The legacy leg is
+    plaintext by construction (§7.10.4), and a gateway serving legacy *clients* must decrypt the
+    mailbox to speak IMAP/POP/DAV at all (§7.15.3). Now that "operator" means **whoever chose to
+    run the role** (§0.2.3) rather than a vetted commercial provider, this deserves sharpening: the
+    party reading that mail is an ordinary volunteer or acquaintance with a reputable IP, subject to
+    whatever jurisdiction and whatever operational hygiene they happen to have. DMTAP's mitigations
+    are real but bounded — the mode is **declared and enforced** (§7.15.4), gateway-touched mail is
+    **marked** to the recipient (§7.8), and the native path never touches a gateway at all (§7.7).
+    **Recommendation:** where legacy privacy matters, run the gateway role **yourself** (`private`
+    mode, §7.15.4, §7.1a) so the only party who can read it is you. Where you cannot, treat a
+    third-party gateway exactly as you would treat any hosted mail provider — because that is what
+    it is.
+15. **A legacy sender cannot verify that a gateway resolved a chain name honestly.** When mail is
+    addressed to `alice.sol@gw.example.net` (§7.10.5a), the gateway performs the SNS/ENS lookup and
+    the legacy sender has **no way to check the result**: legacy SMTP carries no cryptography with
+    which to bind "the key this name resolved to" to anything the sender can verify, and DMARC/DKIM
+    authenticate the *sending* domain, never the *recipient* resolution. A malicious or compromised
+    gateway could therefore route mail addressed to a chain name to a key of its choosing, and the
+    legacy sender would see a perfectly normal delivery. This is **inherent to legacy having no
+    cryptography**, not a defect introduced by the mapping — the same exposure exists for every
+    alias form and, in truth, for ordinary MX-based mail routing today. It is bounded on the DMTAP
+    side: a *native* sender resolves the chain name itself and verifies the binding bidirectionally
+    and against KT (§3.12.5(b), §3.12.3), so the exposure exists only for correspondents who are
+    still on legacy — and shrinks as they leave (§7.1c).
 
 DMTAP states these boundaries in-product. Honest, disclosed limits beat a false "perfectly
 anonymous."
@@ -495,7 +532,7 @@ reach**: strong against a global *passive* adversary, *bounded* (not defeated) a
   recipient-side cross-recipient linking is deliberately unavailable and not claimed (§9.3.2); an
   unvetted/self-issued token carries a **zero** budget (§9.3.1); a hidden-membership list's committer
   holds a disclosed per-delivery vouch-trust power (§9.9). Mix-layer flooding is bounded only by
-  content-blind controls (per-connection/operator rate limits + stake, §9.8).
+  content-blind controls (per-connection/operator rate limits + attested operator diversity, §9.8).
 
 ### 6.9.1 The map, in one table
 

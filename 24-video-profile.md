@@ -31,10 +31,10 @@ It defines:
   provenance;
 - the **aggregates-are-claims** posture for view/reaction counts (§24.8);
 - **segmented serving** — HLS/DASH — as a *serving-layer* concern where segments are
-  content-addressed blob ranges and playlists are gateway-local, unsigned, regenerable (§24.9);
+  content-addressed blob ranges and playlists are server-local, unsigned, regenerable (§24.9);
 - **live streaming** (§24.10) as an *optional capability* (`vid-live-1`): rolling signed segment
   batches that close into an ordinary VOD `VideoManifest`;
-- **licensing** (§24.11), **gateway usage** (§24.12), the **content-moderation posture** (§24.13),
+- **licensing** (§24.11), **PUB-server usage** (§24.12), the **content-moderation posture** (§24.13),
   the **vidmesh migration note** (§24.14), the **profile conformance checklist** (§24.15), and the
   **migration-guidance change log** (§24.17), corrected against a real convergence implementation.
 
@@ -64,7 +64,7 @@ publisher's videos; the publisher's **author feed** (§22.4) is the channel-of-r
 plaintext CBOR announcement referencing manifests + structured metadata, with `supersedes` for
 same-identity revision chains); **public-blob manifests** (§22.2, plaintext-addressed under DS-tag
 `DMTAP-PUB-v0/manifest`); **author feeds** (§22.4, per-identity append-only monotonic-`seq` logs with
-a signed `FeedHead` and `prev` hash-chain); **gateway HTTP serving** (§22.5.1); and **irrevocability**
+a signed `FeedHead` and `prev` hash-chain); **public-object HTTP serving** (§22.5.1); and **irrevocability**
 (§22.7 — a published object cannot be unpublished; deprecation is a new fact, never a deletion). See
 also [`substrate/FEEDS.md`](substrate/FEEDS.md), which extracts this machinery for non-mail products.
 
@@ -233,7 +233,7 @@ Concretely, mirroring §23.3.4's mesh-is-never-canonical guarantee:
 
 This is the single place §24 goes beyond §23's "zero new signed structures." It exists so an
 **untrusted third party** can transcode a creator's video and publish the rendition with cryptographic
-*accountability* — the property vidmesh calls a *verifiable derivation* (§004 §3), which lets gateways
+*accountability* — the property vidmesh calls a *verifiable derivation* (§004 §3), which lets PUB servers
 serve third-party renditions "without blind trust." A derivation signature proves **accountability,
 not fidelity** — a malicious transcoder can sign an unfaithful rendition; the remedy is revocation
 plus edge reputation (§24.13), never a protocol guarantee of transcode correctness.
@@ -276,9 +276,9 @@ NOT treat a hint as authoritative over the content address. The profile-local hi
 
 | `hint_type` | Name | Value |
 |------------:|------|-------|
-| `1` | `https` | URL serving the blob with HTTP Range (a §22 gateway `chunk` surface, or any range server) |
+| `1` | `https` | URL serving the blob with HTTP Range (a §22 public-object `chunk` surface, or any range server) |
 | `2` | `torrent-v2` | BitTorrent v2 infohash, lowercase hex |
-| `3` | `relay-blob` | base URL of a relay/gateway blob surface (§22.5.1) |
+| `3` | `relay-blob` | base URL of a relay/PUB-server blob surface (§22.5.1) |
 | `4` | `bundle` | locator of a self-verifying bundle (§24.14 note) containing the blob |
 
 New transports are new hint types; unrecognized types MUST be ignored, never rejected.
@@ -379,7 +379,7 @@ Follow = {
 A follow's `subject` is the **followed identity's `IK`**, not an announce id — following an *identity*
 (its whole feed / channel-of-record, §24.5), not one video. Publishing the follow as a `pub_announce`
 (rather than keeping it client-side as §23's "workshop" does) makes the **social graph portable**: any
-index that crawls follows can reconstruct any identity's follower/following graph, and no gateway owns
+index that crawls follows can reconstruct any identity's follower/following graph, and no PUB server owns
 it (vidmesh §003 §5.3). Unfollowing is a `retract`-style successor (§24.7). A client that prefers a
 private follow set MAY instead keep it client-side (the §23.7 workshop model) and simply not publish
 `Follow` objects — publishing is opt-in, and an unpublished follow is invisible by construction.
@@ -442,18 +442,18 @@ All four map onto §22's **existing** lineage mechanics; the profile adds no new
 
 ## 24.8 Aggregates are claims, never truth
 
-View counts, reaction tallies, "trending," and recommendation rankings are **per-gateway computed
+View counts, reaction tallies, "trending," and recommendation rankings are **per-server computed
 claims**, not protocol facts — the posture both vidmesh (§006 §7, §009 §6) and DMTAP-PUB (§22.4,
 §23.7) already hold identically.
 
-- **Any node can compute an aggregate; none is authoritative.** A gateway, a client, or a community
+- **Any node can compute an aggregate; none is authoritative.** A PUB server, a client, or a community
   index sums reactions or estimates views by crawling the feeds it knows about. Two indexes MAY
   legitimately disagree (different crawl coverage, staleness, or heuristics) without either being
   "wrong": the ground truth is the signed `pub_announce`s themselves, re-derivable by any client.
-- **Published tallies are attestations.** A gateway MAY publish a signed count as a `RightsClaim`-style
-  attestation (`meta["attest"]`, converging vidmesh's `attest` kind 82) — "gateway G asserts this video
+- **Published tallies are attestations.** A PUB server MAY publish a signed count as a `RightsClaim`-style
+  attestation (`meta["attest"]`, converging vidmesh's `attest` kind 82) — "server G asserts this video
   reached X views on G" — that others may display or sum. Such a tally is worth exactly the attester's
-  reputation; a client that shows it MUST label it as a per-gateway claim ("views on this gateway"),
+  reputation; a client that shows it MUST label it as a per-server claim ("views on this server"),
   never as a network-wide truth. Fraud-proof global counting is out of scope for both systems by design.
 - **Reaction counting specifically** uses the supersede-latest rule of §24.6.2: an index counts each
   identity's current reaction per subject, discarding superseded ones.
@@ -467,11 +467,11 @@ about what is signed. This design is carried over from vidmesh unchanged, becaus
   §22 public blob (via §22's `chunk` surface, or the optional range-proof endpoint of §24.16) and
   verifies each range against the rendition's DS-tagged Merkle root — the same integrity a whole-file
   fetch has, at segment granularity.
-- **Playlists are gateway-local, unsigned, and regenerable.** An `.m3u8` / DASH MPD is **serving-layer
-  output a gateway synthesizes on demand** from the signed manifest — it points at segment/range reads
+- **Playlists are server-local, unsigned, and regenerable.** An `.m3u8` / DASH MPD is **serving-layer
+  output a PUB server synthesizes on demand** from the signed manifest — it points at segment/range reads
   of the signed rendition blobs. It is **not an object of record**: it carries no signature, is not
-  content-addressed, and MUST NOT be treated as authoritative. A gateway MAY regenerate a playlist at
-  will (different segment durations, different CDN base URLs); two gateways' playlists for the same
+  content-addressed, and MUST NOT be treated as authoritative. A PUB server MAY regenerate a playlist at
+  will (different segment durations, different CDN base URLs); two servers' playlists for the same
   video may differ byte-for-byte while both stream the identical signed bytes.
 - **Only whole-file renditions are signed.** The unit of signed truth is the rendition's *whole-file*
   §22 public blob + its derivation statement (§24.4.4). Per-segment objects are never separately signed
@@ -533,7 +533,7 @@ is republication/serving consent rather than reuse licensing:
 |-------|---------|
 | `all-rights-reserved` | No republication consent expressed |
 | `mirror-freely` | Anyone may pin and serve the unmodified bytes |
-| `endorsed-only` | Serving intended for gateways the creator endorses (an endorsement announce, §24.13) |
+| `endorsed-only` | Serving intended for PUB servers the creator endorses (an endorsement announce, §24.13) |
 
 Any valid SPDX expression (e.g. `CC-BY-4.0`, `CC0-1.0`, `CC-BY-SA-4.0`) is equally admissible. The
 field **enforces nothing** — it makes violations legible and gives compliant nodes something to honor
@@ -545,10 +545,10 @@ remain published under their original terms forever (irrevocability, §22.7). A 
 of the rights chain; interpreters present the latest position **with provenance, as a claim, never as
 verified truth** (§24.8, §24.13).
 
-## 24.12 Gateway HTTP profile usage
+## 24.12 Public-object HTTP endpoint usage
 
 Nothing in this profile requires a mesh transport for a first deployment: its objects are ordinary §22
-objects, served by §22's gateway HTTP profile (§22.5.1) — a plain-HTTPS surface, no protocol change.
+objects, served by §22's public-object HTTP endpoint (§22.5.1) — a plain-HTTPS surface, no protocol change.
 The normative endpoint grammar is §22.5.1's; this table restates it as the profile uses it (identical
 to §23.8, with segmented playback layered on the `chunk` surface):
 
@@ -560,17 +560,17 @@ to §23.8, with segmented playback layered on the `chunk` surface):
 | Fetch chunk bytes / a playback range | `GET /.well-known/dmtap-pub/chunk/{h}` — raw plaintext chunk bytes, self-verifying against `h` |
 | *(optional, proposed §24.16)* verify one chunk out-of-order | `GET /.well-known/dmtap-pub/manifest/{id}/proof?chunk=i` — O(log n) Merkle inclusion proof |
 
-A gateway serving this surface needs **no video-specific code**: it stores and serves opaque
+A PUB server serving this surface needs **no video-specific code**: it stores and serves opaque
 signed/content-addressed §22 objects. All schema interpretation — `VideoManifest`, renditions,
-channels, comments, aggregates, HLS playlist synthesis — happens client-side or as gateway *product*
-(§24.13), not as protocol. A first deployment is one plain-HTTPS gateway with zero mesh (the HTTP test,
+channels, comments, aggregates, HLS playlist synthesis — happens client-side or as server *product*
+(§24.13), not as protocol. A first deployment is one plain-HTTPS PUB server with zero mesh (the HTTP test,
 [`substrate/README.md § 4.2`](substrate/README.md)).
 
 ```mermaid
 sequenceDiagram
   autonumber
   participant Client
-  participant GW as Gateway (HTTPS)
+  participant GW as PUB server (HTTPS)
   Client->>GW: GET feed head + range (a followed channel)
   GW-->>Client: FeedHead (signed) + FeedEntries — verify sig, walk prev-chain (§22.4)
   Client->>GW: GET announce (a VideoManifest from the feed)
@@ -587,8 +587,8 @@ sequenceDiagram
 load-bearing security-relevant design, and vidmesh (§009) and DMTAP-PUB (§22.6.2,
 [`substrate/FEEDS.md § 7`](substrate/FEEDS.md)) hold it identically:
 
-- **Selection is the moderation model.** A gateway indexes and serves a *selection* of the substrate;
-  non-serving is a first-class, instant, local operation. Nothing a gateway does removes anything from
+- **Selection is the moderation model.** A PUB server indexes and serves a *selection* of the substrate;
+  non-serving is a first-class, instant, local operation. Nothing a PUB server does removes anything from
   the substrate — there is **no protocol-level takedown** (§22.6.2), because any mechanism strong
   enough to force one holder's removal is strong enough to censor the network. A publisher's video
   persists exactly as long as *some* holder serves it (availability ≠ durability, §22.9).
@@ -598,17 +598,17 @@ load-bearing security-relevant design, and vidmesh (§009) and DMTAP-PUB (§22.6
   object with `ERR_PUB_NOT_SERVED` (`0x090C`, a fetcher rotates to another holder). This is the cache/pin
   "not blind" rule ([`substrate/ROLES.md § 6`](substrate/ROLES.md)).
 - **Compliance is expressed as subscribable claims, applied at the edge.** vidmesh's `notice.takedown`
-  / `notice.counter` / `feed.takedown` (kinds 64–66) and its per-gateway compliance-feed subscription
+  / `notice.counter` / `feed.takedown` (kinds 64–66) and its per-server compliance-feed subscription
   converge onto **ordinary `pub_announce`s carrying claim/notice metadata** (`meta["claim"]`,
   `meta["notice"]`, `meta["compliance_feed"]`): a structured legal notice is a *signed record*, a
-  compliance feed is one identity's `seq`-ordered author feed of add/remove batches, and a gateway
+  compliance feed is one identity's `seq`-ordered author feed of add/remove batches, and a PUB server
   *subscribes per its jurisdiction* and de-indexes matched subjects locally. A notice **obligates no
   one by protocol**; feeds are plural, opt-in, and auditable (an over-blocking feed loses subscribers
   to a competitor). Interpreters MUST present every claim/notice **with provenance, as an assertion,
   never as verified truth** (§24.8). CSAM handling, jurisdictional legal toolkits, and mandatory
-  custody-exit are **reference-gateway / trademark-program obligations** (vidmesh §009 §4–§5), not
+  custody-exit are **reference-server / trademark-program obligations** (vidmesh §009 §4–§5), not
   kernel rules the protocol can enforce — carried over as such: they live in a conformant reference
-  gateway, not in these profile bytes.
+  server, not in these profile bytes.
 
 **Privacy posture (inherited from §22, unchanged).** Publishing under this profile is a **deliberate,
 irrevocable** act of making media public; the CAS-confirmation the sealed model of §5.5 sacrifices
@@ -711,7 +711,7 @@ corrected — this was previously mis-stated as free; see the erratum in §24.17
    Items 1, 2, and 4 each change the signed pre-image — a new envelope, a new DS-tag, and (per item 4, in
    the general case) a new chunk-tree root. None of these is a transform *on the old signature bytes*:
    each produces a genuinely new object that only the author — or a device holding a valid, unrevoked
-   `DeviceCert` chaining to that author's `IK` (§1.2) — can sign. A migration tool, gateway, or archive
+   `DeviceCert` chaining to that author's `IK` (§1.2) — can sign. A migration tool, PUB server, or archive
    that holds only the *plaintext* of a vidmesh record (which is everything a public vidmesh relay or
    mirror holds) **cannot** produce a valid `pub_announce` for it, because it does not hold the signing
    key. Concretely: **there is no automatic, bulk, third-party migration of existing vidmesh records to
@@ -720,16 +720,16 @@ corrected — this was previously mis-stated as free; see the erratum in §24.17
    side) — never a batch job an operator runs unilaterally over records it merely stores on someone
    else's behalf.
 
-**History stays dual-format; a gateway MUST NOT launder authorship through attestation.** Migration is
+**History stays dual-format; a PUB server MUST NOT launder authorship through attestation.** Migration is
 **prospective, not retroactive**: a vidmesh record published before an identity migrates remains a valid,
 permanent, irrevocable vidmesh-format object — irrevocability (§22.7, §24.7) applies to whichever
 substrate a given record actually was published under, and there is no in-place rewrite of history. A
 reader's client MUST retain the ability to verify **both** formats for as long as pre-migration content is
 served; "migrated" describes what an identity publishes going forward, never a bulk rewrite of what it
-already published. A gateway MAY choose to **re-attest** old vidmesh-format content it holds under its own
-key as a `meta["attest"]`-style claim (§24.8) — "gateway G vouches this pre-migration record is
-authentic" — but that is **gateway reputation, not authorship**, and MUST be rendered with a **visibly
-weaker** verification indicator than an author-signed §22 object. Presenting a gateway attestation of an
+already published. A PUB server MAY choose to **re-attest** old vidmesh-format content it holds under its own
+key as a `meta["attest"]`-style claim (§24.8) — "server G vouches this pre-migration record is
+authentic" — but that is **server reputation, not authorship**, and MUST be rendered with a **visibly
+weaker** verification indicator than an author-signed §22 object. Presenting a server attestation of an
 un-migrated record behind the **same verification badge** as a direct author signature is a **security
 misrepresentation**: it tells a viewer "the creator signed this" when what actually happened is "a third
 party vouches for something the creator never signed under these bytes." This is not a hypothetical edge
@@ -760,7 +760,7 @@ referenced by the `bundle` hint type (§24.4.5) and is not a normative part of t
 | VID-10 | A `Reaction` is counted at most once per identity per subject — a later same-author reaction supersedes the earlier | §24.6.2 |
 | VID-11 | Segmented playback verifies segment/range bytes against the signed rendition's Merkle root; the HLS/DASH playlist is unsigned serving output and is never treated as authoritative | §24.9 |
 | VID-12 | Live streaming is gated behind the `vid-live-1` capability; a consumer lacking it treats its absence as a fact, not a fault | §24.10 |
-| VID-13 | View/reaction/trending aggregates are presented as per-gateway claims, never as network-wide truth | §24.8 |
+| VID-13 | View/reaction/trending aggregates are presented as per-server claims, never as network-wide truth | §24.8 |
 | VID-14 | No client treats any single index (search/recommendation/compliance) as authoritative over the signed announces/feeds it was derived from | §24.8, §24.13 |
 | VID-15 | Encrypted-media fields (`keygrant`/`encryption`) do not appear in a public `VideoManifest` — the public profile makes no confidentiality claim | §24.13 |
 
@@ -778,9 +778,9 @@ Three pieces of vidmesh are genuinely superior to what §22 currently offers and
 **additive** contributions to the waist (not part of this profile's required bytes). They are written
 up where they belong so any product — not only video — can use them:
 
-1. **Chunk-tree range-proof endpoint** — an optional gateway endpoint returning an O(log n) Merkle
+1. **Chunk-tree range-proof endpoint** — an optional PUB-server endpoint returning an O(log n) Merkle
    inclusion proof for one chunk, so a client can fetch and verify a *middle* chunk of a large blob
-   (seek into a 2 GB video) without downloading the whole chunk-hash list. §22 gateways currently serve
+   (seek into a 2 GB video) without downloading the whole chunk-hash list. §22 PUB servers currently serve
    whole chunks against the full manifest. Proposed in [`substrate/FEEDS.md`](substrate/FEEDS.md) and
    [`substrate/ROLES.md`](substrate/ROLES.md) as `GET …/manifest/{id}/proof?chunk=i`.
 2. **Fetch-hint types registry** — the advisory `Hint` type registry of §24.4.5
@@ -803,7 +803,7 @@ text, cost estimates, operational advice — no bytes on the wire change), and h
 | # | Change | Class | Found by |
 |---|--------|-------|----------|
 | **C-01** | **§24.14 item 4 corrected: migrating a vidmesh blob to §22 is an I/O-bound re-read of the media bytes, not a metadata-only tree recompute.** The prior text claimed "the chunk leaf hashes are identical (bare-chunk BLAKE3); only the tree's domain separation differs, so re-derivation is a tree recompute over the existing chunk hashes, not a re-read of the media bytes." That is false: vidmesh's stored leaf value is `BLAKE3-256(0x00 ‖ chunk)` — the `0x00` domain tag is folded *into* the hash, not applied one level above it — while §22's `PubManifest.chunks` needs the *undecorated* `BLAKE3-256(chunk)` at that position. There is no operation that recovers the untagged hash from the tagged one, and vidmesh does not even retain a per-chunk list to begin with (`Media.chunk_root` is the single tree root). Migration therefore requires re-reading and re-hashing every stored media byte — for a video platform, the difference between a cost proportional to record count and a cost proportional to total stored bytes. Item 4's text is corrected to state this plainly; a new item 3 scope note prevents the adjacent (and correct) multihash-prefix transform from being mistaken for a solution to the same problem. | **INFORMATIVE — migration-cost/mechanism correction.** §24.14 is non-normative migration guidance, not the §22 wire format; no CDDL, DS-tag, or `PubManifest`/chunk-hash rule changes, and no conformance vector changes (§22's `pub_vectors.json` and this profile's construction-todo KATs are both unaffected). An implementation planning a vidmesh→§22 migration around the old text would under-provision I/O capacity and timeline by the gap between "recompute a tree" and "re-read every video file." | The vidmesh phase-1 `dmtap-core` adoption (`docs/DMTAP-CONVERGENCE.md`, commits `fa646f2`/`aa27b6a`/`09b5fc1`): its `dmtap_pub` bridge module computes both digests for the same chunk and asserts them unequal (`stored_vidmesh_leaf_is_not_the_pub_chunk_address`), with the §22 side checked byte-for-byte against the frozen `pub_manifest_single_chunk` vector — so the correction is corpus-anchored, not merely argued. |
-| **C-02** | **§24.14 gains items 7–8 and a dual-format/attestation paragraph: no key migration is needed, but no bulk record migration is possible either, and old records stay dual-format.** The prior six items described byte-level transforms but never stated the two facts that most affect a migration plan's shape: (a) a vidmesh `Keypair` and a §22 `IdentityKey` are both Ed25519 seeds with a bit-identical public key, so an author needs **no new key** to publish under this profile; (b) precisely because items 1/2/4 change the signed pre-image, re-signing an *existing* record needs the **author's** key, which a gateway, archive, or migration tool holding only plaintext never has for a self-custodied identity — so migration is **per-author and consensual, never a bulk operator-run rewrite**. The new closing paragraph adds the guidance this implies: pre-migration history remains valid and permanent in its original vidmesh bytes (irrevocability applies per-record, to whichever substrate it was actually published under, not retroactively), and a gateway that chooses to re-attest old content under its own key MUST render that attestation with a visibly weaker verification badge than an author signature — presenting the two identically is a security misrepresentation (the creator did not sign these bytes; the gateway is vouching for them). | **Guidance addition, not a semantics change.** Items 1–6 and every §22/§24 normative rule are unchanged. This states a **new consequence** of already-normative rules (§1.2 key structure, §22.3.3 signer authorization, §22.7/§24.7 irrevocability, §24.8's "attestation is worth exactly the attester's reputation") that §24.14 previously left the reader to infer, and one new expectation (the visibly-weaker attestation badge) stated here because its absence is a legible security failure mode a product would otherwise ship by default. | Same vidmesh phase-1 adoption: `keypair_to_identity_key`'s round-trip test (`identity_key_material_is_shared`) established (a); the same investigation, reasoning forward from what its bridge module can and cannot construct without the author's private key, established (b) and the attestation-wrapper risk this closing paragraph now warns against for the whole profile, not just one product's design doc. |
+| **C-02** | **§24.14 gains items 7–8 and a dual-format/attestation paragraph: no key migration is needed, but no bulk record migration is possible either, and old records stay dual-format.** The prior six items described byte-level transforms but never stated the two facts that most affect a migration plan's shape: (a) a vidmesh `Keypair` and a §22 `IdentityKey` are both Ed25519 seeds with a bit-identical public key, so an author needs **no new key** to publish under this profile; (b) precisely because items 1/2/4 change the signed pre-image, re-signing an *existing* record needs the **author's** key, which a PUB server, archive, or migration tool holding only plaintext never has for a self-custodied identity — so migration is **per-author and consensual, never a bulk operator-run rewrite**. The new closing paragraph adds the guidance this implies: pre-migration history remains valid and permanent in its original vidmesh bytes (irrevocability applies per-record, to whichever substrate it was actually published under, not retroactively), and a PUB server that chooses to re-attest old content under its own key MUST render that attestation with a visibly weaker verification badge than an author signature — presenting the two identically is a security misrepresentation (the creator did not sign these bytes; the server is vouching for them). | **Guidance addition, not a semantics change.** Items 1–6 and every §22/§24 normative rule are unchanged. This states a **new consequence** of already-normative rules (§1.2 key structure, §22.3.3 signer authorization, §22.7/§24.7 irrevocability, §24.8's "attestation is worth exactly the attester's reputation") that §24.14 previously left the reader to infer, and one new expectation (the visibly-weaker attestation badge) stated here because its absence is a legible security failure mode a product would otherwise ship by default. | Same vidmesh phase-1 adoption: `keypair_to_identity_key`'s round-trip test (`identity_key_material_is_shared`) established (a); the same investigation, reasoning forward from what its bridge module can and cannot construct without the author's private key, established (b) and the attestation-wrapper risk this closing paragraph now warns against for the whole profile, not just one product's design doc. |
 
 **Standing rule.** A defect between this document and an implementation is resolved by deciding **which
 side is right on the merits** and correcting the other in the open, exactly as [`substrate/SYNC.md`](substrate/SYNC.md)
@@ -814,7 +814,7 @@ C-02 does.
 ## Appendix A: vidmesh kind → profile object mapping (informative)
 
 Non-normative crosswalk of vidmesh's 27 record kinds (§003) onto this profile. Kinds that converge to
-core DMTAP mechanisms (identity, feeds) are noted as such; a few are reference-gateway obligations, not
+core DMTAP mechanisms (identity, feeds) are noted as such; a few are reference-server obligations, not
 profile bytes.
 
 | vidmesh kind | id | Converges to |
@@ -826,7 +826,7 @@ profile bytes.
 | `supersede` | 17 | §22 same-author `supersedes` (§24.7) |
 | `retract` | 18 | deprecation-as-successor: `retracted = true` (§24.7) |
 | `mirror` | 19 | `Mirror` serving-assertion over the cache/pin role (§24.7) |
-| `similarity` | 20 | a near-duplicate *claim* (`meta["claim"]`); evidence, never truth (§24.8) — gateways MUST NOT auto-merge on it alone |
+| `similarity` | 20 | a near-duplicate *claim* (`meta["claim"]`); evidence, never truth (§24.8) — PUB servers MUST NOT auto-merge on it alone |
 | `comment` | 32 | `Comment` (§24.6.1) |
 | `reaction` | 33 | `Reaction` (§24.6.2) |
 | `follow` | 34 | `Follow` (§24.6.3) — portable social graph |
@@ -834,8 +834,8 @@ profile bytes.
 | `channel` | 36 | `Channel` (§24.5); the author feed is the channel-of-record |
 | `claim.author` / `.license` / `.transfer` / `.dispute` | 48–51 | `RightsClaim` (`meta["claim"]`, §24.11); presented with provenance, never as truth |
 | `notice.takedown` / `.counter` | 64–65 | `meta["notice"]` signed legal notices; obligate no one by protocol (§24.13) |
-| `feed.takedown` | 66 | `meta["compliance_feed"]` — a `seq`-ordered author feed of add/remove batches; gateways subscribe per jurisdiction, de-index at the edge (§24.13) |
-| `endorse.gateway` | 80 | `meta["endorse"]` — a `pub_announce` naming a creator's designated gateway (`endorsed-only` licensing, §24.11) |
+| `feed.takedown` | 66 | `meta["compliance_feed"]` — a `seq`-ordered author feed of add/remove batches; PUB servers subscribe per jurisdiction, de-index at the edge (§24.13) |
+| `endorse.gateway` | 80 | `meta["endorse"]` — a `pub_announce` naming a creator's designated **PUB server** (`endorsed-only` licensing, §24.11). **The identifier keeps its historical spelling for wire compatibility** (vidmesh kind 80 converges on it); it names a public-object server, **never** the legacy-mail gateway role of §7 (§0.8) |
 | `receipt` | 81 | `meta["receipt"]` — a signed payment statement (tip/superchat); rails prove settlement, not the protocol |
 | `attest` | 82 | `meta["attest"]` — portable third-party reputation / aggregate tally (§24.8) |
 | `anchor` | 96 | `meta["anchor"]` — external-timestamp ordering evidence over the signed feed (§24.14 note 5) |

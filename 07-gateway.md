@@ -1,6 +1,8 @@
-# 7. The Legacy Gateway (optional)
+# 7. The Legacy Gateway Role (optional)
 
-The gateway is the **sole home of every legacy protocol** and the **only** component not
+The gateway is **not a component and not a class of server**. It is the node binary run with
+`--gateway` (§0.2.3) — a **role**, like relay or mix — and its entire job is **adaptation to
+legacy mail**. It is the **sole home of every legacy protocol** and the **only** part of DMTAP not
 content-blind (the legacy leg is unavoidably plaintext). The **node is native-only** — it speaks
 **JMAP + the mesh** and runs **no** legacy protocol server (§8) — so all legacy surfaces live
 here:
@@ -9,35 +11,130 @@ here:
 - **IMAP, POP3, SMTP-submission** — legacy mail-client access (§7.15, §8.2);
 - **CalDAV / CardDAV** — legacy calendar/contact-client access (§7.15, §8.4);
 - the **legacy-client reachability ingress** — the SNI-passthrough / stream routing that accepts
-  a raw legacy connection (e.g. an iPhone Mail app) and serves its mailbox (§7.15).
+  a raw legacy connection (e.g. an iPhone Mail app) and serves its mailbox (§7.15);
+- **legacy addressing** — the alias forms that exist only because legacy mail cannot route to a
+  key (§7.10).
 
 It is **optional** — a node with no legacy correspondents and only native (JMAP) clients never
-uses one, and at full DMTAP adoption it is unnecessary and MAY be deprecated. It MAY be the node
-binary run in `--gateway` mode by an operator with a reputable IP and a domain.
+uses one — and it is **transitional by construction** (§7.1c). It is also the one role that needs
+something not everyone can get (§7.1a), which is precisely why the specification works so hard to
+keep everything else off it.
 
 **Four different "relays," kept distinct** (defined in the §0 glossary). The spec uses "relay"
 in four senses: (1) the **native mesh relay** — Circuit Relay v2 / DCUtR (§4.1, §4.3),
 content-blind node↔node reachability that lives on the node; (2) the **legacy-client
 reachability ingress** (§7.15.2) — the *gateway* surface that accepts a raw legacy connection
-and terminates TLS for clients that cannot speak the mesh; (3) the **Relay node class** (§14.1)
-— any public-IP node performing sense (1) as a role; and (4) the **relay-mailbox** (§14.3) — the
-hosted, content-blind queue a mobile-only user drains. Only sense (2) is a legacy edge surface.
+and terminates TLS for clients that cannot speak the mesh; (3) the **relay role** (§14.1)
+— any public-address node performing sense (1); and (4) the **relay-mailbox** (§14.3) — the
+content-blind, `n`-of-`m`-held queue a mobile-only user drains (§14.3a). Only sense (2) is a
+legacy edge surface.
 Native nodes reach each other peer-to-peer over the mesh with no gateway in the path (§7.7); the
 gateway ingress exists **only** for legacy clients.
 
-## 7.1 Responsibilities
+## 7.1 Responsibilities — and the much longer list of non-responsibilities
 
 - **Inbound** (legacy → DMTAP): act as MX for a domain, receive SMTP, translate to a MOTE,
   attest it, and deliver into the mesh.
 - **Outbound** (DMTAP → legacy): accept a `mail` MOTE marked for a legacy address, translate to
   RFC 5322, DKIM-sign as the sender's domain via **delegated selectors**, and send via SMTP.
+- **Legacy client surfaces and legacy addressing** (§7.15, §7.10).
 - Carry the one irreducible operational cost: **IP reputation** (warmup, feedback loops,
   blocklist remediation, abuse handling).
+
+**What a gateway is NOT (normative).** The scope above is exhaustive. A gateway MUST NOT be, and
+an implementation MUST NOT require it to be, any of the following — each of which is a node role
+anyone may take (§0.2.2), and each of which would, if attached to the gateway, inherit the
+gateway's scarce-resource requirement and turn an adapter into infrastructure:
+
+| Not the… | Because that is… |
+|----------|------------------|
+| **buffer** | an n-of-m role held by peers and the owner's own devices (§14.3, §14.5) |
+| **relay** | any public-address node, content-blind (§4.3) |
+| **mix** | default-on for always-on public nodes (§4.4.2a) |
+| **namer** | DNS + KT + the key-name floor; a gateway can alias, never mint a name (§7.10.5, §3.13) |
+| **spam classifier** | recipient-side and on-device, against the user's own corpus (§7.11.4, §9.11) |
+| **mailbox of record** | the node is the authority; the gateway holds no message store (§7.4) |
+
+**Two DMTAP users never need a gateway — not once.** Native delivery is key-addressed over the
+mesh (§4, §7.7): no gateway is in the path, nothing is decrypted by a third party, and no operator
+is present to authorize, meter, or bill anything (§12.3).
 
 The gateway holds **no message queue and no mailbox of record**: message durability is punted to
 the edges (§7.4). It MAY hold *non-message* operational state — random-alias maps (§7.10.2) and
 app-password / legacy-session state (§7.15) — each rebuildable or re-issuable, never a message
 store.
+
+### 7.1a What running the gateway role actually requires (normative)
+
+Stating the requirements plainly matters, because the honest answer determines who *can* be an
+operator — and an unstated requirement always resolves into "ask the vendor." To run `--gateway`
+you need, and need only:
+
+1. **A public static IP with correct reverse DNS (PTR).** Receiving MTAs check forward-confirmed
+   reverse DNS; without it, mail is rejected or scored as spam before content is ever considered.
+   The gateway MUST publish a PTR that forward-resolves to the same host, and MUST use a HELO/EHLO
+   name matching it.
+2. **Unblocked outbound port 25.** This is the **real gating constraint** and the reason the role
+   is scarce: most consumer ISPs and a large share of cloud providers block or filter outbound 25
+   by default, and unblocking is a per-account decision made by a third party. Nothing in the
+   protocol can route around it — SMTP delivery to the legacy world happens on port 25 or not at
+   all.
+3. **At least one domain**, carrying the records the role needs: **MX** (inbound), **DKIM
+   selectors** (delegated per-user signing, §7.3), **SPF** and **DMARC** (so the gateway's own
+   sending is authenticated), and the **`_dmtap-gw` attestation** record (§7.2a).
+4. **Optionally but desirably, several IPs.** Egress pools (§14.2) let an operator warm addresses
+   per receiving ISP and isolate a damaged address rather than losing the whole role.
+
+**A payment method is NOT a requirement, and an implementation MUST NOT imply one.** Nothing in
+this section, and nothing anywhere in DMTAP, requires the gateway operator to charge, or the user
+to pay, for anything (§12.3). Whether an operator asks for money is that operator's policy
+(§7.13), exactly as its rate limits are.
+
+**Consequence.** Requirements 1–3 are why *legacy egress* is the one operator class in DMTAP
+(§0.2.3): they cannot be satisfied by wanting to, only by holding a resource somebody else
+allocates. Every other function in this document is deliberately kept off that list.
+
+### 7.1b Privilege separation — one binary, separate processes (normative)
+
+The gateway role terminates **untrusted connections from the open internet** on port 25 and runs
+SMTP, IMAP, POP3 and MIME parsers over attacker-chosen bytes — historically the most exploited
+code in all of mail. Collapsing the gateway into the node's *program* must never collapse it into
+the node's *address space*, or the one-binary simplification would trade a deployment convenience
+for the worst memory-safety exposure in the system sitting next to `IK`. Therefore:
+
+- Gateway mode **MUST run as a separate process in a separate privilege domain** (distinct OS
+  user, and where the platform provides it a distinct container/jail/namespace) from the node's
+  identity and store processes. "One binary" is a distribution and configuration property, never
+  an isolation property.
+- The gateway process **MUST NOT have access to identity key material** — not `IK`, not device
+  private keys, not recovery material — and **MUST NOT have read access to the local MOTE store**.
+  Its DKIM signing key is its own (§7.3), which is exactly why delegated selectors exist: the
+  gateway signs *as the domain* without ever holding the user's key.
+- Legacy protocol parsers (SMTP, IMAP, POP3, MIME, iCalendar/vCard) **SHOULD** be sandboxed
+  further — a seccomp/pledge-class syscall filter, a separate parsing process per connection, or a
+  memory-safe parser — and MUST be treated as untrusted input paths in the threat model (§6).
+- The legacy-client ingress necessarily *does* hold decrypted mailbox material for the sessions it
+  serves (§7.15.3); that is a disclosed trust boundary, and it is confined to the gateway process,
+  which is another reason the boundary must be a process boundary.
+
+The rule composes with §7.15.4: a **private** (self-operated) gateway still runs a separate
+process, because the threat here is remote code execution by a stranger, not the operator.
+
+### 7.1c The gateway is transitional by construction (normative posture)
+
+A gateway's value to a user is **strictly proportional to how many of that user's correspondents
+are still on legacy mail.** That is not a hope about the future, it is an accounting identity: a
+message between two DMTAP identities never touches a gateway (§7.7), so the gateway's traffic is
+exactly the legacy fraction of a user's correspondence, and shrinks as that fraction shrinks.
+
+The consequence worth stating is **negative**: nobody has to decide to switch gateways off, and
+nobody has to be persuaded to give one up. There is no flag day, no deprecation vote, and no
+operator whose consent is needed — a user's last gateway becomes unnecessary the moment their last
+legacy correspondent leaves, and until then it does one narrowly-scoped job. This is why the role
+is specified as an adapter rather than as infrastructure: infrastructure that is loved is
+permanent, and permanence is what would make it a power. A conformant client SHOULD therefore make
+the gateway's *diminishing* usefulness visible — showing what fraction of a user's mail still
+crosses the bridge (§8.6, §7.8) — rather than presenting it as a standing feature.
 
 ## 7.2 Inbound
 
@@ -185,14 +282,42 @@ DKIM delegation cleanly separates *deliverability reputation* (the gateway's) fr
   which is rebuildable or re-issuable, never a message store. Restart it and nodes/senders
   re-drive; no message is lost or leaked.
 
-## 7.5 Decentralization & economics (summary; anti-abuse in §9)
+## 7.5 Gateway discovery and reputation — locally measured, never globally published (normative)
 
-- Many independent gateway operators MAY register in a directory with `{pubkey, reputation,
-  region, price, stake}`; nodes select by reputation-to-destination.
-- Per-identity accountability + operator stake keep a shared reputation pool safe to
-  decentralize (§9). DKIM delegation makes operators swappable (change the delegated selector).
-- Postage (§9) MAY fund outbound legacy sending (the stamp the sender attaches is redeemed by
-  the delivering gateway), making it revenue-neutral and doubling as spam pricing.
+Gateways are **discovered**, not ranked. Any operator MAY publish a **self-signed gateway
+descriptor** under its own domain — `{ gateway_ik, domain, modes (§7.12.1), operator_mode
+(§7.15.4), region, attestation selector (§7.2a) }` — which is **discovery-only, self-asserted, and
+carries no score**. It contains no reputation field, no price, and no stake: earlier drafts
+proposed all three, and each has been removed for a distinct reason (stake, per §4.4.8 and §9.6,
+needs an adjudicator empowered to seize funds; price is operator policy, §7.13; reputation is the
+subject of the rule below).
+
+**Reputation MUST be locally measured, and MUST NOT be a globally published score.** Each sending
+node derives its own view of a gateway from its **own deliverability results** — accept/defer/
+reject rates, bounce and complaint feedback, per-destination success — exactly as §9.6 already
+specifies, and routes outbound legacy mail accordingly. A node's measurements are its own; they
+MAY be shared with explicitly-chosen peers as an input, and MUST NOT be treated as authoritative
+when they are.
+
+**Why not a network-wide score.** A global reputation number needs a party to compute it: something
+must aggregate everyone's observations, weight them, resist gaming, and publish a result. That
+party then decides which gateways receive traffic — which is *precisely* the directory-authority
+problem §4.4.2 removed from the mixnet, reappearing one layer over. It would be a single point of
+censorship (down-rank an operator into irrelevance), a single point of liveness (its silence stalls
+selection), and the obvious thing to capture, coerce, or simply pay. Local measurement has none of
+those properties, needs no adjudicator, and has a decisive practical advantage besides:
+deliverability is **not a global scalar**. An IP is warm for one receiving ISP and cold for
+another, good for your destinations and useless for mine — so the aggregate a global score would
+publish is less accurate than the measurement each sender already holds for free.
+
+**Swappability is what makes local measurement sufficient.** A node that measures a gateway to be
+performing badly simply stops sending through it: DKIM delegation (§7.3) means switching operators
+is a DNS change with no data migration and no address change (§7.7), so a bad measurement is acted
+on unilaterally and immediately. No collective judgement, and therefore no judge, is required.
+
+**Postage** (§9.5) MAY be used to pay a gateway for outbound legacy sending where an operator
+chooses to ask for it; it is a §7.13 operator-policy matter, never a protocol entitlement or
+requirement, and never applies to native delivery (§12.3).
 
 ## 7.6 Dual-stack addressing
 
@@ -209,10 +334,15 @@ compliance.
 ### You never need a specific gateway
 
 - **DMTAP-native needs no gateway.** DMTAP↔DMTAP delivery is key-based over the mesh (§4); a user
-  with only DMTAP correspondents never invokes one.
-- **Self-host is always available.** Any user with a reputable IP and a domain MAY run the
-  gateway (§7) themselves and depend on no third party. This **self-host backstop** makes
-  gateway access a *right* (you can always serve yourself), not a grant.
+  with only DMTAP correspondents never invokes one. This is the load-bearing half of the argument:
+  the backstop below matters only for the shrinking legacy fraction (§7.1c).
+- **Self-host is available to anyone who can meet §7.1a.** A user with a public IP, unblocked port
+  25, and a domain MAY run `--gateway` themselves and depend on no third party. This **self-host
+  backstop** makes gateway access a *right* (you can always serve yourself), not a grant — **with
+  one honest qualification**: unlike every other role in DMTAP, this one can be denied to you by
+  your ISP or host, who need not explain themselves (§7.1a item 2). The backstop is real but it is
+  not universal, which is exactly why the specification confines the requirement to this one
+  function instead of letting it spread.
 
 ### Why a universal-service mandate is infeasible
 
@@ -234,7 +364,7 @@ So DMTAP does not attempt it. Fairness is achieved by the four mechanisms below 
    is the authority). If one operator refuses, another serves; switching is free.
 3. **The accountability layer makes open service viable.** Open relays failed because abuse was
    unattributable. DMTAP attributes every send to an anonymous-but-accountable ARC token +
-   optional postage + operator stake (§9), so a gateway *can afford* to serve strangers openly
+   optional postage + attested operator identity (§9.6), so a gateway *can afford* to serve strangers openly
    — abuse is priced and per-token-bannable, not a reputation-destroying free-for-all.
 4. **An optional commons gateway.** A non-profit or protocol-funded operator MAY commit to
    universal, non-discriminatory service (a "public option"), funded by postage/donations, as
@@ -302,48 +432,63 @@ valid attestation already establishes *gateway-touched*; the chain merely shows 
 path. A **deniable** message (§5.2.1) never carries a chain — deniable traffic is native P2P and
 never transits a gateway.
 
-## 7.9 Self-host `@host.net`, gateways, and billing
+## 7.9 Self-host `@host.net`, gateways, and what can *ever* be charged for
 
-DMTAP is explicit about who pays for what, and the provenance model (§7.8) makes it
-**auditable**.
+DMTAP is explicit about who can charge whom for what — and the answer, for a self-hosting user
+with no legacy correspondents, is **nobody, ever** (§12.3). The provenance model (§7.8) makes the
+boundary **auditable by the user**, which is the point: this section is consumer protection, not a
+pricing model.
 
 - **You may self-host your own domain.** A domain owner MAY run their **own node** for
   `you@host.net` — Tier C (§3.8), self-hosted domain authority (§3.10.1) — and reach every other
   DMTAP user **natively over the mesh with no gateway and no operator at all** (§7.7 self-host
-  backstop). Native mesh delivery is **key-based and free**: no gateway is involved, so **nothing
-  is billable** for it — this is the §12.3 inviolable rule (the seam meters *operations*, never
-  native delivery or any privacy/crypto path).
-- **Reaching the legacy world uses a gateway, and *that* is the billable event.** To exchange mail
-  with legacy (`@gmail.com` etc.) a self-hoster uses a **gateway** — either **their own**
-  (self-hosted `--gateway`, §7; then they bear only the IP-reputation cost, and there is no
-  third-party bill) or a **third-party operator's**. Billing attaches to **gateway operations
-  only** — metered legacy sends/receives (§12.2 Metering, §12.6) — **never** to native mesh
-  delivery. Exactly the messages that carry (outbound) or receive (inbound) a §7.2a attestation are
-  the ones a bill can reference; a pure-mesh message (§7.8.1(b)) is by construction **not** a
-  gateway operation and **not** billable.
+  backstop). Native mesh delivery is **key-based and free**: no operator is on the path, so there
+  is **nothing to bill and no party positioned to bill it** — this is the §12.3 inviolable rule,
+  and it holds structurally rather than by anyone's forbearance.
+- **Reaching the legacy world uses a gateway, and *that* is the only chargeable event there is.**
+  To exchange mail with legacy (`@gmail.com` etc.) a self-hoster uses a **gateway** — either
+  **their own** (`--gateway`, §7.1a; then they bear only the IP-reputation cost and there is no
+  third party at all) or **someone else's**. If any charge exists anywhere in DMTAP, it attaches to
+  **legacy gateway operations only** — never to native mesh delivery, never to any privacy, crypto,
+  metadata-privacy or recovery function, and never to a user's access to their own keys, mailbox,
+  or export (§12.3). Exactly the messages that carry (outbound) or receive (inbound) a §7.2a
+  attestation are the ones a charge could reference; a pure-mesh message (§7.8.1(b)) is by
+  construction **not** a gateway operation.
 - **How a self-hoster is authorized by a third-party gateway.** Using someone else's gateway is a
   **relationship the gateway operator's policy governs** (`GatewayAuthz`, §12.2), not a protocol
   entitlement: the operator authorizes the self-hoster's identity (per-identity accountable token,
   §9), the self-hoster **delegates a DKIM selector** to that gateway for outbound (§7.3, §3.8) and
-  points **inbound MX** at it for legacy receipt (§7.2), and the operator meters and bills the
-  resulting legacy egress/ingress. Because DKIM delegation is a DNS change with **zero lock-in**
-  (§7.7), a self-hoster can switch or drop the gateway at any time and fall back to native-only or
-  to self-hosting the gateway.
-- **The bill is auditable to the user.** Because every gateway-touched message carries a verifiable
-  §7.2a attestation naming the gateway `domain` and receipt time, a user can **cryptographically
-  confirm** that each billed legacy operation corresponds to a real message that actually used the
-  gateway — "you were billed because *this* message used the gateway" is checkable against the
-  message's own `ProvenanceRecord` (§18.8.1, §7.8), not taken on trust. Conversely, a message the
-  client shows as **pure-mesh** MUST NOT appear on a gateway bill. This closes the loop between the
-  §12 billing seam and what the user can independently verify (§12.7).
+  points **inbound MX** at it for legacy receipt (§7.2). Because DKIM delegation is a DNS change
+  with **zero lock-in** (§7.7), a self-hoster can switch or drop the gateway at any time and fall
+  back to native-only or to self-hosting the gateway.
+- **Any claim about your usage is auditable *by you*.** Because every gateway-touched message
+  carries a verifiable §7.2a attestation naming the gateway `domain` and receipt time, a user can
+  **cryptographically confirm** that each claimed legacy operation corresponds to a real message
+  that actually used the gateway — "this operation happened because *this* message used the
+  gateway" is checkable against the message's own `ProvenanceRecord` (§18.8.1, §7.8), not taken on
+  trust. Conversely, a message the client shows as **pure-mesh** MUST NOT appear on any operator's
+  usage claim, because no operator was there to observe it. This is the user's evidence against a
+  third-party operator, not the operator's accounting mechanism (§12.7).
 
 ## 7.10 Native ↔ legacy address mapping (a swappable gateway alias, normative)
+
+**Aliases exist only at the legacy boundary. Within DMTAP nobody needs one** — native delivery is
+to a key (§3.13.1), reachable via the key-name with no registration of any kind (§3.9.6). Every
+construct in §7.10 is therefore an artifact of one fact about the *other* network: legacy SMTP
+cannot route to a key, so something legacy-shaped must stand in front of one. Read this section as
+a compatibility shim with an expiry date (§7.1c), not as DMTAP's addressing model.
 
 A native DMTAP domain (`imran@mydomain.com` with a `_dmtap` record but **no legacy MX**) must still
 interoperate with legacy email (Gmail) through a gateway. The gateway is a **bridge, not an identity
 owner**: the **native address is the anchor**, the **gateway alias is a separate, rotatable pointer**,
 and the native mesh never touches a gateway (§7.7). This section specifies the address mapping in both
-directions and the two alias encodings.
+directions, the two alias encodings, the local-part parsing rule, and the normative client rules
+that keep an alias from being mistaken for the user's identity (§7.10.6).
+
+**The user who needs none of it.** A user with their own domain needs **no alias at all**:
+`abc@abc.com` is their address in both worlds, a gateway operates MX for that domain, and switching
+gateways is a **DNS edit with no address change** (§7.7). That case is the target; the alias forms
+below exist for users who have not (yet) got a domain.
 
 ### 7.10.1 Native → legacy (why a reply-path rewrite is required)
 
@@ -463,10 +608,11 @@ user-*chosen* local-part in case (b) — `alice@gw.example`. It is the **only** 
   globally-unique name from a bare string is the **flat-namespace consensus problem DMTAP deliberately
   does not solve** (Zooko, §3.9, §15.5); the **key-name is the floor instead** (§3.9.6). A gateway that
   hands out a bare handle would be claiming an authority it does not have.
-- **Dotted local-parts are RESERVED** for the forwarded-address encoding `local.nativedomain@gateway`
-  (§7.10.2). The **dot-free-vanity vs. dotted-forwarded** split makes the two **unambiguous** at the
-  gateway: a `.` in the local-part means "decode a forwarded native address," its absence means "look up
-  a vanity registration."
+- **Dotted local-parts are RESERVED** for names that belong to some **other namespace** and are
+  merely being carried through the gateway (§7.10.5a). The **dotless-vanity vs. dotted-foreign-name**
+  split makes the two **unambiguous** at the gateway: a `.` in the local-part means "this is a name
+  from another namespace — resolve it there," its absence means "this is a name in *my* namespace —
+  look up a vanity registration."
 - A vanity is **first-come and revocable** — **yours only as long as you hold the registration on the
   gateway's domain** (§3.11.5's provider-dependence, applied to the gateway's namespace). It carries the
   same honest residual as any tier-1 vanity (§3.11.2): the gateway MAY de-allocate it, and the **key +
@@ -486,6 +632,76 @@ Neither is user-chosen, so neither raises an ownership question and neither can 
 offered by default. **Chosen vanity is the ONLY alias form with ownership semantics** — and it is
 precisely the form an operator MAY price and revoke (§7.14), because it is the only one that consumes a
 scarce, human-chosen local-part in the gateway's namespace.
+
+### 7.10.5a The local-part parsing rule (normative)
+
+One rule decides everything a gateway does with an inbound local-part, and it is decidable from the
+string alone with no state:
+
+```
+parse(localpart):
+  if localpart contains no unescaped "."      → a VANITY in THIS gateway's namespace  (§7.10.5)
+  else if the last label is a registered
+       name-chain namespace (§21.18)          → a CHAIN NAME; resolve via the `name-chain`
+                                                resolver (§3.12.5) — e.g. alice.sol@gw.example.net
+  else                                        → an ENCODED native address; decode per §7.10.2
+                                                — e.g. imran.mydomain-.com@gw.example.net
+```
+
+- **A dot means "this name is not mine."** The gateway is carrying a name that belongs to another
+  namespace and MUST resolve it there — through the chain (`.eth`, `.sol`, … as registered in
+  §21.18) or by decoding the DNS address §7.10.2 packed. It MUST NOT treat such a name as a
+  registration in its own namespace, and MUST NOT allocate, sell, or squat one.
+- **No dot means "this name is mine."** It is a local-part in the gateway's own domain, valid only
+  fully-qualified, with the ownership semantics and honest residuals of §7.10.5.
+- **Failure is closed and specific.** A dotted local-part whose chain lookup fails, or whose
+  encoded form does not decode, is `ERR_GATEWAY_ALIAS_UNMAPPED` (`0x0605`) or
+  `ERR_GATEWAY_ALIAS_ENCODING_INVALID` (`0x0606`) as applicable (§7.10.2, §7.10.3) — the gateway
+  MUST NOT **guess** which of the two forms was meant, and MUST NOT fall back from a failed chain
+  resolution to a vanity lookup (that fallback would let a squatted vanity intercept mail for a
+  chain name, defeating the yield-to-anchored-names rule of §7.10.5).
+- **The chain resolution is the gateway's, and the legacy sender cannot check it** — a disclosed
+  residual, §6.6 item 15.
+
+### 7.10.6 Alias safety tiers and the client rules that drain them (normative)
+
+The three legacy-addressing options are **not equivalent**, and a user cannot be expected to work
+out which one strands them. Ranked by what survives a change of gateway:
+
+| Tier | Form | Portable? | What survives switching gateways |
+|:----:|------|:---------:|--------------------------------|
+| **1 (best)** | **your own domain** — `abc@abc.com`, gateway operates MX | **fully** | everything: the address is unchanged, the switch is a DNS edit (§7.7) |
+| **2** | **chain name in the local part** — `alice.sol@gw.example.net` | **partly** | the durable half (`alice.sol`) survives; only the `@gw…` suffix changes |
+| **3 (worst)** | **bare alias** — `alice@gw.example.net` | **not at all** | nothing; a new gateway means a new address and re-telling every correspondent |
+
+Tier 3 is acceptable **only because it is not the user's identity** — the key is (§1.2), the
+key-name is always available (§3.9.6), and every DMTAP correspondent routes by key regardless
+(§1.6). It is an address of convenience in someone else's namespace, and the specification says so
+rather than dressing it up.
+
+Two normative client rules follow, and they are what actually make an alias temporary:
+
+- **(i) A client MUST NOT present a legacy alias as the user's address.** It MUST NOT appear in the
+  "share your address" / "copy my address" / QR-and-invite flows (§4.2.2 item 4), MUST NOT be
+  offered as the identity's display address, and MUST be shown **labelled with its provenance** —
+  "legacy alias, issued by `gw.example.net`, not portable" — wherever it does appear (e.g. in the
+  account's list of routes into the mailbox). The share flow surfaces the user's **own domain** if
+  they have one, otherwise their **chain name**, otherwise the **key-name** (§3.13.2, in that
+  order). A client that lets a user hand out a tier-3 alias as "their email address" has quietly
+  re-created provider lock-in through the UI, having avoided it in the protocol.
+- **(ii) Outbound legacy mail SHOULD advertise the sender's native name**, in **both** a header
+  field and a signature line, so correspondents' address books upgrade over time:
+  - a `DMTAP-Name:` header field carrying the sender's native name and, optionally, its key-name
+    (an RFC 5322 header field, registrable per RFC 3864; no DMTAP wire object changes, §18);
+  - a short, human-readable line appended to the body (e.g. *"Reachable directly at
+    `alice@alice.example` — dmtap.org"*), because address books are updated by humans reading text,
+    not by MUAs parsing unknown headers.
+
+  This is the mechanism that **drains** aliases rather than hoping they drain: every legacy message
+  a user sends is an opportunity for the correspondent's records to pick up the durable name, so
+  when the alias is dropped the relationship survives. A gateway MUST NOT strip or rewrite either
+  advertisement, and a client MUST let the user turn it off (a native name is still an identifier,
+  and some correspondence is deliberately compartmented).
 
 ## 7.11 Bidirectional anti-abuse is mandatory (normative floor)
 
@@ -616,41 +832,74 @@ independent implementations must agree on to interoperate securely is in-spec; w
 unilaterally without breaking any other party is out of scope.** A gateway that changes its prices or
 caps stays conformant; a gateway that skips the §7.11 floor or the §7.12 handshake shape does not.
 
-## 7.14 Gateway/cloud business-model seam (informative)
+### 7.11.4 The gateway authorizes; it never classifies (normative)
 
-This section is **informative**. It sketches how an operator MAY build a *business* on top of the
-normative floor without any of it entering the interop contract. The §7.13 rule stands — **the interop
-and security floor is in-spec; metering and pricing are operator policy** — and what follows is only a
-**vendor-neutral reference model** (no company, no price).
+The gates of §7.11 are all **authorization** questions — *is this sender who they claim to be, and
+are they permitted to send this much?* — and every one of them is answered from **sender identity
+and rate**, never from message content:
 
-**What is always free and works with no operator.** Identity, keys, the key-name (§3.9.6), the
-node, the client, and the protocol itself are **free and operator-independent**: a user holding a
-keypair is a first-class DMTAP identity — reachable, verifiable, and deliverable-to — with **no**
-gateway or cloud in the path (§3.13, §7.7). Nothing an operator sells can gate that, and an operator
-that disappears takes only its *conveniences* with it (§3.11.5); self-hosting the same functions costs
-the operator nothing to permit (§3.11.2 tier 3).
+- **A gateway MUST NOT classify content.** It MUST NOT run content-based spam scoring, Bayesian or
+  machine-learned filters, keyword/URL reputation, attachment-content heuristics, or any other
+  "is this message wanted?" judgement, and MUST NOT drop, quarantine, re-rank, or annotate a
+  message on such a basis. Its permitted inputs are exactly: SPF/DKIM/DMARC validation results,
+  the sending IP's standing (RBL/DNSBL, greylisting), the authenticated sender identity, the
+  cold-sender state (§9.2), and rate/volume counters (§7.11.1, §7.11.2).
+- **Classification is the recipient's, on the recipient's device, against the recipient's own
+  corpus** (§9.11, §0.7). "Wanted" is a property of a relationship, not of a string, and only the
+  recipient holds both sides of the relationship.
+- **A gateway MUST NOT be required to decrypt for anti-abuse purposes**, and MUST NOT present its
+  authorization checks as a spam filter to users.
 
-**What an operator MAY meter.** On top of that floor, a reference operator sells **three usage
-meters**, each tied to a convenience the user explicitly opted into:
+**Why this is a structural rule and not a preference.** A gateway that classifies content becomes
+**permanent by construction**. Classification improves with corpus size, so it centralizes; it is
+never "finished," so it never self-extinguishes the way an adapter does (§7.1c); and it makes every
+user's mail depend on a judgement only the operator can make, which is exactly the power the rest
+of this document is arranged to prevent anyone from holding. The measured evidence that this is how
+mail centralization actually happens — a second, independently-growing centralized tier made of
+anti-abuse vendors — is set out in §9.11, together with the observation that **native DMTAP mail
+needs no filter at all**: §9.1's authenticated-by-default model means there is no anonymous
+injection to filter.
 
-1. **alias** — a **local-part on the operator's own domain** (a vanity, §7.10.5): the scarce,
-   human-chosen name the operator's namespace supplies.
-2. **gateway usage** — **legacy bridging** (§7): the SMTP-facing ingress/egress work of translating to
-   and from old email, including the IP reputation the operator carries.
-3. **node usage** — **hosted storage / relay**: the durability and reachability the operator hosts on
-   the user's behalf (§5.5.1 pinning, §14).
+Legacy mail is different, and honestly so: it *is* anonymously injectable, which is why §7.11.1's
+authentication gates exist at all. But the gate is "prove who you are and stay within your rate,"
+and what remains after that is the recipient's to judge.
 
-**The two seams (all metering rides these).** Every one of the above is expressed through **exactly
-two seams**, the *only* operator-specific surfaces:
+## 7.14 What a third-party gateway operator may condition (informative)
 
-- an **authorization / quota decision** — "is this request allowed, and is it within quota?" (the
-  `GatewayAuthz` / `Policy` decision, §12.2); and
-- an **append-only usage meter** — "record that it happened" (the §12.2 operation meter, governed by
-  the inviolable metering rule of §12.3).
+This section is **informative**, and deliberately short: DMTAP has no business model to describe
+(§12). It records only what a *third party* running the gateway role for *other people* may
+legitimately attach conditions to — because a user handing their legacy mail to someone else should
+be able to see the whole list.
 
-Both seams are **out of scope for interop** (§7.13): two independent operators need not agree on prices,
-quotas, or plans to interoperate, and a user MAY switch operators — or self-host — **without changing
-identity or keys**. DMTAP specifies the **seam shape**, never a company, a price, or a plan.
+**What is free, unconditional, and works with no operator at all.** Identity, keys, the key-name
+(§3.9.6), the node, every client surface, native mesh delivery, the mixnet, recovery, and the
+protocol itself. A user holding a keypair is a first-class DMTAP identity — reachable, verifiable,
+and deliverable-to — with **no** gateway in the path (§3.13, §7.7, §9.7a). **No operator can gate
+any of it**, not by policy and not by protocol, because on the native path there is no operator
+present to gate anything (§12.3). An operator that disappears takes only its *conveniences* with it
+(§3.11.5).
+
+**The three things a third-party operator can legitimately condition**, each requiring the user's
+explicit, informed opt-in:
+
+1. **A vanity local-part in the operator's own domain** (§7.10.5) — the one alias form that consumes
+   a scarce, human-chosen string in a namespace the operator owns. Tier 3 of §7.10.6; disclose that
+   it is not portable.
+2. **Legacy bridging** (§7.2, §7.3) — the SMTP ingress/egress work and, behind it, the IP reputation
+   requirement of §7.1a. This is the only function whose cost is genuinely irreducible.
+3. **Legacy client access** (§7.15) — serving IMAP/POP/DAV for the user's old apps, with the
+   plaintext exposure §7.15.3 requires be disclosed.
+
+Everything else on a hosting bill — storage, relaying, buffering, "the node" — is a **role**
+(§0.2.2, §14.1) that the user's own hardware, their peers, or any volunteer can serve, and which
+this specification therefore refuses to model as a service. A third party MAY run those roles for
+someone; it MUST NOT be the case that anyone *must* buy them (§12.3).
+
+**The seams.** Whatever an operator conditions rides the two surfaces of §12.2: an **authorization
+decision** (`GatewayAuthz`/`Policy`) and, if the operator wants one, an **optional usage meter**.
+Both are **out of scope for interop** (§7.13): two operators need not agree on anything to
+interoperate, and a user switches — or self-hosts — **without changing identity or keys**. Payment
+mechanics of any kind are operator policy and out of scope entirely (§12.2, §12.4).
 
 ## 7.15 Legacy client access and the reachability ingress (normative)
 

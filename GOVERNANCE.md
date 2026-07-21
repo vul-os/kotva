@@ -1,16 +1,17 @@
 # Governance
 
 DMTAP is an **open protocol specification** intended to be implemented by anyone, with an
-independent reference implementation (Envoir) and an optional hosted operator — none required to
-speak the protocol. This document states who decides, how the specification changes, and the
-security gates that govern a production deployment. The normative sources are the specification's
+independent reference implementation (Envoir). There is no control plane and no hosted component
+any implementation must speak to; the only role needing a resource not everyone can get is the
+legacy gateway (§0.2.3, §7.1a), and nothing requires you to use one. This document states who
+decides, how the specification changes, and the security gates that govern a production deployment. The normative sources are the specification's
 **§10** (versioning, conformance, governance) and **§12.8** (operational & security procedures);
 where this file and the spec disagree, the spec governs (**§10.4**).
 
 ## The specification is authoritative
 
 Independent implementations MUST be buildable from the specification text alone. The Rust reference
-in `node/` and `gateway/` is a **proof and a set of libraries, not normative** — where the reference
+in `node/` (the one binary, gateway mode included, §0.2) is a **proof and a set of libraries, not normative** — where the reference
 and the spec disagree, **the spec wins** (or the discrepancy is filed as a bug). "DMTAP-compatible"
 means **passes the conformance suite** (`conformance/`), not "resembles the reference" (§10.3, §10.4).
 
@@ -19,13 +20,16 @@ means **passes the conformance suite** (`conformance/`), not "resembles the refe
 - **Standards track.** The intent is to pursue an **IETF Internet-Draft** for the wire protocol and
   object formats, aiming for RFC status — neutral governance is what lets competitors adopt without
   fearing capture (§10.5).
-- **Licensing.** The **specification** and the **reference implementation** ship under the **MIT
-  license** (Apache-2.0 dual-licensing under consideration for its explicit patent grant).
+- **Licensing.** The **specification** (this repository) is licensed **CC BY 4.0**; the **reference
+  implementation** (separate repository) is dual-licensed **MIT OR Apache-2.0**. Both © VulOS.
   Everything a user touches and everything trust depends on is open (§10.5, §12.4).
-- **Open software + paid operations.** Commercial sustainability comes from a thin, private
-  control-plane (a hosted operator) that bills **operations only**. The **inviolable rule** (§12.3):
-  privacy, cryptography, metadata privacy, and recovery are **never** behind a paywall or the
-  operator seam. This bright line is non-negotiable governance, not a product decision (§12.3, §12.5).
+- **No control plane, nothing sold.** There is no hosted component any implementation must talk to,
+  no licence server, and no commercial layer; third parties run the gateway role because they want
+  the network to exist (§12.4). The **inviolable rule** (§12.3) lists what can never be gated or
+  charged for: privacy, cryptography, metadata privacy, recovery, **native node-to-node delivery**
+  (no operator is on that path), and **access to your own keys, mailbox, and data**. A
+  self-hosting user with no legacy correspondents pays nobody, ever, and loses no capability. This
+  bright line is non-negotiable governance, not a product decision (§12.3, §12.5).
 
 ## Changing the specification
 
@@ -64,6 +68,8 @@ means **passes the conformance suite** (`conformance/`), not "resembles the refe
   the audit gate, and arbitrate spec-vs-reference discrepancies (§10.4).
 - **Implementers** are first-class: conformance is defined by the public suite, so any independent
   implementation that passes it is DMTAP-compatible without maintainer permission (§10.3).
-- **Operators** (gateway, mix, KT-log, postage/token issuers) are **accountable, attested
-  identities** with a defined onboarding/reputation/revocation lifecycle (§12.8.6), never anonymous
-  infrastructure and never able to gate a privacy/crypto feature (§12.3).
+- **Role-takers** run the infrastructure roles (§0.2.2) — relay, mix, buffer, KT log, rendezvous —
+  which need no scarce resource and no permission. The two roles that make claims about *who they
+  are* (gateway, mix) plus postage/token issuers are **accountable, attested identities** with a
+  defined joining/reputation/leaving lifecycle (§12.8.6): never anonymous infrastructure, never
+  bonded or slashed (§4.4.8), and never able to gate a privacy/crypto feature (§12.3).

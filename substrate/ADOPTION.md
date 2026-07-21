@@ -75,7 +75,7 @@ The reference core (see [`BINDINGS.md`](BINDINGS.md) for the full crate layout).
   a servable cache/pin surface were not confirmed to exist in this survey (`node/src/pubserve.rs` exists
   and its name suggests a pub-serving path, but its wire shape was not verified). **What would close the
   gap:** confirm or build the mailbox role and verify `pubserve.rs` actually serves the
-  `/.well-known/dmtap-pub/*` surface per [`FEEDS.md § 5.1`](FEEDS.md#51-the-well-known-gateway-2251).
+  `/.well-known/dmtap-pub/*` surface per [`FEEDS.md § 5.1`](FEEDS.md#51-the-public-object-http-endpoint-2251).
 - **Wake — not built.** No VAPID/Web Push/UnifiedPush code found anywhere in the workspace. **What would
   close the gap:** implement `PushSubscription`/`WakePing` per [`ROLES.md § 8`](ROLES.md#8-wake--content-free-sender-blind-push-capability-⑤-profile-of-49) — envoir has no wake path today, so this is greenfield, not a rewrite.
 
@@ -287,9 +287,11 @@ surface today, by design, not by oversight.
 - **Identity — minimal.** Real per-device Ed25519 keypairs (`controller/internal/identity/identity.go`,
   `gateway/internal/keys/keys.go`) with TOFU gateway-key pinning — a real building block, but no
   `DeviceCert`, DNS binding, transparency, or naming ladder above it.
-- **Feeds & Blobs — n/a.** Its "audit log" is a plain, unsigned, unchained SQL table — not attempting
-  content-addressing or a feed structure, and there's no reason a gate-access log needs to be a public
-  feed.
+- **Feeds & Blobs — n/a.** Its "audit log" is now a **SHA-256 `prev`-hash chain with append-only
+  triggers and a verify endpoint** — tamper-evident in the same shape as a §22 feed's `prev` chain, though
+  it is a private operational log, not a content-addressed public feed, and there's no reason a gate-access
+  log needs to be one. (Earlier snapshots of this document described it as a plain, unsigned, unchained SQL
+  table; that is stale.)
 - **Sync — n/a.** It has a well-built Ed25519+JCS signed-command envelope with nonce/replay protection
   (`gateway/internal/keys/envelope.go`) — adjacent in spirit to a COSE-signed op, but it is point-to-point
   RPC (open a gate, revoke a badge), not CRDT state convergence. There is no shared state to converge here.
@@ -342,7 +344,7 @@ Its actual current state is **better than that document's text**, which had gone
   The ordered-domain invariant above is therefore **not** inherited via Sync — it binds kerf-pub
   directly as a §22 Feeds adopter, which is exactly why it is stated in `FEEDS.md` rather than
   left as a Sync-specific footnote.
-- **Roles — to-spec, cache/pin only.** The `/.well-known/dmtap-pub/*` gateway itself **is** the cache/pin
+- **Roles — to-spec, cache/pin only.** The `/.well-known/dmtap-pub/*` endpoint itself **is** the cache/pin
   role ([`ROLES.md § 6`](ROLES.md#6-cache--pin--serve-content-addressed-objects-profile-of-225-55)),
   correctly implemented (immutable `Cache-Control`/`ETag` on the four content-addressed endpoints). No
   other role (announce/resolve, signaling, circuit relay, mailbox) is attempted, and none is implied by
@@ -385,3 +387,24 @@ retire them" — holds up, with more nuance than the premise implied:
   sovereign VAPID implementation for the wrong job (it wants to render a notification, not fire a
   content-free hint) — a good reminder that "uses the right open standard" and "implements this capability"
   are different claims, worth keeping distinct in future audits.
+- **The ordered-domain invariant is a measured defect class, not a hypothetical.** A follow-up audit of
+  every adopter against [`FEEDS.md § 4.3`](FEEDS.md#43-anti-rollback-and-equivocation-2242) found it
+  **five times, in five languages, by five different mechanisms** — each network-reachable, each invisible
+  to that repo's own tests because the local engine agreed with itself:
+
+  | Repo | Language | Mechanism | Fixed |
+  |------|----------|-----------|-------|
+  | kerf-pub | Python | bare `int()` decode accepted a **negative `seq`** | exo/kerf `66ea6e33` |
+  | vulos-relay | Go | `PubManifest.size`/`chunk_sz` presence-checked but **never value-decoded** — a negative `size` or over-`u32` `chunk_sz` passed as "verified" and would be re-served, while a `u64`/`u32`-typed peer cannot parse it at all (the cross-engine well-formedness gap §4.3 names) | `d0f7b3a` |
+  | ofisi | JavaScript | **`NaN` comparison** — `parseInt` on a malformed counter yields `NaN`, and `NaN < x`, `x < NaN`, `NaN >= x` are *all* false, so the obvious comparator returns "not less than" and the caller applies the op; one hostile peer could overwrite any cell | `0b3fd70` |
+  | flowstock | Go | two entry points **re-implemented the HLC string format** with a bare `Sprintf`, bypassing the width guard | `9e431a3` |
+  | vidmesh | Rust | `contest_window as i64` silently reinterprets any `u64 ≥ 2^63` as **negative**, making a finality check trivially true and instantly finalizing a stolen-key rotation | `ad04112` |
+
+  The JavaScript case was a genuinely new variant and is now named in the invariant itself
+  ([`FEEDS.md § 4.3`](FEEDS.md#43-anti-rollback-and-equivocation-2242) item 3): width and sign were
+  already covered, `NaN` was not. **whatsacc was audited and found clean of this class** (random-unique
+  nonces rather than ordered ones; IAT/EXP decoded into signed `int64` with fail-closed bounds checks at
+  every arithmetic edge; no key-rotation counter at all — TOFU-replace only; its audit log orders by
+  SQLite rowid, never by client input). The general lesson for future audits: a monotonic counter is a
+  **cross-engine** contract, so the place to look is every decode boundary, in every language, not the
+  comparison itself.

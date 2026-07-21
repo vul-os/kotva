@@ -15,7 +15,7 @@ objects. It defines:
 - one CBOR structure schema, `AssemblyStructure` (§23.6.2), for the parts-DAG of an assembly,
   itself published as an ordinary §22 public blob;
 - conventions for licensing (§23.4), revision lineage and forking (§23.5), assembly BOM walks
-  (§23.6), "workshop" client behavior (§23.7), and first-deployment gateway usage (§23.8).
+  (§23.6), "workshop" client behavior (§23.7), and first-deployment PUB-server usage (§23.8).
 
 **This profile introduces zero new wire mechanisms and zero new crypto.** It allocates no
 message kind, no capability token, no DS-tag, and no error block — every byte this document
@@ -42,7 +42,7 @@ This profile is built entirely on §22 primitives it does not redefine: **`pub_a
 structured metadata, with `supersedes` for revision chains); **public-blob manifests** (§22.2,
 plaintext-addressed under DS-tag `DMTAP-PUB-v0/manifest`, type-incompatible with the
 sealed manifests of §5.5); **author feeds** (§22.4, per-identity append-only monotonic-`seq`
-logs); **gateway HTTP serving** (§22.5, plain-HTTPS feed/announce/manifest/chunk endpoints,
+logs); **public-object HTTP serving** (§22.5, plain-HTTPS feed/announce/manifest/chunk endpoints,
 §23.8); and **irrevocability** (§22.7, §6.6 item 11 — a published object cannot be
 unpublished; deprecation is a new fact, never a deletion, §23.5). Where this document says "the
 announce" or "the manifest" without qualification, it means these §22 objects — consult §22 for
@@ -376,10 +376,10 @@ client(s) needs to know its contents.
   this is a convenience integration outside the DMTAP wire protocol, not a normative part of this
   profile, exactly as a website ping-submitting itself to a search engine is outside HTTP.
 
-## 23.8 Gateway HTTP profile usage
+## 23.8 Public-object HTTP endpoint usage
 
 Nothing in this profile requires a mesh transport for a first deployment: this profile's objects
-are ordinary §22 objects, so they are served exactly by §22's gateway HTTP profile (§22.5.1) —
+are ordinary §22 objects, so they are served exactly by §22's public-object HTTP endpoint (§22.5.1) —
 a plain-HTTPS surface with no protocol change needed. The table below restates that surface as
 this profile uses it; the normative endpoint grammar is §22.5.1's.
 
@@ -396,7 +396,7 @@ A CAD client's resolution sequence for one artifact, over that surface alone:
 sequenceDiagram
   autonumber
   participant Client
-  participant GW as Gateway (HTTPS)
+  participant GW as PUB server (HTTPS)
   Client->>GW: GET announce (from a followed feed, or a direct link)
   GW-->>Client: pub_announce (signed) — verify sig, parse ArtifactMetadata
   Note over Client: if supersedes chain and "latest" was requested,<br/>follow to head (§23.5) before proceeding
@@ -406,10 +406,10 @@ sequenceDiagram
   Note over Client: assembly-kind: fetch structure entry (role=3),<br/>parse AssemblyStructure, recurse per child ref_kind (§23.6)
 ```
 
-A gateway serving this surface needs **no CAD-specific code**: it stores and serves opaque
+A PUB server serving this surface needs **no CAD-specific code**: it stores and serves opaque
 signed/content-addressed §22 objects. All artifact-schema interpretation — `ArtifactMetadata`,
 `AssemblyStructure`, licensing, kind/format enums — happens entirely client-side. This is what
-lets a first deployment be one plain-HTTPS gateway with zero mesh participation (§23.9,
+lets a first deployment be one plain-HTTPS PUB server with zero mesh participation (§23.9,
 Appendix A).
 
 ## 23.9 Privacy & security notes (informative)
@@ -468,8 +468,8 @@ kerf's Workshop publish flow maps onto this profile as follows:
    units, and the project's declared SPDX license (§23.4).
 3. **Append to the author feed** (§22.4) — the publishing identity's own feed; there is no
    separate "kerf server feed."
-4. **Gateways serve over plain HTTPS** (§23.8) — kerf's hosted gateway is **one gateway among
-   equals**, exactly as any self-hosted or third-party DMTAP-PUB gateway; it holds no special
+4. **PUB servers serve over plain HTTPS** (§23.8) — kerf's hosted server is **one server among
+   equals**, exactly as any self-hosted or third-party DMTAP-PUB server; it holds no special
    protocol role. This preserves the clean seam already established for kerf's architecture:
    kerf cloud is billing + provisioning + fleet, never a required intermediary for the artifact
    itself to exist or be fetched.

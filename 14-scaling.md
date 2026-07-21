@@ -1,26 +1,45 @@
 # 14. Scaling & Deployment
 
-DMTAP must work for a user with only a phone, a user with an always-on box, and an operator
-hosting millions of mailboxes — and the gateway fleet must scale horizontally. This section
-specifies the node classes, the reachability/buffer layers, and the scaling patterns, grounded
-in how production mail and P2P systems actually operate.
+DMTAP must work for a user with only a phone, a user with an always-on box, and a node serving many
+mailboxes at once — and the gateway role must scale horizontally. This section specifies the two
+**device classes**, the **roles** layered over them, the reachability/buffer arrangements, and the
+scaling patterns, grounded in how production mail and P2P systems actually operate.
 
-## 14.1 Node classes
+## 14.1 Device classes and roles
 
-| Class | Examples | Role | Durable state? |
-|-------|----------|------|:--------------:|
+There are exactly **two device classes**, distinguished by whether they hold durable state:
+
+| Device class | Examples | What it is | Durable state? |
+|--------------|----------|------------|:--------------:|
 | **Always-on node** | Pi, NAS, home server, VPS | The authority — holds the mailbox, does the work, participates in the mesh | **Yes** |
 | **Intermittent node / thin client** | Laptop, phone | A client that syncs to an always-on node it trusts (usually the owner's) | No (cache only) |
-| **Relay** | any public-IP node | Reachability hop for NAT'd nodes; content-blind | No |
-| **Mix** | staked operator node | A mixnet hop (§6); content-blind | No |
-| **Gateway** | accountable operator | Legacy SMTP bridge (§7); the only non-content-blind role | No (short retry queue only) |
+
+Everything else people call a "server" is a **role** of that same node binary (§0.2), taken by
+whoever wants it:
+
+| Role | Who can take it | What it does | Durable state? | Needs a scarce resource? |
+|------|-----------------|--------------|:--------------:|--------------------------|
+| **Relay** | any node with a public address | reachability hop for NAT'd nodes; content-blind (§4.3) | No | No |
+| **Mix** | any always-on node with a public address — **default-on** (§4.4.2a) | a mixnet hop (§4.4, §6); content-blind | No | No |
+| **Buffer / relay-mailbox** | peers, the owner's other devices, optionally a third party — an **n-of-m** set (§14.3) | short-TTL content-blind hold for an offline identity | No (TTL'd ciphertext) | No |
+| **KT log** | anyone with append-only storage | tamper-evident `name → key` history others audit (§3.5) | log only | No |
+| **Rendezvous / bootstrap entry** | any node with a stable address | non-DHT lookup fallback and first-contact entry (§4.2.1, §4.2.2) | No | No |
+| **Gateway** | an operator meeting §7.1a | legacy SMTP bridge + legacy client surfaces (§7); the only non-content-blind role | No (short retry queue only) | **Yes** — a reputable IP, port 25, a domain |
+
+**The last column is the whole architecture.** Every role but one is **reciprocally provisioned**:
+you run it because you want it to exist, and running it for yourself provides it to others at
+essentially no marginal cost. Only legacy SMTP egress requires something you must be *granted* by a
+third party (§7.1a), which is why it is the only place a durable operator class can form (§0.5),
+and why this specification is careful never to let another function acquire that property.
 
 A phone is **never** a durable endpoint (§14.3). An always-on node is the durable authority
-(§14.4). Relay/mix/gateway are stateless middle roles that scale horizontally (§14.2, §14.5).
+(§14.4). Relay, mix, buffer, KT-log, rendezvous and gateway are stateless (or TTL-bounded) middle
+roles that scale horizontally (§14.2, §14.5).
 
-## 14.2 Horizontally-scalable gateways (normative patterns)
+## 14.2 Horizontally-scalable gateway role (normative patterns)
 
-The gateway (§7) is stateless and MUST scale as a **shared-nothing worker fleet**:
+An operator running the gateway role (§7) at any volume is stateless and MUST scale as a
+**shared-nothing worker fleet**:
 
 1. **Identical, interchangeable instances.** Every gateway instance runs the same config; there
    is no whole-cluster coordination on the hot path (coordination is a scaling bottleneck —
@@ -53,12 +72,13 @@ route flap does not break a live SMTP session.
 
 A phone cannot hold a socket open or be reachable, and platform push is **best-effort, not
 guaranteed** on both APNs and FCM. Therefore a phone is a **push-woken thin client that drains
-a queue it does not host** — never a durable node. When the user has no always-on box, the
-queue is a **hosted, content-blind relay-mailbox** (the Chatmail model):
+a queue it does not host** — never a durable node. When the user has no always-on box, the queue is
+a **content-blind relay-mailbox** (the Chatmail model) — held **not by a hosted service but by an
+n-of-m set** (§14.3a):
 
 ```mermaid
 flowchart LR
-  S["sender"] -->|"E2EE ciphertext,<br/>short TTL"| RM["relay-mailbox<br/><i>hosted, content-blind</i>"]
+  S["sender"] -->|"E2EE ciphertext,<br/>short TTL"| RM["relay-mailbox<br/><i>n-of-m, content-blind</i>"]
   RM -->|"wake-push<br/>content-free, ≤4KB"| NP["notification proxy<br/>APNs / FCM"]
   NP -->|"wake signal"| PH["phone wakes"]
   PH -->|"own authenticated connection"| RM
@@ -79,6 +99,42 @@ Requirements:
 This is the *only* architecture that works for a user with no home box, and it matches deployed
 practice (Delta Chat/Chatmail, Signal, Matrix/Sygnal — all wake-and-fetch with content-free
 push).
+
+### 14.3a The buffer is an n-of-m role, not a hosted service (normative)
+
+**The relay-mailbox is a role (§14.1), and it MUST be usable as an `n`-of-`m` arrangement rather
+than a single provider.** A conformant node offers its ciphertext to **`m` holders** — any mix of
+(a) peers who have agreed to buffer for it, (b) **the owner's own other devices** (a second box, a
+desktop that is usually on — the cheapest and most trustworthy holders a user has), and (c)
+optionally a third party — and treats delivery as buffered when **`n` of them acknowledge custody**
+(§16.6). No single holder is load-bearing, and a holder that vanishes costs redundancy, not mail.
+Holders are content-blind (they see TTL'd ciphertext addressed to a key), so `m` can be raised
+freely: adding a holder adds no trust.
+
+**Why this is structural and not a convenience.** Two measured findings from the decentralized web
+make the single-holder buffer indefensible, and both point the same way:
+
+- **Volunteer edge availability is poor.** In the Mastodon measurement study (Raman et al., ACM IMC
+  2019, §15.5), instances had a **mean downtime of 10.95%** — against **1.25%** for 2007-era Twitter
+  — and **21.3% of instances went offline permanently within 15 months**. A buffer whose durability
+  is one volunteer's uptime is therefore not a rounding error away from reliable; it is roughly an
+  order of magnitude worse than the centralized service it replaces.
+- **Unreplicated federated state collapses.** The same study found that removing the **10** most
+  popular instances erased **62.69%** of all content, whereas replication reduced the loss to
+  **2.1%**. Concentration plus non-replication is the failure mode; replication is the fix, and it
+  is cheap here precisely because the holders learn nothing.
+
+**Two consequences the specification takes seriously.** First, **buffering is a permanent structural
+need, not a transitional service**: intermittent devices are not going away, so something must hold
+ciphertext for an absent recipient forever, and the only question is whether that something is a
+market of one or a set of `m`. Second, it must therefore be **commoditised across many providers
+rather than purchased from one** — which is exactly why the role requires no scarce resource
+(§14.1) and why `m` includes the user's own hardware. A design in which the buffer is bought is a
+design in which someone can stop selling it.
+
+**Interaction with the honest limit below (§14.5): a buffer is still not an archive.** `n`-of-`m`
+raises availability within the TTL; it does not extend the TTL, and durability still lands at the
+recipient's edge once fetched.
 
 ## 14.4 The always-on-box user
 
@@ -107,11 +163,13 @@ reservations, 16 circuits/peer, 2 min / 128 KB per circuit). Discovery SHOULD us
 
 **Buffers (offline holding).** Ciphertext for an offline node is held in a **content-blind
 relay-mailbox with a short TTL and delete-after-inactivity** (Chatmail model: ~20-day message
-TTL, ~90-day inactive-account purge as reference defaults). This decouples availability from any
-single peer's uptime while keeping per-account cost near-zero (no long-term archive). Peer
-buffering (§4.3) is an alternative when no hosted buffer is desired, but its durability is tied
-to the buffering peer's uptime — weak for mobile-only. The gateway's short queue (§7.4) is only
-the legacy-translation hop and MUST NOT become a store.
+TTL, ~90-day inactive-account purge as reference defaults), by an **`n`-of-`m` holder set**
+(§14.3a) — peers, the owner's own devices, optionally a third party. Because holders are
+content-blind, `m` is raised freely, which is what decouples availability from any single peer's
+uptime while keeping per-holder cost near-zero (no long-term archive). Single-holder peer buffering
+(§4.3) is the degenerate `n = m = 1` case and inherits that peer's uptime — the measured reason
+§14.3a requires the general form. The gateway's short queue (§7.4) is only the legacy-translation
+hop and MUST NOT become a store; the buffer role is **not** a gateway function (§7.1).
 
 > **Honest limit:** a relay-mailbox is a **buffer, not an archive** — a node offline past the
 > TTL loses undelivered mail. Durability MUST land at the recipient's edge once fetched. Senders
@@ -122,30 +180,65 @@ the legacy-translation hop and MUST NOT become a store.
 recovery (§1.4) restores onto an **empty store**. Durable content continuity requires a surviving
 cluster device (§5.6) or the **portable encrypted backup** of §1.4 — not the buffer.
 
-## 14.6 Hosted multi-tenant topology (the operator)
+## 14.6 Network status — what a public status page may measure (normative)
 
-*(The vendor-named deployment below is illustrative, non-normative.)*
+DMTAP's own conformance rules make the network's *size and diversity* operationally significant:
+which mixnet profile a sender may use (Bootstrap / Standard / High-security, §4.4.10) depends on how
+many ASN-diverse mixes exist, and the **Bootstrap → Standard** progression is a
+threshold the client must be able to observe (§4.4.10, §16.3). Something must therefore publish an
+**observation of the network**. This section bounds what that may be, because a status page is the
+most natural place for an authority to grow back.
 
-For an operator hosting many mailboxes (Envoir Cloud, §12), the sensible horizontally-scalable
-shape is **stateless routed front + per-tenant sandboxed compute + object-storage persistence +
-scale-to-zero**:
+### 14.6.1 What it measures (the network, never users)
 
-- **Stateless front:** hostname-routed proxy on an **Anycast** network, TLS-terminating,
-  backhauling to the tenant's cell.
-- **Per-tenant isolation:** one logical app / sandbox (microVM, e.g. Firecracker) **per
-  customer**, so a compromised tenant cannot read another's secrets or content; equivalently a
-  namespace-per-tenant + sandboxed runtime on Kubernetes.
-- **Storage:** per-account **encrypted object-storage bucket** (Envoir Cloud uses R2/Tigris,
-  free egress); isolation enforced at the app/bucket boundary, not the platform sandbox alone.
-- **Scale-to-zero + push-wake:** idle mailboxes cost only storage; a request/push cold-boots the
-  cell (~sub-second). This fits mailboxes (idle most of the time) and the §14.3 push model.
-- **Multi-region:** place each tenant's cell in its home region behind the Anycast front;
-  control-plane metadata (tiny) in a shared control-plane DB (Neon), content in per-tenant
-  buckets.
+A conformant public status page reports **only** aggregate network-shape figures:
 
-Because there is no long-term archive on the hot path and mailboxes are mostly idle, the
-per-mailbox cost floor is near-zero (a documented ~1 GB RAM / 1 CPU serves thousands of light
-mailboxes), which is what makes the operator economics in §12 work.
+| Measure | Why it matters |
+|---------|----------------|
+| Reachable nodes | basic liveness of the mesh |
+| Always-on nodes (public address) | the pool from which the roles below are drawn |
+| **Mix-role nodes, and their ASN diversity** | decides which mixnet profile the network supports (§4.4.10) |
+| KT logs (and how many are independently operated) | whether a `> n/2` quorum over disjoint operators is achievable (§3.5.2(b)) |
+| Rendezvous nodes / bootstrap entries | whether §4.2.2's multi-node, multi-ASN requirement is satisfiable |
+| Gateways (count, and ASN/jurisdiction spread) | the health of the one scarce role (§7.1a) |
+| **Estimated** active identities | adoption, stated as an estimate with its method |
+
+### 14.6.2 What it must not be, and must not reveal (normative)
+
+- **It is a DERIVED observation, never a registry.** Figures are computed from
+  **self-reported-and-cross-checked** observations — a node's own published descriptor, corroborated
+  by other observers' reachability probes — exactly as the mix fleet view is derived rather than
+  signed (§4.4.2). No node registers with it, no node needs its approval, and **no protocol
+  behaviour may depend on trusting it**: a client MUST make its own profile determination from its
+  own derived fleet view (§4.4.2, §4.4.9), and MAY use a status page only as a human-facing
+  corroboration. A status page that becomes load-bearing has become the directory authority §4.4.2
+  deleted.
+- **It MUST NOT deanonymize a user or reveal any part of the social graph.** No per-identity data,
+  no per-mailbox data, no message counts attributable to anyone, no correspondent pairs, no
+  per-node traffic volumes that could be intersected with a target's activity. Aggregate counts of
+  *infrastructure*, never of *behaviour*.
+- **It measures the NETWORK, not users' activity.** Message volume, delivery latency histograms
+  and similar activity series are **out of scope** — they are exactly the timing corpus the mixnet
+  exists to deny (§4.4.5, §6.6 item 1). An implementation MUST NOT emit per-user telemetry to any
+  such service, and MUST NOT make participation in measurement a condition of anything.
+- **Multiple, competing status pages are the healthy state.** Anyone may run one; disagreement
+  between two is information, not an error. There is no canonical publisher, and this specification
+  names none.
+
+### 14.6.3 Tie-in to the mixnet profiles (normative)
+
+The status page's mix-count and ASN-diversity figures are the human-readable form of the same
+thresholds §4.4.10 makes normative:
+
+| Observed fleet | Profile the network can support |
+|----------------|---------------------------------|
+| < 3 ASN-diverse public mixes | no `private` tier at all — `fast` only, disclosed (§6.6 item 13) |
+| ≥ 3 ASN-diverse mixes, < 20-node guard sample | **Bootstrap** profile: 3 hops, degraded, no anonymity claim, auto-upgrading (§4.4.10) |
+| ≥ 20-node ASN-diverse guard sample, ≥ 3 disjoint operator ASNs | **Standard** — the ordinary default (§16.3) |
+| ≥ 5 disjoint operator ASNs with capacity for 5-hop paths | **High-security** available to those who select it (§4.4.10) |
+
+A client MUST derive its own answer to this question (§4.4.9); the table exists so that a human
+reading a status page and a node computing a path are looking at the same thresholds.
 
 ## 14.7 Grounding
 
@@ -153,6 +246,7 @@ Patterns grounded in: KumoMTA (shared-nothing MTA, egress pools), AWS SES (per-I
 warmup), SendGrid/Mailgun (per-stream pools, health-check demotion), RFC 5321 §5.1 (MX
 priority), Cloudflare (Anycast inbound), Delta Chat/Chatmail + Signal + Matrix/Sygnal
 (wake-and-fetch push, relay-mailbox), APNs/FCM (best-effort, ≤4 KB, throttling), libp2p
-circuit-relay v2 + Protocol Labs DHT findings (relay caps, discovery), Fly Machines "one app per
-customer" + Kubernetes multi-tenancy (per-tenant sandbox, scale-to-zero). See §11 for the full
-bibliography.
+circuit-relay v2 + Protocol Labs DHT findings (relay caps, discovery), and **Raman, Joglekar,
+De Cristofaro, Sastry & Tyson, "Challenges in the Decentralised Web: The Mastodon Case," ACM IMC
+2019** (volunteer-instance downtime, permanent-departure rate, and the content-loss/replication
+measurements that make the buffer an `n`-of-`m` role, §14.3a). See §11 for the full bibliography.

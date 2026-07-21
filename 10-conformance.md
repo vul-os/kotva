@@ -55,7 +55,7 @@ An implementation is **DMTAP-conformant** at a level if it passes the correspond
 | Level | Requires |
 |-------|----------|
 | **Core** | Identity (§1), MOTE (§2), naming resolution + TOFU + **v0-minimal KT publish/verify with fail-closed-on-unreachable** (§3), mesh delivery + `deliver`/`ack` (§4), MLS 1:1 (§5), recipient policy incl. cold-sender challenge gating (§9) |
-| **Private** | Core + mixnet (Sphinx packet + directory + 3-hop stratified paths + key-epoch rotation, §4.4.1–§4.4.4) + sealed sender + cover traffic + the **anti-active-adversary mechanisms** (per-epoch replay caches, Poisson mixing, loop-cover attack detection, entry guards + operator diversity, and **fail-closed no-downgrade**, §4.4.6–§4.4.9) + privacy tiers (§4, §6). The user-selectable **high-security profile** (§4.4.10) and **PQ-Sphinx** (§4.4.12) are OPTIONAL. |
+| **Private** | Core + mixnet (Sphinx packet + derived fleet view + 3-hop stratified paths + key-epoch rotation, §4.4.1–§4.4.4) + sealed sender + cover traffic + the **anti-active-adversary mechanisms** (per-epoch replay caches, Poisson mixing, loop-cover attack detection, entry guards + operator diversity, and **fail-closed no-downgrade**, §4.4.6–§4.4.9) + privacy tiers (§4, §6) + the **Bootstrap-profile rules** (§4.4.10a: user-visible degradation, no anonymity claim, auto-upgrade-never-fall-back, per-contact ratchet) — a network small enough to need Bootstrap is the normal early case, so its constraints are part of the level, not an extra. The user-selectable **high-security profile** (§4.4.10) and **PQ-Sphinx** (§4.4.12) are OPTIONAL. |
 | **Groups & Files** | Core + MLS groups + content-addressed file transfer (§5) |
 | **Legacy** | Core + gateway inbound/outbound + DKIM delegation (§7); gateway legacy-client surfaces (IMAP/POP/SMTP-submission + CalDAV/CardDAV) + the reachability ingress + operator modes RECOMMENDED (§7.15) |
 | **Clients** | Core + **JMAP** — the node's native client surface (§8.1). Legacy client protocols (IMAP/POP/SMTP-submission, CalDAV/CardDAV) are a **gateway** capability (RECOMMENDED, §7.15), **not** a node one; a conformant node runs no legacy protocol server (§8) |
@@ -76,11 +76,11 @@ The **conformance test suite** is the *operational definition* of compatibility.
 means "passes the suite," not "resembles the reference." This is the primary defense against
 fragmentation. The suite lives in `conformance/` as three coupled artifacts:
 
-- **`conformance/SUITE.md`** — the normative test-case catalog: 157 numbered cases
+- **`conformance/SUITE.md`** — the normative test-case catalog: 172 numbered cases
   (`DMTAP-<category>-<NN>`) grouped by the levels above, each pinning its spec clause, input,
   expected result (accept / reject + the §21 error code), and MUST/SHOULD.
 - **`conformance/suite.json`** — the machine-readable mirror of those cases, so a runner in **any
-  language** can drive them. It mirrors all 157 (SUITE.md and suite.json are in sync — the wave-2
+  language** can drive them. It mirrors all 172 (SUITE.md and suite.json are in sync — the wave-2
   deniable-1:1 and KT-v1-hardening families, the `PROFILE` display-data cases, the optional
   `PUSH` wake-signaling cases, the `FILE` durability cases, the wave-3 device-cluster `SYNC`,
   `ALIAS`, and gateway-alias `GWALIAS` families, the pluggable-resolver `RESOLVE` family, and
@@ -94,11 +94,11 @@ fragmentation. The suite lives in `conformance/` as three coupled artifacts:
 52 cases are byte-runnable today (46 vector-backed against `vectors.json`/`pub_vectors.json` +
 6 self-contained canonical-CBOR reject cases); 1 further case (`DMTAP-PUB-21`, the §22.7
 publish-consent UX MUST) is verified by implementer attestation, having no wire bytes to
-recompute; the remaining 104 carry an exact construction recipe and expected §21 error for the
+recompute; the remaining 119 carry an exact construction recipe and expected §21 error for the
 branches whose subsystems are not yet vectored (mixnet/MLS/gateway/auth, plus the wave-2
 deniable/KT-v1/org/device-attestation families, the `FILE` durability guards, the `PROFILE`
-display-data guards, and the optional `PUSH` wake-signaling guards — see
-`conformance/README.md`). The partition is exact: 52 + 1 + 104 = 157. An
+display-data guards, the optional `PUSH` wake-signaling guards, and the profile-level `CAD`/`VIDEO`
+checklists — see `conformance/README.md`). The partition is exact: 52 + 1 + 119 = 172. An
 implementation conforms at a level iff it passes every `MUST` case of that level and of every level
 it composes. The reference `dmtap-core` self-check test drives the vectors, but the spec plus these
 three artifacts are authoritative (§10.4), not the reference.
@@ -106,7 +106,7 @@ three artifacts are authoritative (§10.4), not the reference.
 ## 10.4 The spec is authoritative
 
 Independent implementations MUST be buildable from this specification alone. The Rust reference
-in `node/` and `gateway/` is a proof and a set of libraries, **not** normative. Where reference
+in `node/` — the one binary, whose gateway mode is a role rather than a separate program (§0.2) — is a proof and a set of libraries, **not** normative. Where reference
 and spec disagree, the spec governs (or the discrepancy is filed as a bug).
 
 ## 10.5 Governance & licensing (intent)
@@ -114,15 +114,20 @@ and spec disagree, the spec governs (or the discrepancy is filed as a bug).
 - **Standards track:** pursue an **IETF Internet-Draft** for the wire protocol and object
   formats, aiming for RFC status (as JMAP and MLS did). Neutral governance is what lets
   competitors adopt without fearing capture.
-- **Licensing:** the **specification** and the **reference implementation** (node, gateway,
-  client, libraries) ship under the **MIT license** (Apache-2.0 dual-licensing under
-  consideration for its explicit patent grant). Everything a user touches and everything trust
-  depends on is open; permissive licensing maximizes adoption by any party, competitors
-  included.
-- **Open software + paid operations:** commercial sustainability comes from a thin, **private
-  control-plane** (a hosted operator) that implements the **operator seam** (`crates/dmtap-seam`)
-  to bill *operations* — never gating any protocol or privacy feature. See §12 for the full
-  model and the inviolable rule (privacy/crypto are never behind the seam).
+- **Licensing:** the **specification** (this repository) is licensed **CC BY 4.0** — anyone may
+  implement, quote, translate, and build on it with attribution, which is the licence a *standard*
+  wants. The **reference implementation** (a separate repository) is dual-licensed **MIT OR
+  Apache-2.0** — the permissive pair, with Apache-2.0's explicit patent grant — so any party,
+  competitors included, may embed it. Both are © VulOS. Everything a user touches and everything
+  trust depends on is open; a closed client could not credibly claim "we cannot read your mail."
+- **There is no control plane, and no commercial layer to describe.** Nothing is sold, no hosted
+  component is required by any implementation, and there is no registry, licence server, or
+  telemetry endpoint. Third parties run the gateway role because they want the network to exist
+  (§0.2.3, §12.4). What sustains the protocol is that every role but one costs its taker almost
+  nothing and benefits them directly (§0.2.2) — and the exception, legacy SMTP egress, is
+  transitional (§7.1c). See §12 for the user-protection model and the inviolable rule (§12.3:
+  privacy, crypto, metadata privacy, recovery, native delivery, and access to your own data are
+  never behind a gate).
 - **Reuse over reinvention:** DMTAP deliberately composes existing standards — MLS (RFC 9420),
   HPKE (RFC 9180), JMAP (RFC 8620/8621), libp2p, DNS/DNSSEC/SVCB, key transparency, Privacy
   Pass. The novelty is the *composition and transport*, not new cryptography.
@@ -201,12 +206,14 @@ available.
 
 | Invariant | Clause | Trigger | Behavior / error on violation |
 |-----------|--------|---------|-------------------------------|
-| **No `private → fast` / in-force-profile floor** | §4.4.9 | no path meeting the **in-force profile's** bar (Standard ≥ 3 hops/≥ 3 operators; High-security ≥ 5/≥ 5) is buildable | hold in the retry queue; **never** silently route over `fast`, fewer hops, fewer operators, or a lower profile's bar; `0x0310`; surface to user past the retry deadline |
+| **No `private → fast` / in-force-profile floor** | §4.4.9 | no path meeting the **in-force profile's** bar (Bootstrap ≥ 3 hops/best-effort ≥ 2 ASNs; Standard ≥ 3 hops/≥ 3 operators; High-security ≥ 5/≥ 5) is buildable | hold in the retry queue; **never** silently route over `fast`, fewer hops, fewer operators, or a lower profile's bar; `0x0310`; surface to user past the retry deadline |
+| **Bootstrap profile ratchets up only** | §4.4.10a | a contact whose relationship has already run at Standard (or above) is offered a **Bootstrap**-tier path | fail closed, `0x0310` — the profile ratchets **per contact** like the §1.3 suite high-water-mark; auto-upgrade is mandatory and fallback is forbidden, else DoSing mixes forces the whole network onto the degraded profile (the §4.4.9 attack under a friendlier name) |
+| **Bootstrap profile is disclosed, never claimed as anonymity** | §4.4.10a | client operating on Bootstrap presents `private` as anonymous, or hides the degradation | non-conformant: the client MUST show that metadata privacy is degraded **and why** (current mixes/ASNs vs the Standard bar), and MUST NOT state an anonymity set |
 | Active-attack fail-closed | §4.4.7 | loop-cover return fraction below the loss threshold (§16.3) | rotate away + `HALT_ALERT` + **fail closed** for the `private` tier — never silently continue on a weaker path, `0x030F` |
 | Per-epoch mix replay drop | §4.4.6 | a Sphinx per-hop tag already in the epoch replay cache | `DROP_SILENT`, `0x030E` (cache spans every still-usable key, no hard epoch-boundary flush) |
 | Mix operator-diversity **MUST be attested** | §4.4.8 | a mix whose `operator` is absent/un-attested is counted as fresh diversity | it MUST NOT count as its own operator — excluded or counted shared; keeps the ≈ *a*² compromised-path bound (else one Sybil operator collapses it to ≈ *a*) |
-| Mix directory authority-signed + rollback | §4.4.2 | directory not signed by the pinned authority, or an older-or-equal `version` | reject, `0x030B` (a directory split-view is a KT equivocation, `0x0107`) |
-| **Mix directory freshness (freeze defense)** | §4.4.2 | a served `MixDirectory` older than the freshness window (§16.3, ≤ one mix-key epoch) — an adversary freezing the client on a stale, adversary-favourable fleet view | **FAIL-QUEUED** (§10.7.0): treat as stale; MUST refresh before building any `private` path; if none is obtainable the sender **queues and retries**, `0x0311` — it MUST NOT downgrade the tier and MUST NOT refuse to enqueue. A directory outage delays mail; it must never stop it. A withheld fresh directory is KT-detectable (no new root within the window), completing the directory authority's detectable-if-misbehaves property |
+| Mix fleet view is **derived**, cache verified + rollback | §4.4.2 | a **cached** `MixDirectory` containing a descriptor the client cannot independently verify against its KT log quorum, or an older-or-equal `version` | reject, `0x030B` — a cache is a convenience, never an authority; a log split-view over the mix set is a KT equivocation, `0x0107` |
+| **Mix fleet-view freshness (freeze defense)** | §4.4.2 | a derived view or cache older than the freshness window (§16.3, ≤ one mix-key epoch) — an adversary freezing the client on a stale, adversary-favourable fleet view | **FAIL-QUEUED** (§10.7.0): treat as stale; MUST refresh before building any `private` path; if none is obtainable the sender **queues and retries**, `0x0311` — it MUST NOT downgrade the tier and MUST NOT refuse to enqueue. A directory outage delays mail; it must never stop it. Withheld fresh descriptors are KT-detectable (no new current-epoch entry within the window), and with the authority removed no single party's silence achieves this network-wide |
 | Cover traffic is not optional | §4.4.5, §6.2 | (posture) a `private`-tier node omitting loop/drop/recipient cover | non-conformant — cover is load-bearing, MUST be emitted |
 
 ### 10.7.3 Trust-binding (KT / identity / group) fail-closed
@@ -237,7 +244,7 @@ available.
 | Payload-signature fail-closed | §2.7 step 8 | `Payload.sig` fails under `from` | discard silently, do **not** ack (fail closed, matching steps 1–3) |
 | **Gateway ack-before-`250`** | §7.4, §19.7.1 | inbound SMTP; recipient node has not durably `ack`ed within the transaction window | return SMTP **`451`** (defer to the legacy sender's queue); MUST NOT return `250` on mere hand-off — no post-`250` silent-loss window |
 | Gateway attestation mandatory + key-bound | §7.2a, §19.3.1 step 8a | a legacy-origin MOTE is unattested, or its key is not under the recipient's own `_dmtap-gw` | `DROP_SILENT`, `0x0601` / `0x0602`; every *accepted* message is thus either attested (gateway-touched) or attestation-free (**provably** pure-mesh) — no unmarked third state |
-| GatewayAuthz fail-**safe**, not fail-open | §12.2 | hosted operator unreachable | permit legacy egress only to **established contacts** + senders with operator-independent **PoW**; **deny** cold/unproven egress; postage excluded (needs online redemption) |
+| GatewayAuthz fail-**safe**, not fail-open | §12.2 | the party behind the seam is unreachable | permit legacy egress only to **established contacts** + senders with operator-independent **PoW**; **deny** cold/unproven egress; postage excluded (needs online redemption) |
 | Postage issuer-unreachable = unverified | §9.5.1 | stamp redemption endpoint unreachable | treat the stamp as *unverified*, fall back to token/PoW policy — **never** accept real-money bearer value on faith |
 | Unvetted token = zero budget | §9.3.1 | token from an unknown/self issuer | counts as **no token** — forces fallback to PoW/postage; self-issuance buys anonymity, not cost relief |
 | **Deniable-mode no-silent-downgrade** | §5.2.1(d) | recipient has not advertised the `deniable-1:1` capability | `REJECT_NOTIFY` — the client MUST surface the choice (non-deniable send, or not at all); **never** silently downgrade the user's *expectation* of deniability, `0x040E` |

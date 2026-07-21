@@ -117,8 +117,14 @@ sequenceDiagram
 ## Works with the world you already have
 
 Nobody switches to a network of zero users. DMTAP gets a real `you@provider` address on day one
-and a **legacy gateway** bridges to and from ordinary email — so you can mail Gmail immediately,
-and adoption is incremental, never a flag day.
+and the **legacy gateway role** bridges to and from ordinary email — so you can mail Gmail
+immediately, and adoption is incremental, never a flag day.
+
+The gateway is **not a separate program and not a service class**: it is the same node binary run
+with `--gateway` (§0.2), doing one job — legacy adaptation — and nothing else. It is not the
+buffer, not the relay, not a mix, not a namer, and not a spam filter. **Two DMTAP users never need
+one.** Its value shrinks in exact proportion to how many of your correspondents are still on
+legacy mail, so it retires itself without anyone deciding to switch it off (§7.1c).
 
 ```mermaid
 flowchart LR
@@ -127,6 +133,12 @@ flowchart LR
   D["🕸️ DMTAP mesh"]
   G <--> GW <--> D
 ```
+
+Running the gateway role needs one thing nothing else in DMTAP needs: a **public IP with reverse
+DNS, unblocked outbound port 25, and a domain** (§7.1a). That is the *only* scarce resource in the
+whole design — every other function (relaying, mixing, buffering, key-transparency logging,
+rendezvous, bootstrap) is a role any node can take, needing nothing but a machine that is up. A
+**payment method is not required, and DMTAP never implies one.**
 
 Existing clients work too — through the **gateway**, not the node. The **node is native-only**:
 it speaks **JMAP** (§8.1). The **gateway** speaks the legacy protocols — **IMAP / POP3 /
@@ -176,12 +188,24 @@ else points at an existing spec.
 
 ## Names: one identity, many pointers
 
-- **`name@domain`** — the everyday address (provider-issued like `you@provider.example`, or your own
-  domain). Human, familiar, interoperates with legacy email.
+The ladder is **key-name → chain name → DNS domain** (§3.13.2). Identity rests on DNS and
+cryptography only — there is no DMTAP-run handle registry, because that would be a new authority
+this protocol declines to create.
+
 - **the key** — the real, durable identity underneath. Names point to it; it survives name changes
   and key rotation.
-- **an 8-word phrase** — a *safety number* for verifying you hold the right key (à la Signal), **not**
-  an address. Easy to read aloud; carries the key's full strength.
+- **an 8-word key-name** — derived from your key. Free, unrevokable, needs no DNS, no chain, and no
+  provider; also a *safety number* for verifying you hold the right key (à la Signal).
+- **a chain name** (`alice.eth`, `alice.sol`) — optional, human-chosen, in an existing consensus
+  namespace DMTAP merely reads. Paid once, revocable by nobody.
+- **`name@domain`** — the everyday address (provider-issued like `you@provider.example`, or your own
+  domain). Human, familiar, interoperates with legacy email; rests on a registrar and a renewal fee.
+
+**Honest residual (§3.13.4):** there is **no free, human-shareable, user-owned name.** Key-names are
+not the kind of thing you say across a table; domains and chain names cost money; and a free user's
+shareable name ends up being a third-party gateway alias, which is **not portable**. DMTAP
+guarantees you are always nameable, reachable, verifiable and deliverable-to with nothing but a
+keypair — it does not pretend to have solved Zooko's triangle.
 
 ---
 
@@ -193,10 +217,12 @@ This repo is the **protocol specification** — the neutral, open standard, and 
 |---|---|---|
 | **DMTAP** | The protocol (this repo) | open standard |
 | **MOTE** | The message object (signed · encrypted · content-addressed) | §2 |
-| **Implementations** | Independent implementations, apps, and optional hosted operators | external — none required or endorsed here |
+| **Implementations** | Independent implementations and apps | external — none required or endorsed here |
 
-> DMTAP is an open standard in the way Matrix or JMAP are: implementations and hosted services
-> exist around it, but none is part of the standard and none is required to speak it.
+> DMTAP is an open standard in the way Matrix or JMAP are: implementations exist around it, but
+> none is part of the standard and none is required to speak it. There is **no control plane, no
+> vendor, and nothing sold** — people run the infrastructure roles because they want the network to
+> exist (§12.4).
 
 ## The specification
 
@@ -213,14 +239,14 @@ reference code. Where the reference and the spec disagree, **the spec wins**. By
 | 4 | [`04-transport.md`](04-transport.md) | Mesh (libp2p), mixnet, sealed sender, cover traffic, reachability, bulk transfer |
 | 5 | [`05-messaging.md`](05-messaging.md) | MLS everywhere, 1:1/chat/groups/files, KeyPackage async join, the committer |
 | 6 | [`06-privacy.md`](06-privacy.md) | Threat model, metadata-privacy guarantees, privacy tiers, honest limits |
-| 7 | [`07-gateway.md`](07-gateway.md) | Sole home of all legacy: SMTP bridge (in/out, DKIM, attestation) + legacy-client surfaces (IMAP/POP/DAV) + reachability ingress + operator modes |
+| 7 | [`07-gateway.md`](07-gateway.md) | The legacy adapter **role**: what it requires to run, privilege separation, SMTP bridge (in/out, DKIM, attestation), legacy-client surfaces (IMAP/POP/DAV), legacy addressing, authorize-never-classify |
 | 8 | [`08-clients.md`](08-clients.md) | Node native-only: JMAP is the node's only client surface; legacy client protocols are gateway-served (§7.15) |
 | 9 | [`09-anti-abuse.md`](09-anti-abuse.md) | Anonymous rate-limit tokens, proof-of-work, postage, recipient policy |
 | 10 | [`10-conformance.md`](10-conformance.md) | Versioning, capability negotiation, conformance levels, governance |
 | 11 | [`11-grounding-and-references.md`](11-grounding-and-references.md) | Verified standards, corrections, honest limits, bibliography |
-| 12 | [`12-operators.md`](12-operators.md) | Deployment modes, the operator seam, the inviolable rule, licensing model |
+| 12 | [`12-operators.md`](12-operators.md) | Deployment shapes, the operator seam, the inviolable rule + the never-chargeable list, no control plane |
 | 13 | [`13-identity-auth.md`](13-identity-auth.md) | DMTAP-Auth: sovereign web login (your key = your identity everywhere) |
-| 14 | [`14-scaling.md`](14-scaling.md) | Node classes, horizontally-scalable gateways, relay/buffer scaling, hosted topology |
+| 14 | [`14-scaling.md`](14-scaling.md) | Device classes vs roles, horizontally-scalable gateway role, the n-of-m buffer, network status |
 | 15 | [`15-references.md`](15-references.md) | Normative & informative references (the RFCs/specs DMTAP profiles) |
 | 16 | [`16-parameters.md`](16-parameters.md) | Numeric parameters (v0): time/replay windows, KT/DHT, mixnet, file tiers, suites |
 | 17 | [`17-parity.md`](17-parity.md) | Feature-parity audit: every legacy mail/calendar/contacts feature → DMTAP, sense-checked |
@@ -301,9 +327,16 @@ DMTAP states what it *cannot* do rather than overclaim:
 - Endpoint compromise is hardened (hardware-backed non-exportable keys, unlock-gated at-rest
   encryption, per-device sealing, fast revocation) down to one floor: a device **actively
   compromised while unlocked and in use** reads your plaintext (as on any system).
-- The legacy-email leg is, by construction, plaintext at the far end.
+- The legacy-email leg is, by construction, plaintext at the far end — and a third-party gateway
+  reads inbound legacy mail in the clear. Run the gateway role yourself where that matters.
 - The default MLS path is signature-based (non-repudiable); an **optional deniable 1:1 mode**
   (Signal-style X3DH/PQXDH + Double Ratchet) gives cryptographic repudiation when you choose it.
+- **The volunteer infrastructure may not materialise.** Mixes, KT logs, rendezvous nodes and
+  buffers are roles participants take, not services anyone is paid to run. If too few take them,
+  delivery degrades to the `fast` tier — still encrypted and authenticated, without default
+  metadata privacy. Nothing here is silent: the degraded state is a named profile with no anonymity
+  claim (§4.4.10a).
+- **There is no free, human-shareable, user-owned name** (§3.13.4, above).
 
 ## Non-goals
 
@@ -314,5 +347,16 @@ DMTAP states what it *cannot* do rather than overclaim:
 
 ## License
 
-The specification is open (see the repository license). The protocol is free for anyone to
-implement; no permission required.
+The **specification** (this repository) is licensed **[CC BY 4.0](LICENSE.md)** — implement, quote,
+translate, and build on it freely, with attribution. The **reference implementation** (a separate
+repository) is dual-licensed **MIT OR Apache-2.0**. Both © VulOS.
+
+The protocol is free for anyone to implement; no permission required, and there is no control
+plane, licence server, or hosted component to talk to (§12.4).
+
+---
+
+<p align="center">
+  <a href="https://vulos.org"><img src="docs/assets/vulos-logo.png" alt="vulos" height="20"></a><br>
+  <sub><a href="https://vulos.org"><b>vulos</b></a> — open by design</sub>
+</p>

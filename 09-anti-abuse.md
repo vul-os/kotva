@@ -93,9 +93,9 @@ tokens). Therefore:
 - A token from an **unknown/unvetted issuer (including the sender's own node) carries a default
   rate budget of ZERO** — i.e. it counts as *no token*, forcing fallback to PoW (§9.4) or
   postage (§9.5). Self-issuance thus buys anonymity but **no cost relief**.
-- Trusted issuers (a recipient's own provider, a staked gateway, a vouched community issuer)
-  make issuance costly/rate-limited on their side and stake reputation on not minting for
-  abusers; a recipient extends budget to their tokens.
+- Trusted issuers (a recipient's own provider, an attested gateway operator, a vouched community
+  issuer) make issuance costly/rate-limited on their side and put their own standing behind not
+  minting for abusers; a recipient extends budget to their tokens.
 
 This is the load-bearing rule that makes ARC anti-abuse real rather than bypassable.
 
@@ -169,16 +169,31 @@ than memory-hard PoW here:
   and defer unverified MOTEs. A VDF has no such symmetry — a recipient can verify every proof it
   is offered, cheaply, and needs no defer-without-verifying escape hatch.
 
-**Conformance.** A recipient's `ChallengeSpec` (§9.2) MAY specify `vdf(delay)` in place of, or
-alongside, `pow(bits)`. Implementations SHOULD prefer `vdf` and SHOULD offer `pow` only for
-interoperability with counterparts that do not implement it. The binding rule of §9.2a applies
-unchanged: the VDF scope MUST include `sender_key`, so a stolen proof is worthless under any
-other ephemeral key. Parameters are pinned in §16.5.
+**Conformance — VDF is SHOULD; memory-hard PoW is the MUST floor (normative).** The interoperable
+floor is the older mechanism, deliberately:
 
-**Honest limit.** VDF constructions require either a trusted setup or a class group of unknown
-order, and standardization is less mature than hashcash. The construction is chosen for the
-*shape* of its cost curve, not for cryptographic novelty, and the fallback to memory-hard PoW
-(§9.4) remains specified so a deployment is never blocked on VDF availability.
+- A recipient's `ChallengeSpec` (§9.2) MAY specify `vdf(delay)` in place of, or alongside,
+  `pow(bits)`, and implementations **SHOULD** prefer `vdf` where both parties support it.
+- A conformant recipient **MUST accept a valid memory-hard PoW solution** (§9.4) as satisfying its
+  cold-contact requirement, subject only to the verification budget below and to the recipient's
+  own rate policy. It **MUST NOT** require a VDF as the *only* acceptable proof, because that would
+  make reachability conditional on an unstandardized construction (below) — and a sender who cannot
+  produce the one proof a recipient will take is simply undeliverable, which §9.7a exists to
+  prevent.
+- The binding rule of §9.2a applies to both: the proof's scope MUST include `sender_key`, so a
+  stolen proof is worthless under any other ephemeral key. Parameters are pinned in §16.5.
+
+**Honest limit — why the preferred path cannot be the mandatory one.** A VDF needs a **group of
+unknown order**: in practice either an RSA modulus from a **trusted setup** (whoever generated it
+can shortcut every puzzle) or a **class group** of an imaginary quadratic field (no setup, but a
+markedly less mature body of cryptanalysis and implementation experience). There is **no IETF
+standard** for either, no interoperable parameter set to point at, and no widely-reviewed
+implementation to profile. Mandating it would mean mandating something two independent
+implementations cannot yet be expected to agree on byte-for-byte — the opposite of what a floor is
+for. The VDF is specified because the *shape* of its cost curve is right (sequential work is the
+scarcity a compute-rich adversary cannot buy), and it is a SHOULD because the *ground under it* is
+not yet firm. Memory-hard PoW is the weaker mechanism that everyone can implement today, which is
+exactly what makes it the floor.
 
 **Bounding verification cost — the verifier's own memory-hard budget (normative).** A memory-hard
 Argon2id verification is **symmetric**: checking a solution costs the recipient roughly what
@@ -238,9 +253,14 @@ For decentralized legacy gateways (§7):
   and an adjudicator empowered to seize funds, which is a central authority more powerful than
   anything else in this specification (§4.4.8, normative note). Deployments may run bonds as
   operator policy; the protocol claims no such deterrent.
-- **Reputation routing**: nodes route outbound to operators by measured deliverability;
-  bad operators lose traffic. This is the enforcement mechanism — automatic, adjudicator-free,
-  and applied by each node independently.
+- **Reputation routing — locally measured, never globally published**: each node routes outbound
+  legacy mail by **its own** measured deliverability-to-destination, and bad operators lose that
+  node's traffic. This is the enforcement mechanism — automatic, adjudicator-free, and applied by
+  each node independently. A **network-wide published score is forbidden** (§7.5): computing one
+  requires a party that aggregates and ranks, which is the directory-authority problem §4.4.2
+  deleted from the mixnet, re-created for gateways — a single point of censorship over who may
+  carry legacy mail. Local measurement is also strictly more accurate, since deliverability is
+  per-sender and per-destination rather than a global scalar.
 
 ## 9.7 Vouch / introduction (first-class)
 
@@ -272,8 +292,11 @@ the opposite.
 
 Therefore: **a conformant recipient MUST accept at least the zero-relationship floor** — a
 minimum of `N_floor` cold MOTEs per sender-key per day (§16.5) from a sender presenting **only** a
-valid sequential-work proof (§9.4.1) bound to the recipient's current epoch beacon, with **no**
-token, **no** postage, and **no** vouch. Floor deliveries land in the requests area (§2.7a), not
+valid work proof — **either** a sequential-work proof (`vdf`, §9.4.1) **or** a memory-hard PoW
+solution (§9.4), the recipient's choice of preference but **both** acceptable — bound to the
+recipient's current epoch beacon, with **no** token, **no** postage, and **no** vouch. A recipient
+that would accept only a VDF has set an unstandardized construction as the price of contacting it
+(§9.4.1), which is the floor failing in a new way rather than holding. Floor deliveries land in the requests area (§2.7a), not
 the inbox — the recipient's surfacing policy is unchanged and the user still sees nothing they
 did not ask for. What the floor guarantees is narrower and non-negotiable: that a stranger with
 nothing but a keypair and a few seconds of sequential work **can always reach the requests area**,
@@ -377,3 +400,53 @@ specified normatively in §7.11 and restated here because it belongs to the anti
 As everywhere in §9, only the **floor** — that both directions are gated, fail-closed, on these
 signals — is in-spec; the **thresholds, caps, and pricing** are operator policy and out of scope
 (§7.13).
+
+## 9.11 Authorization is at the boundary; classification is at the recipient (normative)
+
+Two questions get confused in mail, and keeping them apart is the difference between a bridge and
+an institution:
+
+| Question | Who answers it | On what evidence |
+|----------|----------------|------------------|
+| **"May this sender inject/relay this?"** — *authorization* | the gateway, at the legacy boundary (§7.11) | SPF/DKIM/DMARC results, IP standing, authenticated sender identity, cold-sender state, rate counters |
+| **"Is this message wanted?"** — *classification* | the **recipient**, on the recipient's own device | the recipient's own corpus, contacts, and history |
+
+**The rule.** A gateway **MUST NOT classify content** (§7.11.4): no content-based scoring, no
+Bayesian or learned filters, no keyword/URL reputation, no content heuristics, and no dropping or
+re-ranking on such a basis. Classification, where it happens at all, is **recipient-side and
+on-device**, against a corpus that never leaves the user's own machines (§0.7, §6.7). A recipient
+MUST be able to run *no* classifier and still be protected, because the §9.1–§9.7a mechanisms are
+sender-cost and policy mechanisms, not content judgements.
+
+**Native DMTAP mail needs no filter at all.** This is the part that makes the rule affordable
+rather than merely principled. Every native MOTE is **authenticated to the recipient** before it is
+surfaced (§9.1 principle 1, §2.7): there is no anonymous injection path, cold senders are gated by
+the recipient's own policy into the requests area (§2.7a, §9.2), and per-identity blocking is
+exact. The thing legacy filters exist to solve — unlimited unattributable injection by strangers —
+**does not exist on the native path**. Filtering is a legacy-shaped answer to a legacy-shaped
+problem, and it should leave when legacy does (§7.1c).
+
+**Why this is structural: measured evidence that anti-abuse is how mail re-centralizes.** Mail
+centralization is usually told as a story about mailbox providers. The measurements say there is a
+**second, independently growing centralized tier** made of anti-abuse:
+
+- Liu, Fass, Hong *et al.*, **"Who's Got Your Mail? Characterizing Mail Service Provider Usage"**
+  (ACM IMC 2021, §15.5) found that **third-party email-security vendors — ProofPoint, Mimecast,
+  Barracuda — rank among the top five providers by MX-record share**, despite **not being mailbox
+  providers at all**, and that their share **grew over 2017–2021** while mailbox-provider
+  concentration was already high. Crucially, organizations that had gone to the trouble of running
+  **their own mail infrastructure still outsourced inbound filtering** to those vendors: the
+  function that defeated self-hosting was not storage or transport, it was *deciding what is spam*.
+- The same shape appears in a completely unrelated system. In BitTorrent, DHT and PEX displaced
+  tracker-based **peer discovery** within a few years — yet private trackers persisted for two
+  decades, because the function that survived was never discovery: it was **reputation and access
+  control**. Decentralize a lookup and it stays decentralized; decentralize a judgement and the
+  judgement re-aggregates wherever the largest corpus is.
+
+Both point at the same conclusion: **the classifier is the durable centralizer**, because
+classification improves with corpus size, never terminates, and makes everyone's mail depend on a
+judgement only the aggregator can make. A DMTAP gateway that classified content would therefore be
+**permanent by construction** — the one thing §7.1c is designed to prevent it from becoming — and
+would rebuild, at the bridge, precisely the tier these measurements found had already formed
+around SMTP. So the prohibition is not a preference about spam handling; it is what stops the
+legacy adapter from turning into the next incumbent.

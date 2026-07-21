@@ -390,7 +390,15 @@ a fetcher verifies identically regardless of where bytes came from, because ever
 authenticating. The section is kept abstract enough that **plain HTTPS with no mesh present is a
 complete implementation** — the intended first deployment.
 
-### 22.5.1 Gateway HTTP profile
+### 22.5.1 Public-object HTTP endpoint (the PUB serving profile)
+
+> **Terminology (2026-07 rename, documentation-only).** This surface was previously called the
+> "gateway HTTP profile" / "well-known gateway." It is **not** a gateway in the sense the rest of
+> this specification now uses that word — that term is reserved for the **legacy-mail adapter role**
+> (§7, §0.2.3), the one function requiring a reputable IP, port 25, and a domain. Serving public
+> objects requires **none** of that: it is a plain HTTP surface any node may expose. **The
+> `/.well-known/dmtap-pub/*` paths, methods, media types, and error codes are UNCHANGED** — nothing
+> moved, and no implementation needs to alter a byte; only the prose name changed (§0.8 glossary).
 
 A node advertising `pub-1` (§22.6) MAY expose a **well-known HTTP surface**. Reads are **anonymous**
 (no authentication for public reads) and **content-addressed**:

@@ -417,14 +417,29 @@ Authenticity is still the key: a `name@domain` is resolved (§3.3), KT-audited (
 the same pointer can live in a self-sovereign name backend instead of DNS (§3.6), with resolution
 unchanged.
 
-### 3.9.2 `@handle` — optional global registry (opt-in)
+### 3.9.2 `@handle` — a registered resolver type, NOT part of the naming ladder (opt-in)
 
-A flat, global `@handle` namespace is **optional, not the headline.** For handle-like UX, DMTAP
-prefers the **provider-federated** `you@provider` form above, which gives the same short-name
-feel *without* a single global namespace to fight over.
+**Status (normative).** The flat, global `@handle` registry is **not a rung of the naming ladder**
+(§3.13.2) and is **not part of any conformance level**. DMTAP's identity substrate is **DNS +
+cryptographic names only**: the ladder is key-name → chain name → DNS domain, and the `directory`
+resolver type sits outside it as a registered-but-unendorsed option (§3.12.4, §21.18). It is
+described here so that a deployment which wants one has a specified shape to implement, and so that
+the reasons it is not endorsed are on the record.
 
-A conforming client MAY additionally offer an opt-in `@handle` directory. Because a *chosen,
-globally-unique* name requires arbitration (Zooko), the directory is a thin authority that:
+**Why it is out of the ladder.** A flat global handle needs an **arbitrating authority** — an
+entity that decides who gets `@alice` — and DMTAP's whole naming argument is that authority over a
+namespace should be either **federated** (per-domain, so nobody arbitrates globally) or
+**consensus-based and already-existing** (a name-chain DMTAP merely reads, §3.12.5), or absent
+entirely (the key-name, §3.9.6). A DMTAP-specific handle registry would be a **new** authority
+created by this protocol, which is exactly the kind of thing the rest of the design refuses to
+create. That it could be made auditable does not make it unnecessary.
+
+The resolver-type registry stays **open and extensible** (§3.12.2) — including for `directory` —
+because a naming system DMTAP does not endorse is still a naming system DMTAP should be able to
+resolve without changing anything else. Registration is not endorsement.
+
+A conforming client MAY offer an opt-in `@handle` directory. Because a *chosen, globally-unique*
+name requires arbitration (Zooko), such a directory is a thin authority that:
 
 - assigns each handle once (first-come-first-served) with an **anti-squat cost** (a small fee or
   proof-of-work, since assignment gives uniqueness but not scarcity);
@@ -438,11 +453,12 @@ separators, e.g. `@this.is.my.name`) and confusables/homoglyphs are reserved. Th
 SHOULD be a **federated consortium running BFT consensus** (no single owner of the namespace, no
 chain) rather than a single operator; a name-chain (§3.6) is a further option.
 
-**Honest limit (why it is not the default):** a single global namespace **reintroduces exactly
-the global squatting and impersonation that domain-federation avoids** — every desirable handle
-becomes a landrush and a phishing target (`@paypa1` vs `@paypal`). That is the unavoidable price
-of a flat global name, and it is why `name@domain` is the recommended form and `@handle` is an
-explicit opt-in.
+**Honest limit (why it is not merely un-default but un-laddered):** a single global namespace
+**reintroduces exactly the global squatting and impersonation that domain-federation avoids** —
+every desirable handle becomes a landrush and a phishing target (`@paypa1` vs `@paypal`) — *and* it
+requires someone to run the landrush. That is the unavoidable price of a flat global name, and it
+is why `name@domain` and chain names are the human-shareable forms DMTAP recognizes, while
+`@handle` is an out-of-ladder option a deployment may take on its own account.
 
 ### 3.9.3 Petnames (local)
 
@@ -945,15 +961,22 @@ anti-equivocation posture of §3.5.
 | **`petname`** | no | **local** label a user assigns after contact exchange/introduction; no global lookup | vacuous — bound to an already-pinned key | §3.9.3 |
 | **`dns`** (DNS + KT) | yes (`local@domain`) | `_dmtap` TXT/SVCB record (§3.2), a **discovery pointer, not a trust root** | forward `name → ik` verified in KT (§3.3, §3.5) | §3.2, §3.5, §3.11 |
 | **`name-chain`** (crypto, OPTIONAL) | yes (`local@.eth`/`.sol`) | read the chain's on-chain `name → ik` record (read-only) | bidirectional key↔name binding, KT-audited (below) | §3.6, §3.12.5 |
-| **`directory`** (`@handle`, opt-in) | the `@` is the marker | a thin, KT-audited global handle registry (§3.9.2) | `handle → ik` in a KT log (§3.5) | §3.9.2 |
+| **`directory`** (`@handle`) — **registered, NOT in the ladder** | the `@` is the marker | a thin, KT-audited global handle registry (§3.9.2) | `handle → ik` in a KT log (§3.5) | §3.9.2 |
 
-`dns` is the **default and recommended** resolver (it gives human-meaningful, federated, legacy-
-interoperable `name@domain` without a chain, §3.9.1); a **provider** that runs `_dmtap` DNS + KT for
-its domain and allocates `alice@provider.com` (free random / paid vanity, §3.11 tiers) is simply
-**a provider operating the `dns` resolver for its own domain** — not a new namespace protocol, just
-the provider-tier machinery of §3.10–§3.11. `self` and `petname` are the two **zero-authority**
-types (no `@`, no lookup, no registration); they are always available and are the reason identity
-and delivery need no naming system at all (§3.13).
+**The ladder is `self` → `name-chain` → `dns`** (§3.13.2). `dns` is the **default and recommended**
+resolver (human-meaningful, federated, legacy-interoperable `name@domain` without a chain, §3.9.1);
+a **provider** that runs `_dmtap` DNS + KT for its domain and allocates `alice@provider.com` (free
+random / paid vanity, §3.11 tiers) is simply **a provider operating the `dns` resolver for its own
+domain** — not a new namespace protocol, just the provider-tier machinery of §3.10–§3.11. `self`
+and `petname` are the two **zero-authority** types (no `@`, no lookup, no registration); they are
+always available and are the reason identity and delivery need no naming system at all (§3.13).
+
+**`directory` is registered but out of the ladder** (§3.9.2): DMTAP's identity substrate is DNS +
+cryptographic names only, and a DMTAP-created global handle authority is not something this
+protocol will bring into existence. Its presence in the registry is what extensibility means —
+**registration is not endorsement** (§3.12.2) — and an implementation that does not support it
+simply treats such a name as undiscovered (`ERR_RESOLVER_TYPE_UNSUPPORTED`, `0x011F`), never
+invalid.
 
 ### 3.12.5 The `name-chain` resolver type — OPTIONAL, with four guardrails (normative)
 
@@ -1015,22 +1038,33 @@ all.
 
 ### 3.13.2 The naming ladder
 
-The name forms are a **ladder from zero-authority floor to human convenience**, not a set of
-equals — every rung resolves to the **same key**:
+The shareable name forms are a **ladder from zero-authority floor to human convenience**, not a set
+of equals — every rung resolves to the **same key**. **The ladder is: key-name → chain name → DNS
+domain.**
 
 1. **Key-name** (floor — `self`, §3.9.6): derived from `IK`, **no DNS, no chain, no registration,
    no `@`.** Always available; the guarantee that you are nameable and reachable with nothing but a
-   keypair.
-2. **Petname** (local — `petname`, §3.9.3): a human label you assign to a pinned contact, **no
-   `@`, no global lookup**; never leaves your device cluster.
-3. **`name@namespace`** (convenience — `dns` or `name-chain`, §3.9.1, §3.12.5): a human-meaningful,
-   discoverable, optionally legacy-interoperable address. This is the **recommended everyday**
-   form, and the only rung that involves an authority (a DNS provider or a chain) — neutralized by
-   KT + pinning.
+   keypair. **Costs nothing and cannot be taken away** — and is not socially shareable (§3.13.4).
+2. **Chain name** (`name-chain`, §3.6, §3.12.5): a human-*chosen*, globally-unique name in an
+   **existing** consensus namespace DMTAP merely reads (`alice.eth`, `alice.sol`). No registrar can
+   revoke it and no provider gates it; **the registrant pays once** to claim it, and resolution is
+   free and read-only for everyone else (§3.12.5(c)). Optional, never required.
+3. **`name@domain`** (`dns`, §3.9.1): the **recommended everyday** address — human-meaningful,
+   federated, legacy-interoperable, and the only form the old email world can route to. It rests on
+   a registrar (an authority, neutralized by KT + pinning, §3.5, §3.4) and on continued payment of
+   a renewal fee.
+
+**Not rungs, deliberately.** A **petname** (§3.9.3) is a *local* label with no global scope — it is
+how you refer to a contact, never how anyone refers to you — so it is a convenience beside the
+ladder, not a step on it. A **`@handle`** (§3.9.2) is a registered resolver type but **not part of
+the ladder at all**: DMTAP's identity substrate is DNS + cryptographic names only. A **gateway
+alias** (§7.10) is not a name in this sense either — it is a legacy-boundary artifact in someone
+else's namespace, and a client MUST NOT present one as the user's address (§7.10.6).
 
 Climbing the ladder adds **discoverability and human-friendliness**; it never adds anything to
 **identity, delivery, or verification**, which are complete at rung 1. A user with no domain, no
-chain, and no provider is a full first-class DMTAP identity.
+chain, and no provider is a full first-class DMTAP identity — and §3.13.4 states plainly what such
+a user does *not* have.
 
 ### 3.13.3 Name changes are non-events (continuity)
 
@@ -1043,3 +1077,70 @@ knows solely an abandoned label is affected — the same, unavoidable tradeoff a
 with **identity and all existing relationships preserved.** This continuity is precisely what the
 `identity ≠ name` invariant (§1, §3) and the pluggable resolver framework (§3.12) exist to
 guarantee.
+
+### 3.13.4 The honest residual — there is no free, human-shareable, user-owned name
+
+Every other honest limit in this specification is about privacy or availability. This one is about
+naming, and it is not papered over:
+
+**A user who will not pay anybody has no name they can comfortably say out loud.** Concretely:
+
+- **The key-name is free and unrevokable, but it is not socially shareable.** An 8-word phrase
+  (§3.9.6) cannot be said across a table, printed on a card, or typed from memory the way
+  `alice@example.com` can. It is excellent as a *verification* artifact and as a *machine* address;
+  as a name humans hand each other, it is not usable, and pretending otherwise would be the kind of
+  claim this document exists not to make.
+- **A DNS domain costs money, every year, forever.** It is the recommended everyday form (rung 3)
+  and it is a recurring bill plus a registrar who could, in principle, take it away.
+- **A chain name costs money once, plus a wallet and a chain's fee dynamics** (§3.12.5 honest
+  residuals). Cheaper over time than a domain, but not free, and not legacy-routable.
+- **A free user's shareable name is therefore a third-party gateway alias** (`alice@gw.example.net`,
+  §7.10.5) — **and that is not portable**: it lives in someone else's namespace, it can be revoked
+  or de-allocated, and switching gateways means changing the address and re-telling everyone
+  (§7.10.6 tier 3).
+
+**What DMTAP does about it, and what it does not.** It guarantees the things that *can* be
+guaranteed without an authority: you are always **nameable** (key-name), always **reachable**
+(§4.2), always **verifiable** (§3.4.1, §3.5), and always **deliverable-to** (§9.7a) — with no
+domain, no chain, no provider, and no money. It does **not** guarantee that you have a short,
+memorable, human-shareable string that nobody can take from you, because **Zooko's triangle says
+that string cannot exist without an authority or a consensus**, and DMTAP declines to invent
+either (§3.9, §3.9.2, §15.5). The gap is real, it is structural, and the honest thing is to name it
+rather than to route around it with a registry the protocol would then have to defend.
+
+**The practical consequence for clients (SHOULD).** Because the gap is closed most cheaply by a
+domain — which simultaneously solves naming, legacy addressing, and portability (§3.13.5 item 4) —
+a client SHOULD surface acquiring one **early**, and MUST NOT present a gateway alias as an
+equivalent outcome (§7.10.6 rule (i)).
+
+### 3.13.5 Cold start — a brand-new identity with nothing (normative)
+
+The naming ladder and the anti-abuse floor both assume a user who already has *something*. A user
+who has just installed a node has **nothing**: a key-name nobody can use to find them, **no
+contacts**, so the contact-bootstrap path (§4.2.2 item 1) is empty, and **no measurements**, so
+locally-measured gateway reputation (§7.5) has no data. Every mechanism that makes DMTAP work
+gracefully is downstream of a first relationship. This subsection specifies how the first one
+happens.
+
+1. **Out-of-band introduction is the PRIMARY first-contact path (normative).** A QR code shown on
+   one screen and scanned by another, an invite link, or a contact card carries: the identity key,
+   a peer hint (§4.2.2 item 4), and — because the channel is physical or already-trusted — **key
+   verification for free** (§3.4.1). A client MUST implement at least one such exchange, and SHOULD
+   present it as the *first* thing a new identity does. It works with **zero infrastructure**: no
+   DNS, no chain, no KT lookup, no gateway, no rendezvous node, no bootstrap set — two devices and
+   a camera, or one link. Nothing else in this specification is that robust at time zero, and the
+   thing it produces (a mutually-verified contact) is precisely the input every other mechanism
+   wants: contacts *are* the bootstrap set (§4.2.2), a mutual contact makes a vouch possible
+   (§9.7), and a pinned key needs no resolver ever again (§1.6).
+2. **Then local discovery, then the `BootstrapSet`** — the remaining rungs of §4.2.2, in that
+   order, for a user with nobody to scan a code with.
+3. **Cold contact still works without any of it.** A stranger who knows only a key-name can reach a
+   recipient's requests area with a work proof alone (§9.7a) — the zero-relationship floor exists
+   exactly so that "I have no introduction" is not the same as "I am undeliverable."
+4. **A client SHOULD surface acquiring a domain early.** One step — buying a domain and pointing
+   `_dmtap` at the key (§3.2, Tier C §3.8) — resolves **three** cold-start problems at once: a
+   human-shareable name (§3.13.4), a legacy-routable address needing no alias (§7.10), and
+   portability across gateways (§7.10.6 tier 1). It is the single highest-leverage action a new
+   user can take, and a client that hides it behind an "advanced" screen is optimizing the wrong
+   first five minutes. It MUST be presented as optional (nothing in DMTAP requires it, §3.13) and
+   with its cost stated (§3.13.4).

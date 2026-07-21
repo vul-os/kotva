@@ -219,6 +219,15 @@ only to *display* who `pub` is — verification never needs a name lookup (§3.1
 >    domain with a floor and a ceiling. Admit negatives and the floor is gone; admit bignums and
 >    the ceiling is, along with the guarantee that `seq + 1` is representable.
 >
+> 3. **`NaN` is a third failure mode, distinct from width and sign.** In a language with IEEE-754
+>    `NaN` (JavaScript most sharply), a failed numeric decode — `parseInt` on a malformed counter —
+>    yields `NaN` rather than an error, and **every** comparison against `NaN` is false: `NaN < x`,
+>    `x < NaN` and `NaN >= x` all evaluate false. A comparator written the obvious way therefore
+>    returns "not less than" for garbage, and a caller reading that as "this update is newer, apply
+>    it" accepts an op from any hostile peer. Any decode boundary in such a language MUST reject
+>    non-finite results explicitly, before the value reaches a `<`/`>`; testing the comparison's
+>    *negation* is not equivalent when one operand can be `NaN`.
+>
 > **This is the same invariant [`SYNC.md` §3](SYNC.md) states for the HLC's fixed-width fields, and
 > it is deliberately stated in both places because it is not a Sync-specific footnote:** it binds
 > wherever a monotonic counter is *reachable from the network* — the Feeds `seq` here, the HLC
@@ -228,6 +237,17 @@ only to *display* who `pub` is — verification never needs a name lookup (§3.1
 > makes an order-dependent rule produce two different answers, while both implementations believe
 > they are conformant. Enforce the declared width at the decode boundary; never infer it from
 > whatever check happens to reject the value today.
+>
+> **This is a measured defect class, not a hypothetical.** A cross-adopter audit found it
+> independently in **five languages, by five different concrete mechanisms**: a bare `int()` decode
+> admitting a negative `seq` (Python); presence-checked-but-never-value-decoded `size`/`chunk_sz`
+> fields passing as "verified" while a `u64`/`u32`-typed peer cannot parse the object at all (Go);
+> the `NaN`-comparison hazard of item 3 (JavaScript); a re-implemented fixed-width format built
+> with a bare format-string call, bypassing the width guard (Go, second repo); and a `u64 as i64`
+> reinterpretation turning any value ≥ 2^63 negative, making a finality check trivially true
+> (Rust). Every one was reachable from the network, and every one was invisible to the local test
+> suite because the *local* engine agreed with itself. See
+> [`ADOPTION.md`](ADOPTION.md#3-what-this-matrix-says-about-the-strategic-goal).
 
 ### 4.4 Retraction is supersede-only; irrevocability (§22.3.4, §22.7, §22.9)
 
@@ -245,7 +265,7 @@ NOT imply that deletes the object for others.
 §22.5 is deliberately abstract enough that **plain HTTPS with no mesh present is a complete
 implementation** — the intended first deployment, and the substrate's [HTTP test](README.md#42-the-http-test--are-transports-pluggable-with-https-first-class).
 
-### 5.1 The well-known gateway (§22.5.1)
+### 5.1 The public-object HTTP endpoint (§22.5.1)
 
 A node advertising `pub-1` MAY expose a well-known HTTP surface; reads are **anonymous** and
 **content-addressed**:
@@ -279,7 +299,7 @@ NAT-traversal on top of HTTPS; it is never a prerequisite to speak the capabilit
 
 ### 5.3 Optional — chunk-tree range proofs (additive proposal)
 
-> **Status: additive, OPTIONAL.** This subsection proposes **one new, optional gateway endpoint**. It
+> **Status: additive, OPTIONAL.** This subsection proposes **one new, optional endpoint**. It
 > allocates no new object, no new signing preimage, and no §21 error code; it is advertised by presence
 > (a 404 means "not offered here," a fetcher falls back to whole-manifest verification). It is drawn from
 > the *vidmesh* protocol's blob sidecar (its `GET /blob/{id}/proof?chunk=i`), surfaced as waist machinery
@@ -345,7 +365,7 @@ GET /.well-known/dmtap-pub/manifest/{id}/proof?chunk=i   → [ i, [ sibling_hash
     not to change the fold shape is simply not detected. No implementation should build a guarantee on
     the chunk count matching the true one — it is a navigational hint for locating promotion, not a
     check, and the design does not need it to be more than that.
-- **Purely additive.** A gateway that does not implement it answers 404 and the client falls back to
+- **Purely additive.** A server that does not implement it answers 404 and the client falls back to
   whole-manifest verification (§5.1); a client that does not need it never calls it. It changes nothing
   about how objects are signed, addressed, or stored — it only serves a proof the tree already commits to.
   It is the serving substrate under §24's segmented (HLS/DASH) playback: verify a byte-range segment
@@ -367,7 +387,7 @@ Hint = [ hint_type: uint, value: tstr ]
 |------------:|------|-------|
 | `1` | `https` | URL serving the blob with HTTP Range (a §22 `chunk` surface, or any range server) |
 | `2` | `torrent-v2` | BitTorrent v2 infohash, lowercase hex |
-| `3` | `relay-blob` | base URL of a relay/gateway blob surface (§5.1) |
+| `3` | `relay-blob` | base URL of a relay/PUB-server blob surface (§5.1) |
 | `4` | `bundle` | locator of a self-verifying bundle containing the blob |
 
 A publisher MAY carry `hints` alongside an announce or manifest (as the CAD/Video profiles do, §23/§24);
@@ -385,7 +405,7 @@ implementation-neutral stance it is not part of the standard and not required to
 and the spec disagree, **the spec wins.** It proves §22 works over plain HTTPS with no mesh in three
 interlocking ways (all observable in its test suite):
 
-1. **The gateway is a plain HTTP server; the client speaks only `GET`.** The five
+1. **The endpoint is a plain HTTP surface; the client speaks only `GET`.** The five
    `/.well-known/dmtap-pub/*` routes are served dynamically from a content-address-keyed store (in-memory
    or Postgres); the client's entire network layer is `GET` over `{base}/.well-known/dmtap-pub/…` — no
    websockets, no DHT, no peer protocol. Any CDN or `nginx` serving those routes qualifies as a holder.
@@ -395,9 +415,9 @@ interlocking ways (all observable in its test suite):
    signature, applies the per-author anti-rollback watermark, and walks the full `prev` chain; a lying
    server is rotated away from, never accepted. Trust lives entirely in the Ed25519 signature and the
    hash-chain — nothing for a relay to add, which is precisely why no mesh is needed.
-3. **Zero-socket invariant + a five-endpoint round-trip test.** A client with no gateways configured
+3. **Zero-socket invariant + a five-endpoint round-trip test.** A client with no PUB servers configured
    never opens a socket (publish/resolve/fetch all work on the local store). The end-to-end test mounts
-   **only** the gateway router on a bare app with a plain test client (no mesh, no second peer), GETs all
+   **only** the public-object router on a bare app with a plain test client (no mesh, no second peer), GETs all
    five endpoints, and independently re-verifies each result. **A single static server plus a verifying
    client is shown sufficient** — the mesh (§22.5.2) and an IPFS adapter (§22.5.3) are strictly optional
    additional fetch-adapters behind the identical verification gate.

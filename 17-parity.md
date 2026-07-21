@@ -235,7 +235,7 @@ survive translation, and that is correct, not a bug).
   *something* being up at the scheduled time); better for confidentiality (the pending message
   sits encrypted on the user's own node rather than in a provider's plaintext outbox).
 - **Open issue:** **Intentional non-gap (no protocol change).** A scheduled send fired from a thin
-  client with no always-on node (§14.3's mobile-only user) needs the hosted relay-mailbox or the
+  client with no always-on node (§14.3's mobile-only user) needs its `n`-of-`m` buffer set (§14.3a) or the
   phone itself to be awake at send time — the same durability caveat as any mobile-only delivery in
   this model, not specific to scheduling and not a wire-format/registry item; it is a client/node
   feature, complete for v0.
@@ -474,8 +474,9 @@ survive translation, and that is correct, not a bug).
 - **How:** A domain that runs org administration (§3.10) publishes a first-class **`DomainDirectory`
   object (§18.4.7)** — a signed, versioned, KT-logged enumeration of its `name@domain` bindings,
   signed by the domain authority (§3.10.1). Members query it for autocomplete; outsiders resolve a
-  single name the ordinary way (§3.3). The global handle directory (§3.9.2) remains available for
-  the non-org, flat-namespace case.
+  single name the ordinary way (§3.3). The global handle directory (§3.9.2) is a registered but
+  **out-of-ladder** resolver type (§3.13.2) that a deployment MAY run for the non-org,
+  flat-namespace case; DMTAP does not endorse or require one.
 - **Sense-check:** A legacy GAL is a provider-hosted, always-populated directory *because* the
   provider already holds everyone's plaintext account data centrally. DMTAP has no such central
   plaintext store, so the directory is an explicitly-published, admin-curated object (§3.10.3)
@@ -734,8 +735,8 @@ survive translation, and that is correct, not a bug).
   key" — is not separately specified as a DMTAP mechanism. It's implicitly provided by (i)
   multi-device replication (§5.6, each device holds/caches a copy, an incidental N-way backup)
   and (ii) whatever the node operator does at the infra layer — self-hosters own this
-  entirely; a hosted operator (§14.6) presumably backs the per-tenant object-storage
-  bucket, but this is an operator/infra choice, not a protocol guarantee.
+  entirely; where someone else runs the box (§12.1) they presumably back up its storage, but
+  this is an operator/infra choice, not a protocol guarantee.
 - **Sense-check:** The identity half is exactly the right thing for a decentralized protocol
   to specify rigorously (§1.4 does). The *content*-backup half is legitimately a node/infra
   concern more than a protocol concern in a self-sovereign model (there is no central server

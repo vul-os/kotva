@@ -643,7 +643,7 @@ buffering), as one machine with two operating profiles.
 | State | Meaning |
 |---|---|
 | `ONLINE` | Node reachable and participating in the mesh (durable for always-on nodes, §14.4; a brief foreground window for a phone, §14.3 — never durable). |
-| `OFFLINE` | Node unreachable; buffers (peer-buffer or hosted relay-mailbox) accumulate sealed ciphertext on its behalf. |
+| `OFFLINE` | Node unreachable; buffers (peer-buffer or the `n`-of-`m` relay-mailbox holder set, §14.3a) accumulate sealed ciphertext on its behalf. |
 | `RECONNECTING` | Re-establishing reachability (invokes §20.4's ladder). |
 | `DRAINING` | Authenticated connection open to the buffer(s); fetching/decrypting/reconciling queued ciphertext (each item runs through §20.2). |
 

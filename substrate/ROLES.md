@@ -135,8 +135,8 @@ ciphertext** for a NAT'd peer — rung 3, **content-blind** by construction:
 ## 5. Mailbox — short-TTL content-blind offline buffer (profile of §14.3, §14.5)
 
 An offline or asleep identity needs somewhere to hold ciphertext until it returns. The **relay-mailbox** is
-a **hosted, content-blind, short-TTL buffer** — the Chatmail model — and it is a **buffer, not an
-archive**:
+a **content-blind, short-TTL buffer** held by an **`n`-of-`m` set** of peers, own-devices, and optionally a
+third party (§14.3a) — the Chatmail model, decentralized — and it is a **buffer, not an archive**:
 
 - **Content-blind, short TTL, delete-after-inactivity (§14.5).** It holds only E2EE ciphertext addressed
   to an offline identity's key, for a short TTL (reference: ~20-day message TTL, ~90-day inactive purge),

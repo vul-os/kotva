@@ -1,43 +1,77 @@
-# 12. Operators, the Seam & Sustainability
+# 12. Operators, the Seam & User Protection
 
-DMTAP is deployed in one of two modes, and the boundary between them is a small, explicit
-**operator seam**. This section is partly *informative* (business/licensing intent) and partly
-*normative* (the inviolable rule and the seam's guarantees).
+Somebody other than the user may end up running part of the path — a gateway for legacy mail, a
+buffer while a phone is asleep, a box someone else owns. This section is about **what that person
+can and cannot do to the user**. It is partly *informative* (what the seam is for) and mostly
+*normative* (the inviolable rule, the never-chargeable list, and the auditability guarantee).
 
-## 12.1 Two deployment modes
+DMTAP has no control plane, no vendor, and nothing to sell (§12.4). Third parties run roles because
+they want the network to exist. That makes this section **consumer protection**, not a business
+model: the question it answers is not "how does the operator get paid" but "what is the operator
+structurally unable to take from you."
 
-| Mode | Who runs it | Cost | Limits |
-|------|-------------|------|--------|
-| **Self-host** | The user, on their own box | $0 | none — fully functional, unrestricted |
-| **Hosted operator** | A provider (e.g. a commercial control-plane) | paid | plan quotas on *operations* only |
+## 12.1 Two deployment shapes
 
-The OSS is a **complete product on its own**. Self-host is not a crippled tier: it has every
-protocol, client, and privacy feature. A hosted operator adds *convenience* (someone else runs
-the box, warms the IPs, manages the domain), not *capability*.
+| Shape | Who runs the box | What it costs | What it limits |
+|-------|------------------|---------------|----------------|
+| **Self-host** | the user, on their own hardware | nothing beyond the hardware and connection | nothing — every protocol, client, and privacy feature, unrestricted |
+| **Someone else hosts** | a peer, a friend, a community, a third-party operator | whatever those two parties agree, including nothing | conveniences only — never capability, never privacy, never access to your own data |
+
+This is a distinction between **whose machine it is**, not between a free tier and a paid tier.
+There is no paid tier in DMTAP because there is no seller. A user whose box is run by someone else
+has handed over *operation*, never *authority*: the keys are theirs (§1.2), the mailbox decrypts
+only to their devices on the native path (§8.1), migration is a DNS edit (§7.7), and the naming
+ladder's floor is derived from their own key and cannot be revoked by anyone (§3.9.6).
+
+**The normative consequence, stated plainly: a self-hosting user with no legacy correspondents pays
+nobody, ever, and loses no capability.** Not a reduced feature set, not a "community edition," not
+a rate limit — the full protocol, including metadata privacy, group messaging, files, recovery, and
+web login. There is no party in that user's path to charge them, which is a stronger guarantee than
+a promise not to (§12.3).
 
 ## 12.2 The operator seam
 
-The seam is the clean boundary the OSS exposes so an operator can add billing and multi-tenant
-management **without forking or patching the protocol**. It is four capabilities (reference
-crate: `crates/dmtap-seam`, contract: its `CONTRACT.md`):
+The seam is the small boundary an implementation exposes so that *someone else's* box can enforce
+*its own* policy without forking the protocol. It is four capabilities, and they are not equals —
+two are load-bearing, two are optional conveniences that default to nothing (reference crate:
+`crates/dmtap-seam`, contract: its `CONTRACT.md`):
 
-- **Metering** — the OSS emits usage events at the real cost centers (gateway egress, storage,
-  relay bytes, message counts, vanity domains).
-- **Provisioning** — create/suspend accounts and `@`-addresses across onboarding tiers A/B/C
-  (§3.8).
-- **Policy** — per-account quotas/entitlements on operations (storage caps, send caps, domain
-  counts, rate limits).
+**Load-bearing (a conformant implementation implements these):**
+
 - **GatewayAuthz** — authorize legacy egress with per-identity-token accountability (§9),
-  preserving sealed sender.
+  preserving sealed sender. This is a **security** control, not a commercial one: it is what stops
+  the gateway role becoming an open relay (§7.11.2), and it **MUST NOT fail open** (below).
+- **Policy** — per-deployment limits on *operations* (storage caps, send caps, domain counts, rate
+  limits). It exists because a box has finite resources, not because someone is selling them; the
+  self-host default is unlimited.
+
+**OPTIONAL, with no-op defaults (an implementation MAY omit them entirely and remain fully
+conformant):**
+
+- **Metering** — emit usage events at real cost centers. **Default: no-op.** DMTAP does not require
+  usage to be counted, and an implementation that never counts anything is conformant. Metering
+  exists for the case where a third party carries a genuinely scarce cost — legacy egress (§7.1a) —
+  and wants to know its size.
+- **Provisioning** — create/suspend accounts and `@`-addresses across onboarding tiers A/B/C
+  (§3.8). **Default: no-op.** A self-hosting identity provisions itself by generating a keypair
+  (§1.2); an org uses this hook to administer its own domain (§12.6).
 
 Each capability has a **self-host default that is unlimited/no-op**, so with no operator the
-OSS runs unrestricted. A hosted operator implements the same capabilities — in-process (Rust
-traits) or out-of-process (HTTP/events) — to add billing and quotas.
+software runs unrestricted — and that default is the *normal* case, not a fallback.
 
-**Fail-open to function, fail-safe on security (MUST):** if the operator is unreachable, the OSS
-MUST NOT break user-facing mail/chat/files. Metering queues and retries (usage may under-count
-during an outage), and quota **Policy** falls back to allow (a billing concern, not a security
-one). **GatewayAuthz is different and MUST NOT fail open to "allow."** GatewayAuthz is a security
+**Payment rails are out of scope, explicitly and permanently.** How a third party might collect
+money — card processors, invoices, bank transfer, cryptocurrency, a tip jar, or nothing at all — is
+**operator policy**, has no protocol surface, and MUST NOT acquire one. **DMTAP defines no token
+and never will** (§3.12.5(d)): it does not mint, require, endorse, or presuppose any coin, and no
+seam capability, registry, or extension may introduce a protocol-level payment path. Postage (§9.5)
+is a signed real-money voucher, not a currency, and is an anti-abuse mechanism a recipient may
+choose to accept — never a rail the protocol depends on.
+
+**Fail-open to function, fail-safe on security (MUST):** if the party behind the seam is
+unreachable, the implementation MUST NOT break user-facing mail/chat/files. Metering (where
+implemented at all) queues and retries — an undercount is a rounding error, a stalled mailbox is a
+failure — and quota **Policy** falls back to allow, because a resource limit is a housekeeping
+concern, never a security one. **GatewayAuthz is different and MUST NOT fail open to "allow."** GatewayAuthz is a security
 control (§9): the accountability it enforces is exactly what prevents unattributable legacy
 egress — the open-relay failure mode §7.7 exists to avoid. On operator-unreachable, GatewayAuthz
 MUST fall back to a **safe default**: permit legacy egress only to **already-established
@@ -53,48 +87,91 @@ generic "fail-open to allow" for this capability is prohibited.
 
 ## 12.3 The inviolable rule (normative)
 
-Privacy, cryptography, metadata privacy, and recovery MUST NOT be behind the seam or a
-paywall. There MUST be no seam hook, quota, or plan gate capable of disabling encryption,
-weakening the mixnet, reducing metadata privacy, or denying a user access to their own keys or
-mailbox. The seam meters and limits **operations and organizational concerns only**. Premium is
-for *running it*, never for *protection*.
+Privacy, cryptography, metadata privacy, and recovery MUST NOT be behind the seam, a quota, or a
+charge. There MUST be no seam hook, quota, plan gate, or operator control capable of disabling
+encryption, weakening the mixnet, reducing metadata privacy, or denying a user access to their own
+keys or mailbox. The seam limits **operations and organizational concerns only**.
 
-A conformant operator implementation MUST NOT expose any control that violates this rule; a
-conformant OSS build MUST NOT consult the seam for any privacy/crypto decision.
+### 12.3.1 The never-chargeable list (normative, exhaustive by category)
 
-## 12.4 Business & licensing model (informative)
+No operator, and no conformant implementation, may condition, meter, gate, degrade, or charge for
+any of the following. This is not a pricing recommendation — it is a statement about what the
+protocol makes impossible to sell, and each entry has a structural reason, not merely a promise:
 
-DMTAP follows an **open-software + paid-operations** model — the GitLab-style split done cleanly,
-without a crippled free tier:
+1. **Privacy and cryptography.** End-to-end encryption, signing, suite selection, the suite
+   high-water-mark (§1.3), key rotation and PQ migration (§1.5, §1.1). *Structural reason:* these
+   run entirely between endpoints; no operator is a participant.
+2. **Metadata privacy.** The `private` tier, mixnet path building, entry guards, cover traffic, the
+   profile in force (§4.4), the no-silent-downgrade rule (§4.4.9). *Structural reason:* the mix
+   role is default-on and self-provisioning (§4.4.2a); there is no fleet owner to bill for it, and
+   §12.2's Policy hook MUST NOT be consulted for any privacy decision.
+3. **Recovery and continuity.** The recovery policy and its factors (§1.4), name migration (§1.6),
+   the portable encrypted backup (§1.4). *Structural reason:* a user locked out of recovery is a
+   user whose identity has been captured; charging for it would make capture a business model.
+4. **Native node-to-node delivery.** Every DMTAP↔DMTAP message, group message, file transfer, and
+   control MOTE (§4, §5, §7.7). *Structural reason:* **no operator is on the path, so there is
+   nothing to bill.** This is not forbearance; there is no party in a position to invoice, and any
+   claim that a pure-mesh message incurred a charge is falsifiable by the recipient (§7.8.1(b),
+   §12.7).
+5. **Access to your own keys, mailbox, and data.** Reading, exporting, and migrating your own MOTE
+   store; the JMAP surface over your own node (§8.1); the export/backup path (§1.4). *Structural
+   reason:* the store is at the edge and encrypted to keys only the user's devices hold; an
+   operator that could withhold it would have to hold it, which the native architecture does not
+   permit.
+6. **Reachability by key-name and the zero-relationship delivery floor** (§3.9.6, §9.7a). *Structural
+   reason:* the floor is a conformance requirement on *recipients*, not a service; a keypair with a
+   few seconds of work always reaches the requests area, with no issuer, no postage, and no
+   operator.
 
-- **Everything a user touches, and everything trust depends on, is open** — protocol, spec,
-  node, gateway, client, crypto. Shipped under the **MIT license** (Apache-2.0 dual-licensing is
-  under consideration for its explicit patent grant, relevant to novel mechanisms such as
-  anti-abuse postage/tokens). Libraries other implementations embed are permissively licensed
-  to maximize adoption.
-- **The paid layer is a thin, private control-plane** (a *hosted operator*) that implements the
-  seam contract and bills **operations**: hosted nodes, storage, legacy egress / IP reputation,
-  vanity domains, org/SLA. It withholds no protocol, client, or privacy feature.
-- **An operator's durable advantage is reputation, network position, and operational quality**,
-  not the code. Because openness is what lets the network grow large enough to be worth hosting,
-  full openness costs little and
-  is itself a trust requirement for a privacy product (a closed client cannot credibly claim
-  "we can't read your mail"). Competitors hosting DMTAP grow the network the operator is central
-  to.
+**The one thing outside this list** is legacy SMTP egress and ingress (§7.1a) — the only function
+requiring a resource that cannot be self-provisioned — together with the two conveniences that ride
+on it (a vanity local-part in someone else's domain, and legacy-client service, §7.14). That is the
+entire chargeable surface of DMTAP, and it is exactly co-extensive with the one operator class the
+architecture admits (§0.5).
+
+### 12.3.2 Conformance
+
+A conformant implementation MUST NOT expose any control that violates §12.3.1, MUST NOT consult the
+seam for any privacy/crypto decision, and MUST NOT ship a build in which any §12.3.1 item is
+disabled, degraded, or delayed by the absence of an operator relationship. A user with no operator
+relationship at all MUST observe no functional difference on any of the six categories above.
+
+## 12.4 Licensing and the absence of a control plane (informative)
+
+There is no business model here to describe, and this section exists to say so precisely enough
+that the absence cannot be quietly filled in later:
+
+- **The specification and the reference implementation are MIT-licensed** (Apache-2.0
+  dual-licensing under consideration for its explicit patent grant). Everything a user touches, and
+  everything trust depends on, is open — protocol, spec, node, gateway role, client, crypto. A
+  closed client cannot credibly claim "we cannot read your mail," so openness is a correctness
+  requirement here, not a marketing posture.
+- **There is no control plane.** No registry of users, no central provisioning service, no
+  license server, no telemetry endpoint, and no hosted component any implementation must talk to.
+  The seam of §12.2 is a *local* interface for a box's own policy, not a client of anything.
+- **Operators run gateways because they want the network to exist.** That is the whole incentive
+  model, and it is the same one under every other role (§0.2.2) — you run what you want to use.
+  Whether an operator asks anyone for money is between that operator and its users (§7.13, §7.14);
+  the protocol neither knows nor cares, and provides no rail for it (§12.2).
+- **DMTAP has no token and never will** (§3.12.5(d), §12.2).
 
 ## 12.5 Honest limits
 
-- **Free-rider economics:** paying (convenience) customers subsidize free self-hosters. Intended
-  and viable (the convenience majority pays; the sovereign minority self-hosts), provided the
-  paid tier genuinely covers cost + margin.
-- **Commoditization:** open software means thin margins on the software itself; margin comes
-  from operations and scale, not licenses.
-- **No protocol control:** required for adoption, but it means an operator can be out-executed —
-  the defense is execution and trust, not a license.
-- **The open-core temptation recurs:** pressure to move "just one" feature behind the paywall
-  will appear. The inviolable rule (§12.3) is the bright line — the normative prohibition on
-  paywalling any privacy/crypto feature lives there, not here — and drift across it is fatal to
-  the brand.
+- **Volunteer infrastructure may not materialise.** The mix fleet, the KT log set, the rendezvous
+  layer and the buffer roles are all provided reciprocally by whoever shows up. Nothing guarantees
+  anyone shows up. The disclosed consequence — degradation to `fast`-tier direct delivery, still
+  encrypted and authenticated but without default metadata privacy — is stated in §6.6 item 13, and
+  it is the honest price of having no commercial engine behind the infrastructure.
+- **Legacy egress may be scarce even when nobody is charging for it.** The requirement is an IP
+  with reputation and unblocked port 25 (§7.1a); goodwill does not produce those. A period with few
+  gateways looks, to a user with legacy correspondents, exactly like a period with expensive ones.
+- **"Someone else hosts" is still someone else.** A third party running a box for a user can go
+  away, lose data it never should have had, or be compelled. DMTAP bounds what that costs (keys
+  stay at the edge, migration is a DNS edit, the native path is content-blind) but does not make it
+  free — and the legacy-client surfaces are explicitly *not* content-blind (§7.15.3).
+- **The open-core temptation recurs.** Pressure to move "just one" feature behind a gate will
+  appear the moment anyone tries to fund operations. §12.3.1 is the bright line, and it is written
+  as a list precisely so that crossing it requires an argument in public.
 
 ## 12.6 Organization administration & the seam (normative)
 
@@ -103,7 +180,7 @@ operator seam (§12.2) — and the inviolable rule (§12.3) draws the honest lin
 
 - **Provisioning maps to the seam's Provisioning capability (§12.2).** Creating, suspending, and
   offboarding `name@abc.com` and org groups (§5.8.7) is exactly the seam's **Provisioning** hook
-  across onboarding tiers A/B/C (§3.8). A hosted operator running the domain supplies the admin
+  across onboarding tiers A/B/C (§3.8). A third party running the domain supplies the admin
   console; a self-hosted domain authority (§3.10.1) uses the same operations against the
   unlimited/no-op self-host default (§12.2) — an org can self-administer its own domain with no
   operator at all.
@@ -124,24 +201,25 @@ operator seam (§12.2) — and the inviolable rule (§12.3) draws the honest lin
   that escrows a **sovereign** account's key, or that presents an org-managed account as sovereign.
 
 This keeps a real management console fully expressible on the seam while the sovereignty ethic
-holds: **admin power and premium are for running the domain and its operations, never for reaching
-into a member's keys** (§12.3).
+holds: **admin power is for running the domain and its operations, never for reaching into a
+member's keys** (§12.3).
 
-## 12.7 Gateway billing is auditable via transport-path provenance (normative)
+## 12.7 A user can audit any usage claim made against them (normative)
 
-The seam meters **gateway operations** — legacy sends/receives — as a real cost center (§12.2
-Metering; §7.9). Transport-path provenance (§7.8) makes that billing **auditable to the user**,
-closing the gap between "the operator says you used the gateway" and "you can verify you did."
+Where a third party *does* carry legacy egress for someone, transport-path provenance (§7.8) gives
+the **user** — not the operator — the evidence. This is a protection against the operator, and it
+is stated in that direction deliberately: the guarantee is not "the operator can prove its
+invoice," it is "**the user can disprove a false one**."
 
-- **Billing attaches to gateway operations only, never to native mesh delivery.** A message that
-  crossed a legacy gateway carries (inbound) or produced (outbound) the mandatory §7.2a
-  attestation; a **pure-mesh** DMTAP↔DMTAP message carries none (§7.8.1(b)) and is, by
-  construction, **not a gateway operation**. Per the inviolable rule (§12.3), native delivery and
-  every privacy/crypto path are **never** metered or gated. A self-hoster reaching only DMTAP
-  correspondents therefore incurs **zero** gateway billing (§7.9).
-- **Every billable legacy operation is provenance-backed.** Because each gateway-touched message
+- **Only gateway operations are observable to any operator; native mesh delivery is not.** A message
+  that crossed a legacy gateway carries (inbound) or produced (outbound) the mandatory §7.2a
+  attestation; a **pure-mesh** DMTAP↔DMTAP message carries none (§7.8.1(b)) and involved no
+  operator at all. Per the inviolable rule (§12.3), native delivery and every privacy/crypto path
+  are **never** metered or gated. A self-hoster reaching only DMTAP correspondents therefore has
+  nothing any operator could even count (§7.9).
+- **Every claimable legacy operation is provenance-backed.** Because each gateway-touched message
   bears a verifiable `GatewayAttestation` (§18.3.11) naming the gateway `domain` and receipt time,
-  a user can match each metered charge to a real message that **actually used the gateway** — the
+  a user can match each claimed charge to a real message that **actually used the gateway** — the
   message's own `ProvenanceRecord` (§18.8.1) is the receipt. A charge with no corresponding
   attested message, or a **pure-mesh** message appearing on a gateway bill, is a **detectable
   billing error**, not something the user must take on faith.
@@ -152,9 +230,9 @@ closing the gap between "the operator says you used the gateway" and "you can ve
   hook can bill a user for traffic that did not cross the operator's gateway, and the attestation
   chain is what makes that guarantee **checkable**, not merely promised.
 
-This is metering as **transparency**: the operator bills exactly the gateway operations the
-protocol makes cryptographically visible, and the user can independently audit the bill against the
-messages' own provenance — consistent with §12.3 and the honest-limits ethic (§12.5).
+This is the user's protection made checkable: the only operations any operator can even see are the
+ones the protocol marks cryptographically, and the user holds the marks. Consistent with §12.3 and
+the honest-limits ethic (§12.5).
 
 ## 12.8 Operational & security procedures (considerations)
 
@@ -288,7 +366,7 @@ side-channel, KT federation). Therefore:
   This is a **disclosed gate**, not aspirational: a deployment carrying real user mail before a
   qualified third party has reviewed the crypto/protocol and the reference implementation is
   operating outside the project's stated posture. The gate covers the protocol (this spec) and the
-  reference `node`/`gateway`/libraries.
+  reference node binary (all roles, §0.2) and its libraries.
 - **Re-audit on any major crypto or wire change.** Adding or retiring an algorithm suite (§1.1),
   changing a signing preimage (§18.9), altering the Sphinx/mixnet construction (§4.4), or changing
   the deniable handshake (§5.2.1) re-opens the gate for the affected surface before that change ships
@@ -333,29 +411,35 @@ clients MAY surface to prompt owners to retire faster. It is **never mandatory, 
 never itself lowers a high-water-mark** — only the owner's `IK` can — so it informs without becoming
 the very central kill-switch the design refuses.
 
-### 12.8.6 Operator onboarding & offboarding (gateway + mix)
+### 12.8.6 Role lifecycle — joining and leaving (gateway + mix)
 
-Gateway (§7) and mix (§4.4.8) operators are **accountable, attested identities**, not anonymous
-infrastructure. Their lifecycle:
+Anyone may take a role (§0.2.2); what the specification requires is that the two roles making
+**claims about who they are** — gateway and mix — be **accountable, attested identities** rather
+than anonymous infrastructure. Their lifecycle:
 
-- **Onboarding — attestation.** A **gateway** operator publishes its attestation key under the served
-  domain (`<sel>._dmtap-gw.domain`, §7.2a) and its directory entry `{pubkey, reputation, region,
-  price, stake}` (§7.5); a **mix** operator publishes a `MixNodeDescriptor` under a KT-auditable
+- **Joining — attestation.** A **gateway** publishes its attestation key under the served domain
+  (`<sel>._dmtap-gw.domain`, §7.2a) and, optionally, a self-signed **discovery descriptor** carrying
+  no score, price, or bond (§7.5); a **mix** publishes a `MixNodeDescriptor` under a KT-auditable
   `node_ik` **and** a `_dmtap-mix` operator attestation under its domain (§4.4.8) — and **only an
   attested operator counts toward path operator-diversity** (§4.4.8, §10.7.2), which is what stops a
-  single party minting *N* fake operators. Both SHOULD **post stake/bond** (§9.6, §4.4.8), making
-  Sybil fleets costly.
-- **Reputation.** Selection is reputation-weighted: gateways by measured deliverability-to-destination
-  (§7.5, §9.6), mixes by loop-return reliability feeding a selection weight (§4.4.7–§4.4.8). Neither
-  reputation model is a trust root — a gateway cannot forge identity (DKIM delegation separates
-  deliverability reputation from the user's key, §7.3), and a mix directory **indexes, it does not
-  forge** (§4.4.2). Misbehavior (KT/attestation failures, dropped loops, spam vouching) **down-scores
-  and slashes** rather than merely warns.
-- **Offboarding / revocation — zero lock-in.** A gateway is swapped by a **DNS/DKIM change** with no
-  data migration (§7.7) — the box is the authority, so a user drops or switches an operator freely; a
-  self-host backstop is always available (§7.7). A mix is removed by the directory authority
-  (**detectably**, since the directory is KT-anchored and rollback-defended, §4.4.2) and, on proven
-  misbehavior, has its stake slashed and its operator flagged (§9.6). An equivocating KT log operator
-  is **evicted from the pinned set** on self-authenticating evidence (§3.5.2(d), §12.8.2). In every
-  case revocation is a *reputation + configuration* act, never a protocol entitlement the operator
-  can veto — the same non-lock-in property that makes open service survivable (§7.7).
+  single party minting *N* fake operators. **No bond or stake is required, offered, or implied**
+  (§4.4.8's normative note, §9.6): enforcing one would need an adjudicator empowered to seize funds,
+  a more powerful authority than anything else in this document. Sybil cost comes from attestation
+  plus ASN/jurisdiction diversity instead.
+- **Reputation is measured locally, by each participant.** Gateways are ranked by the *sending
+  node's own* measured deliverability-to-destination (§7.5, §9.6) — never by a published network
+  score, which would need the very authority §4.4.2 removed. Mixes are weighted by each client's own
+  loop-return statistics (§4.4.7–§4.4.8). Neither model is a trust root: a gateway cannot forge
+  identity (DKIM delegation separates deliverability reputation from the user's key, §7.3), and the
+  mix fleet view is **derived from the KT logs, not signed by anyone** (§4.4.2). Misbehavior loses
+  path share and traffic automatically under any conforming weighting; there is nothing to slash and
+  nobody to do the slashing.
+- **Leaving / revocation — zero lock-in.** A gateway is swapped by a **DNS/DKIM change** with no
+  data migration (§7.7) — the box is the authority, so a user drops or switches freely; the
+  self-host backstop applies to anyone who can meet §7.1a. A mix leaves by ceasing to publish a
+  current-epoch descriptor, and is dropped from every client's derived view at the next epoch
+  (§4.4.2, §4.4.4) — no authority evicts it, because there is no authority. An equivocating KT log
+  operator is **evicted from the pinned set** on self-authenticating evidence (§3.5.2(d), §12.8.2).
+  In every case revocation is a **local decision each participant makes for itself**, never a
+  protocol entitlement anyone can veto — the same non-lock-in property that makes open service
+  survivable (§7.7).

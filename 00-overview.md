@@ -23,16 +23,28 @@ Concretely, DMTAP MUST provide:
 5. **Legacy interoperability** — you can exchange mail with the existing SMTP world, and
    existing OIDC apps can consume DMTAP login through a bridge (§13.6).
 6. **Scales across device classes** — always-on nodes (Pi/NAS/VPS) hold the mailbox;
-   intermittent devices (laptops, phones) participate as thin clients or push-woken nodes;
-   gateways scale horizontally (§14).
+   intermittent devices (laptops, phones) participate as thin clients or push-woken nodes; the
+   gateway role scales horizontally (§14).
 7. **Future-proofing** — crypto-agility, transport independence, standards reuse; the
    system gets *simpler* as IPv6 spreads and legacy fades.
 
-## 0.2 The two components
+## 0.2 One binary, several roles
 
-DMTAP is, deliberately, only two pieces of software plus DNS (which we do not build):
+DMTAP is, deliberately, **one piece of software** plus DNS (which we do not build). Not a node
+program and a gateway program: **one node binary whose additional functions are roles selected at
+run time** — `--relay`, `--mix`, `--gateway`, `--kt-log`, `--rendezvous`. The wire format has
+always agreed with this framing: `gateway` is one of the **device capability** strings in
+`DeviceCert.caps` (§1.2), alongside `relay` and `mix` — a role a device may participate in, never a
+species of machine.
 
-### The Node (`node/`)
+The distinction matters because a list of *components* invites a *class of operator* for each
+component, and every operator class is a party the network then depends on. Roles invite
+**reciprocal provision** — you run the role because you need it, and running it for yourself
+serves others at no extra cost. Exactly one function in this document resists that logic, because
+it needs a resource not everyone can get (§0.2.3), and confining the damage to that one function
+is the load-bearing structural claim of the whole design.
+
+### 0.2.1 The node — all durable state, all the real work
 
 One binary, installed on any box that runs most of the time. It holds **all durable state**
 and does **all the real work**:
@@ -47,31 +59,57 @@ and does **all the real work**:
   node (§7, §8.2).
 - The outbound **retry queue** — durability lives here, not in the middle.
 
-A node MAY additionally run in **relay mode** (help NAT'd peers, if it has a public
-address) or **mix mode** (be a mixnet hop). These are capabilities of the same binary, not
-separate programs.
+### 0.2.2 The roles any node may take (no scarce resource required)
 
-### The Gateway (`gateway/`) — optional
+Every function below is a **role of the same binary**, taken by whoever wants it, needing nothing
+rarer than a machine that is up and — for some of them — a public address. None is a service class,
+none is sold, and none has a gatekeeper:
 
-The **sole home of every legacy protocol** and the **only** component that is not content-blind
-(the legacy leg is unavoidably plaintext). Because the node is native-only (JMAP + mesh, §8), the
-gateway runs all of: **SMTP MX/relay**, **IMAP/POP3/SMTP-submission**, **CalDAV/CardDAV**, and
-the **legacy-client reachability ingress** (§7.15). It:
+| Role | Flag | What it provides | Why anyone can run it |
+|------|------|------------------|-----------------------|
+| **Relay** | `--relay` | reachability hop for NAT'd peers; content-blind (§4.3) | needs only a public address |
+| **Mix** | `--mix` | a mixnet hop (§4.4) — **default-on** for an always-on node with a public address (§4.4.2a) | needs only a public address; the fleet self-provisions with adoption |
+| **Buffer / relay-mailbox** | `--mailbox` | short-TTL content-blind hold for an offline peer (§14.3, §14.5) | an **n-of-m** arrangement among peers and the owner's own devices — not a hosted service |
+| **KT log** | `--kt-log` | an append-only `name → key` log others audit (§3.5) | append-only storage; verifiers pin a *set*, so more logs is strictly better |
+| **Rendezvous** | `--rendezvous` | non-DHT lookup fallback + bootstrap entry (§4.2.1, §4.2.2) | needs only a stable address |
 
-- receives inbound legacy mail (acts as MX), wraps it into a MOTE, attests it, and delivers
-  into the mesh; returns SMTP `4xx` if the recipient is offline so the *sending* server
-  retries;
-- sends outbound legacy mail, DKIM-signing as the user's domain via delegated selectors;
-- serves the user's own **legacy client apps** (IMAP/POP/DAV) over the reachability ingress —
-  which requires decrypting the mailbox, so a non-private gateway can read it (an honest,
-  disclosed trust choice, §7.15.3); the native JMAP path stays zero-access;
-- carries the operational weight the system cannot avoid: **IP reputation**.
+These are **reciprocal**: a node runs the roles it wants to exist. That is not altruism — a KT log
+set with one member is worthless to its own operator, a mixnet with one mix hides nothing from
+anyone including the party that built it, and a buffer set of one is an outage waiting to happen.
+The incentive to provide each of these points the same way as the incentive to consume it.
 
-A node without legacy correspondents never invokes a gateway. At full adoption, the
-gateway is unnecessary. The gateway MAY be the node binary run in `--gateway` mode by an
-operator with a reputable IP and a domain.
+### 0.2.3 The gateway role — the legacy adapter, and the only operator class
 
-### DNS (not built here)
+`--gateway` is a role like the others, with one difference that defines it: it is the **only**
+function in DMTAP that requires a **scarce resource** — an IP address with enough sending
+reputation that strangers' mail servers will accept its connections. Reputation cannot be
+reciprocally provisioned, it cannot be derived from a keypair, and it takes weeks to build and
+seconds to lose. Everything else in this document is a role; **legacy SMTP egress is the one place
+an operator class exists at all.**
+
+Its job is **legacy adaptation and nothing else** (§7.1):
+
+- **inbound** — act as MX for a domain, wrap arriving RFC 5322 into a MOTE, attest it, deliver into
+  the mesh; return SMTP `4xx` if the recipient is offline so the *sending* server retries;
+- **outbound** — translate a MOTE to RFC 5322 and send it, DKIM-signing as the user's domain via a
+  delegated selector (the gateway never holds the user's `IK`);
+- **legacy client surfaces** — IMAP/POP3/SMTP-submission/CalDAV/CardDAV plus the ingress that
+  carries them (§7.15), which requires decrypting the mailbox, so a non-self-operated gateway can
+  read it (an honest, disclosed trust choice, §7.15.3); the native JMAP path stays zero-access;
+- **legacy addressing** — the alias forms that exist only because legacy mail cannot route to a key
+  (§7.10).
+
+It is **not** the buffer, **not** the relay, **not** a mix, **not** a namer, and **not** a spam
+classifier (§7.11.4). **Two DMTAP users never need a gateway — not once** (§7.7). Because a
+gateway terminates untrusted connections and runs the most-exploited parsers in mail, "one binary"
+never means one address space: gateway mode MUST run as a separate process with no access to
+identity keys or the MOTE store (§7.1b).
+
+Its value to a user is **strictly proportional to how many of that user's correspondents are still
+on legacy mail**, so it self-extinguishes as adoption grows — nobody has to decide to switch it off
+(§7.1c).
+
+### 0.2.4 DNS (not built here)
 
 The naming substrate that maps a human name to a key. We publish and read records; we do
 not run DNS. See §3. DNS holds the **stable** binding (name → key); the mesh holds the
@@ -153,12 +191,21 @@ flowchart LR
 | Keys, mailbox, files, retry queue | **Node** (the edge) | All durable state |
 | Name → key | **DNS** + key-transparency log | Stable; small |
 | Key → location | **Mesh DHT** | Dynamic; signed; TTL'd; self-republished |
-| In-flight ciphertext | **Mixnet / relay** | Held only until delivered; content-blind |
-| Legacy reputation | **Gateway** | The only non-trivial operational cost |
+| In-flight ciphertext | **Mixnet / relay / buffer roles** | Held only until delivered; content-blind |
+| Legacy IP reputation | **A node in `--gateway` mode** | The one irreducible operator function |
 
 The middle (mesh, mixnet, gateway) holds **no durable user data**. Durability is always
 punted to an edge: the sender's node retries; inbound legacy leans on the sending server's
 SMTP retry.
+
+**The invariant this table encodes.** Every row but the last is either edge state or a role any
+node may take (§0.2.2). The last row is different in kind: **legacy sending reputation is the only
+input DMTAP needs that cannot be self-provisioned** — you cannot compute it, derive it from a key,
+or get it by volunteering, and no protocol rule can conjure one for you. So it is the only place
+where "who operates this?" is a real question, and therefore the only place a durable operator
+class can form. Keeping that true everywhere — never letting buffering, relaying, mixing, naming,
+key transparency, or filtering acquire an operator class of their own — is the structural claim the
+rest of this document is built to protect (§7.1, §12.3, §14.1).
 
 ## 0.6 Privacy posture (summary; full model in §6)
 
@@ -195,6 +242,24 @@ throughout. Where a term has several senses, the qualified forms below are the c
 body text uses the qualified form wherever the sense is not unambiguous from context, and the
 listed deprecated synonyms are read as their canonical term.
 
+- **role** — a function of the **one node binary**, selected at run time by a flag (§0.2): relay,
+  mix, buffer/relay-mailbox, KT log, rendezvous, gateway. A role is never a separate program and
+  never a class of machine. The term **node class**, used in earlier drafts for relay/mix/gateway,
+  is **deprecated** and reads as *role*.
+- **gateway** — **one sense only, and it is load-bearing**: the **legacy-mail adapter role** (§7,
+  §0.2.3) — MX for a domain, outbound SMTP with delegated DKIM, legacy client surfaces, legacy
+  addressing — and the **only** function in DMTAP requiring a scarce resource (a reputable IP,
+  unblocked port 25, a domain, §7.1a). Unqualified "gateway" **always** means this. It never means
+  a node that serves **public objects**: that surface is the **public-object HTTP endpoint**
+  (§22.5.1), served by a **PUB server**, which speaks plain HTTP, needs none of the above, and has
+  nothing to do with SMTP. Earlier drafts called that surface the "gateway HTTP profile" /
+  "well-known gateway"; the name is **retired** to keep this term single-sense. The rename is
+  **documentation-only** — the `/.well-known/dmtap-pub/*` paths and every wire detail are unchanged
+  — and the one wire-visible identifier that kept the old spelling, the `endorse.gateway` announce
+  kind (§24, code point 80), names a **PUB server**.
+- **operator** — whoever runs a role. Because every role but one needs no scarce resource, the term
+  carries no implication of a business, a service, or a paying relationship; the **only** function
+  for which a distinct operator class exists is legacy SMTP egress (§0.2.3, §0.5, §12.1).
 - **MOTE** — the atomic unit of DMTAP: a signed, encrypted, content-addressed message object
   (§2). Mail, chat, file offers, group events, and identity announcements are all MOTEs.
 - **identity key (IK)** — the root identity keypair (§1.2); its public half *is* the identity.
@@ -218,8 +283,9 @@ listed deprecated synonyms are read as their canonical term.
   (§5.1).
 - **relay** — four senses: the **mesh circuit relay** (libp2p Circuit Relay v2, rung 3 of the
   reachability ladder, §4.3); the **legacy-client ingress** (a gateway edge surface that
-  terminates legacy client protocols, §7.15); the **Relay node class** (§14.1); and the
-  **relay-mailbox** (a hosted, content-blind, short-TTL buffer, §14.3; scaling §14.5).
+  terminates legacy client protocols, §7.15); the **relay role** (any public-address node
+  performing the first sense, §0.2.2, §14.1); and the **relay-mailbox** (a content-blind,
+  short-TTL buffer held by an **n-of-m** set of peers and own-devices, §14.3; scaling §14.5).
 - **private** — qualified per sense: the **`private` transport tier** (the mixnet
   metadata-privacy tier, §4.6); the **private gateway operator mode** (a self-operated gateway
   serving only its operator, §7.15.4); and the **private DHT** (a closed deployment's own

@@ -84,6 +84,12 @@ existing standards**; the novelty is the composition and transport, not new cryp
   readable); mitigated by per-file keys + FS-delivered keys + at-rest encryption (§6.7).
 - **Key loss** of `IK` plus all recovery factors is unrecoverable (the bottom turtle, §1.4).
 - **PQ onion (Sphinx)** as published is not PQ-safe; PQ mix packet formats are open research.
+- **Volunteer-provisioned infrastructure may not materialise.** Mixes, KT logs, rendezvous nodes
+  and buffers are reciprocal roles, not funded services; if too few nodes take them, `private`
+  degrades to `fast` — encrypted and authenticated, without default metadata privacy (§6.6 item 13,
+  §4.4.10a).
+- **No free, human-shareable, user-owned name exists.** Key-names are unwieldy; domains and chain
+  names cost money; a free user's shareable name is a non-portable gateway alias (§3.13.4).
 
 ## 11.4 Implementation-stack notes (reference, Rust)
 
@@ -108,6 +114,11 @@ existing standards**; the novelty is the composition and transport, not new cryp
 - Dingledine, Mathewson, Syverson, *Tor*, USENIX Sec 2004; Murdoch & Danezis, *Low-Cost Traffic
   Analysis of Tor*, IEEE S&P 2005.
 - Melara et al., *CONIKS*, USENIX Sec 2015; RFC 6962 (Certificate Transparency).
+- Raman, Joglekar, De Cristofaro, Sastry & Tyson, *Challenges in the Decentralised Web: The
+  Mastodon Case*, ACM IMC 2019 — volunteer availability and replication measurements behind the
+  `n`-of-`m` buffer role (§14.3a).
+- Liu, Fass, Hong et al., *Who's Got Your Mail? Characterizing Mail Service Provider Usage*, ACM
+  IMC 2021 — the anti-abuse centralization tier behind the authorize-never-classify rule (§9.11).
 - Martiny et al., *Improving Signal's Sealed Sender*, NDSS 2021.
 - RFCs 9180, 8032, 7748, 8949, 9420, 9750, 8620, 8621, 9460, 6376, 7929, 9576/9577/9578, 9591.
 - FIPS 203, 204, 205; `draft-connolly-cfrg-xwing-kem`; `draft-ietf-mls-pq-ciphersuites`;

@@ -3279,7 +3279,7 @@
         "§24.15 VID-11"
       ],
       "checks": "segmented playback verifies segment/range bytes against the signed rendition's Merkle root; the HLS/DASH playlist is unsigned serving output, never authoritative",
-      "construction": "a gateway-supplied .m3u8 listing a segment whose bytes do not verify against the rendition root; client accepts on the playlist's say-so",
+      "construction": "a PUB-server-supplied .m3u8 listing a segment whose bytes do not verify against the rendition root; client accepts on the playlist's say-so",
       "expect": {
         "outcome": "reject",
         "note": "verify against the signed root; the playlist is not an object of record"
@@ -3316,11 +3316,11 @@
         "§24.8",
         "§24.15 VID-13"
       ],
-      "checks": "view/reaction/trending aggregates are presented as per-gateway claims, never as network-wide truth",
-      "construction": "a client renders a gateway's view count as an authoritative global number",
+      "checks": "view/reaction/trending aggregates are presented as per-server claims, never as network-wide truth",
+      "construction": "a client renders a PUB server's view count as an authoritative global number",
       "expect": {
         "outcome": "reject",
-        "note": "label as 'views on this gateway'; a signed tally is worth only the attester's reputation"
+        "note": "label as 'views on this server'; a signed tally is worth only the attester's reputation"
       },
       "level": "Core",
       "category": "VIDEO",
