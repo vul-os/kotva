@@ -120,6 +120,7 @@ fixed here once so the tables can cite them tersely without re-explaining each t
 | `0x0122` | `ERR_NAME_LABEL_MIXED_SCRIPT` | Name-label script check at registration/pin (§3.9.7) | A single name label mixes Unicode scripts (the single-script-per-label rule) — a homograph-spoofing vector (e.g. Cyrillic `а` inside a Latin label). | No | FAIL_CLOSED_BLOCK — reject the label; MUST NOT register or pin it |
 | `0x0123` | `ERR_NAME_CONFUSABLE_WITH_PIN` | Confusable-skeleton check at pin time (§3.9.7, §3.4) | A name reduces (UTS #39 confusable skeleton) to the **same skeleton** as an already-pinned contact's name — a visually-confusable impersonation of an existing pin. | No | FAIL_CLOSED_BLOCK — reject the pin; surface the collision to the user; prefer OOB verification (§3.4.1) |
 | `0x0124` | `ERR_DEVICE_UNAUTHORIZED` | Device authorization-policy check (§1.4) | An authorization-**policy** failure: a well-attested device (valid `DeviceCert`, valid attestation) is nonetheless **not authorized** by the identity's §1.4 policy for the attempted act. Distinct from `0x010D` (`ERR_DEVICE_CERT_INVALID`, a cryptographically bad/over-capped cert): here the cert is valid but the policy says no. | No, without a policy change | FAIL_CLOSED_BLOCK — refuse the act; MUST NOT proceed on an unauthorized device |
+| `0x0125` | `ERR_SUITE_BELOW_FLOOR` | Originating-suite floor check (§1.1) | The sender selected, or attempted to originate under, an algorithm suite **below the v0 originating floor**. Suite `0x01` is retained for *verification* of historical or constrained-peer objects only; a conformant node MUST NOT originate it, nor select it for a new relationship. Distinct from `0x020F` (`ERR_SUITE_DOWNGRADE`, the recipient-side per-contact high-water-mark ratchet, §1.3): `0x020F` polices a *peer's* regression against a mark, while `0x0125` polices the *absolute* floor every originator owes the network regardless of contact history. | No | FAIL_CLOSED_BLOCK — refuse to originate; the object is not sent |
 
 ## 21.4 Delivery & Validation — the MOTE object (`0x02xx`)
 
@@ -426,7 +427,7 @@ extension procedure in §21.25. Allocation policies use the standard terms of RF
 | **Registry name** | DMTAP Error/Status Codes |
 | **Reference** | §21.1–§21.11 (this document) |
 | **Allocation policy** | New subsystem byte (`0x09`–`0xEF`): Standards Action. New code point within an existing subsystem (`NN` = `0x01`–`0x7F`): Specification Required. `NN` = `0x80`–`0xFE` within any subsystem: Private Use (implementation-local diagnostics; MUST map to the nearest standard code's Responder Action, §21.2, for any behavior visible to another implementation). `SS`/`NN` = `0x00` or `0xFF`: Reserved. |
-| **Initial contents** | The 141 codes enumerated in §21.3–§21.11. |
+| **Initial contents** | The 142 codes enumerated in §21.3–§21.11. |
 | **Registry discipline** | Append-only. A retired code MUST be marked Deprecated, never deleted or reassigned to a different meaning (mirroring the append-only philosophy of the KT log, §3.5). |
 
 ## 21.15 Algorithm Suites Registry (`suite` u8)

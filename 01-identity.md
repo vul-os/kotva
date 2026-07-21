@@ -36,7 +36,7 @@ unknown suites (fail closed), never guess.
 conformant v0 implementation **MUST** originate. Suite `0x01` is retained **only** so an
 implementation can *verify* historical or constrained-peer objects; a conformant node **MUST NOT
 originate** `0x01` and MUST NOT select it for a new relationship
-(`ERR_SUITE_BELOW_FLOOR`, §21.15).
+(`ERR_SUITE_BELOW_FLOOR`, `0x0125`, §21.3).
 
 The reason is specific to this protocol and decisive: **mail is the most archival medium there
 is**, and a harvest-now-decrypt-later adversary is recording today. A classical-by-default mail

@@ -1206,7 +1206,7 @@ Sphinx is a **fixed-length binary** packet, **not** deterministic CBOR — so, u
 above, `SphinxCell` and its sub-structures are pinned as **byte layouts** (they are on the mixnet
 wire, not in a CBOR MOTE, and MUST be constant-length at every hop). This subsection gives the
 DMTAP-specific field pinning §4.4.1 requires: the per-hop routing/delay command in `β`, the SURB
-layout, and the cell fragment/reassembly framing across the `{2,8,32,64}` KiB ladder. All
+layout, and the cell fragment/reassembly framing across the `{16, 64}` KiB ladder (§16.3). All
 multi-byte integers are **big-endian** (§18.1.3). Cryptographic construction (`α` re-randomization,
 `β` stream-cipher onion, `γ` header MAC, `δ` LIONESS wide-block PRP) is per §4.4.1 and is not
 re-specified here.

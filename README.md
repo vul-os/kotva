@@ -284,7 +284,7 @@ families `MIXPROF`/`FLEET`/`GUARD`/`LOC`/`FLOOR`/`FAILCLASS`/`GWROLE`, plus the 
 recompute at all (§22.7 publish consent, §4.4.10a's Bootstrap disclosure and no-anonymity-claim
 rule, §7.11.4/§9.11's gateway posture, §7.1b's privilege separation), verified by implementer or
 deployment review rather than by a runner (46 + 6 + 137 + 5 = 194). Every reject
-case names one of the **141 codes** in the §21 registry. So the runnable ratio is **52/194 today**,
+case names one of the **142 codes** in the §21 registry. So the runnable ratio is **52/194 today**,
 growing as each subsystem gains a fixed-input KAT.
 
 ## Building the PDF
