@@ -194,18 +194,21 @@ orthogonal axis. A file is handled by one of three paths, by size:
 
 | Tier | Size | Path | Metadata privacy |
 |------|------|------|------------------|
-| **inline** | ≤ top inline bucket (v0: ≤ 64 KiB after padding to the bucket ladder, = 32 Sphinx cells, §4.4.1/§16.3) | in `Attachment.inline`, inside the MOTE | full (rides the message's tier) |
+| **inline** | ≤ v0 **48 KiB** of content — the padded MOTE then rides the top bucket rung, 64 KiB = 32 Sphinx cells (§4.4.1/§16.3); the ≈ 12 kB difference is the PQ envelope | in `Attachment.inline`, inside the MOTE | full (rides the message's tier) |
 | **normal** | > inline, ≤ 4 chunks (v0: ≤ 4 MiB) | manifest in MOTE; **chunks also routed via the mixnet** | full (like messages, §6.5) |
 | **large** | > normal | manifest in MOTE; **chunks via the fast/onion bulk path** (§4.5) | weaker — Tor-class (§6.5) |
 
-The v0 numeric thresholds (64 KiB / 4 MiB) are parameters (§16.4) and MAY be tuned;
+The v0 numeric thresholds (48 KiB / 4 MiB) are parameters (§16.4) and MAY be tuned;
 the three-tier model is normative. This removes the earlier binary small/large ambiguity.
 **Note on "inline" and the mixnet cell:** an inline payload is **not** a single mix packet — the
 Sphinx cell is 2 KiB (§16.3), so a padded inline MOTE is a **whole number of 2 KiB cells** on the
-**bucket ladder** {8, 64} KiB (§4.4.1) — i.e. 4 or 32 cells. "≤ 64 KiB inline" is the top rung
-(32 cells), not one packet; only ladder sizes appear on the wire, so size still leaks nothing.
-Note there is **no 2 KiB rung**: a conformant PQ envelope (suite `0x02`, §1.1) already exceeds
-2 KiB before any body, so the floor is 8 KiB (§4.4.1).
+**bucket ladder** {16, 64} KiB (§4.4.1) — i.e. 8 or 32 cells. The inline tier's ceiling is the
+**top rung** (64 KiB, 32 cells), not one packet, and the ≤ 48 KiB content cap is that rung less
+the envelope; only ladder sizes appear on the wire, so size still leaks nothing.
+Note there is **no 2 KiB and no 8 KiB rung**: a conformant PQ envelope (suite `0x02`, §1.1)
+carries *two* signatures and *two* public keys plus a KEM ciphertext, and so exceeds **11.9 kB**
+before any body at all. §4.4.1 states that arithmetic in bytes; the floor is whatever it forces,
+and is 16 KiB in v0.
 
 ## 2.6 Delivery semantics
 

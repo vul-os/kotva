@@ -2257,7 +2257,7 @@ ordinary `deliver`, §19.3.1), and — implicitly — every future chunk-swarm p
 
   | Tier | `size` | Where the bytes go |
   |---|---|---|
-  | **inline** | ≤ 64 KiB (padded) | `Attachment.inline`, inside the MOTE itself |
+  | **inline** | ≤ 48 KiB of content (the padded MOTE rides the 64 KiB top rung) | `Attachment.inline`, inside the MOTE itself |
   | **normal** | ≤ 4 MiB (≤ 4 chunks) | Manifest in the MOTE; chunks fetched via the **mixnet** (full privacy) |
   | **large** | > 4 MiB | Manifest in the MOTE; chunks fetched via the **fast/onion bulk path** (weaker privacy, §6.5) |
 

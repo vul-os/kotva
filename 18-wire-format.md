@@ -150,9 +150,26 @@ type can never be replayed as a signature for another. A verifier MUST reconstru
 `DS-tag ‖ body` and MUST reject any signature that does not verify against it under the key
 selected by `suite`.
 
-For `suite = 0x02` (hybrid PQ), a `sig-val` is the **concatenation** `Ed25519_sig ‖ ML-DSA-65_sig`
-and BOTH component signatures MUST verify; `Identity.sig` additionally carries one `sig-val` per
-suite in `suites` (§18.4.1).
+**Hybrid suites sign a combined message representative (normative).** For a hybrid suite
+(`0x02`/`0x03`/`0x04`) a `sig-val` is the **concatenation** of the component signatures
+(e.g. `Ed25519_sig ‖ ML-DSA-65_sig`) and BOTH component signatures MUST verify (AND-composition,
+§1.3). The two components do **not** sign the object preimage independently: following the IETF
+LAMPS composite PQ/T construction, each signs one **composite message representative**
+
+```
+M' = DS-tag ‖ 0x00 ‖ suite ‖ body        ; suite = the 1-byte composite algorithm id (§18.1.4)
+```
+
+so the `suite` byte is inside what both components sign. This is what makes the composite
+**non-separable**: a component signature over `M'` is not a valid standalone signature over the
+single-algorithm preimage `DS-tag ‖ 0x00 ‖ body`, so it cannot be stripped out of a hybrid object
+and replayed as an `0x01` signature, nor can an `0x01` signature be promoted into a hybrid
+`sig-val`. A single-suite `sig-val` (`0x01`) signs the plain preimage above and is unchanged. A
+verifier MUST reconstruct the representative that matches the object's `suite` and MUST NOT accept
+a component verified against the other form. `Identity.sig` additionally carries one `sig-val` per
+suite in `suites` (§18.4.1) — each computed under **its own** suite's representative, which is why
+a legacy verifier's single-suite validation and a hybrid verifier's AND-validation can coexist on
+one object without either being a downgrade of the other.
 
 ### 18.1.7 CDDL prelude (shared productions)
 
@@ -198,6 +215,15 @@ the object's `suite`.
 **Suite `0x03`** (Ed25519+ML-DSA-65 / X-Wing / AES-256-GCM / BLAKE3-256, §16.7/§21.15) has the
 **identical byte layout to `0x02`** in every row above — including the 32 B `enc-key` — differing
 only in the AEAD selector (AES-256-GCM), so no separate column is needed.
+
+**Suite `0x04`** (Ed25519+SLH-DSA-128s, the intended **anchor** profile, §1.2.0/§16.7) differs
+from `0x02` in exactly the two signature rows: `ik-pub` = **64 B** (Ed25519 32 ‖ SLH-DSA-128s
+public key **32**) and `sig-val` = **7 920 B** (Ed25519 64 ‖ SLH-DSA-128s signature **7 856**,
+FIPS 205 Table 2, identical for the SHA2 and SHAKE instantiations). Its KEM, AEAD-key and hash
+rows are `0x02`'s. Because an `Identity` may carry an anchor suite differing from its operational
+suite (§1.2.0), a decoder MUST select the length row by **the suite of the key that made the
+signature**, not by a single per-object suite. The 7 920 B `sig-val` is why an anchor-signed
+announcement is a **top-rung** MOTE on the bucket ladder (§4.4.1).
 
 The PQ (`0x02`/`0x03`) lengths are RESERVED and given for forward planning; a v0 implementation
 implements only `0x01` and MUST reject `0x02`/`0x03` fail-closed until it supports them.
@@ -448,7 +474,7 @@ Durability = {
 | `Attachment` | `name` | 1 | `tstr` | MUST | Display name; MUST be treated as untrusted (path-sanitize on save). UTF-8. |
 | | `mime` | 2 | `tstr` | MUST | Declared media type. |
 | | `size` | 3 | `u64` | MUST | Plaintext size in bytes. |
-| | `inline` | 4 | `bytes` | OPTIONAL | The encrypted-then-inlined content, present **iff** the file is ≤ the inline threshold (v0 ≤ 64 KiB after padding, §16.4). Mutually exclusive with `manifest`. |
+| | `inline` | 4 | `bytes` | OPTIONAL | The encrypted-then-inlined content, present **iff** the file is ≤ the inline threshold (v0 ≤ 48 KiB of content; the padded MOTE then occupies the 64 KiB top rung, §16.4, §4.4.1). Mutually exclusive with `manifest`. |
 | | `manifest` | 5 | `ManifestRef` | OPTIONAL | Reference to the file's manifest, present **iff** the file exceeds the inline threshold. Mutually exclusive with `inline`. Exactly one of {`inline`,`manifest`} MUST be present. |
 | | `key` | 6 | `enc-key` | MUST | Per-file content key; the recipient decrypts chunks (or `inline`) with it. Travels only inside the (private) MOTE. |
 | `ManifestRef` | `id` | 1 | `hash` | MUST | Content address = Merkle-DAG root of the `Manifest` over its ordered chunk hashes (§18.9.5). |

@@ -70,8 +70,8 @@ are** and **without the sender being linkable across recipients**.
 **CAUTION — pick the right variant.** Vanilla Privacy Pass tokens are issuance-unlinkable but
 do **not**, alone, give the exact combination DMTAP needs: *per-recipient rate-limiting* AND
 *cross-recipient unlinkability*. That combination requires per-origin-scoped issuance —
-**Anonymous Rate-limited Credentials (ARC)**, the Privacy Pass WG work
-(`draft-yun-privacypass-arc`). DMTAP tokens MUST use ARC-style per-origin binding, not plain
+**Anonymous Rate-limited Credentials (ARC)**, specified in the Privacy Pass space by
+`draft-yun-privacypass-arc` — an **individual** Internet-Draft, not a working-group document. DMTAP tokens MUST use ARC-style per-origin binding, not plain
 tokens, for the anonymity + accountability guarantee to hold simultaneously.
 
 - A sender obtains blinded tokens from an **issuer** bound to a *rate budget*.
@@ -130,7 +130,7 @@ hashcash asymmetry favors organized spammers (botnets/GPUs) over low-power legit
 asymmetry, and difficulty SHOULD be adaptive. Prefer the token/reputation path (§9.3) whenever
 available.
 
-### 9.4.1 Sequential work (VDF) is the preferred cold-contact cost (normative)
+### 9.4.1 Sequential work (VDF) as an OPTIONAL cold-contact cost (normative)
 
 Memory-hardness narrows the parallel adversary's advantage; it does not remove it. A GPU farm or
 a botnet still computes Argon2 far faster in aggregate than a phone, so the cost gradient
@@ -146,21 +146,23 @@ Rank the available scarcities by how much an adversary's compute budget helps th
 |---|---|---|
 | **Social proximity** | Not at all — cannot be bought | vouch / introduction (§9.7) |
 | **Money** | No — cost is linear, no asymmetry to exploit | postage (§9.5) |
-| **Sequential time** | Barely — only single-core speed, ≈10× spread | **VDF (this section)** |
-| **Parallel compute** | Yes — 100–1000× spread | memory-hard PoW (§9.4) |
+| **Sequential time** | *Aggregate* parallelism buys ≈ nothing; a ≈ **10–100×** per-gate latency advantage remains | **VDF (this section)** |
+| **Parallel compute** | Yes — the whole compute budget applies | memory-hard PoW (§9.4) |
 
-DMTAP therefore defines the cold-contact work proof as a **Verifiable Delay Function** — a
-Wesolowski- or Pietrzak-style sequential-squaring VDF over the same scope as §9.4
-(`id ‖ recipient ‖ nonce(epoch)`, §16.5), with the delay parameter set so a single legitimate
-message costs a few seconds of wall-clock on any device. Two properties make this strictly better
-than memory-hard PoW here:
+A **Verifiable Delay Function** — a Wesolowski- or Pietrzak-style sequential-squaring VDF over the
+same scope as §9.4 (`id ‖ recipient ‖ nonce(epoch)`, §16.5), delay parameter set so one legitimate
+message costs a few seconds of wall-clock — is therefore an attractive shape of cost, for two
+reasons:
 
-- **It is inherently sequential.** A VDF's evaluation cannot be parallelized: 100,000 rented
-  cores compute it no faster than one core. An adversary's advantage collapses from *their total
-  compute* to *their single-core clock speed* — roughly an order of magnitude across all real
-  hardware, against three orders for a parallelizable puzzle. The cost gradient finally points the
-  right way: a phone sending one message pays about what a spam farm pays **per message**, and the
-  farm's capital buys it almost nothing.
+- **It bounds the *aggregate-parallelism* advantage.** Repeated squaring is believed not to
+  parallelize, so 100 000 rented cores compute one puzzle no faster than one core does: a botnet's
+  breadth buys it essentially nothing *per puzzle*. **This is not the same as flattening the
+  hardware spread, and this specification previously said it was.** What survives untouched is the
+  **per-gate latency constant factor** — faster silicon, a tighter multiplier, an ASIC — which the
+  VDF literature itself budgets as a routine design parameter (a ≈ 10× faster-evaluator allowance)
+  and separately reasons about at ASIC scale (≈ 100×). The honest claim is therefore: a VDF turns
+  *"as fast as your whole fleet"* into *"as fast as your single best circuit"*, a **10–100×**
+  residual advantage, not a ≈ 10× total spread against ≈ 1000×.
 - **Verification is asymmetric by construction, which independently fixes a DoS hole.** A VDF
   proof verifies in milliseconds regardless of how long it took to produce. This removes the
   problem §9.4 is forced to work around above: because Argon2id verification costs the *recipient*
@@ -169,11 +171,15 @@ than memory-hard PoW here:
   and defer unverified MOTEs. A VDF has no such symmetry — a recipient can verify every proof it
   is offered, cheaply, and needs no defer-without-verifying escape hatch.
 
-**Conformance — VDF is SHOULD; memory-hard PoW is the MUST floor (normative).** The interoperable
-floor is the older mechanism, deliberately:
+**Conformance — VDF is MAY; memory-hard PoW is the MUST floor (normative).** The interoperable
+floor is the older mechanism, deliberately, and the VDF is an option layered above it rather than
+a recommendation:
 
-- A recipient's `ChallengeSpec` (§9.2) MAY specify `vdf(delay)` in place of, or alongside,
-  `pow(bits)`, and implementations **SHOULD** prefer `vdf` where both parties support it.
+- A recipient's `ChallengeSpec` (§9.2) MAY specify `vdf(delay)` **alongside** `pow(bits)`, and an
+  implementation **MAY** prefer `vdf` where both parties support it. It is deliberately **not** a
+  `SHOULD`: the disclosures below — a conjectural, processor-bounded sequentiality assumption and
+  a construction that is **not post-quantum** — are not the grounds on which this specification
+  recommends anything.
 - A conformant recipient **MUST accept a valid memory-hard PoW solution** (§9.4) as satisfying its
   cold-contact requirement, subject only to the verification budget below and to the recipient's
   own rate policy. It **MUST NOT** require a VDF as the *only* acceptable proof, because that would
@@ -184,17 +190,50 @@ floor is the older mechanism, deliberately:
 - The binding rule of §9.2a applies to both: the proof's scope MUST include `sender_key`, so a
   stolen proof is worthless under any other ephemeral key. Parameters are pinned in §16.5.
 
-**Honest limit — why the preferred path cannot be the mandatory one.** A VDF needs a **group of
-unknown order**: in practice either an RSA modulus from a **trusted setup** (whoever generated it
-can shortcut every puzzle) or a **class group** of an imaginary quadratic field (no setup, but a
-markedly less mature body of cryptanalysis and implementation experience). There is **no IETF
-standard** for either, no interoperable parameter set to point at, and no widely-reviewed
-implementation to profile. Mandating it would mean mandating something two independent
-implementations cannot yet be expected to agree on byte-for-byte — the opposite of what a floor is
-for. The VDF is specified because the *shape* of its cost curve is right (sequential work is the
-scarcity a compute-rich adversary cannot buy), and it is a SHOULD because the *ground under it* is
-not yet firm. Memory-hard PoW is the weaker mechanism that everyone can implement today, which is
-exactly what makes it the floor.
+**Honest limits — the three reasons this is a MAY and not the floor.** Each is a property of the
+construction, not a maturity opinion:
+
+1. **Sequentiality is a conjecture, and it is bounded by a processor count — not a theorem.** The
+   foundational VDF definition permits `Eval` up to **poly log(t) parallelism**, and observes that
+   constructions requiring *no* parallelism are "unlikely to exist (without trusted hardware)".
+   Sequentiality is defined only **relatively**: a VDF is `(p, σ)`-sequential against an adversary
+   holding at most `p(t)` processors. Both the Wesolowski and Pietrzak constructions then inherit
+   their sequentiality from an **unproven belief** about repeated squaring in a group of unknown
+   order. "Cannot be parallelized" is therefore shorthand for "is believed not to parallelize,
+   against an adversary below a stated processor bound" — which is a perfectly usable engineering
+   assumption for a spam cost, and not one to build a MUST on.
+2. **It bounds aggregate parallelism only** — see above. A **10–100×** per-gate latency advantage
+   for better silicon remains fully intact, so the gradient is improved, not inverted.
+3. **It is not post-quantum, and the rest of this suite is.** Both named constructions rest on a
+   **group of unknown order**; a quantum adversary computes that order and collapses `t` sequential
+   squarings into a **single reduced exponentiation**, destroying exactly the sequentiality the
+   anti-abuse use depends on. **No simple post-quantum VDF exists to substitute.** Pinning a
+   PQ-hybrid suite as the REQUIRED default (§1.1, justified by harvest-now-decrypt-later) while
+   *recommending* an RSA-group or class-group VDF would be internally inconsistent, and this
+   section previously was.
+
+   **Why that inconsistency is tolerable rather than fatal — stated plainly rather than hidden.**
+   The two exposures are not the same kind of thing. A quantum break of the KEM is
+   **retroactive**: traffic recorded today is decrypted later, and nothing done afterwards repairs
+   it — which is why §1.1 pays for PQ up front. A quantum break of the VDF is **prospective and
+   local**: it makes cold-contact work cheap *from that day forward* for whoever holds the machine,
+   costing the recipient some additional junk in the **requests area** (never the inbox, §2.7a),
+   and it is repaired by the recipient raising `pow(bits)` or leaning on the vouch (§9.7), postage
+   (§9.5) and ARC (§9.3) tiers, none of which depend on it. A future spam-cost problem is
+   survivable; a retroactive confidentiality catastrophe is not. The VDF is confined to the tier
+   where that asymmetry holds, and is a `MAY` so that no reachability ever depends on it.
+
+**And a setup problem, weaker than the strong form of the objection.** A group of unknown order is
+in practice either an **RSA modulus from a trusted setup** — whoever generated it can shortcut
+every puzzle — or a **class group** of an imaginary quadratic field, which needs no setup. The
+trusted-setup objection is real but not decisive: the same literature offers a **sufficiently
+large random `N`** as an alternative (noting the cost — it gives the adversary *more*
+parallelization opportunity and increases verifier time) as well as class groups. What actually
+keeps a VDF out of the floor is not that class groups are unproven — this specification makes no
+such claim — but that there is **no IETF standard, no interoperable parameter set and no pinned
+proof encoding** for either choice, so two independent implementations cannot be expected to agree
+byte-for-byte. That is the opposite of what a floor is for. Memory-hard PoW is the weaker mechanism
+that everyone can implement today, which is exactly what makes it the floor.
 
 **Bounding verification cost — the verifier's own memory-hard budget (normative).** A memory-hard
 Argon2id verification is **symmetric**: checking a solution costs the recipient roughly what
@@ -296,11 +335,12 @@ minimum of `N_floor` cold MOTEs per sender-key per day (§16.5) from a sender pr
 valid work proof — **either** a sequential-work proof (`vdf`, §9.4.1) **or** a memory-hard PoW
 solution (§9.4), the recipient's choice of preference but **both** acceptable — bound to the
 recipient's current epoch beacon, with **no** token, **no** postage, and **no** vouch. A recipient
-that would accept only a VDF has set an unstandardized construction as the price of contacting it
-(§9.4.1), which is the floor failing in a new way rather than holding. Floor deliveries land in the requests area (§2.7a), not
+that would accept only a VDF has set an unstandardized, non-post-quantum construction as the price
+of contacting it (§9.4.1), which is the floor failing in a new way rather than holding. Floor deliveries land in the requests area (§2.7a), not
 the inbox — the recipient's surfacing policy is unchanged and the user still sees nothing they
 did not ask for. What the floor guarantees is narrower and non-negotiable: that a stranger with
-nothing but a keypair and a few seconds of sequential work **can always reach the requests area**,
+nothing but a keypair and a few seconds of work — memory-hard by default, sequential if the
+recipient also offers it — **can always reach the requests area**,
 and can therefore be found, replied to, and promoted to a contact by a human decision.
 
 - The floor is a **minimum**, not a ceiling: a recipient MAY grant far more to trusted issuers,

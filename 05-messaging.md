@@ -506,14 +506,18 @@ take*) are an orthogonal axis.
 
 | Tier | Size (§16.4) | Mechanism | Durability guarantee |
 |------|-------------|-----------|----------------------|
-| **Inline** | ≤ 64 KiB | bytes ride **inside** the sealed MOTE payload (`Attachment.inline`, §18.3.7) | **durable-by-delivery** — the bytes land in the recipient's mailbox; no separate fetch; keeps MOTEs light for the mixnet (rides the top bucket rung, §16.3) |
-| **Attached** | > 64 KiB, ≤ 25 MiB | content-addressed + chunked, but the chunks are **pushed with the message** into the recipient's store / cloud spool | **durable recipient copy** — once delivered the chunks are the recipient's own copy; **survives the sender dropping permanently** |
+| **Inline** | ≤ 48 KiB | bytes ride **inside** the sealed MOTE payload (`Attachment.inline`, §18.3.7) | **durable-by-delivery** — the bytes land in the recipient's mailbox; no separate fetch; keeps MOTEs light for the mixnet (rides the top bucket rung, §16.3) |
+| **Attached** | > 48 KiB, ≤ 25 MiB | content-addressed + chunked, but the chunks are **pushed with the message** into the recipient's store / cloud spool | **durable recipient copy** — once delivered the chunks are the recipient's own copy; **survives the sender dropping permanently** |
 | **Referenced** | > 25 MiB (any size) | `ManifestRef` + key travel in the MOTE; chunks are **pulled on demand** from a holder | **best-effort by default** — durable only as strong as the file's **durability class** (below) |
 
-The Inline cap is deliberately **64 KiB (= the top Sphinx bucket rung, §16.3), not larger**: an
-inline attachment inflates the MOTE, and a MOTE above the top bucket cannot ride the `private`
-mixnet at all (§4.4.1) — a larger inline cap would silently force the fast tier and drop mixnet
-privacy. The durability tier (inline / push / pull) is **orthogonal** to the
+The Inline cap is deliberately **48 KiB — the top Sphinx bucket rung (64 KiB) *minus* the PQ
+envelope — and not larger**: an inline attachment inflates the MOTE, and a MOTE above the top
+bucket cannot ride the `private` mixnet at all (§4.4.1), so a larger inline cap would silently
+force the fast tier and drop mixnet privacy. The cap is **not** equal to the top rung, because the
+envelope is not free: under suite `0x02` it costs **11 967 B** before a byte of content (§4.4.1),
+leaving 4 417 B of headroom above a 48 KiB attachment for headers, `refs` and framing.
+
+The durability tier (inline / push / pull) is **orthogonal** to the
 metadata-privacy size sub-tier of §2.5/§16.4 (mixnet ≤ 4 MiB vs. bulk > 4 MiB): a 25 MiB
 **Attached** file is pushed *and* transits the weaker bulk path (§6.5) — push-vs-pull governs
 durability, mixnet-vs-bulk governs metadata privacy.

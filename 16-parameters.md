@@ -43,7 +43,7 @@ above and for ordering hints.
 | Per-hop mix delay | exp, mean 5 s | Poisson mixing; `private` tier (§4.4.5) |
 | Cover-traffic rate | **constant-rate, 30 s/cell (always-on nodes — MUST)**; Poisson mean 30 s/msg (battery/metered devices only) | loop + drop + recipient-side loop (§4.4.5). Constant-rate ≈ **5.6 MB/day** — negligible for a mains-powered node, and it makes the traffic envelope **activity-independent** rather than merely activity-blurred, which is what defeats a patient long-horizon observer |
 | Sphinx cell size (`δ`) | 2 KiB | Sphinx constant-length payload cell after padding (§4.4.1) |
-| Payload bucket ladder | **{8, 64} KiB = {4, 32} cells** | a MOTE is padded up to the next rung, then fragmented into that many 2 KiB cells (§4.4.1); only ladder sizes appear on the wire. Two rungs only — an observer learns ≤ 1 bit of size per message. The 8 KiB floor is set by the PQ envelope (ML-DSA-65 sig ~3.3 KB + ML-KEM-768 ct ~1.1 KB, §1.1), which cannot fit a 2 KiB rung |
+| Payload bucket ladder | **{16, 64} KiB = {8, 32} cells** | a MOTE is padded up to the next rung, then fragmented into that many 2 KiB cells (§4.4.1); only ladder sizes appear on the wire. Two rungs only — an observer learns ≤ 1 bit of size per message (a third rung would make it log₂3 ≈ 1.58, §4.4.1). The **16 KiB** floor is forced by the PQ envelope under suite `0x02`: **11 967 B** minimum with empty headers and body — 2 × 3 373 B `sig-val` + 2 × 1 984 B `ik-pub`/`sig-pub` + 1 120 B X-Wing encapsulated key + 133 B framing (§18.2, §4.4.1) — leaving **4 417 B** of headroom. An 8 KiB rung is short by 3 775 B and can hold no conformant MOTE; a 2 KiB rung is short by an order more. Anchor-suite (`0x04`) announcements are ordinary **top-rung** MOTEs at ≈ 26 kB (§4.4.1) |
 | Multi-cell reassembly timeout | ≤ 15 min (≈ 3× the `private`-tier delivery latency budget) | a partial multi-cell MOTE held in the bounded reassembly cache is discarded if not completed within this window (§4.4.1 fragment reliability); bounds recipient memory against half-MOTE flooding |
 | Fragment-recovery method | per-cell SURB-ARQ **or** FEC (`n > k` erasure code) | sender's choice, capability-negotiated (§10.2); recovers missing cells at the lost-fraction cost, never full re-send (§4.4.1). Retransmitted/parity cells are ordinary constant-length Sphinx cells |
 | Mix key epoch | 24 h | Sphinx mix-key rotation; advertise current+next, delete old key at `valid_until` (§4.4.4) |
@@ -71,7 +71,7 @@ above and for ordering hints.
 
 | Parameter | Default | Notes |
 |-----------|---------|-------|
-| Inline attachment threshold | ≤ 64 KiB | rides the message (§2.5); = top bucket-ladder rung (32 Sphinx cells, §16.3). NOT larger: a bigger inline cap forces a MOTE above the top bucket → cannot ride the `private` mixnet (§5.5.1) |
+| Inline attachment threshold | ≤ **48 KiB** | rides the message (§2.5). This is the **top bucket-ladder rung (64 KiB) minus the PQ envelope**: the envelope costs 11 967 B before any content (§4.4.1), so 65 536 − 11 967 − 49 152 leaves **4 417 B** for headers, `refs` and framing — the same headroom the floor rung reserves. NOT larger: a bigger inline cap forces a MOTE above the top bucket → cannot ride the `private` mixnet (§5.5.1) |
 | Normal-file threshold | ≤ 4 MiB (≤ 4 chunks) | chunks via mixnet — full privacy (§6.5) |
 | Chunk size | 1 MiB | fixed; content-addressed over **ciphertext** (§5.5, §18.9.5) |
 | Large-file bulk | > 4 MiB | fast/onion bulk path — weaker privacy (§6.5) |
@@ -82,7 +82,7 @@ above; inline/push/pull governs durability, mixnet/bulk governs metadata privacy
 
 | Parameter | Default | Notes |
 |-----------|---------|-------|
-| Inline tier cap (durable-by-delivery) | ≤ 64 KiB | bytes in the sealed MOTE (`Attachment.inline`); = the inline attachment threshold above (§5.5.1) |
+| Inline tier cap (durable-by-delivery) | ≤ **48 KiB** | bytes in the sealed MOTE (`Attachment.inline`); = the inline attachment threshold above (§5.5.1) |
 | Attached tier cap (pushed, durable recipient copy) | ≤ 25 MiB | chunks **pushed** into the recipient's store on delivery — survives the sender dropping (§5.5.1) |
 | Referenced tier (pull-on-demand) | > 25 MiB | `ManifestRef` + key in the MOTE; chunks pulled from a holder; MUST carry a `durability` class (§5.5.2) |
 | Auto-pull-to-durable threshold | ≤ 256 MiB | a client SHOULD auto-pull-and-pin a Referenced file below this on receipt, converting origin-hold → recipient-pinned (§5.5.2) |
@@ -94,11 +94,11 @@ above; inline/push/pull governs durability, mixnet/bulk governs metadata privacy
 
 | Parameter | Default | Notes |
 |-----------|---------|-------|
-| **Cold-sender sequential work (VDF)** | Wesolowski/Pietrzak VDF, delay ≈ **3 s** single-core, adaptive | **SHOULD** — the preferred cold-contact cost where both parties support it (§9.4.1). Sequential ⇒ rented parallel compute buys ≈ nothing (≈10× spread across all real hardware, vs ≈1000× for a parallelizable puzzle), so the cost gradient finally runs *against* the spam farm instead of against the phone. **Not the interoperable floor:** VDFs need a group of unknown order (RSA trusted setup, or less-mature class groups) and have no IETF standard, so a recipient MUST NOT require one as the only acceptable proof |
+| **Cold-sender sequential work (VDF)** | Wesolowski/Pietrzak VDF, delay ≈ **3 s** single-core, adaptive | **MAY** — an optional cold-contact cost where both parties support it (§9.4.1). It bounds the **aggregate-parallelism** advantage (a botnet's breadth buys ≈ nothing per puzzle) but leaves a **10–100× per-gate latency** advantage intact; sequentiality is a **conjecture** and is defined only relative to a `p(t)`-processor bound. **Not the interoperable floor, and not a SHOULD:** it needs a group of unknown order (RSA trusted setup, or class groups) with no IETF standard, no interoperable parameter set and no pinned proof encoding — and it is **not post-quantum** (a quantum adversary computes the group order and collapses the delay), unlike the rest of the suite. A recipient MUST NOT require one as the only acceptable proof |
 | VDF verification cost | milliseconds, independent of delay | **asymmetric by construction** — this is why the VDF path needs no verification budget and no defer-without-verifying escape hatch, unlike Argon2id below (§9.4.1) |
 | VDF puzzle scope | `id ‖ recipient ‖ nonce(epoch) ‖ sender_key` | `sender_key` binding per §9.2a — a stolen proof is worthless under any other ephemeral key |
 | **Zero-relationship delivery floor (`N_floor`)** | **≥ 5 cold MOTEs / sender-key / day** | MUST (§9.7a). A stranger with only a keypair and a valid work proof — **VDF *or* memory-hard PoW**, recipient's preference but both acceptable — always reaches the **requests area**, never the inbox. Without this floor the §3.13 key-name promise is false: a sovereign identity would be nameable, reachable, verifiable, and silently undeliverable. A standing `N_floor` of zero — or a policy accepting **only** a VDF, which refuses the interoperable proof — is non-conformant (`ERR_POLICY_BELOW_FLOOR`, `0x070F`) |
-| Cold-sender PoW | memory-hard (Argon2id), adaptive | **the interoperable MUST floor** a recipient has to accept (§9.4, §9.4.1) — the weaker mechanism everyone can implement today, which is precisely what makes it the floor; preference for VDF is a SHOULD layered above it |
+| Cold-sender PoW | memory-hard (Argon2id), adaptive | **the interoperable MUST floor** a recipient has to accept (§9.4, §9.4.1) — the weaker mechanism everyone can implement today, which is precisely what makes it the floor, and the **only** cold-contact proof in this table that is not itself broken by a quantum adversary; a VDF is a MAY layered above it |
 | PoW puzzle scope | `id ‖ recipient ‖ nonce(epoch)` | fresh epoch nonce to prevent precompute |
 | Memory-hard PoW verification budget | bounded per window **per delivering connection/relay** (e.g. ≈ a few / s / source, operator-tunable) | a recipient MUST bound how many symmetric-cost Argon2id verifications it performs; beyond budget, **defer to the requests area WITHOUT verifying** (never spend unbounded memory-hard work on unauthenticated input, never fail open) (§9.4) |
 | Unknown-issuer token budget | 0 | self-issued/unvetted → no rate budget (§9.3.1) |
@@ -125,9 +125,28 @@ above; inline/push/pull governs durability, mixnet/bulk governs metadata privacy
 
 | `suite` | Sign | KEM | AEAD | Hash | Status |
 |--------:|------|-----|------|------|--------|
-| `0x01` | Ed25519 | X25519 (HPKE) | ChaCha20-Poly1305 | BLAKE3-256 | v0 REQUIRED |
-| `0x02` | Ed25519+ML-DSA-65 | X-Wing (X25519+ML-KEM-768) | ChaCha20-Poly1305 | BLAKE3-256 | PQ target (RESERVED) |
+| `0x01` | Ed25519 | X25519 (HPKE) | ChaCha20-Poly1305 | BLAKE3-256 | LEGACY — accept, never originate (§1.1) |
+| `0x02` | Ed25519+ML-DSA-65 | X-Wing (X25519+ML-KEM-768) | ChaCha20-Poly1305 | BLAKE3-256 | **v0 REQUIRED originating suite** (§1.1) |
 | `0x03` | Ed25519+ML-DSA-65 | X-Wing (X25519+ML-KEM-768) | AES-256-GCM | BLAKE3-256 | AEAD-diverse emergency target (RESERVED, §1.1, §21.15) |
+| `0x04` | Ed25519+SLH-DSA-128s | X-Wing (X25519+ML-KEM-768) | ChaCha20-Poly1305 | BLAKE3-256 | signature-diverse emergency target; the intended **anchor** profile (RESERVED, §1.1, §1.2.0) |
+
+**Suite-governed lengths that other sections' arithmetic depends on** (§18.2 is authoritative):
+`sig-val` = 3 373 B and `ik-pub`/`sig-pub` = 1 984 B under `0x02`/`0x03`; `sig-val` = **7 920 B**
+(Ed25519 64 ‖ SLH-DSA-128s **7 856**, FIPS 205 Table 2) and `ik-pub` = **64 B** (32 ‖ 32) under
+`0x04`; HPKE encapsulated key = 1 120 B (X-Wing) under all three. These are what set the bucket
+ladder floor (§16.3, §4.4.1).
+
+**X-Wing's standards status (honest limit, §1.3).** X-Wing is an **Independent Submission**
+Internet-Draft (`draft-connolly-cfrg-xwing-kem-10`), **not CFRG-adopted**, and **FIPS 203
+standardizes no KEM combiner**, warning that a combined KEM containing ML-KEM "might not meet
+IND-CCA2 security" and deferring to SP 800-227. It is pinned on analysis and a fixed HPKE code
+point, not on standing.
+
+> **Known divergence (flagged, not resolved here).** §18.1.4 and §18.2 still label `0x01`
+> "v0 REQUIRED" and `0x02`/`0x03` "RESERVED" — the implementation-status labels the frozen
+> conformance vectors (all suite `0x01`) were generated under. **§1.1 governs** the normative
+> originating requirement. Reconciling the wire-format labels requires regenerating the vector
+> corpus under `0x02` and is tracked as its own change, not folded into a correction pass.
 
 ## 16.8 Auth, sessions & group ordering
 

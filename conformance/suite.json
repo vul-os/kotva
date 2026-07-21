@@ -1265,9 +1265,9 @@
         "§16.3",
         "§2.5"
       ],
-      "checks": "Sphinx packet constant-length on the bucket ladder {8, 64} KiB; wrong length rejected (the 2 KiB rung was cut: a conformant PQ envelope, suite 0x02, exceeds it before any body)",
+      "checks": "Sphinx packet constant-length on the bucket ladder {16, 64} KiB; wrong length rejected (neither the 2 KiB nor the 8 KiB rung can hold a conformant PQ envelope: under suite 0x02 a minimal MOTE is 11 967 B before any body, \u00a74.4.1)",
       "operation": "mix_packet_validate",
-      "construction": "Sphinx packet off the {8, 64} KiB bucket ladder",
+      "construction": "Sphinx packet off the {16, 64} KiB bucket ladder",
       "expect": {
         "outcome": "reject",
         "error_code": "0x0307",
@@ -2751,7 +2751,7 @@
         "§9.7a",
         "§16.5"
       ],
-      "checks": "memory-hard PoW is the interoperable MUST floor: a conformant recipient MUST accept a valid memory-hard PoW solution (Argon2id at or above its advertised difficulty, scope including sender_key per §9.2a) as satisfying its cold-contact requirement, subject only to the §9.4 verification budget and its own rate policy. VDF is the preferred cost (SHOULD) because sequential work is the scarcity a compute-rich adversary cannot buy, but it has no IETF standard and no interoperable parameter set, so it cannot be the floor",
+      "checks": "memory-hard PoW is the interoperable MUST floor: a conformant recipient MUST accept a valid memory-hard PoW solution (Argon2id at or above its advertised difficulty, scope including sender_key per §9.2a) as satisfying its cold-contact requirement, subject only to the §9.4 verification budget and its own rate policy. VDF is an OPTIONAL cost (MAY, \u00a79.4.1) — it bounds aggregate parallelism but leaves a 10-100x latency advantage, its sequentiality is conjectural and processor-bounded, and it is not post-quantum, so it is neither the floor nor a SHOULD",
       "operation": "cold_sender_admit",
       "construction": "cold MOTE carrying a valid Argon2id solution at the recipient's advertised difficulty and no VDF proof, from a sender with no relationship",
       "expect": {
@@ -2770,7 +2770,7 @@
         "§9.4.1",
         "§9.7a"
       ],
-      "checks": "VDF-only is a non-conformant policy: a recipient MUST NOT require a VDF as the only acceptable proof. A recipient that would accept only a VDF has made an unstandardized construction the price of contacting it, and a sender who cannot produce the one proof a recipient will take is simply undeliverable — the floor failing in a new way rather than holding",
+      "checks": "VDF-only is a non-conformant policy: a recipient MUST NOT require a VDF as the only acceptable proof. A recipient that would accept only a VDF has made an unstandardized, non-post-quantum construction the price of contacting it, and a sender who cannot produce the one proof a recipient will take is simply undeliverable — the floor failing in a new way rather than holding",
       "operation": "policy_validate",
       "construction": "apply a ChallengeSpec/policy accepting vdf only, such that the valid memory-hard PoW of DMTAP-FLOOR-03 would be refused",
       "expect": {

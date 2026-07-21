@@ -180,7 +180,7 @@ The novelty is the *composition and transport*, not new primitives. DMTAP profil
 | Trust / anti-equivocation | **Key Transparency** (CONIKS / IETF keytrans style) |
 | Anti-abuse | **Privacy Pass** anonymous tokens (RFC 9576–9578) |
 | Login | **WebAuthn** · **OAuth/OIDC** · **DPoP** (RFC 9449) · **did:web** |
-| Post-quantum | **X-Wing** hybrid KEM · **ML-KEM / ML-DSA** (FIPS 203/204) |
+| Post-quantum | **ML-KEM / ML-DSA / SLH-DSA** (FIPS 203/204/205) · **X-Wing** hybrid KEM (an Independent-Submission draft, *not* a standard — §1.3) |
 
 Genuine new ground is confined to exactly two places it's actually required: the `name→key→location`
 composition itself, and mesh **epoch ordering** for MLS groups (the committer, §5.1) — everything

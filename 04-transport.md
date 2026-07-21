@@ -297,29 +297,83 @@ carries **2 KiB** of payload, so a MOTE is not "one packet ≤ 64 KiB" — it is
 2 KiB cells**. To keep size from leaking while still allowing multi-KiB inline/normal payloads
 (§2.5, §6.5), a sender MUST pad the MOTE up to the next size on a **fixed bucket ladder** and then
 fragment it into exactly `bucket / 2 KiB` Sphinx cells, all sent over independently-selected paths
-(§4.4.3) and reassembled by the recipient. The v0 ladder (§16.3) is **{8 KiB, 64 KiB}** — i.e.
-**4 or 32 cells**. A MOTE that would exceed the top inline rung is a `normal`/`large` file (§2.5)
+(§4.4.3) and reassembled by the recipient. The v0 ladder (§16.3) is **{16 KiB, 64 KiB}** — i.e.
+**8 or 32 cells**. A MOTE that would exceed the top inline rung is a `normal`/`large` file (§2.5)
 and its bulk travels per §4.5, not as inline cells.
 
-**Why two rungs, and why the floor is 8 KiB (normative rationale).** Both values follow from
-decisions made elsewhere and are stated here because this is where they bite:
+**Why two rungs, and why the floor is 16 KiB (normative rationale).** Both values follow from
+decisions made elsewhere and are stated here because this is where they bite. The floor is stated
+as an **explicit byte count derived from the suite lengths §18.2 already pins**, not as a round
+number with a hand-wave, so that a later change to a suite length or to the envelope shape cannot
+silently invalidate it:
 
-- **The floor is set by the PQ envelope, not by the cell.** With suite `0x02` as the required
-  originating suite (§1.1), a minimal MOTE already carries an ML-DSA-65 signature (~3.3 KB) and an
-  ML-KEM-768 ciphertext (~1.1 KB) before any headers or body. A 2 KiB bottom rung **cannot hold a
-  conformant envelope at all**, so it is removed rather than retained as a rung nothing can
-  occupy. 8 KiB (4 cells) is the smallest rung that comfortably holds a PQ-signed envelope plus a
-  short message body. This is the size consequence of the PQ-by-default decision, resolved once,
-  at design time — which is the entire reason for making that decision before deployment rather
-  than after.
+- **The floor is set by the PQ envelope, not by the cell — and the envelope carries the suite's
+  lengths more than once.** Under the required originating suite `0x02` (§1.1), §18.2 fixes
+  `sig-val` = **3 373 B** (Ed25519 64 ‖ ML-DSA-65 **3 309**, FIPS 204 Table 2),
+  `ik-pub`/`sig-pub` = **1 984 B** (32 ‖ ML-DSA-65 public key **1 952**), and the HPKE
+  encapsulated key = **1 120 B** (X-Wing: X25519 32 ‖ ML-KEM-768 ciphertext **1 088**, FIPS 203
+  Table 3). A minimal MOTE carries **two** signatures (`Envelope.sender_sig` **and** the sealed
+  `Payload.sig`, §18.3.1/§18.3.5), **two** public keys (the ephemeral `sender_key` **and**
+  `Payload.from`) and **one** encapsulation:
+
+  ```text
+  2 × 3 373   sender_sig, Payload.sig                    =  6 746 B
+  2 × 1 984   sender_key, Payload.from                   =  3 968 B
+  1 × 1 120   X-Wing encapsulated key                    =  1 120 B
+                                                  crypto = 11 834 B
+  + CBOR framing, id (33 B), to (32 B blinded tag), ts,
+    kind, v, suite, AEAD tag                             =    133 B
+  ────────────────────────────────────────────────────────────────
+  minimum conformant MOTE, empty headers and empty body  = 11 967 B
+  ```
+
+  An **8 KiB rung (8 192 B) therefore cannot hold a conformant MOTE at all** — it is short by
+  **3 775 B** before a single header byte. The arithmetic that produced it counted **one**
+  signature and **one** public key where the object carries **two of each** plus the KEM
+  ciphertext; the 2 KiB rung it replaced was wrong for the same reason, one order worse. **16 KiB
+  (16 384 B, 8 cells)** is the smallest rung that holds the minimum envelope with real headroom:
+  **4 417 B**, ≈ 27% of the rung, for headers, body and inline attachments. If `to` carries a full
+  identity key rather than a blinded delivery tag (§2.2a) the minimum rises to **13 919 B** and the
+  headroom falls to **2 465 B** — still positive, which is the property a floor has to have under
+  *every* legal shape of the object, not the most favourable one.
+
+- **Anchor-signed objects do ride this ladder, and they land on the top rung.** The anchor suite
+  (§1.2.0) signs rarely but signs **large**: an `Identity` version, `DeviceCert`, `RecoveryPolicy`,
+  `KeyRotation` or `MoveRecord` is announced to correspondents as a `kind = 0x09 identity` MOTE
+  (§2.3, §1.6 "push to contacts"), so it is inline traffic like any other message and the ladder
+  must hold it. Under the intended anchor profile `0x04` (SLH-DSA-128s, §1.1) a `sig-val` is
+  **7 920 B** (Ed25519 64 ‖ SLH-DSA-128s **7 856**, FIPS 205 Table 2) and an `ik-pub` is **64 B**
+  (32 ‖ 32) — the signature alone is **95.9% of an 8 KiB rung**, which is the second, independent
+  reason that rung was unsound. A worst-case announcement — operational envelope (5 457 B) + X-Wing
+  encapsulation + `Payload.from`/`Payload.sig` under the anchor (7 984 B) + the announced object
+  carrying its own anchor signature and one operational signature (≈ 11.7 kB) — is **≈ 26 kB**,
+  comfortably inside the **64 KiB** top rung with ≈ 38 KiB of slack. Anchor objects are therefore
+  **not** excluded from the inline ladder: they are ordinary top-rung MOTEs, and the generic rule
+  above (a MOTE exceeding the top rung is `normal`/`large` and its bulk travels per §4.5) is the
+  only escape hatch needed. Excluding them normatively was considered and rejected — it would add
+  a special case, and a second delivery path for the objects that establish identity, to solve a
+  problem that raising the floor already solves by arithmetic.
+
 - **Fewer rungs leak less, and rungs are observable.** §4.4.8 discloses that a pinned entry guard
   necessarily learns which rung each message occupies and when it was sent. Padding hides the
-  *true* length; it does not hide the *rung*. Over a long observation window a four-value rung
-  sequence is a far richer behavioral fingerprint than a two-value one — and against an adversary
+  *true* length; it does not hide the *rung*. Over a long observation window a many-valued rung
+  sequence is a far richer behavioral fingerprint than a two-valued one — and against an adversary
   whose advantage is patience and storage, reducing the alphabet of the observable signal is worth
-  more than the bandwidth it costs. Two rungs means an observer learns at most one bit per
-  message about its size. Padding a 500-byte note up to 8 KiB is cheap; being fingerprinted by
-  size class over ten years is not.
+  more than the bandwidth it costs. Two rungs means an observer learns at most **one bit** per
+  message about its size. A **third rung was considered and rejected on this ground**: interposing
+  32 KiB would save 16 cells on messages between 16 and 32 KiB, but it takes the per-message size
+  channel from 1 bit to log₂3 ≈ **1.58 bits** — a ≈ 58% richer signal, permanently, for a
+  bandwidth saving confined to one size band. Being fingerprinted by size class over ten years
+  costs more than the padding does.
+
+- **What the raised floor costs, stated rather than buried.** The floor is what every small
+  message pads up to, so 16 KiB is real bandwidth on every chat message, ack and receipt: **8
+  Sphinx cells instead of 4**, doubling both the wire cost and the number of independently-pathed
+  cells the mixnet carries and the recipient must reassemble (fragment reliability, below). That is
+  the price of a PQ-by-default envelope, and it is charged per *message*, not per byte of content.
+  It is nonetheless the cheaper of the two available answers: an 8 KiB floor that no conformant
+  MOTE can occupy is not a cheap floor, it is a floor that **does not exist** — every message would
+  fall through to the 64 KiB rung at 32 cells, **four times** the cost of the rung pinned here.
 
 **Fragment reliability for multi-cell MOTEs (normative).** A MOTE padded to a top-of-ladder bucket
 fragments into as many as **32 independently-pathed cells**, each with its own loss probability; a
@@ -455,10 +509,15 @@ exactly the moment a network is small enough for it to matter most. So the fleet
   the specification where the incentive to consume and the incentive to provide are literally the
   same incentive, and the default is set to match.
 
-**Consequence for growth.** Because the fleet is a function of always-on public nodes rather than of
-anyone's budget, it grows **in step with adoption** — which is precisely the schedule on which the
-anonymity set needs to grow, and is what makes the Bootstrap → Standard profile progression
-(§4.4.10) a matter of time rather than of funding.
+**Consequence for growth — a design bet, labelled as one.** Because the fleet is a function of
+always-on public nodes rather than of anyone's budget, it *should* grow **in step with adoption**,
+which is the schedule on which an anonymity set needs to grow and would make the Bootstrap →
+Standard profile progression (§4.4.10) a matter of time rather than of funding. This is a
+**prediction about volunteer behaviour, not a measured result**: no deployment of this shape has
+been run at scale, the default-on rule is untested against real operator preferences, and if it
+does not hold the `private` tier degrades as §11.3 discloses rather than failing quietly. The
+Bootstrap profile (§4.4.10a) exists precisely so that being wrong about this is visible and
+survivable instead of silent.
 
 ### 4.4.3 Path selection (3-hop stratified free-route)
 
@@ -669,8 +728,8 @@ disclosed.
   under the same guard-rotation period; both are conformant, the invariant being *persistent* (not
   per-packet-fresh) entry selection. The value is a §16.3 profile parameter.
   **Disclosed guard observation (NIT).** A pinned entry guard, if adversarial, **necessarily sees**
-  each of the sender's packets it carries — including the **bucket size** (which of the {8, 64} KiB
-  rungs, i.e. the exact **cell count**, §4.4.1, §16.3) and the **send time**. This is inherent to
+  each of the sender's packets it carries — including the **bucket size** (which of the {16, 64}
+  KiB rungs, i.e. the exact **cell count**, §4.4.1, §16.3) and the **send time**. This is inherent to
   being the first hop and is **not** hidden by the mixnet (padding hides *true* length, not which
   *rung*; cover traffic blurs *rate*, not that *this guard* is used). Constant-rate cover
   (High-security, §4.4.10) is the mitigation that most flattens the send-time signal; the residual

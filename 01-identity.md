@@ -285,24 +285,58 @@ so an identity can hold classical and PQ keys simultaneously during migration. R
   object on **one component alone**. A hybrid suite (`0x02` = Ed25519 **+** ML-DSA-65 signing,
   X-Wing = X25519 **+** ML-KEM-768 KEM, §16.7) is defined so that its security holds if **at
   least one** component is unbroken, and that goal decomposes by primitive:
-  - **Signatures compose AND at verification.** A verifier that supports suite `0x02` MUST require
-    **every** component signature of a `0x02` object to verify (Ed25519 **and** ML-DSA-65); a
-    `0x02`-claimed object whose ML-DSA component is missing or fails while only the Ed25519
-    component validates MUST be **rejected** as an incomplete/downgraded hybrid
-    (`ERR_HYBRID_SUITE_INCOMPLETE`, §21.4) — never accepted on the classical half. Requiring both
-    to verify is what makes forgery need breaking **both**; accepting on either half would collapse
-    unforgeability to the *weaker* component and hand a quantum adversary a silent
-    strip-the-PQ-half downgrade. Single-component acceptance is permitted **only** for a legacy
-    verifier that genuinely supports just one component, which thereby obtains **only that
-    component's** assurance and MUST treat the binding at that (lower) level, never as full hybrid
-    strength.
+  - **Signatures compose AND at verification, over one combined message representative.** A
+    verifier that supports suite `0x02` MUST require **every** component signature of a `0x02`
+    object to verify (Ed25519 **and** ML-DSA-65); a `0x02`-claimed object whose ML-DSA component is
+    missing or fails while only the Ed25519 component validates MUST be **rejected** as an
+    incomplete/downgraded hybrid (`ERR_HYBRID_SUITE_INCOMPLETE`, §21.4) — never accepted on the
+    classical half. Requiring both to verify is what makes forgery need breaking **both**;
+    accepting on either half would collapse unforgeability to the *weaker* component and hand a
+    quantum adversary a silent strip-the-PQ-half downgrade. Single-component acceptance is
+    permitted **only** for a legacy verifier that genuinely supports just one component, which
+    thereby obtains **only that component's** assurance and MUST treat the binding at that (lower)
+    level, never as full hybrid strength.
+
+    **The two components are NOT independent signatures over the same message (normative).**
+    Following the IETF LAMPS composite PQ/T signature construction, both components of a hybrid
+    `sig-val` sign a single **domain-separated combined message representative** that binds the
+    composite algorithm identifier — in DMTAP, the `suite` byte — alongside the object's own
+    DS-tag (§18.1.6). A bare "sign the same preimage twice and concatenate" construction is
+    **non-conformant**: it leaves each component a *valid standalone single-algorithm signature*
+    over the object, so a component can be lifted out of the composite and replayed as though it
+    were an `0x01` signature (or an `0x01` signature promoted into a composite), which is exactly
+    the non-separability property the composite exists to provide. Binding the suite into the
+    representative makes the two components meaningful only *together*, in the composite they were
+    produced for.
+
+    **Assurance level, stated exactly.** AND-composition buys **EUF-CMA** (existential
+    unforgeability) under the assumption that at least one component is unbroken. It does **not**
+    buy **SUF-CMA**: no composite PQ/T variant is known to achieve strong unforgeability against a
+    quantum adversary, so a hybrid signature MUST NOT be assumed non-malleable. DMTAP is built so
+    that it need not be: no identifier, dedup key, or replay-cache key in this protocol is derived
+    from a signature — `Envelope.id` is the content address of `ciphertext` alone (§2.2) — so a
+    mauled-but-valid signature yields the same object identity and is caught by the ordinary
+    replay cache. An implementation MUST NOT introduce a construction that depends on signature
+    uniqueness or non-malleability.
   - **KEM composes with an IND-CCA-robust combiner.** The hybrid KEM MUST be **X-Wing**
-    (`draft-connolly-cfrg-xwing-kem`), whose combiner is IND-CCA-secure if **either** the X25519
-    **or** the ML-KEM-768 share is unbroken; an implementation MUST NOT substitute a bare
-    concatenation or accept an establishment derived from a single share. Because X-Wing is a
-    single monolithic KEM there is no "classical-only" fallback *inside* `0x02` to strip — the
-    combiner is the anti-downgrade guarantee for confidentiality, as AND-verification is for
-    authenticity.
+    (`draft-connolly-cfrg-xwing-kem`), whose combiner is designed to be IND-CCA-secure if
+    **either** the X25519 **or** the ML-KEM-768 share is unbroken; an implementation MUST NOT
+    substitute a bare concatenation or accept an establishment derived from a single share.
+    Because X-Wing is a single monolithic KEM there is no "classical-only" fallback *inside*
+    `0x02` to strip — the combiner is the anti-downgrade guarantee for confidentiality, as
+    AND-verification is for authenticity.
+
+    **Standards status, stated accurately (honest limit).** X-Wing is **not a standard**. It is an
+    **Independent Submission stream** Internet-Draft (`draft-connolly-cfrg-xwing-kem`, `-10`,
+    2026-03-02), **not adopted by the CFRG**, and carries the stream's own boilerplate that it has
+    "no formal standing in the IETF standards process". Separately, **FIPS 203 standardizes no KEM
+    combiner at all** and explicitly warns that a combined KEM containing ML-KEM "might not meet
+    IND-CCA2 security", deferring the question to NIST SP 800-227. DMTAP pins X-Wing because it is
+    the best-analysed hybrid construction with a fixed HPKE KEM code point and concrete parameters,
+    not because it is blessed — and the choice is confined to one suite byte, so replacing it if
+    SP 800-227 lands on a different combiner is a §21.15 code-point allocation, not a redesign.
+    This is disclosed here rather than in a footnote because the alternative is the exact failure
+    mode this specification refuses elsewhere: an overstated standards claim resting on a draft.
 
   This makes the PQ migration downgrade-free **in both directions**: the suite high-water-mark
   (above) stops a peer being pushed *back to* `0x01`, and AND-composition + the X-Wing combiner

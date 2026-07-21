@@ -109,7 +109,7 @@ survive translation, and that is correct, not a bug).
 
 #### 7. Attachments (any size) — **Clean**
 - **How:** Inline for small, content-addressed chunked manifest for large, with three explicit
-  size tiers and their privacy cost (§2.5, §5.5, §6.5, §16.4): inline ≤64 KiB, normal ≤4 MiB
+  size tiers and their privacy cost (§2.5, §5.5, §6.5, §16.4): inline ≤48 KiB, normal ≤4 MiB
   (full mixnet privacy), large >4 MiB (fast/onion bulk path, weaker metadata privacy).
 - **Sense-check:** Clean and in fact a genuine upgrade — no protocol-imposed size cap at all
   (legacy mail is capped ~25 MB by providers); the tradeoff is disclosed rather than hidden

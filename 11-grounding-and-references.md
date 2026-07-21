@@ -15,7 +15,7 @@ existing standards**; the novelty is the composition and transport, not new cryp
 | Key agreement | X25519 | RFC 7748 | confirmed |
 | PQ KEM | ML-KEM-768 (cat-3) | FIPS 203 | confirmed |
 | PQ signatures | ML-DSA-65 (cat-3) | FIPS 204 (SLH-DSA/FIPS 205 as backup) | confirmed |
-| Hybrid HPKE KEM | **X-Wing** (ML-KEM-768 ⊕ X25519) | `draft-connolly-cfrg-xwing-kem` (HPKE KEM `0x647a`) | adopted |
+| Hybrid HPKE KEM | **X-Wing** (ML-KEM-768 ⊕ X25519) | `draft-connolly-cfrg-xwing-kem-10` (HPKE KEM `0x647a`) | **Independent Submission draft — NOT CFRG-adopted** (§1.3) |
 | Hashing | BLAKE3-256 + agility prefix | (BLAKE3 not FIPS/IETF-standardized; SHA-256 fallback) | confirmed w/ caveat |
 | Serialization | Deterministic CBOR (bytewise/core key order) | RFC 8949 §4.2 (dCBOR draft for floats) | confirmed |
 | Group/session | MLS | RFC 9420; architecture RFC 9750; suites `0x0001`/`0x0003` | confirmed |
@@ -29,7 +29,7 @@ existing standards**; the novelty is the composition and transport, not new cryp
 | Location record | IPNS-style signed value record | IPFS/IPNS | confirmed |
 | Naming | DNS TXT (key) + SVCB (service) | RFC 9460; cf. DKIM RFC 6376, OPENPGPKEY RFC 7929 | confirmed |
 | Key transparency | Merkle log + STH + inclusion/consistency/absence | CT RFC 6962; CONIKS; Google KT; Apple IMCKV; WhatsApp AKD | confirmed |
-| Anti-abuse tokens | Privacy Pass + **ARC** scoping | RFC 9576/9577/9578; `draft-yun-privacypass-arc` | adopted |
+| Anti-abuse tokens | Privacy Pass + **ARC** scoping | RFC 9576/9577/9578; `draft-yun-privacypass-arc` | RFCs confirmed; **ARC is an individual draft**, not a WG document |
 | PoW fallback | memory-hard hashcash | Back 1997; Argon2 | confirmed w/ caveat |
 | Recovery | VSS + SLIP-0039 + **FROST** | Feldman/Pedersen VSS; SLIP-0039; RFC 9591 (FROST) | upgraded |
 | Self-sovereign naming (opt) | name-chain (ENS-style) | Zooko's Triangle; ENS | optional |
@@ -84,6 +84,18 @@ existing standards**; the novelty is the composition and transport, not new cryp
   readable); mitigated by per-file keys + FS-delivered keys + at-rest encryption (§6.7).
 - **Key loss** of `IK` plus all recovery factors is unrecoverable (the bottom turtle, §1.4).
 - **PQ onion (Sphinx)** as published is not PQ-safe; PQ mix packet formats are open research.
+- **The hybrid KEM combiner is not standardized.** X-Wing is an **Independent Submission**
+  Internet-Draft, not a CFRG-adopted document, and **FIPS 203 standardizes no combiner**, warning
+  that a combined KEM containing ML-KEM "might not meet IND-CCA2 security" and deferring to
+  SP 800-227. DMTAP pins X-Wing on analysis and a fixed HPKE code point, not on standing; the
+  choice is confined to one suite byte (§1.3, §21.15).
+- **Hybrid signatures give EUF-CMA, not SUF-CMA.** No composite PQ/T variant is known to achieve
+  strong unforgeability against a quantum adversary, so DMTAP treats signatures as malleable and
+  derives no identifier from one (§1.3, §2.2).
+- **The preferred cold-contact cost (VDF) is not post-quantum.** Both named constructions rest on
+  a group of unknown order, which a quantum adversary computes; it is a `MAY`, memory-hard PoW is
+  the MUST floor, and the exposure is future spam cost, never retroactive confidentiality
+  (§9.4.1).
 - **Volunteer-provisioned infrastructure may not materialise.** Mixes, KT logs, rendezvous nodes
   and buffers are reciprocal roles, not funded services; if too few nodes take them, `private`
   degrades to `fast` — encrypted and authenticated, without default metadata privacy (§6.6 item 13,
