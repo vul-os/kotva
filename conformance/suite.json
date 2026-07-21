@@ -1321,6 +1321,27 @@
       "status": "construction-todo"
     },
     {
+      "id": "DMTAP-IDENT-91",
+      "level": "Core",
+      "category": "IDENT",
+      "req": "MUST",
+      "clause": [
+        "\u00a71.4",
+        "\u00a71.3"
+      ],
+      "checks": "Eviction is DURABLE: weakening is judged against the policy hash CHAIN, not the previous version alone. Re-adding a factor an earlier version evicted is itself a weakening change and MUST satisfy rotate_threshold plus the rule-4 veto window, exactly as the eviction did. A verifier that cannot obtain the chain MUST fail closed rather than assume a change is additive.",
+      "operation": "policy_validate",
+      "construction": "v1 = {A, B}; v2 evicts A (quorum + veto, accepted); then (a) v3 re-adds A signed by IK ALONE; (b) v3 re-adds A with a rotate_threshold quorum and an elapsed veto window; (c) v3 adds a never-evicted factor C signed by IK alone; (d) v3 presented to a verifier holding only v2",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x010E",
+        "error_name": "ERR_RECOVERY_WEAKENING_UNQUORUMED",
+        "action": "FAIL_CLOSED_BLOCK",
+        "note": "(a) MUST be rejected \u2014 accepting it is the defect: it lets a transient IK holder restore a factor they control, which then SURVIVES the IK rotation the owner performs to recover, turning a temporary key compromise into a permanent foothold in recovery. (b) accepted. (c) accepted \u2014 ordinary additive hygiene must not become quorum-gated. (d) MUST fail closed, not be assumed additive"
+      },
+      "status": "construction-todo"
+    },
+    {
       "id": "DMTAP-PRIV-01",
       "level": "Private",
       "category": "PRIV",

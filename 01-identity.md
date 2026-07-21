@@ -444,6 +444,25 @@ Rules:
    NOT be sufficient to weaken recovery. This closes the *stolen-`IK`* takeover where an attacker
    proactively rewrites recovery to evict the owner and install their own factors. **Additive,
    non-weakening** changes (adding a redundant factor) MAY be signed by `IK` alone.
+
+   **Eviction is durable — weakening is judged against the CHAIN, not the previous version alone
+   (normative).** Re-adding a factor that an earlier version **evicted** is itself a weakening
+   change, and MUST satisfy `rotate_threshold` and the rule-4 veto window exactly as the eviction
+   did. A verifier MUST evaluate a proposed policy against the **hash chain** (`prev`, §1.3), not
+   only against its immediate predecessor; if it cannot obtain the chain it MUST fail closed rather
+   than assume the change is additive.
+
+   Without this, the pairwise reading defeats rules 3 and 4 in two steps. Evicting a compromised
+   guardian correctly demands a quorum and a 72 h window. But the *next* version, compared only
+   against the one before it, sees that guardian's return as **purely additive** — so `IK` alone
+   suffices and the eviction is silently undone, with neither quorum nor veto.
+
+   The escalation this creates is the sharp part. An attacker who transiently holds `IK` cannot
+   *weaken* the policy — rule 3 forbids that. But under the pairwise reading they can **re-add a
+   factor they control that was previously evicted**. The owner then detects the compromise and
+   rotates `IK` (§1.5), which is the correct response — and the attacker's factor **survives the
+   rotation**, because it lives in the recovery policy rather than in the key. A temporary key
+   compromise becomes a permanent foothold in recovery, reached without ever satisfying a quorum.
 4. **Asymmetric veto window on weakening changes.** A recovery-weakening change MUST be published
    to the transparency log and take effect only **after a veto/delay window** (§16), during which
    the owner's monitoring devices (§3.5) can detect it and publish a **counter-signed veto/abort**.
