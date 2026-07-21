@@ -1,0 +1,8 @@
+# spec PDF build (Node + headless Chrome; see build/)
+build/node_modules/
+build/package-lock.json
+build/tract.html
+.DS_Store
+*.swp
+__pycache__/
+*.pyc

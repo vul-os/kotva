@@ -1,0 +1,12 @@
+{
+  "title": "Trade, Routing, Attestation, Custody & Trust (TRACT)",
+  "draftId": "draft-tract-00",
+  "author": "",
+  "org": "Soko",
+  "workgroup": "Vula OS Group",
+  "intendedStatus": "Standards Track (proposal)",
+  "date": "July 2026",
+  "abstract": "TRACT is an open protocol for decentralized commerce: goods, services, rentals, subscriptions, and the delivery and settlement around them, between self-sovereign identities with no marketplace operator. A seller's catalogue is a signed, content-addressed feed the seller alone controls; an offer is a claim by one seller over a product record any number of sellers may share, so a single global product view emerges from content addressing rather than from a registrar. Orders are sealed messages between the parties, never published. TRACT adopts the DMTAP substrate (identity, feeds and blobs, sync, infrastructure roles, wake) unchanged and adds the commerce spine: a four-axis offer model covering goods and services alike, buyer-side carts and multi-seller checkout, published carrier and distributor rate cards from which routing is computed locally, purchase-attested reviews with no global score, jurisdiction as a first-class field, and a payment seam that names no provider. It composes existing standards (RFC 8949 CBOR, RFC 9052 COSE, RFC 8032 Ed25519, RFC 5545 iCalendar availability, ISO 3166/4217, schema.org product vocabulary, Incoterms, GS1 identifiers where present); the novelty is the composition, not new cryptography.",
+  "status": "This Internet-Draft is submitted in full conformance with the provisions of an open, royalty-free specification. Internet-Drafts are working documents; this document is a proposal and is *not* an RFC — an RFC number is assigned only upon publication by the relevant standards body. It may be updated, replaced, or obsoleted by other documents at any time. It is inappropriate to use this document as reference material or to cite it other than as \"work in progress.\"",
+  "requirements": "The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL** in this document are to be interpreted as described in BCP 14 (RFC 2119, RFC 8174) when, and only when, they appear in all capitals, as shown here."
+}
