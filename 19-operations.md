@@ -795,11 +795,39 @@ definition, which is exactly why its ordering is normatively fixed (§2.7).
    `DeniableFrame`, **not** an MLS/HPKE-sealed `Payload`; a conformant recipient MUST route it
    through the **Double Ratchet** and MUST NOT attempt MLS/HPKE decrypt (nor silently drop it for
    lacking a `Payload`). A `DeniableInit` runs X3DH/PQXDH — verifying `idk_a_cert` over `idk_a`
-   (`0x040C` on failure), consuming the referenced responder prekey (marking any `opk`/one-time-KEM
-   spent), and applying the §5.2.1(a) first-message replay defense for a last-resort-only init —
+   (`0x040C` on failure), **reserving** — not yet spending — the referenced responder prekey
+   (see the reserve-then-commit rule below), and applying the §5.2.1(a) first-message replay
+   defense for a last-resort-only init —
    then decrypts the embedded first `DeniableMessage`; a subsequent `DeniableMessage` advances the
    ratchet. A ratchet decrypt/skip failure is `ERR_DENIABLE_RATCHET_AUTH_FAILED` (`0x040D`); an
    unknown/exhausted prekey is `0x040B`.
+
+   **Reserve-then-commit for one-time prekeys (normative — exhaustion defense).** A one-time
+   prekey is a **finite, exhaustible** resource, and step 7 runs **before** step 8 authenticates
+   anyone. The only identity check available here is `idk_a_cert` over the initiator's *own*
+   self-asserted `idk_a` — which an attacker mints freely — so an unauthenticated cold sender
+   could otherwise burn one `opk` per message. At the §16.9 bundle size of 100, roughly 100 cold
+   `DeniableInit`s with fresh keys and floor-satisfying work proofs (§9.7a guarantees the gate is
+   reachable) exhaust the bundle, and republish is a race the attacker repeats. Every legitimate
+   deniable first contact then falls back to the reused signed-prekey / last-resort KEM path —
+   the one §5.2.1 identifies as **replayable** and §16.9 rate-limits. Cost to degrade every new
+   correspondent's deniable session: ~100 proofs, with no message ever authenticating.
+
+   Therefore a recipient MUST:
+
+   - **Reserve** the prekey at step 7, keyed by the initiator's ephemeral `ek_a`, and **commit**
+     (mark it permanently spent) only at step 9, once step 8 has succeeded. On any step-8 failure
+     the reservation is **released**. Keying the reservation by `ek_a` preserves the §5.2.1(a)
+     replay defense unchanged: a replay of the *identical* init meets its own existing
+     reservation rather than consuming a second prekey, so replay is still refused without the
+     bundle draining.
+   - Bound **cold-sender** prekey consumption per window (§16.5). Beyond that bound a cold
+     `DeniableInit` is served from the **last-resort** path rather than being allowed to consume
+     an `opk` — degrading one property (that session's forward secrecy against a later
+     compromise) rather than depleting a shared resource for everyone.
+
+   The residual is disclosed rather than removed: a cold sender can still occupy reservations up
+   to the §16.5 bound, so exhaustion is **bounded and self-healing on release**, not impossible.
 8. Verify `Payload.sig` under `Payload.from`. For a known contact, `from` MUST match the pinned
    identity (§3.4); a mismatch is treated as a forged/relayed message — drop, do not ack. For a
    cold sender whose `from` is only now revealed (post-decryption), re-apply the recipient's

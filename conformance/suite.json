@@ -1899,6 +1899,26 @@
       "status": "construction-todo"
     },
     {
+      "id": "DMTAP-DENIABLE-06",
+      "level": "Groups & Files",
+      "category": "DENIABLE",
+      "req": "MUST",
+      "clause": [
+        "\u00a75.2.1",
+        "\u00a719.3.1",
+        "\u00a716.5",
+        "\u00a716.9"
+      ],
+      "checks": "One-time prekeys are RESERVED at step 7 and COMMITTED only after step 8 succeeds. A prekey is exhaustible and step 7 precedes identity authentication, so an unauthenticated cold sender must not be able to burn one per message: reservations are keyed by the initiator's ek_a (preserving the replay defense unchanged), released on any step-8 failure or at the reservation TTL, and cold-sender consumption is capped per window with overflow served from the last-resort path rather than draining the bundle.",
+      "operation": "mote_validate",
+      "construction": "(a) N cold DeniableInits, each with a fresh idk_a/ek_a and a floor-satisfying work proof, whose payloads FAIL step 8 \u2014 count opks permanently spent afterwards; (b) the same DeniableInit replayed verbatim \u2014 must meet its own existing ek_a-keyed reservation, not consume a second prekey; (c) cold reservations beyond the \u00a716.5 cap; (d) a reservation left unclaimed past the TTL",
+      "expect": {
+        "outcome": "reject",
+        "note": "(a) zero opks permanently spent \u2014 every reservation released, bundle intact; spending them is non-conformant and is the exhaustion attack this case exists for. (b) refused as replay (0x040C) with no second prekey consumed. (c) served from the last-resort path rather than consuming an opk. (d) reservation released and the opk reusable"
+      },
+      "status": "construction-todo"
+    },
+    {
       "id": "DMTAP-ORG-01",
       "level": "Core",
       "category": "ORG",

@@ -242,7 +242,15 @@ Session setup reuses **X3DH** (Marlinspike & Perrin, 2016) for `suite = 0x01` an
   its signature, a set of **one-time prekeys** `opks`, and — under `suite = 0x02` — a signed
   **last-resort ML-KEM key** plus one-time KEM keys (PQXDH). The bundle is replenished by the
   owner's node exactly like KeyPackages (§5.3); exhaustion falls back to the signed prekey /
-  last-resort key, rate-limited (§16.9). The initiator carries **its own** `idk_a` + `idk_a_cert`
+  last-resort key, rate-limited (§16.9).
+  **Exhaustion is an attack, not only a capacity event.** Falling back is a *degradation*: the
+  last-resort path is reused and therefore the **replayable** one this section defends separately
+  (§5.2.1(a)). Because a prekey is consumed during `DeniableInit` processing — at §2.7 step 7,
+  *before* step 8 authenticates anyone — an unauthenticated cold sender could otherwise drain the
+  bundle deliberately and force every subsequent legitimate first contact onto that weaker path.
+  The defense is **reserve-then-commit** plus a cold-sender consumption cap (§19.3.1, §16.5):
+  the prekey is reserved at step 7 keyed by `ek_a`, committed only after step 8 succeeds, and
+  released otherwise. The initiator carries **its own** `idk_a` + `idk_a_cert`
   inline in `DeniableInit` (§18.3.9) so an offline responder can complete the async handshake
   without a round trip.
 - **What is signed vs MAC'd (the crux).** The **only** signatures in the whole mode are the
