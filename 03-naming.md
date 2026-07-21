@@ -608,7 +608,11 @@ your key already holds your key-name, and no authority can allocate, deny, seize
 It is the **floor of the naming ladder** (§3.13) and the zero-authority escape hatch referenced
 throughout (§3.9.4, §3.11.5): whatever else fails, you remain nameable and reachable by key-name.
 
-- **Derivation (normative).** The key-name is a word encoding of `BLAKE3-256(ik)` — the identity's
+- **Derivation (normative).** The key-name is a word encoding of `BLAKE3-256(ik)` — **whose exact
+  preimage is pinned in §18.9.17**, because `Identity.iks` is a map of one key *per suite* and
+  "`ik`" alone does not name a value. The hashed input is the entry at `Identity.anchor_suite`
+  (§1.2.0), as raw public-key bytes. Consequently an anchor-suite migration changes the key-name;
+  an operational-suite migration does not. Continuing: it is the identity's
   root key `IK` (§1.2) — rendered as an **8-word** sequence (80 bits) over the same curated,
   language-agnostic **~1024-word list** and **folded checksum** used for safety-number word
   rendering (§3.4.1), so a single mistyped word **fails closed** rather than resolving to a

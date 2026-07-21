@@ -559,7 +559,8 @@
       "req": "MUST",
       "clause": [
         "\u00a73.9.6",
-        "\u00a716.2"
+        "\u00a716.2",
+        "\u00a718.9.17"
       ],
       "checks": "deterministic 8-word key-name (+ checksum verifies), all-zero key",
       "operation": "keyname_encode",
@@ -576,7 +577,8 @@
       "category": "NAME",
       "req": "MUST",
       "clause": [
-        "\u00a73.9.6"
+        "\u00a73.9.6",
+        "\u00a718.9.17"
       ],
       "checks": "key-name of all-0x01 key",
       "operation": "keyname_encode",
@@ -593,7 +595,8 @@
       "category": "NAME",
       "req": "MUST",
       "clause": [
-        "\u00a73.9.6"
+        "\u00a73.9.6",
+        "\u00a718.9.17"
       ],
       "checks": "key-name of all-0x02 key",
       "operation": "keyname_encode",
@@ -610,7 +613,8 @@
       "category": "NAME",
       "req": "MUST",
       "clause": [
-        "\u00a73.9.6"
+        "\u00a73.9.6",
+        "\u00a718.9.17"
       ],
       "checks": "key-name of a real Ed25519 public key",
       "operation": "keyname_encode",
@@ -627,7 +631,8 @@
       "category": "NAME",
       "req": "MUST",
       "clause": [
-        "\u00a73.9.6"
+        "\u00a73.9.6",
+        "\u00a718.9.17"
       ],
       "checks": "distinct keys yield distinct names (keyname_key_ones != keyname_key_twos)",
       "operation": "keyname_distinct",
@@ -648,7 +653,8 @@
       "req": "MUST",
       "clause": [
         "\u00a73.9.6",
-        "\u00a716.2"
+        "\u00a716.2",
+        "\u00a718.9.17"
       ],
       "checks": "a single mistyped word fails the folded checksum (fail closed)",
       "operation": "keyname_verify",

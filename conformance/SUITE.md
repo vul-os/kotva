@@ -227,12 +227,12 @@ crypto/encoding case below is a prerequisite the higher levels inherit.
 
 | id | req | clause | checks | input | expect | status |
 |----|-----|--------|--------|-------|--------|--------|
-| DMTAP-NAME-01 | MUST | §3.9.6, §16.2 | key-name is deterministic (+ checksum verifies) — all-zero key | vector `keyname_zero_key` | match (`name`), accept (checksum) | vectored |
-| DMTAP-NAME-02 | MUST | §3.9.6 | key-name of all-`0x01` key | vector `keyname_key_ones` | match | vectored |
-| DMTAP-NAME-03 | MUST | §3.9.6 | key-name of all-`0x02` key | vector `keyname_key_twos` | match | vectored |
-| DMTAP-NAME-04 | MUST | §3.9.6 | key-name of a real Ed25519 public key | vector `keyname_real_pubkey` | match | vectored |
-| DMTAP-NAME-05 | MUST | §3.9.6 | distinct keys ⇒ distinct names (`keyname_key_ones` ≠ `keyname_key_twos`) | derived from NAME-02 / NAME-03 | accept (names differ) | vectored |
-| DMTAP-NAME-06 | MUST | §3.9.6, §16.2 | a single mistyped word fails the folded checksum (fail closed) | vector `keyname_typo_rejected` | reject (checksum) | vectored |
+| DMTAP-NAME-01 | MUST | §3.9.6, §18.9.17, §16.2 | key-name is deterministic (+ checksum verifies) — all-zero key | vector `keyname_zero_key` | match (`name`), accept (checksum) | vectored |
+| DMTAP-NAME-02 | MUST | §3.9.6, §18.9.17 | key-name of all-`0x01` key | vector `keyname_key_ones` | match | vectored |
+| DMTAP-NAME-03 | MUST | §3.9.6, §18.9.17 | key-name of all-`0x02` key | vector `keyname_key_twos` | match | vectored |
+| DMTAP-NAME-04 | MUST | §3.9.6, §18.9.17 | key-name of a real Ed25519 public key | vector `keyname_real_pubkey` | match | vectored |
+| DMTAP-NAME-05 | MUST | §3.9.6, §18.9.17 | distinct keys ⇒ distinct names (`keyname_key_ones` ≠ `keyname_key_twos`) | derived from NAME-02 / NAME-03 | accept (names differ) | vectored |
+| DMTAP-NAME-06 | MUST | §3.9.6, §18.9.17, §16.2 | a single mistyped word fails the folded checksum (fail closed) | vector `keyname_typo_rejected` | reject (checksum) | vectored |
 
 ### SAFE — out-of-band safety number (§3.4.1)
 

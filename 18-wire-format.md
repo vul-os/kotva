@@ -2043,6 +2043,44 @@ string of `GroupState.group_id`. This is a **ranking hash, not a signature** —
 `sig-val` and proves nothing by itself; the DS-tag only ensures a rank can never collide with any
 other DMTAP preimage. Members order candidates by `rank` (lowest first) per §5.1.
 
+### 18.9.17 Key-name digest (§3.9.6)
+
+The **key-name** — the zero-authority floor of the naming ladder (§3.13) — is the one hash in the
+protocol §18.9 did not pin. §3.9.6 says only "a word encoding of `BLAKE3-256(ik)`", and `ik` is
+not a value: `Identity.iks` is a **map** of one identity public key *per suite* (§18.4), whose
+entries differ in length between suites (§16.7). Left unpinned, one implementation could hash
+`iks[anchor_suite]`, another `iks[suite]`, another the deterministic CBOR of the whole map — and
+the same identity would have **three different 8-word key-names**. Since the key-name is read
+aloud and compared by humans, that is a spoofing surface as well as an interoperability break, and
+it is load-bearing for §3.13, §9.7a and §12.3.1.
+
+Pinned:
+
+```
+keyname_digest = BLAKE3-256( ik_pub_bytes )      ; ik_pub_bytes = Identity.iks[anchor_suite]
+```
+
+- **Which key: the ANCHOR.** `ik_pub_bytes` is the entry of `Identity.iks` at
+  `Identity.anchor_suite` (§1.2.0), taken as **raw public-key bytes with no CBOR head, no length
+  prefix and no suite byte**. The anchor is the correct input because the key-name must be as
+  durable as the identity itself: operational suites are expected to migrate (§1.1), and hashing an
+  operational key would change a user's zero-authority name every time they rotated one.
+- **No domain-separation tag** — deliberately, and this is the one §18.9 preimage without one. A
+  DS tag would change every key-name in existence, including the committed `keyname_*` conformance
+  vectors, for a collision class that does not arise: a key-name is never compared as raw digest
+  bytes against another DMTAP digest. It is rendered to words and compared *as words*, and content
+  addresses carry a multihash prefix (§18.1.5) that a bare 32-byte digest does not. The absence is
+  therefore recorded here as a decision rather than left as an omission.
+- **Consequence, stated because §1.2.0 implies it without saying it: an anchor-suite migration
+  changes every key-name.** Rotating the anchor — the emergency `0x04` pivot (§1.1) — is therefore
+  a **network-wide naming event**, not merely a cryptographic one. Existing correspondents follow
+  by pinned key and the signed chain (§1.5–§1.6) and are unaffected; only a new contact who knows
+  solely the old key-name is. This is the same residual §3.9.6 already discloses for `IK` rotation,
+  and the reason the anchor should be the most conservative primitive available.
+
+The word encoding, wordlist size and folded checksum are §3.9.6's; this subsection pins only the
+digest that feeds them.
+
 ---
 
 ## 18.10 Collected CDDL grammar (copy-paste block)
