@@ -2866,6 +2866,26 @@
       "status": "construction-todo"
     },
     {
+      "id": "DMTAP-FLOOR-06",
+      "level": "Core",
+      "category": "FLOOR",
+      "req": "MUST",
+      "clause": [
+        "\u00a72.7a",
+        "\u00a79.4",
+        "\u00a79.7a",
+        "\u00a716.5"
+      ],
+      "checks": "Unverified input may be refused past the aggregate budget. \u00a72.7a's 'never silently dropped' governs VERIFIED input; it does not oblige a recipient to store cold MOTEs it has not verified and cannot afford to verify. Past the \u00a716.5 requests-area aggregate budget a recipient MAY refuse unverified cold MOTEs, and over-budget deferrals go to the separate short-lived holding class rather than the 30-day requests area, so an unverified flood cannot displace verified floor traffic.",
+      "operation": "policy_validate",
+      "construction": "(a) saturate the \u00a716.5 memory-hard verification budget on one delivering path, then send cold MOTEs carrying GARBAGE in `challenge` well past the aggregate requests-area budget; (b) interleave a cold MOTE bearing a VALID work proof; (c) let the unverified holding class reach its retention limit",
+      "expect": {
+        "outcome": "accept",
+        "note": "(a) MAY be refused once the aggregate budget is exhausted \u2014 a node obliged to store unverified garbage durably for 30 days has an unauthenticated write channel, not a floor; these MUST NOT be admitted to the 30-day requests area nor counted as satisfying the floor. (b) MUST still be admitted \u2014 refusing a VERIFIED proof because unverified traffic exhausted the budget is non-conformant and is the floor failing. (c) holding-class entries expire at \u226424 h without affecting requests-area retention"
+      },
+      "status": "construction-todo"
+    },
+    {
       "id": "DMTAP-FAILCLASS-01",
       "level": "Core",
       "category": "FAILCLASS",

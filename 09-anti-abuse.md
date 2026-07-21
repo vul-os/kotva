@@ -227,7 +227,8 @@ a recommendation:
   make reachability conditional on an unstandardized construction (below) — and a sender who cannot
   produce the one proof a recipient will take is simply undeliverable, which §9.7a exists to
   prevent. A VDF-only cold-contact policy is therefore itself non-conformant
-  (`ERR_POLICY_BELOW_FLOOR`, `0x070F`, §21.10), exactly as a zero `N_floor` is.
+  (`ERR_POLICY_BELOW_FLOOR`, `0x070F`, §21.10), exactly as any policy under which a valid work
+  proof is never sufficient is.
 - The binding rule of §9.2a applies to both: the proof's scope MUST include `sender_key`, so a
   stolen proof is worthless under any other ephemeral key. Parameters are pinned in §16.5.
 
@@ -371,8 +372,9 @@ verifiable — and **silently undeliverable**. That would reproduce, one layer u
 IP-reputation gatekeeping that made self-hosted SMTP unusable, while the specification claimed
 the opposite.
 
-Therefore: **a conformant recipient MUST accept at least the zero-relationship floor** — a
-minimum of `N_floor` cold MOTEs per sender-key per day (§16.5) from a sender presenting **only** a
+Therefore: **a conformant recipient MUST NOT operate a policy under which a valid work proof is
+never sufficient** — it MUST admit, up to the aggregate resource budget of §16.5, a sender
+presenting **only** a
 valid work proof — **either** a sequential-work proof (`vdf`, §9.4.1) **or** a memory-hard PoW
 solution (§9.4), the recipient's choice of preference but **both** acceptable — bound to the
 recipient's current epoch beacon, with **no** token, **no** postage, and **no** vouch. A recipient
@@ -384,10 +386,33 @@ nothing but a keypair and a few seconds of work — memory-hard by default, sequ
 recipient also offers it — **can always reach the requests area**,
 and can therefore be found, replied to, and promoted to a contact by a human decision.
 
+**Why the floor is a policy constraint and NOT a per-sender count (normative).** An earlier
+revision expressed this as "at least `N_floor` cold MOTEs **per sender-key** per day". That
+bounded nothing. §2.2 defines `sender_key` as an **ephemeral, fresh-per-message** key whose entire
+purpose is unlinkability, and §9.2a notes an attacker mints them at will — so a per-sender-key
+quota is a quota *per message*, which is no quota at all. Nor could it be otherwise: the recipient
+has **no stable subject to meter against at gate time by design**, because identity is not
+revealed until §2.7 step 8, after decryption. §9.2's `RateLimit` and §16.4's per-sender spool cap
+inherit exactly the same vacuity on the cold path and MUST be read as aggregate limits there.
+
+Worse, the old wording composed with §9.4's overflow rule into an unbounded **durable-storage**
+denial of service. Beyond the memory-hard verification budget §9.4 requires deferral **without
+verifying**; the deferral target is the requests area; and §2.7a forbade dropping from it while
+mandating 30-day retention. An attacker could saturate the per-connection budget (cheap, and
+multipliable across delivering paths), then send unlimited cold MOTEs carrying **garbage** in
+`challenge` — never doing any work at all — and a conformant node was obliged to store every one
+of them, durably, for 30 days. The §9.11 claim that native mail needs no filter rested on a
+requests area that was in fact an unauthenticated write channel.
+
+The floor is therefore a **guarantee about policy** — that no configuration may make honest
+zero-relationship contact impossible — not a licence for unbounded intake. Bounding the
+**aggregate** (§16.5) is what makes the guarantee affordable to hold open, and §2.7a now
+distinguishes *refusing unverified input* from *silently dropping a well-formed, verified MOTE*.
+
 - The floor is a **minimum**, not a ceiling: a recipient MAY grant far more to trusted issuers,
   vouched senders, or paid postage. It MUST NOT grant less.
 - A recipient under active flood MAY apply the §9.4 deferral budget to floor traffic as it does to
-  any other, but MUST NOT set `N_floor` to zero as a standing policy
+  any other, but MUST NOT make a valid work proof insufficient as a standing policy
   (`ERR_POLICY_BELOW_FLOOR`, `0x070F`, §21.10 — the policy is refused, not silently clamped).
 - Implementations MUST NOT ship a default policy that violates the floor, and a policy UI MUST
   NOT offer "reject all unknown senders" as a reachable configuration without disclosing that it

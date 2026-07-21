@@ -354,6 +354,26 @@ To reconcile §2.7 and §9.2, the disposition is by *degree*:
   *delivered*; the sender's own retry reaches `EXPIRED`, §16.1). Deferred MOTEs are held for the
   **requests-area retention period** (30 days, §16.5), then auto-cleaned. The user MAY promote the
   sender (which pins them as a contact). Ack is owed **only** for inbox delivery (§19.3.1 step 9).
+- **Unverified because the recipient was over its verification budget** (§9.4's over-budget path)
+  → held in the separate **unverified-deferral holding class** (§16.5): small, capped, and retained
+  for **≤ 24 h**, not 30 days. It MUST NOT be mixed into the requests area and MUST NOT count as
+  having satisfied the §9.7a floor, because nothing has been checked about it.
+
+**"Never silently dropped" governs VERIFIED input; refusing UNVERIFIED input is a different act
+(normative).** The rule above forbids discarding a well-formed cold MOTE whose proof the recipient
+*has checked* and found sufficient. It does **not** oblige a recipient to store input it has not
+verified and cannot afford to verify. Past the aggregate requests-area budget (§16.5) a recipient
+**MAY refuse unverified cold MOTEs outright**.
+
+The distinction is load-bearing, and conflating the two produced a real defect. §9.4 requires
+deferral **without verifying** once the memory-hard verification budget is exhausted — a budget
+scoped per delivering connection, which an attacker multiplies for free across mix exits and
+relays. With no aggregate cap and no permission to refuse, that composed into an unbounded
+**durable-storage denial of service**: saturate the budget, then send unlimited cold MOTEs
+carrying **garbage** in `challenge`, performing no work whatsoever, and a conformant node was
+obliged to hold every one of them for 30 days. The §9.11 claim that native mail needs no filter
+rested on a requests area that was, in that state, an unauthenticated write channel. A node that
+cannot refuse unverified bytes has no floor to defend — it has a mailbox anyone can fill.
 
 Implementations MUST NOT deliver an unproven cold MOTE to the inbox, and MUST NOT silently
 discard a well-formed-but-under-threshold one without the requests-area affordance.
