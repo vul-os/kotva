@@ -1,0 +1,2681 @@
+{
+  "format": "dmtap-conformance-scope/1",
+  "spec": "0.1.0",
+  "describes": "Curated classification of every specification section that contains a capitalised MUST/MUST NOT, used by `tools/lint.py --coverage` to report normative coverage against the IMPL denominator instead of against every capitalised MUST.",
+  "why": "Not every capitalised MUST is an implementation requirement a conformance runner could check. Counting all of them makes the coverage metric measure something other than what it claims. Curating the denominator is only honest if the curation is auditable, so every section below carries a one-line reason, and INCLUSION IS THE DEFAULT: a section is IMPL unless there is a stated reason a runner could not check it, and the reason must name what owns the requirement instead.",
+  "classes": {
+    "IMPL": "A constraint on a conformant implementation, owned by this clause. Needs a conformance case. This is the denominator the headline coverage number uses.",
+    "ENCODING": "A §18 wire-format field/CDDL table whose encoding is already exercised byte-exactly by a committed entry in conformance/vectors/. A §18 section with no vector behind it is IMPL, not ENCODING.",
+    "RESTATEMENT": "The requirement is real but owned by another clause — the §21 registry Action column, the §19 operations appendix (§10.4: the narrative governs), the §20 state-machine tables, or a summary/parity/limits table. A case should cite the owning clause, not the restatement.",
+    "PROCEDURE": "Binds an operator's process or a future registrant's document, not a wire behaviour: incident-response runbooks, the pre-deployment audit gate, IANA allocation and registration policies.",
+    "NARRATIVE": "The capitalised MUST is not a requirement at all — a list header ('DMTAP MUST provide:'), a counterfactual quoted in order to be rejected, a BCP 14 glossary entry, or a reference-table row."
+  },
+  "denominator": "IMPL",
+  "audit": "Regenerate the section list with `python3 tools/lint.py --coverage`; every section it reports must appear here exactly once. Disagreeing with a classification is a bug report: reclassify to IMPL and write the case.",
+  "sections": [
+    {
+      "section": "0.1",
+      "file": "00-overview.md",
+      "title": "0.1 Goals",
+      "musts": 1,
+      "class": "NARRATIVE",
+      "reason": "'DMTAP MUST provide:' introduces the goals list; each goal is specified normatively in its own section"
+    },
+    {
+      "section": "0.2.3",
+      "file": "00-overview.md",
+      "title": "0.2.3 The gateway role — the legacy adapter, and the only operator class",
+      "musts": 1,
+      "class": "RESTATEMENT",
+      "reason": "overview summary of §7.1b's privilege-separation rule; owned by §7.1b and tested by DMTAP-GWROLE-03"
+    },
+    {
+      "section": "0.8",
+      "file": "00-overview.md",
+      "title": "0.8 Conventions & normative glossary",
+      "musts": 1,
+      "class": "NARRATIVE",
+      "reason": "BCP 14 requirement-language boilerplate — it defines the word MUST, it does not use it"
+    },
+    {
+      "section": "1.1",
+      "file": "01-identity.md",
+      "title": "1.1 Algorithm suites & crypto-agility",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "1.2.0",
+      "file": "01-identity.md",
+      "title": "1.2.0 The anchor suite — cold and hot keys are dimensioned differently (normative)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "1.2a",
+      "file": "01-identity.md",
+      "title": "1.2a Hardware-backed keys & per-device compartmentalization (normative)",
+      "musts": 5,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "1.3",
+      "file": "01-identity.md",
+      "title": "1.3 The `Identity` object (published)",
+      "musts": 15,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "1.4",
+      "file": "01-identity.md",
+      "title": "1.4 Recovery policy (and rotating the recovery methods)",
+      "musts": 11,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "1.5",
+      "file": "01-identity.md",
+      "title": "1.5 Key rotation",
+      "musts": 5,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "2.2",
+      "file": "02-mote.md",
+      "title": "2.2 Envelope (CBOR)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "2.2a",
+      "file": "02-mote.md",
+      "title": "2.2a Delivery tag (`to`) and recipient blinding",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "2.3",
+      "file": "02-mote.md",
+      "title": "2.3 Message kinds",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "2.5",
+      "file": "02-mote.md",
+      "title": "2.5 Attachments and files",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "2.6",
+      "file": "02-mote.md",
+      "title": "2.6 Delivery semantics",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "2.7",
+      "file": "02-mote.md",
+      "title": "2.7 Validation (recipient MUST)",
+      "musts": 6,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "2.7a",
+      "file": "02-mote.md",
+      "title": "2.7a Outcome of a failed/absent challenge (normative)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.1",
+      "file": "03-naming.md",
+      "title": "3.1 Roles (who holds what)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.2",
+      "file": "03-naming.md",
+      "title": "3.2 DNS records",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.3",
+      "file": "03-naming.md",
+      "title": "3.3 Resolution",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.4",
+      "file": "03-naming.md",
+      "title": "3.4 Trust on first use (TOFU) + pinning",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.4.1",
+      "file": "03-naming.md",
+      "title": "3.4.1 Safety numbers (out-of-band key verification)",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.5",
+      "file": "03-naming.md",
+      "title": "3.5 Key transparency (KT)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.5.2",
+      "file": "03-naming.md",
+      "title": "3.5.2 v1-hardening — federated, gossiped, equivocation-detecting (log-type `0x02`)",
+      "musts": 16,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.8",
+      "file": "03-naming.md",
+      "title": "3.8 Onboarding tiers (day-one setup)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.9.3",
+      "file": "03-naming.md",
+      "title": "3.9.3 Petnames (local)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.9.4",
+      "file": "03-naming.md",
+      "title": "3.9.4 Aliases & subaddressing (one identity, many addresses)",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.9.5",
+      "file": "03-naming.md",
+      "title": "3.9.5 `Profile` — human display data (self-asserted, signed)",
+      "musts": 15,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.9.7",
+      "file": "03-naming.md",
+      "title": "3.9.7 Canonical name form & confusable defenses (normative)",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.10.2",
+      "file": "03-naming.md",
+      "title": "3.10.2 Member provisioning — two honest models",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.10.3",
+      "file": "03-naming.md",
+      "title": "3.10.3 The organization directory (GAL)",
+      "musts": 5,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.10.5",
+      "file": "03-naming.md",
+      "title": "3.10.5 Offboarding & lifecycle",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.11.3",
+      "file": "03-naming.md",
+      "title": "3.11.3 Aliases — many names, one key (normative)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.12.2",
+      "file": "03-naming.md",
+      "title": "3.12.2 The resolver-type registry, and why it is open (normative)",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.12.3",
+      "file": "03-naming.md",
+      "title": "3.12.3 Multi-resolver discovery — resolvers cross-check each other (normative)",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.12.5",
+      "file": "03-naming.md",
+      "title": "3.12.5 The `name-chain` resolver type — OPTIONAL, with four guardrails (normative)",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.13.2",
+      "file": "03-naming.md",
+      "title": "3.13.2 The naming ladder",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.13.4",
+      "file": "03-naming.md",
+      "title": "3.13.4 The honest residual — there is no free, human-shareable, user-owned name",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.13.5",
+      "file": "03-naming.md",
+      "title": "3.13.5 Cold start — a brand-new identity with nothing (normative)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.1",
+      "file": "04-transport.md",
+      "title": "4.1 Substrate: libp2p",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.2",
+      "file": "04-transport.md",
+      "title": "4.2 The `key → location` record (DHT)",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.2.1",
+      "file": "04-transport.md",
+      "title": "4.2.1 Resolution order — the DHT is an accelerator, never a dependency (normative)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.2.2",
+      "file": "04-transport.md",
+      "title": "4.2.2 Bootstrap — how a node finds its first peer (normative)",
+      "musts": 5,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.4.1",
+      "file": "04-transport.md",
+      "title": "4.4.1 Sphinx packet format (profiled; parameters pinned)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.4.2",
+      "file": "04-transport.md",
+      "title": "4.4.2 Mix directory (discovery + keys, bound to DNS/KT)",
+      "musts": 6,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.4.2a",
+      "file": "04-transport.md",
+      "title": "4.4.2a The mix role is default-on for always-on public nodes (normative)",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.4.3",
+      "file": "04-transport.md",
+      "title": "4.4.3 Path selection (3-hop stratified free-route)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.4.4",
+      "file": "04-transport.md",
+      "title": "4.4.4 Mix key rotation & epochs",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.4.5",
+      "file": "04-transport.md",
+      "title": "4.4.5 Cover traffic & Loopix loops (normative)",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.4.6",
+      "file": "04-transport.md",
+      "title": "4.4.6 Active-attack resistance: replay, tagging, unlinkability, Poisson mixing (normative)",
+      "musts": 6,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.4.7",
+      "file": "04-transport.md",
+      "title": "4.4.7 Loop cover as active-attack detection & fail-closed response (normative) — the key lever",
+      "musts": 7,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.4.8",
+      "file": "04-transport.md",
+      "title": "4.4.8 Entry guards, operator diversity & mix Sybil resistance (normative)",
+      "musts": 10,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.4.9",
+      "file": "04-transport.md",
+      "title": "4.4.9 Fail-closed: minimum viable path, no silent downgrade (normative)",
+      "musts": 6,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.4.10",
+      "file": "04-transport.md",
+      "title": "4.4.10 High-security profile (normative, user-selectable)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.4.10a",
+      "file": "04-transport.md",
+      "title": "4.4.10a The Bootstrap profile — a small network must still work (normative)",
+      "musts": 10,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.4.11",
+      "file": "04-transport.md",
+      "title": "4.4.11 Honest low-adoption model (disclosed, §6.6 style)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.5",
+      "file": "04-transport.md",
+      "title": "4.5 Bulk / file transfer",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.7",
+      "file": "04-transport.md",
+      "title": "4.7 Delivery state machine (sender)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.9.1",
+      "file": "04-transport.md",
+      "title": "4.9.1 The two objects, and who holds what",
+      "musts": 5,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.9.3",
+      "file": "04-transport.md",
+      "title": "4.9.3 Provider abstraction (all optional; prefer the open ones)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.9.4",
+      "file": "04-transport.md",
+      "title": "4.9.4 Anti-abuse (a wake costs battery)",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "5.1",
+      "file": "05-messaging.md",
+      "title": "5.1 Why MLS everywhere",
+      "musts": 5,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "5.1.1",
+      "file": "05-messaging.md",
+      "title": "5.1.1 Lighter ordering for n = 2 (1:1) — symmetric co-committers (normative)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "5.2",
+      "file": "05-messaging.md",
+      "title": "5.2 Forward secrecy & (non-)deniability",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "5.2.1",
+      "file": "05-messaging.md",
+      "title": "5.2.1 Optional deniable 1:1 mode (normative)",
+      "musts": 14,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "5.5",
+      "file": "05-messaging.md",
+      "title": "5.5 Files: content-addressed, chunked, any size",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "5.5.2",
+      "file": "05-messaging.md",
+      "title": "5.5.2 Durability descriptor (normative — the key fix)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "5.5.5",
+      "file": "05-messaging.md",
+      "title": "5.5.5 Storage-DoS & spool overflow (normative)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "5.6.1",
+      "file": "05-messaging.md",
+      "title": "5.6.1 Cluster membership (who is a replica) — normative",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "5.6.3",
+      "file": "05-messaging.md",
+      "title": "5.6.3 Backfill (a joining or long-offline node catches up)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "5.6.4",
+      "file": "05-messaging.md",
+      "title": "5.6.4 CRDT merge semantics for mutable metadata (normative)",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "5.6.5",
+      "file": "05-messaging.md",
+      "title": "5.6.5 Tombstone GC (when a delete may be reclaimed) — normative",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "5.8.3",
+      "file": "05-messaging.md",
+      "title": "5.8.3 Membership privacy (subscriber-list)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "5.8.4",
+      "file": "05-messaging.md",
+      "title": "5.8.4 Delivery & scale",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "5.8.6",
+      "file": "05-messaging.md",
+      "title": "5.8.6 Group key custody, recovery & threshold (normative)",
+      "musts": 5,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "5.8.7",
+      "file": "05-messaging.md",
+      "title": "5.8.7 Organization groups & distribution lists (normative)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "6.4",
+      "file": "06-privacy.md",
+      "title": "6.4 Why we avoid PIR (honest framing)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "6.5",
+      "file": "06-privacy.md",
+      "title": "6.5 Privacy tiers (and where each product sits)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "6.6",
+      "file": "06-privacy.md",
+      "title": "6.6 Honest boundaries (what we do NOT claim)",
+      "musts": 7,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "6.7",
+      "file": "06-privacy.md",
+      "title": "6.7 Data at rest",
+      "musts": 9,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "6.8",
+      "file": "06-privacy.md",
+      "title": "6.8 Transport-path provenance does not weaken metadata privacy (normative)",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "6.9",
+      "file": "06-privacy.md",
+      "title": "6.9 Security properties (falsifiable claims → mechanism → adversary → residual)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "6.9.1",
+      "file": "06-privacy.md",
+      "title": "6.9.1 The map, in one table",
+      "musts": 1,
+      "class": "PROCEDURE",
+      "reason": "spec-maintenance rule addressed to reviewers: a claim that fails without invoking its residual is a spec defect to be reported"
+    },
+    {
+      "section": "7.1",
+      "file": "07-gateway.md",
+      "title": "7.1 Responsibilities — and the much longer list of non-responsibilities",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.1a",
+      "file": "07-gateway.md",
+      "title": "7.1a What running the gateway role actually requires (normative)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.1b",
+      "file": "07-gateway.md",
+      "title": "7.1b Privilege separation — one binary, separate processes (normative)",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.2",
+      "file": "07-gateway.md",
+      "title": "7.2 Inbound",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.2a",
+      "file": "07-gateway.md",
+      "title": "7.2a Attestation key binding (normative)",
+      "musts": 6,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.2b",
+      "file": "07-gateway.md",
+      "title": "7.2b Internationalized and 8-bit mail (normative)",
+      "musts": 10,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.3",
+      "file": "07-gateway.md",
+      "title": "7.3 Outbound & DKIM delegation",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.5",
+      "file": "07-gateway.md",
+      "title": "7.5 Gateway discovery and reputation — locally measured, never globally published (normative)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.7",
+      "file": "07-gateway.md",
+      "title": "7.7 Fairness, self-host backstop & non-lock-in",
+      "musts": 1,
+      "class": "NARRATIVE",
+      "reason": "quotes the counterfactual rule \"every gateway MUST accept all traffic\" in order to reject it"
+    },
+    {
+      "section": "7.8.3",
+      "file": "07-gateway.md",
+      "title": "7.8.3 Chaining multiple gateways",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.9",
+      "file": "07-gateway.md",
+      "title": "7.9 Self-host `@host.net`, gateways, and what can *ever* be charged for",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.10.1",
+      "file": "07-gateway.md",
+      "title": "7.10.1 Native → legacy (why a reply-path rewrite is required)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.10.2",
+      "file": "07-gateway.md",
+      "title": "7.10.2 Two alias encodings (offer both — normative tradeoff)",
+      "musts": 7,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.10.3a",
+      "file": "07-gateway.md",
+      "title": "7.10.3a Bounces and delivery status notifications (normative)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.10.5",
+      "file": "07-gateway.md",
+      "title": "7.10.5 Aliases the gateway can and cannot mint — vanity local-parts (normative)",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.10.5a",
+      "file": "07-gateway.md",
+      "title": "7.10.5a The local-part parsing rule (normative)",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.10.6",
+      "file": "07-gateway.md",
+      "title": "7.10.6 Alias safety tiers and the client rules that drain them (normative)",
+      "musts": 5,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.11",
+      "file": "07-gateway.md",
+      "title": "7.11 Bidirectional anti-abuse is mandatory (normative floor)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.11.1",
+      "file": "07-gateway.md",
+      "title": "7.11.1 Inbound (legacy → DMTAP): MUST NOT become a spam injector",
+      "musts": 5,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.11.2",
+      "file": "07-gateway.md",
+      "title": "7.11.2 Outbound (DMTAP → legacy): MUST NOT become an open relay",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.11.3",
+      "file": "07-gateway.md",
+      "title": "7.11.3 The floor vs. the numbers",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.11.4",
+      "file": "07-gateway.md",
+      "title": "7.11.4 The gateway authorizes; it never classifies (normative)",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.12.1",
+      "file": "07-gateway.md",
+      "title": "7.12.1 Capability negotiation (a gateway MAY be open or key-registered)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.13",
+      "file": "07-gateway.md",
+      "title": "7.13 In-scope mechanism vs. out-of-scope operator policy (normative boundary)",
+      "musts": 1,
+      "class": "RESTATEMENT",
+      "reason": "list header indexing the in-scope §7 mechanisms; each is owned and tested at its own clause"
+    },
+    {
+      "section": "7.14",
+      "file": "07-gateway.md",
+      "title": "7.14 What a third-party gateway operator may condition (informative)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.15.1",
+      "file": "07-gateway.md",
+      "title": "7.15.1 The legacy surfaces the gateway serves",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.15.2",
+      "file": "07-gateway.md",
+      "title": "7.15.2 The legacy-client reachability ingress",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.15.3",
+      "file": "07-gateway.md",
+      "title": "7.15.3 Honest-privacy consequence (normative)",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "7.15.4",
+      "file": "07-gateway.md",
+      "title": "7.15.4 Operator modes (normative)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "8.2",
+      "file": "08-clients.md",
+      "title": "8.2 IMAP / POP / SMTP-submission (legacy — served by the gateway, not the node)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "8.4",
+      "file": "08-clients.md",
+      "title": "8.4 Calendar & contacts (first-class, decentralized)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "8.5",
+      "file": "08-clients.md",
+      "title": "8.5 The decentralization invariant (all data classes)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "8.6",
+      "file": "08-clients.md",
+      "title": "8.6 Surfacing the transport-path (UX guidance)",
+      "musts": 5,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "8.7",
+      "file": "08-clients.md",
+      "title": "8.7 Deniable mode, org administration & device attestation (UX guidance)",
+      "musts": 7,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "9.1",
+      "file": "09-anti-abuse.md",
+      "title": "9.1 Principles",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "9.2",
+      "file": "09-anti-abuse.md",
+      "title": "9.2 Recipient policy",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "9.2a",
+      "file": "09-anti-abuse.md",
+      "title": "9.2a Binding proofs to the message (theft/replay prevention — normative)",
+      "musts": 5,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "9.3",
+      "file": "09-anti-abuse.md",
+      "title": "9.3 Anonymous rate-limit tokens (the core mechanism)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "9.3.1",
+      "file": "09-anti-abuse.md",
+      "title": "9.3.1 Issuer trust is what gives a token value (normative)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "9.4",
+      "file": "09-anti-abuse.md",
+      "title": "9.4 Proof-of-work (fallback)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "9.4.1",
+      "file": "09-anti-abuse.md",
+      "title": "9.4.1 Sequential work (VDF) as an OPTIONAL cold-contact cost (normative)",
+      "musts": 7,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "9.5.1",
+      "file": "09-anti-abuse.md",
+      "title": "9.5.1 Issuance, redemption & double-spend (normative)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "9.7",
+      "file": "09-anti-abuse.md",
+      "title": "9.7 Vouch / introduction (first-class)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "9.7a",
+      "file": "09-anti-abuse.md",
+      "title": "9.7a The zero-relationship delivery floor (normative)",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "9.8",
+      "file": "09-anti-abuse.md",
+      "title": "9.8 Mixnet abuse",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "9.9",
+      "file": "09-anti-abuse.md",
+      "title": "9.9 Group-address amplification",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "9.10",
+      "file": "09-anti-abuse.md",
+      "title": "9.10 Gateway bidirectional anti-abuse (the two-way choke point)",
+      "musts": 6,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "9.11",
+      "file": "09-anti-abuse.md",
+      "title": "9.11 Authorization is at the boundary; classification is at the recipient (normative)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "10.1",
+      "file": "10-conformance.md",
+      "title": "10.1 Protocol versioning",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "10.2",
+      "file": "10-conformance.md",
+      "title": "10.2 Capability negotiation (dual-stack)",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "10.3",
+      "file": "10-conformance.md",
+      "title": "10.3 Conformance levels",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "10.4",
+      "file": "10-conformance.md",
+      "title": "10.4 The spec is authoritative",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "10.7",
+      "file": "10-conformance.md",
+      "title": "10.7 Downgrade & fail-closed invariants (the auditable set)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "10.7.0",
+      "file": "10-conformance.md",
+      "title": "10.7.0 Failure classes — \"fail closed\" names three different behaviors (normative)",
+      "musts": 5,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "10.7.1",
+      "file": "10-conformance.md",
+      "title": "10.7.1 Version, suite & capability downgrades",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "10.7.2",
+      "file": "10-conformance.md",
+      "title": "10.7.2 Metadata-privacy (tier/profile/mixnet) downgrades",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "10.7.3",
+      "file": "10-conformance.md",
+      "title": "10.7.3 Trust-binding (KT / identity / group) fail-closed",
+      "musts": 7,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "10.7.4",
+      "file": "10-conformance.md",
+      "title": "10.7.4 Delivery, gateway & anti-abuse fail-closed",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "10.7.5",
+      "file": "10-conformance.md",
+      "title": "10.7.5 The one governing rule",
+      "musts": 2,
+      "class": "RESTATEMENT",
+      "reason": "governing sentence over the §10.7 rows above (each owned by its own row) plus a spec-maintenance rule binding future editors"
+    },
+    {
+      "section": "11.2",
+      "file": "11-grounding-and-references.md",
+      "title": "11.2 Corrections applied after verification",
+      "musts": 1,
+      "class": "RESTATEMENT",
+      "reason": "records the correction applied to §5.1's MLS handshake ordering; the rule is owned and tested at §5.1"
+    },
+    {
+      "section": "11.3",
+      "file": "11-grounding-and-references.md",
+      "title": "11.3 Consolidated honest limits",
+      "musts": 1,
+      "class": "RESTATEMENT",
+      "reason": "honest-limits prose referring to §9.4.1's memory-hard-PoW floor; owned there and tested by DMTAP-FLOOR-03"
+    },
+    {
+      "section": "12.2",
+      "file": "12-operators.md",
+      "title": "12.2 The operator seam",
+      "musts": 7,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "12.3",
+      "file": "12-operators.md",
+      "title": "12.3 The inviolable rule (normative)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "12.3.1",
+      "file": "12-operators.md",
+      "title": "12.3.1 The never-chargeable list (normative, exhaustive by category)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "12.3.2",
+      "file": "12-operators.md",
+      "title": "12.3.2 Conformance",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "12.6",
+      "file": "12-operators.md",
+      "title": "12.6 Organization administration & the seam (normative)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "12.8",
+      "file": "12-operators.md",
+      "title": "12.8 Operational & security procedures (considerations)",
+      "musts": 1,
+      "class": "NARRATIVE",
+      "reason": "subsection preamble stating that §12.8 is normative where it says MUST; it states no requirement itself"
+    },
+    {
+      "section": "12.8.2",
+      "file": "12-operators.md",
+      "title": "12.8.2 Incident-response runbooks",
+      "musts": 2,
+      "class": "PROCEDURE",
+      "reason": "incident-response runbook: evidence preservation and continuous operator monitoring — an operator process with no observable wire behaviour"
+    },
+    {
+      "section": "12.8.4",
+      "file": "12-operators.md",
+      "title": "12.8.4 Audit cadence (the disclosed pre-deployment gate)",
+      "musts": 1,
+      "class": "PROCEDURE",
+      "reason": "deployment gate: an external audit must precede production; checkable only against an audit report, never against an implementation's behaviour"
+    },
+    {
+      "section": "13.1",
+      "file": "13-identity-auth.md",
+      "title": "13.1 Goals & non-goals",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "13.3",
+      "file": "13-identity-auth.md",
+      "title": "13.3 The native login ceremony",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "13.3.1",
+      "file": "13-identity-auth.md",
+      "title": "13.3.1 Origin binding is the load-bearing property (normative)",
+      "musts": 7,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "13.4",
+      "file": "13-identity-auth.md",
+      "title": "13.4 Sessions: key-bound, not bearer",
+      "musts": 15,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "13.5",
+      "file": "13-identity-auth.md",
+      "title": "13.5 Capabilities & delegation",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "13.5.1",
+      "file": "13-identity-auth.md",
+      "title": "13.5.1 Organizational admin roles as capabilities (normative)",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "13.6",
+      "file": "13-identity-auth.md",
+      "title": "13.6 Legacy bridge: OIDC / OAuth compatibility",
+      "musts": 6,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "13.7",
+      "file": "13-identity-auth.md",
+      "title": "13.7 Grounding & honest limits",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "14.2",
+      "file": "14-scaling.md",
+      "title": "14.2 Horizontally-scalable gateway role (normative patterns)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "14.3",
+      "file": "14-scaling.md",
+      "title": "14.3 The mobile-only user (no always-on box)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "14.3a",
+      "file": "14-scaling.md",
+      "title": "14.3a The buffer is an n-of-m role, not a hosted service (normative)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "14.5",
+      "file": "14-scaling.md",
+      "title": "14.5 Relay & buffer scaling",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "14.6.2",
+      "file": "14-scaling.md",
+      "title": "14.6.2 What it must not be, and must not reveal (normative)",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "14.6.3",
+      "file": "14-scaling.md",
+      "title": "14.6.3 Tie-in to the mixnet profiles (normative)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "15.0",
+      "file": "15-references.md",
+      "title": "15.0 Normative — specification conventions & process",
+      "musts": 1,
+      "class": "NARRATIVE",
+      "reason": "reference-table row describing RFC 2119 itself"
+    },
+    {
+      "section": "16.1",
+      "file": "16-parameters.md",
+      "title": "16.1 Time, replay & clocks",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "16.2",
+      "file": "16-parameters.md",
+      "title": "16.2 Naming, KT & DHT",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "16.3",
+      "file": "16-parameters.md",
+      "title": "16.3 Mixnet & privacy",
+      "musts": 5,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "16.4",
+      "file": "16-parameters.md",
+      "title": "16.4 File tiers & transfer",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "16.5",
+      "file": "16-parameters.md",
+      "title": "16.5 Anti-abuse",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "16.8",
+      "file": "16-parameters.md",
+      "title": "16.8 Auth, sessions & group ordering",
+      "musts": 1,
+      "class": "RESTATEMENT",
+      "reason": "parameter table row restating §1.4's asymmetric veto-quorum rule; owned by §1.4"
+    },
+    {
+      "section": "16.9",
+      "file": "16-parameters.md",
+      "title": "16.9 Deniable mode & endpoint hardening",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "16.10",
+      "file": "16-parameters.md",
+      "title": "16.10 Device-cluster sync (§5.6)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "17.1",
+      "file": "17-parity.md",
+      "title": "17.1 Mail",
+      "musts": 1,
+      "class": "RESTATEMENT",
+      "reason": "parity table citing §12's no-quota-gate guarantee; owned by §12.3"
+    },
+    {
+      "section": "17.6",
+      "file": "17-parity.md",
+      "title": "17.6 Gaps to resolve",
+      "musts": 1,
+      "class": "RESTATEMENT",
+      "reason": "gap list recording that §8.5 and §13.5 now own the auto-forward MUST-log rule"
+    },
+    {
+      "section": "18.1.1",
+      "file": "18-wire-format.md",
+      "title": "18.1.1 Serialization — deterministic CBOR",
+      "musts": 5,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.1.2",
+      "file": "18-wire-format.md",
+      "title": "18.1.2 Integer-key convention (COSE/CWT-style)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.1.4",
+      "file": "18-wire-format.md",
+      "title": "18.1.4 Algorithm-suite tagging",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.1.5",
+      "file": "18-wire-format.md",
+      "title": "18.1.5 Hash-agility prefix",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.1.6",
+      "file": "18-wire-format.md",
+      "title": "18.1.6 Domain separation & signing (general rule)",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.2",
+      "file": "18-wire-format.md",
+      "title": "18.2 Length & type governance by suite (normative)",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.3.1",
+      "file": "18-wire-format.md",
+      "title": "18.3.1 `Envelope` (§2.2)",
+      "musts": 9,
+      "class": "ENCODING",
+      "reason": "wire-format field table; its encoding is exercised byte-exactly by vectors.json `cbor_envelope`"
+    },
+    {
+      "section": "18.3.2",
+      "file": "18-wire-format.md",
+      "title": "18.3.2 `DeliveryTag` (§2.2a)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.3.3",
+      "file": "18-wire-format.md",
+      "title": "18.3.3 `ChallengeResponse` (§2.2b, §9)",
+      "musts": 25,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.3.4",
+      "file": "18-wire-format.md",
+      "title": "18.3.4 `KeyPackageRef` (§2.2, §5.3)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.3.5",
+      "file": "18-wire-format.md",
+      "title": "18.3.5 `Payload` (§2.4)",
+      "musts": 8,
+      "class": "ENCODING",
+      "reason": "wire-format field table; its encoding is exercised byte-exactly by vectors.json `cbor_payload`"
+    },
+    {
+      "section": "18.3.6",
+      "file": "18-wire-format.md",
+      "title": "18.3.6 `Headers` and `Body` (§2.4)",
+      "musts": 5,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.3.7",
+      "file": "18-wire-format.md",
+      "title": "18.3.7 `Attachment` and `ManifestRef` (§2.5)",
+      "musts": 15,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.3.8",
+      "file": "18-wire-format.md",
+      "title": "18.3.8 `Manifest` (§5.5)",
+      "musts": 6,
+      "class": "ENCODING",
+      "reason": "wire-format field table; its encoding is exercised byte-exactly by vectors.json `cbor_manifest`"
+    },
+    {
+      "section": "18.3.9",
+      "file": "18-wire-format.md",
+      "title": "18.3.9 `DeniableFrame`, `DeniableInit`, `DeniableMessage` (§5.2.1)",
+      "musts": 14,
+      "class": "ENCODING",
+      "reason": "wire-format field table; its encoding is exercised byte-exactly by vectors.json `cbor_deniable_message/_init`"
+    },
+    {
+      "section": "18.3.10",
+      "file": "18-wire-format.md",
+      "title": "18.3.10 `DeniablePayload` (§5.2.1)",
+      "musts": 8,
+      "class": "ENCODING",
+      "reason": "wire-format field table; its encoding is exercised byte-exactly by vectors.json `cbor_deniable_payload`"
+    },
+    {
+      "section": "18.3.11",
+      "file": "18-wire-format.md",
+      "title": "18.3.11 `GatewayAttestation` (§7.2a, §7.8)",
+      "musts": 7,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.3.12",
+      "file": "18-wire-format.md",
+      "title": "18.3.12 `GatewayAliasMap` (§7.10)",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.4.1",
+      "file": "18-wire-format.md",
+      "title": "18.4.1 `Identity` (§1.3)",
+      "musts": 9,
+      "class": "ENCODING",
+      "reason": "wire-format field table; its encoding is exercised byte-exactly by vectors.json `cbor_identity`"
+    },
+    {
+      "section": "18.4.2",
+      "file": "18-wire-format.md",
+      "title": "18.4.2 `DeviceCert` (§1.2)",
+      "musts": 9,
+      "class": "ENCODING",
+      "reason": "wire-format field table; its encoding is exercised byte-exactly by vectors.json `cbor_device_cert`"
+    },
+    {
+      "section": "18.4.3",
+      "file": "18-wire-format.md",
+      "title": "18.4.3 `KeyPackageBundleRef` (§1.3, §5.3)",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.4.4",
+      "file": "18-wire-format.md",
+      "title": "18.4.4 `RecoveryPolicy`, `RecoveryMethod`, `Threshold` (§1.4)",
+      "musts": 19,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.4.5",
+      "file": "18-wire-format.md",
+      "title": "18.4.5 `KeyRotation` (§1.5)",
+      "musts": 7,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.4.6",
+      "file": "18-wire-format.md",
+      "title": "18.4.6 `MoveRecord` (§1.6)",
+      "musts": 6,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.4.7",
+      "file": "18-wire-format.md",
+      "title": "18.4.7 `DomainDirectory` and `DirEntry` (§3.10.3)",
+      "musts": 13,
+      "class": "ENCODING",
+      "reason": "wire-format field table; its encoding is exercised byte-exactly by vectors.json `cbor_domain_directory`"
+    },
+    {
+      "section": "18.4.8",
+      "file": "18-wire-format.md",
+      "title": "18.4.8 `DeniablePrekeyBundle` (§5.2.1)",
+      "musts": 10,
+      "class": "ENCODING",
+      "reason": "wire-format field table; its encoding is exercised byte-exactly by vectors.json `cbor_deniable_prekey_bundle`"
+    },
+    {
+      "section": "18.4.9",
+      "file": "18-wire-format.md",
+      "title": "18.4.9 `SignedTreeHead` (KT, §3.5)",
+      "musts": 7,
+      "class": "ENCODING",
+      "reason": "wire-format field table; its encoding is exercised byte-exactly by vectors.json `cbor_signed_tree_head`"
+    },
+    {
+      "section": "18.4.10",
+      "file": "18-wire-format.md",
+      "title": "18.4.10 `InclusionProof` (KT, §3.5)",
+      "musts": 4,
+      "class": "ENCODING",
+      "reason": "wire-format field table; its encoding is exercised byte-exactly by vectors.json `cbor_inclusion_proof`"
+    },
+    {
+      "section": "18.4.11",
+      "file": "18-wire-format.md",
+      "title": "18.4.11 `ConsistencyProof` (KT, §3.5)",
+      "musts": 3,
+      "class": "ENCODING",
+      "reason": "wire-format field table; its encoding is exercised byte-exactly by vectors.json `cbor_consistency_proof`"
+    },
+    {
+      "section": "18.4.12",
+      "file": "18-wire-format.md",
+      "title": "18.4.12 `Profile` (§3.9.5)",
+      "musts": 8,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.5.1",
+      "file": "18-wire-format.md",
+      "title": "18.5.1 `LocationRecord` (§4.2)",
+      "musts": 8,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.5.2",
+      "file": "18-wire-format.md",
+      "title": "18.5.2 `MixNodeDescriptor` (§4.4.2)",
+      "musts": 11,
+      "class": "ENCODING",
+      "reason": "wire-format field table; its encoding is exercised byte-exactly by vectors.json `cbor_mix_descriptor`"
+    },
+    {
+      "section": "18.5.3",
+      "file": "18-wire-format.md",
+      "title": "18.5.3 `MixDirectory` (§4.4.2)",
+      "musts": 8,
+      "class": "ENCODING",
+      "reason": "wire-format field table; its encoding is exercised byte-exactly by vectors.json `cbor_mix_directory`"
+    },
+    {
+      "section": "18.5.4",
+      "file": "18-wire-format.md",
+      "title": "18.5.4 `SphinxCell` — packet, β routing-command, SURB & fragment framing (§4.4.1)",
+      "musts": 4,
+      "class": "ENCODING",
+      "reason": "wire-format field table; its encoding is exercised byte-exactly by vectors.json `sphinx_cell`"
+    },
+    {
+      "section": "18.5.5",
+      "file": "18-wire-format.md",
+      "title": "18.5.5 `PushSubscription` (§4.9)",
+      "musts": 7,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.5.6",
+      "file": "18-wire-format.md",
+      "title": "18.5.6 `WakePing` (§4.9)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.6.1",
+      "file": "18-wire-format.md",
+      "title": "18.6.1 `GroupState`",
+      "musts": 16,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.6.2",
+      "file": "18-wire-format.md",
+      "title": "18.6.2 `GroupEvent` (kind `0x06`)",
+      "musts": 6,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.6.3",
+      "file": "18-wire-format.md",
+      "title": "18.6.3 Device-cluster sync objects (§5.6)",
+      "musts": 14,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.7.1",
+      "file": "18-wire-format.md",
+      "title": "18.7.1 `Challenge` (§13.3)",
+      "musts": 5,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.7.2",
+      "file": "18-wire-format.md",
+      "title": "18.7.2 `Assertion` (§13.3)",
+      "musts": 10,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.7.3",
+      "file": "18-wire-format.md",
+      "title": "18.7.3 `CapabilityToken` and `CapabilityRevocation` (§13.5, §3.10.4)",
+      "musts": 15,
+      "class": "ENCODING",
+      "reason": "wire-format field table; its encoding is exercised byte-exactly by vectors.json `cbor_capability_token`"
+    },
+    {
+      "section": "18.8.1",
+      "file": "18-wire-format.md",
+      "title": "18.8.1 `ProvenanceRecord`",
+      "musts": 8,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.9",
+      "file": "18-wire-format.md",
+      "title": "18.9 Canonical signing & hashing preimages (normative)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.9.1",
+      "file": "18-wire-format.md",
+      "title": "18.9.1 `Envelope.sender_sig`",
+      "musts": 2,
+      "class": "ENCODING",
+      "reason": "wire-format field table; its encoding is exercised byte-exactly by vectors.json `mote_sender_sig`"
+    },
+    {
+      "section": "18.9.2",
+      "file": "18-wire-format.md",
+      "title": "18.9.2 `Payload.sig`",
+      "musts": 1,
+      "class": "ENCODING",
+      "reason": "wire-format field table; its encoding is exercised byte-exactly by vectors.json `mote_payload_sig`"
+    },
+    {
+      "section": "18.9.5",
+      "file": "18-wire-format.md",
+      "title": "18.9.5 Merkle-DAG manifest root (`Manifest.id`, `ManifestRef.id`)",
+      "musts": 1,
+      "class": "ENCODING",
+      "reason": "wire-format field table; its encoding is exercised byte-exactly by vectors.json `manifest_root`"
+    },
+    {
+      "section": "18.9.6",
+      "file": "18-wire-format.md",
+      "title": "18.9.6 Group objects",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.9.8",
+      "file": "18-wire-format.md",
+      "title": "18.9.8 `Assertion.sig` (auth)",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.9.10",
+      "file": "18-wire-format.md",
+      "title": "18.9.10 Deniable-mode objects (§5.2.1)",
+      "musts": 1,
+      "class": "ENCODING",
+      "reason": "wire-format field table; its encoding is exercised byte-exactly by vectors.json `deniable_prekeys_sig`"
+    },
+    {
+      "section": "18.9.11",
+      "file": "18-wire-format.md",
+      "title": "18.9.11 `GatewayAttestation.sig` and `msg_digest`",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.9.15",
+      "file": "18-wire-format.md",
+      "title": "18.9.15 Push wake-signaling objects (`PushSubscription.sig`, `WakePing`) (§4.9)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.10",
+      "file": "18-wire-format.md",
+      "title": "18.10 Collected CDDL grammar (copy-paste block)",
+      "musts": 2,
+      "class": "RESTATEMENT",
+      "reason": "verbatim copy-paste of the per-object CDDL already given in §18.3–§18.8; adds no rule of its own"
+    },
+    {
+      "section": "18.11",
+      "file": "18-wire-format.md",
+      "title": "18.11 Source inconsistencies flagged (not silently diverged)",
+      "musts": 2,
+      "class": "NARRATIVE",
+      "reason": "catalogue of divergences from the source drafts, explaining why each was made"
+    },
+    {
+      "section": "19.0",
+      "file": "19-operations.md",
+      "title": "19.0 Conventions used in this appendix",
+      "musts": 3,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern"
+    },
+    {
+      "section": "19.1.1",
+      "file": "19-operations.md",
+      "title": "19.1.1 `resolve(name) → identity`",
+      "musts": 1,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 1 of its 1 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.1.2",
+      "file": "19-operations.md",
+      "title": "19.1.2 `publish-identity(identity)`",
+      "musts": 10,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 1 of its 10 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.1.3",
+      "file": "19-operations.md",
+      "title": "19.1.3 `publish-move(move_record)`",
+      "musts": 3,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 1 of its 3 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.1.4",
+      "file": "19-operations.md",
+      "title": "19.1.4 KT-v1 operations (§3.5.2) — `gossip-sth` / `verify-consistency` / `quorum-resolve` / `monitor` / `auditor` / `equivocation-response`",
+      "musts": 4,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 3 of its 4 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.1.5",
+      "file": "19-operations.md",
+      "title": "19.1.5 Organization administration (§3.10) — `provision-member` / `publish-directory` / `query-directory` / `offboard`",
+      "musts": 5,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 3 of its 5 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.1.6",
+      "file": "19-operations.md",
+      "title": "19.1.6 Device attestation (§1.2a) — `attest-enroll` / `attest-verify`",
+      "musts": 3,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 3 of its 3 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.2.1",
+      "file": "19-operations.md",
+      "title": "19.2.1 `publish-location(location_record)`",
+      "musts": 11,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 6 of its 11 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.2.2",
+      "file": "19-operations.md",
+      "title": "19.2.2 `lookup-location(ik) → LocationRecord`",
+      "musts": 2,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 1 of its 2 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.2.3",
+      "file": "19-operations.md",
+      "title": "19.2.3 The reachability ladder (attempt sequence)",
+      "musts": 1,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 1 of its 1 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.2.4",
+      "file": "19-operations.md",
+      "title": "19.2.4 Mixnet operations (§4.4) — `publish-mix-descriptor` / `publish-mix-directory` / `fetch-directory` / `build-path` / `send-over-mixnet` / `emit-loop` / `detect-active-attack`",
+      "musts": 6,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 4 of its 6 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.3.1",
+      "file": "19-operations.md",
+      "title": "19.3.1 `deliver(outer_mote)`",
+      "musts": 11,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 1 of its 11 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.3.2",
+      "file": "19-operations.md",
+      "title": "19.3.2 `ack(id)`",
+      "musts": 3,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 1 of its 3 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.3.3",
+      "file": "19-operations.md",
+      "title": "19.3.3 Sender retry state machine (dedup and durability)",
+      "musts": 3,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 1 of its 3 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.4.1",
+      "file": "19-operations.md",
+      "title": "19.4.1 `fetch-keypackage(ik) → KeyPackage`",
+      "musts": 3,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 1 of its 3 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.4.2",
+      "file": "19-operations.md",
+      "title": "19.4.2 `add-member(group_or_1to1, keypackage) → {Commit, Welcome}`",
+      "musts": 4,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 2 of its 4 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.4.3",
+      "file": "19-operations.md",
+      "title": "19.4.3 `external-commit(group_info) → Commit`",
+      "musts": 4,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 1 of its 4 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.4.4",
+      "file": "19-operations.md",
+      "title": "19.4.4 Deniable session (§5.2.1) — `publish-deniable-prekeys` / `consume-opk` / `deniable-establish` / `deniable-send` / `deniable-recv`",
+      "musts": 4,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 3 of its 4 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.5.1",
+      "file": "19-operations.md",
+      "title": "19.5.1 `create-group(params) → GroupState`",
+      "musts": 10,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 4 of its 10 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.5.2",
+      "file": "19-operations.md",
+      "title": "19.5.2 `group-add` / `group-remove` / `group-role-change` / `group-policy-change`",
+      "musts": 9,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern"
+    },
+    {
+      "section": "19.5.3",
+      "file": "19-operations.md",
+      "title": "19.5.3 `post-to-group(group_ik, mote)`",
+      "musts": 6,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 2 of its 6 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.5.4",
+      "file": "19-operations.md",
+      "title": "19.5.4 `join(group_ik, mode)`",
+      "musts": 4,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 1 of its 4 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.5.5",
+      "file": "19-operations.md",
+      "title": "19.5.5 `committer-elect` / `committer-rotate` (failover)",
+      "musts": 3,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 1 of its 3 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.5.6",
+      "file": "19-operations.md",
+      "title": "19.5.6 Fork-detection halt",
+      "musts": 5,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern"
+    },
+    {
+      "section": "19.6",
+      "file": "19-operations.md",
+      "title": "19.6 DMTAP-Auth operations (§13)",
+      "musts": 4,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern"
+    },
+    {
+      "section": "19.6.1",
+      "file": "19-operations.md",
+      "title": "19.6.1 `auth-challenge(rp_origin) → Challenge`",
+      "musts": 8,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 3 of its 8 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.6.2",
+      "file": "19-operations.md",
+      "title": "19.6.2 `auth-assert(challenge) → SignedAssertion`",
+      "musts": 8,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 2 of its 8 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.6.3",
+      "file": "19-operations.md",
+      "title": "19.6.3 `session-establish(assertion) → Session`",
+      "musts": 5,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 3 of its 5 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.6.4",
+      "file": "19-operations.md",
+      "title": "19.6.4 `session-revoke(session_ref)`",
+      "musts": 3,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 1 of its 3 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.6.5",
+      "file": "19-operations.md",
+      "title": "19.6.5 `oidc-bridge-issue(assertion) → IDToken`",
+      "musts": 2,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 2 of its 2 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.6.6",
+      "file": "19-operations.md",
+      "title": "19.6.6 `delegate-capability(caps, aud) → CapabilityToken` / `revoke-capability(token)`",
+      "musts": 6,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 3 of its 6 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.7.1",
+      "file": "19-operations.md",
+      "title": "19.7.1 `smtp-inbound(smtp_transaction) → mote | 4xx`",
+      "musts": 5,
+      "class": "IMPL",
+      "reason": "owns the silent-loss rule §21.9/§10.7.4 cite back to: no SMTP 250 before a durable ack"
+    },
+    {
+      "section": "19.7.2",
+      "file": "19-operations.md",
+      "title": "19.7.2 `smtp-outbound(mote) → smtp_result`",
+      "musts": 3,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 1 of its 3 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.8.1",
+      "file": "19-operations.md",
+      "title": "19.8.1 `offer-file(manifest, key) → mote`",
+      "musts": 5,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 2 of its 5 MUSTs mark a required parameter"
+    },
+    {
+      "section": "19.8.2",
+      "file": "19-operations.md",
+      "title": "19.8.2 `fetch-chunk(chunk_hash, sources) → chunk`",
+      "musts": 2,
+      "class": "RESTATEMENT",
+      "reason": "Appendix B operation spec — §19 preamble and §10.4 make the narrative govern; 1 of its 2 MUSTs mark a required parameter"
+    },
+    {
+      "section": "20.0",
+      "file": "20-state-machines.md",
+      "title": "20.0 Conventions",
+      "musts": 1,
+      "class": "NARRATIVE",
+      "reason": "appendix conventions: names the BCP 14 keywords, states no requirement"
+    },
+    {
+      "section": "20.1",
+      "file": "20-state-machines.md",
+      "title": "20.1 Outbound MOTE delivery (sender side)",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "Appendix C machine carrying [fill] rows — normative choices §1–§16 do not make, owned here"
+    },
+    {
+      "section": "20.2",
+      "file": "20-state-machines.md",
+      "title": "20.2 Inbound MOTE validation (recipient side)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "Appendix C machine carrying [fill] rows — normative choices §1–§16 do not make, owned here"
+    },
+    {
+      "section": "20.3",
+      "file": "20-state-machines.md",
+      "title": "20.3 Name resolution & pinning",
+      "musts": 5,
+      "class": "IMPL",
+      "reason": "Appendix C machine carrying [fill] rows — normative choices §1–§16 do not make, owned here"
+    },
+    {
+      "section": "20.5.2",
+      "file": "20-state-machines.md",
+      "title": "20.5.2 Committer lifecycle",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "Appendix C machine carrying [fill] rows — normative choices §1–§16 do not make, owned here"
+    },
+    {
+      "section": "20.6",
+      "file": "20-state-machines.md",
+      "title": "20.6 DMTAP-Auth session",
+      "musts": 5,
+      "class": "IMPL",
+      "reason": "Appendix C machine carrying [fill] rows — normative choices §1–§16 do not make, owned here"
+    },
+    {
+      "section": "20.7",
+      "file": "20-state-machines.md",
+      "title": "20.7 Node lifecycle / offline buffering",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "Appendix C machine carrying [fill] rows — normative choices §1–§16 do not make, owned here"
+    },
+    {
+      "section": "21.3",
+      "file": "21-errors-iana.md",
+      "title": "21.3 Identity, Naming & Key Transparency errors (`0x01xx`)",
+      "musts": 16,
+      "class": "RESTATEMENT",
+      "reason": "§21 registry Action column for 0x01xx; each MUST restates the disposition owned by the §1/§3 clause its row cites"
+    },
+    {
+      "section": "21.4",
+      "file": "21-errors-iana.md",
+      "title": "21.4 Delivery & Validation — the MOTE object (`0x02xx`)",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "21.5",
+      "file": "21-errors-iana.md",
+      "title": "21.5 Transport & Reachability errors (`0x03xx`)",
+      "musts": 5,
+      "class": "RESTATEMENT",
+      "reason": "§21 registry Action column for 0x03xx; each MUST restates the disposition owned by the §4 clause its row cites"
+    },
+    {
+      "section": "21.6",
+      "file": "21-errors-iana.md",
+      "title": "21.6 Messaging & Group errors — MLS (`0x04xx`)",
+      "musts": 5,
+      "class": "RESTATEMENT",
+      "reason": "§21 registry Action column for 0x04xx; each MUST restates the disposition owned by the §5 clause its row cites"
+    },
+    {
+      "section": "21.7",
+      "file": "21-errors-iana.md",
+      "title": "21.7 Auth errors — DMTAP-Auth (`0x05xx`)",
+      "musts": 1,
+      "class": "RESTATEMENT",
+      "reason": "§21 registry Action column for 0x05xx; the MUST restates §13.3.1's consent-farming refusal"
+    },
+    {
+      "section": "21.8",
+      "file": "21-errors-iana.md",
+      "title": "21.8 Gateway errors (`0x06xx`)",
+      "musts": 2,
+      "class": "RESTATEMENT",
+      "reason": "§21 registry Action column for 0x06xx; each MUST restates the disposition owned by the §7 clause its row cites"
+    },
+    {
+      "section": "21.9",
+      "file": "21-errors-iana.md",
+      "title": "21.9 SMTP response-code mapping (inbound, informative reference to RFC 5321 / RFC 3463)",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "21.10",
+      "file": "21-errors-iana.md",
+      "title": "21.10 Anti-Abuse & Postage errors (`0x07xx`)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "21.11",
+      "file": "21-errors-iana.md",
+      "title": "21.11 Files errors (`0x08xx`)",
+      "musts": 4,
+      "class": "RESTATEMENT",
+      "reason": "§21 registry Action column for 0x08xx; each MUST restates the disposition owned by the §5.5/§18.3 clause its row cites"
+    },
+    {
+      "section": "21.12",
+      "file": "21-errors-iana.md",
+      "title": "21.12 Traceability matrix",
+      "musts": 1,
+      "class": "RESTATEMENT",
+      "reason": "traceability matrix: it is the MUST→code index over rules owned elsewhere, by construction"
+    },
+    {
+      "section": "21.13",
+      "file": "21-errors-iana.md",
+      "title": "21.13 Overview and policy vocabulary",
+      "musts": 1,
+      "class": "PROCEDURE",
+      "reason": "registry naming policy for vendor extensions (x- prefix); binds a registrant, not an implementation"
+    },
+    {
+      "section": "21.14",
+      "file": "21-errors-iana.md",
+      "title": "21.14 DMTAP Error/Status Code Registry",
+      "musts": 2,
+      "class": "PROCEDURE",
+      "reason": "IANA allocation policy and append-only registry discipline; binds the registry and future registrants"
+    },
+    {
+      "section": "21.15",
+      "file": "21-errors-iana.md",
+      "title": "21.15 Algorithm Suites Registry (`suite` u8)",
+      "musts": 1,
+      "class": "PROCEDURE",
+      "reason": "algorithm-suite registration requirements; binds a future suite's specification document"
+    },
+    {
+      "section": "21.16",
+      "file": "21-errors-iana.md",
+      "title": "21.16 Message Kinds Registry (`kind` u8)",
+      "musts": 1,
+      "class": "RESTATEMENT",
+      "reason": "the no-ack-on-unvalidatable-kind rule is owned by §10.1/§2.3 and tested there (0x020A)"
+    },
+    {
+      "section": "21.17",
+      "file": "21-errors-iana.md",
+      "title": "21.17 Challenge Types Registry",
+      "musts": 1,
+      "class": "PROCEDURE",
+      "reason": "challenge-type registration requirements; binds a future challenge type's specification document"
+    },
+    {
+      "section": "21.18",
+      "file": "21-errors-iana.md",
+      "title": "21.18 Identity Resolver Types Registry",
+      "musts": 1,
+      "class": "PROCEDURE",
+      "reason": "resolver-type registration requirements; binds a future resolver type's specification document"
+    },
+    {
+      "section": "21.19",
+      "file": "21-errors-iana.md",
+      "title": "21.19 KT Log Identification Registry",
+      "musts": 2,
+      "class": "RESTATEMENT",
+      "reason": "KT log-type registry; its implementation rule (implement 0x01, MAY negotiate 0x02) is owned by §3.5.1/§3.5.2"
+    },
+    {
+      "section": "21.20",
+      "file": "21-errors-iana.md",
+      "title": "21.20 Envelope/Payload Extension Header Keys Registry (`Headers.ext`)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "21.21",
+      "file": "21-errors-iana.md",
+      "title": "21.21 DNS Parameter Keys Registry (`_dmtap` / `_dmtap-gw` / `_dmtap-mix`)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "21.22",
+      "file": "21-errors-iana.md",
+      "title": "21.22 Capability Negotiation Registry (§10.2)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "21.23",
+      "file": "21-errors-iana.md",
+      "title": "21.23 Mix Parameters Registry (Sphinx / mixnet, §4.4)",
+      "musts": 1,
+      "class": "PROCEDURE",
+      "reason": "mix-suite registration requirements; binds a future mix suite's specification document"
+    },
+    {
+      "section": "21.24",
+      "file": "21-errors-iana.md",
+      "title": "21.24 Transport Substrates Registry (§4.1)",
+      "musts": 1,
+      "class": "PROCEDURE",
+      "reason": "transport-substrate registration requirements; binds a future substrate's specification document"
+    },
+    {
+      "section": "21.24a",
+      "file": "21-errors-iana.md",
+      "title": "21.24a Gateway Attestation Discriminators Registry (`GatewayAttestation.disc`)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "21.25",
+      "file": "21-errors-iana.md",
+      "title": "21.25 Extension & versioning procedure (normative)",
+      "musts": 8,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "22.2.1",
+      "file": "22-public-objects.md",
+      "title": "22.2.1 `PubManifest`",
+      "musts": 6,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "22.2.3",
+      "file": "22-public-objects.md",
+      "title": "22.2.3 Type-incompatibility with sealed manifests (fail closed)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "22.2.4",
+      "file": "22-public-objects.md",
+      "title": "22.2.4 The CAS-confirmation attack, head-on",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "22.3.1",
+      "file": "22-public-objects.md",
+      "title": "22.3.1 `PubAnnounce`",
+      "musts": 9,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "22.3.3",
+      "file": "22-public-objects.md",
+      "title": "22.3.3 Verification (offline, zero-DNS)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "22.3.4",
+      "file": "22-public-objects.md",
+      "title": "22.3.4 Revision chains (`supersedes`)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "22.4.1",
+      "file": "22-public-objects.md",
+      "title": "22.4.1 Structure",
+      "musts": 11,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "22.4.2",
+      "file": "22-public-objects.md",
+      "title": "22.4.2 Anti-rollback (the standard monotonic-`seq` rule)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "22.5.1",
+      "file": "22-public-objects.md",
+      "title": "22.5.1 Public-object HTTP endpoint (the PUB serving profile)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "22.6.1",
+      "file": "22-public-objects.md",
+      "title": "22.6.1 `pub-1` capability and the not-blind holder",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "22.7",
+      "file": "22-public-objects.md",
+      "title": "22.7 Client requirements",
+      "musts": 6,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "22.8",
+      "file": "22-public-objects.md",
+      "title": "22.8 Conformance & fail-closed table",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "22.9",
+      "file": "22-public-objects.md",
+      "title": "22.9 Security considerations / honest limits",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "23.3.1",
+      "file": "23-cad-artifact-profile.md",
+      "title": "23.3.1 `ArtifactMetadata`",
+      "musts": 11,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "23.3.3",
+      "file": "23-cad-artifact-profile.md",
+      "title": "23.3.3 Units (normative)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "23.3.4",
+      "file": "23-cad-artifact-profile.md",
+      "title": "23.3.4 `ArtifactFormat` and the canonical-source rule (normative)",
+      "musts": 12,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "23.4",
+      "file": "23-cad-artifact-profile.md",
+      "title": "23.4 Licensing (normative)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "23.5",
+      "file": "23-cad-artifact-profile.md",
+      "title": "23.5 Revision lineage, deprecation & forks (normative)",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "23.6.1",
+      "file": "23-cad-artifact-profile.md",
+      "title": "23.6.1 Reference modes: pin vs track (normative)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "23.6.2",
+      "file": "23-cad-artifact-profile.md",
+      "title": "23.6.2 `AssemblyStructure`",
+      "musts": 5,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "23.6.3",
+      "file": "23-cad-artifact-profile.md",
+      "title": "23.6.3 BOM extraction, dedup, and cycle rejection (normative)",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "23.10",
+      "file": "23-cad-artifact-profile.md",
+      "title": "23.10 Conformance checklist (profile-level MUSTs)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "24.4",
+      "file": "24-video-profile.md",
+      "title": "24.4 `VideoManifest` metadata schema",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "24.4.1",
+      "file": "24-video-profile.md",
+      "title": "24.4.1 `VideoManifest`",
+      "musts": 6,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "24.4.3",
+      "file": "24-video-profile.md",
+      "title": "24.4.3 `Rendition` and the canonical-original rule (normative)",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "24.4.4",
+      "file": "24-video-profile.md",
+      "title": "24.4.4 The rendition-derivation statement (the one profile-local signed structure)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "24.4.5",
+      "file": "24-video-profile.md",
+      "title": "24.4.5 `Hint` — advisory retrieval hints",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "24.5",
+      "file": "24-video-profile.md",
+      "title": "24.5 Channels are author feeds",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "24.6.1",
+      "file": "24-video-profile.md",
+      "title": "24.6.1 `Comment`",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "24.7",
+      "file": "24-video-profile.md",
+      "title": "24.7 Lineage — supersede, retract, mirror, remix",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "24.8",
+      "file": "24-video-profile.md",
+      "title": "24.8 Aggregates are claims, never truth",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "24.9",
+      "file": "24-video-profile.md",
+      "title": "24.9 Segmented serving (HLS / DASH) — a serving-layer concern",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "24.11",
+      "file": "24-video-profile.md",
+      "title": "24.11 Licensing",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "24.13",
+      "file": "24-video-profile.md",
+      "title": "24.13 Content moderation, privacy & security",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "24.14",
+      "file": "24-video-profile.md",
+      "title": "24.14 Migration from vidmesh-format records",
+      "musts": 6,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "24.15",
+      "file": "24-video-profile.md",
+      "title": "24.15 Conformance checklist (profile-level MUSTs)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "24.17",
+      "file": "24-video-profile.md",
+      "title": "24.17 Change log — normative corrections",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    }
+  ]
+}

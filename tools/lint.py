@@ -20,6 +20,9 @@ because a real defect got through review:
                                        reclassified it FAIL-QUEUED — the registry
                                        contradicting the rule it is supposed to encode
   C8  stale terminology                "directory authority" survived its own deletion
+  C10 unclassified MUST section        a section gained MUSTs after conformance/scope.json was
+                                       written, so the curated coverage denominator silently
+                                       stopped covering the whole spec
 
 Exit status is non-zero if any ERROR-level finding fires, so this belongs in CI.
 WARN-level findings are reported but do not fail the build.
@@ -292,6 +295,62 @@ def check_suite_status() -> list[Finding]:
     return out
 
 
+def _must_sections() -> dict[str, tuple[int, Path]]:
+    """MUST/MUST NOT count per §-section, attributing each line to the most recent
+    heading. "MUST" only counts in caps (BCP 14, per §0.8)."""
+    must_re = re.compile(r"\bMUST(?:\s+NOT)?\b")
+    per_section: dict[str, tuple[int, Path]] = {}
+    for p in SPEC_FILES:
+        current = None
+        for line in read(p).splitlines():
+            m = HEADING_RE.match(line)
+            if m:
+                current = m.group(1)
+                continue
+            if current and must_re.search(line):
+                n, _ = per_section.get(current, (0, p))
+                per_section[current] = (n + 1, p)
+    return per_section
+
+
+def load_scope() -> tuple[dict[str, str], list[Finding]]:
+    """conformance/scope.json — the curated denominator: section -> class.
+
+    Returns the map plus findings for any drift between the spec and the file.
+    A curated denominator is only honest if the curation is auditable, so a
+    section that gained MUSTs since the file was written, or an entry that no
+    longer names a real section, is reported rather than silently ignored.
+    """
+    out: list[Finding] = []
+    path = ROOT / "conformance" / "scope.json"
+    if not path.exists():
+        return {}, [("WARN", "conformance/scope.json", "missing; coverage falls back to the raw denominator")]
+    try:
+        doc = json.loads(read(path))
+    except json.JSONDecodeError as e:
+        return {}, [("ERROR", "conformance/scope.json", f"invalid JSON: {e}")]
+    classes = set(doc.get("classes", {}))
+    per_section = _must_sections()
+    cls: dict[str, str] = {}
+    for e in doc.get("sections", []):
+        sec = e.get("section")
+        if sec in cls:
+            out.append(("ERROR", "conformance/scope.json", f"§{sec} classified twice"))
+        if e.get("class") not in classes:
+            out.append(("ERROR", "conformance/scope.json", f"§{sec}: unknown class {e.get('class')!r}"))
+        if not (e.get("reason") or "").strip():
+            out.append(("ERROR", "conformance/scope.json", f"§{sec}: classified with no reason"))
+        if sec not in per_section:
+            out.append(("ERROR", "conformance/scope.json", f"§{sec} classified but has no MUSTs in the spec"))
+        cls[sec] = e.get("class")
+    for sec in sorted(per_section):
+        if sec not in cls:
+            out.append(("ERROR", "conformance/scope.json",
+                        f"§{sec} carries MUSTs but is unclassified — classify it (default IMPL) or the "
+                        f"headline coverage number is measuring an incomplete denominator"))
+    return cls, out
+
+
 def coverage_report() -> int:
     """Which normative MUSTs have no conformance case citing their clause?
 
@@ -301,9 +360,18 @@ def coverage_report() -> int:
     the sections below are the ones carrying normative weight that nothing tests.
 
     This is a FLOOR, and deliberately generous: a section counts as covered if any
-    case cites it, not if every MUST in it is exercised. It also under-credits §18,
-    whose encoding rules the byte-exact vectors test implicitly without citing each
-    clause. Read it as "at least this much is untested", never as a pass mark.
+    case cites it, not if every MUST in it is exercised. Read it as "at least this
+    much is untested", never as a pass mark.
+
+    The headline number is measured against the **IMPL** denominator of
+    conformance/scope.json, because not every capitalised MUST is an
+    implementation requirement a runner could check: the §21 registry's Action
+    column and the §19/§20 appendices restate rules other clauses own, IANA
+    allocation policies bind future registrants, and a handful of capitalised
+    MUSTs are list headers or counterfactuals and are not requirements at all.
+    A curated denominator is only honest if the curation is auditable, so the
+    raw number is printed alongside it and every classification in scope.json
+    carries a stated reason. Inclusion is the default there: arguable means IMPL.
     """
     suite_md = ROOT / "conformance" / "SUITE.md"
     if not suite_md.exists():
@@ -318,36 +386,44 @@ def coverage_report() -> int:
         for i in range(len(parts), 0, -1):
             cited.add(".".join(parts[:i]))
 
-    # Count MUST/MUST NOT per section, attributing each line to the most recent
-    # heading. "MUST" only counts in caps (BCP 14, per §0.8).
-    must_re = re.compile(r"\bMUST(?:\s+NOT)?\b")
-    per_section: dict[str, tuple[int, Path]] = {}
-    for p in SPEC_FILES:
-        current = None
-        for line in read(p).splitlines():
-            m = HEADING_RE.match(line)
-            if m:
-                current = m.group(1)
-                continue
-            if current and must_re.search(line):
-                n, _ = per_section.get(current, (0, p))
-                per_section[current] = (n + 1, p)
+    per_section = _must_sections()
+    cls, scope_findings = load_scope()
+    for level, loc, msg in scope_findings:
+        print(f"  {level} {loc}: {msg}")
+    if scope_findings:
+        print()
 
-    uncovered = {sec: v for sec, v in per_section.items() if sec not in cited}
-    total_musts = sum(n for n, _ in per_section.values())
-    unc_musts = sum(n for n, _ in uncovered.values())
+    impl = {s: v for s, v in per_section.items() if cls.get(s, "IMPL") == "IMPL"}
+    uncovered = {sec: v for sec, v in impl.items() if sec not in cited}
 
-    print("NORMATIVE COVERAGE — sections with MUSTs and no conformance case\n")
+    print("NORMATIVE COVERAGE — IMPL sections with MUSTs and no conformance case\n")
     for sec, (n, p) in sorted(uncovered.items(), key=lambda kv: -kv[1][0])[:25]:
         print(f"  §{sec:<12} {n:>3} MUST(s)   {p.name}")
     if len(uncovered) > 25:
         print(f"  ... and {len(uncovered) - 25} more sections")
 
-    print(f"\n  sections with MUSTs : {len(per_section)}")
-    print(f"  of those, uncovered : {len(uncovered)}")
-    print(f"  MUST statements     : {total_musts} total, {unc_musts} in uncovered sections")
-    covered_pct = 100 * (total_musts - unc_musts) / total_musts if total_musts else 0
-    print(f"  normative coverage  : {covered_pct:.0f}% of MUSTs sit in a section some case cites")
+    impl_musts = sum(n for n, _ in impl.values())
+    unc_musts = sum(n for n, _ in uncovered.values())
+    pct = 100 * (impl_musts - unc_musts) / impl_musts if impl_musts else 0
+    print(f"\n  IMPL sections       : {len(impl)}, of which uncovered {len(uncovered)}")
+    print(f"  IMPL MUSTs          : {impl_musts} total, {unc_musts} in uncovered sections")
+    print(f"  NORMATIVE COVERAGE  : {pct:.0f}% of IMPL MUSTs sit in a section some case cites")
+
+    # The full picture, so the curated denominator can be checked against the raw one.
+    print("\n  denominator breakdown (conformance/scope.json)")
+    order = ["IMPL", "ENCODING", "RESTATEMENT", "PROCEDURE", "NARRATIVE"]
+    tot_m = tot_c = 0
+    for k in order + sorted(set(cls.values()) - set(order)):
+        secs = {s: v for s, v in per_section.items() if cls.get(s, "IMPL") == k}
+        if not secs:
+            continue
+        m = sum(n for n, _ in secs.values())
+        cov = sum(n for s, (n, _) in secs.items() if s in cited)
+        tot_m += m
+        tot_c += cov
+        print(f"    {k:<12} {len(secs):>3} sections {m:>5} MUSTs   {100*cov/m if m else 0:>3.0f}% cited")
+    print(f"    {'RAW TOTAL':<12} {len(per_section):>3} sections {tot_m:>5} MUSTs   "
+          f"{100*tot_c/tot_m if tot_m else 0:>3.0f}% cited")
     return 0
 
 
@@ -368,6 +444,7 @@ def main() -> int:
     findings += check_conformance()
     findings += check_stale_terms()
     findings += check_suite_status()
+    findings += load_scope()[1]
 
     errors = [f for f in findings if f[0] == "ERROR"]
     warns = [f for f in findings if f[0] == "WARN"]
