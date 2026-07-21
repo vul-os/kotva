@@ -177,7 +177,7 @@ sequenceDiagram
 listener, SHOULD publish an MTA-STS policy in `enforce` mode (RFC 8461) and/or DANE TLSA records
 (RFC 7672) for its own MX hostname, and MUST NOT silently downgrade its own advertised TLS
 posture inbound: a session that negotiates cleartext where a published policy promised TLS MUST
-be refused (SMTP `4xx`), never served in the clear.
+be refused (SMTP `4xx`, `ERR_GATEWAY_TLS_POLICY_UNMET`, `0x0608`), never served in the clear.
 
 ### 7.2a Attestation key binding (normative)
 
@@ -224,9 +224,10 @@ v1 target, and a gateway implementing only the floor conforms.
   alias/directory machinery can carry EAI local-parts. A gateway that does not advertise it MUST
   let a conforming EAI sender fail cleanly at the sender's own MTA (RFC 6531 requires the sender
   to bounce when the capability is absent) — it MUST NOT accept EAI envelopes it cannot carry
-  faithfully (never accept-then-mangle).
+  faithfully (never accept-then-mangle; `ERR_GATEWAY_SMTPUTF8_UNSUPPORTED`, `0x0609`).
 - **SMTPUTF8 outbound.** When a message requires SMTPUTF8 and the destination MX does not
-  advertise it, the gateway MUST fail the send with a specific SMTPUTF8-unsupported error —
+  advertise it, the gateway MUST fail the send with a specific SMTPUTF8-unsupported error
+  (`ERR_GATEWAY_SMTPUTF8_UNSUPPORTED`, `0x0609`) —
   permanent, surfaced to the sender via the §7.3/§7.4 failure report — and MUST NOT emit a
   non-conformant 8-bit envelope. When the message body is 8-bit and the peer lacks 8BITMIME, the
   gateway MUST either down-convert **losslessly** (e.g. content-transfer-encoding) or fail with
@@ -264,7 +265,7 @@ sequenceDiagram
 
 **Outbound TLS (normative).** Where the destination domain publishes **MTA-STS** (RFC 8461) or
 **DANE TLSA** (RFC 7672), the gateway MUST enforce TLS to that policy — no downgrade to
-cleartext or to an unvalidated peer. Where neither is published, the gateway MUST attempt
+cleartext or to an unvalidated peer (`ERR_GATEWAY_TLS_POLICY_UNMET`, `0x0608`). Where neither is published, the gateway MUST attempt
 opportunistic STARTTLS, and a leg delivered opportunistically or in cleartext MUST be recorded
 as **unauthenticated-transport** in the message's `ProvenanceRecord` (§7.8); an operator MAY
 refuse cleartext egress outright. A gateway MUST NOT present an opportunistic or cleartext leg

@@ -231,6 +231,8 @@ to a MOTE) is a distinct concept scoped to the Auth ceremony; see `0x0502` (§21
 | `0x0605` | `ERR_GATEWAY_ALIAS_UNMAPPED` | Inbound legacy→native alias mapping (§7.10.2, §7.10.3, §18.3.12) | An inbound legacy message to a gateway alias cannot be mapped back to a native DMTAP address: a `random`-mode alias with no live `GatewayAliasMap` row (missing / expired / `burned`), or an `encoded`-mode local-part that does not decode to a valid `localpart@nativedomain`. The bridge owns no identity, so an unmappable alias is "no such user," not a silent drop. | No | RETURN_SENDER_SMTP — `550 5.1.1` (identical to the §21.9 non-existent-recipient reply, so it leaks nothing) |
 | `0x0606` | `ERR_GATEWAY_ALIAS_ENCODING_INVALID` | Encoded gateway-alias reversibility check (§7.10.2, §18.3.12) | An `encoded` gateway alias (`localpart.nativedomain@gateway.domain`) is malformed: it does not reversibly decode to **exactly one** `(localpart, nativedomain)` (ambiguous/illegal escaping), or it exceeds the RFC 5321 local-part (64 octet) / path (254 octet) limits (§16.11). | No | FAIL_CLOSED_BLOCK — MUST NOT guess a native address from an ambiguous encoding |
 | `0x0607` | `ERR_GATEWAY_SENDER_UNAUTHENTICATED` | Outbound legacy-egress admission (§7.3, §7.11.2, §9.10; `GatewayAuthz` §12.2, key-auth §7.12) | A DMTAP→legacy relay is attempted by a sender the gateway has **neither authenticated** (no authorized `GatewayAuthz` / key-registered relationship, §7.12) **nor been paid by** (no valid redeemable postage, §9.5). A valid mesh `sender_sig` proves *who signed*, not *who may relay*, so it does not authorize egress — the open-relay-prevention floor (§7.7, §7.11.2). Distinct from `0x070E` (`ERR_GATEWAYAUTHZ_DENIED`, the operator-**unreachable** fail-safe): `0x0607` is the steady-state refusal of an unauthenticated/unpaid sender. | Yes (register with the gateway §7.12, or attach postage §9.5) | FAIL_CLOSED_BLOCK — MUST NOT relay; a gateway is never an open relay |
+| `0x0608` | `ERR_GATEWAY_TLS_POLICY_UNMET` | SMTP TLS-policy enforcement, either leg (§7.2 inbound TLS, §7.3 outbound TLS) | The TLS posture in force for this leg cannot be met: **outbound**, the destination domain publishes MTA-STS (RFC 8461) in `enforce` mode or DANE TLSA (RFC 7672) and the session would proceed in cleartext or against a peer the policy does not validate; **inbound**, a session would negotiate cleartext where the gateway's own published policy promised TLS. Not a transport nicety — a downgraded leg is the one place a bridged message is readable in transit, and a gateway that proceeds anyway is misrepresenting the protection it applied (§7.3). | Yes (the peer's TLS may recover; the sending node's queue retries per §7.4) | FAIL_CLOSED_BLOCK — MUST NOT deliver the leg, and MUST NOT record or present it as TLS-protected (§7.3) |
+| `0x0609` | `ERR_GATEWAY_SMTPUTF8_UNSUPPORTED` | Internationalized-mail capability check, either leg (§7.2b) | A message requires SMTPUTF8 (RFC 6531) — an EAI envelope address, or an 8-bit body where the peer lacks 8BITMIME and no lossless down-conversion exists — and the required capability is absent: **outbound**, the destination MX does not advertise it; **inbound**, this gateway does not advertise it and MUST therefore let the sending MTA bounce rather than accept an envelope it cannot carry faithfully. Never accept-then-mangle: silent corruption of what the bridge exists to carry is worse than a clean failure. | Yes (a peer that gains the capability, or a message that no longer requires it) | REJECT_NOTIFY — permanent for this message, surfaced to the sender via the §7.3/§7.4 failure report; MUST NOT emit a non-conformant 8-bit or EAI envelope |
 
 ### 21.8.1 Honest limit on `0x0601`/`0x0602`
 
@@ -380,6 +382,8 @@ its defining clause or from this matrix.
 | Gateway alias unmappable (legacy→native, no such user) | `0x0605` |
 | Gateway alias encoding non-reversible/over-length | `0x0606` |
 | Gateway outbound open-relay refused (unauthenticated/unpaid sender) | `0x0607` |
+| Gateway TLS policy unmet (MTA-STS `enforce` / DANE outbound, own advertised posture inbound) | `0x0608` |
+| Gateway internationalized-mail capability absent (SMTPUTF8 / 8BITMIME, never accept-then-mangle) | `0x0609` |
 | Gateway inbound cold legacy sender gated (bidirectional floor, §7.11.1, §9.10) | `0x0701`/`0x0702` (cold-sender gate); SPF/DKIM/DMARC hard-fail → SMTP `550 5.7.1` (§21.9) |
 | Postage-double-spend | `0x0708` |
 | Issuer-untrusted | `0x0704` (token issuer), `0x0707` (postage issuer), `0x0509` (OIDC issuer) |
@@ -427,7 +431,7 @@ extension procedure in §21.25. Allocation policies use the standard terms of RF
 | **Registry name** | DMTAP Error/Status Codes |
 | **Reference** | §21.1–§21.11 (this document) |
 | **Allocation policy** | New subsystem byte (`0x09`–`0xEF`): Standards Action. New code point within an existing subsystem (`NN` = `0x01`–`0x7F`): Specification Required. `NN` = `0x80`–`0xFE` within any subsystem: Private Use (implementation-local diagnostics; MUST map to the nearest standard code's Responder Action, §21.2, for any behavior visible to another implementation). `SS`/`NN` = `0x00` or `0xFF`: Reserved. |
-| **Initial contents** | The 142 codes enumerated in §21.3–§21.11. |
+| **Initial contents** | The 144 codes enumerated in §21.3–§21.11. |
 | **Registry discipline** | Append-only. A retired code MUST be marked Deprecated, never deleted or reassigned to a different meaning (mirroring the append-only philosophy of the KT log, §3.5). |
 
 ## 21.15 Algorithm Suites Registry (`suite` u8)
@@ -640,7 +644,7 @@ fragmenting."
 
 ## 21.26 Summary
 
-- **Error/status codes defined:** 141 (`0x0101`–`0x0124`: 36, incl. the KT-v1 detection codes
+- **Error/status codes defined:** 144 (`0x0101`–`0x0125`: 37, incl. the KT-v1 detection codes
   `0x0110`–`0x0112`, the org-administration codes `0x0113`–`0x0115` (§3.10), `0x0116`
   device-attestation and `0x0118` attestation-expired (§1.2a), `0x0117` KT leaf-hash mismatch
   (§3.5, §18.4.9), the `Profile` display-data codes `0x0119` (signature invalid), `0x011A`
@@ -661,11 +665,13 @@ fragmenting."
   cluster-device-unauthorized, reconciliation-summary-invalid, journal-chain-broken (own-log fork),
   and cluster-CRDT-op-invalid — and `0x0414` MLS-ciphersuite-downgrade (message-PQ policed on the
   MLS ciphersuite, separate from `Envelope.suite`, §5.1);
-  `0x0501`–`0x050B`: 11, incl. `0x050B` capability-revoked (§13.5, §18.7.3); `0x0601`–`0x0607`: 7,
+  `0x0501`–`0x050B`: 11, incl. `0x050B` capability-revoked (§13.5, §18.7.3); `0x0601`–`0x0609`: 9,
   incl. the gateway-alias codes `0x0605` (legacy→native alias unmappable) and `0x0606` (encoded
   alias non-reversible/over-length) (§7.10) and the outbound open-relay-prevention code `0x0607`
-  (`ERR_GATEWAY_SENDER_UNAUTHENTICATED`, the §7.11.2/§9.10 authenticated-sender floor), plus the
-  informative SMTP mapping table of §21.9;
+  (`ERR_GATEWAY_SENDER_UNAUTHENTICATED`, the §7.11.2/§9.10 authenticated-sender floor), and the
+  two bridge-integrity codes `0x0608` (TLS policy unmet on either leg, §7.2/§7.3) and `0x0609`
+  (SMTPUTF8/8BITMIME capability absent — fail cleanly rather than accept-then-mangle, §7.2b),
+  plus the informative SMTP mapping table of §21.9;
   `0x0701`–`0x070F`: 15, incl. `0x070F` `ERR_POLICY_BELOW_FLOOR` (§9.7a/§9.4.1 — the only code in the block whose fault is the recipient's **own** policy rather than an inbound object); `0x0801`–`0x080D`: 13, incl. `0x0808` manifest-key-present (§5.5), the
   file-durability codes `0x0809`–`0x080C` (§5.5.1–§5.5.5) — file-unavailable (origin-hold residual),
   manifest-durability-invalid, retention-expired, and spool-overflow (pushed-attachment storage DoS) —

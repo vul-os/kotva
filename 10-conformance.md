@@ -76,11 +76,11 @@ The **conformance test suite** is the *operational definition* of compatibility.
 means "passes the suite," not "resembles the reference." This is the primary defense against
 fragmentation. The suite lives in `conformance/` as three coupled artifacts:
 
-- **`conformance/SUITE.md`** — the normative test-case catalog: 194 numbered cases
+- **`conformance/SUITE.md`** — the normative test-case catalog: 229 numbered cases
   (`DMTAP-<category>-<NN>`) grouped by the levels above, each pinning its spec clause, input,
   expected result (accept / reject + the §21 error code), and MUST/SHOULD.
 - **`conformance/suite.json`** — the machine-readable mirror of those cases, so a runner in **any
-  language** can drive them. It mirrors all 194 (SUITE.md and suite.json are in sync — the wave-2
+  language** can drive them. It mirrors all 229 (SUITE.md and suite.json are in sync — the wave-2
   deniable-1:1 and KT-v1-hardening families, the `PROFILE` display-data cases, the optional
   `PUSH` wake-signaling cases, the `FILE` durability cases, the wave-3 device-cluster `SYNC`,
   `ALIAS`, and gateway-alias `GWALIAS` families, the pluggable-resolver `RESOLVE` family, the
@@ -96,17 +96,18 @@ fragmentation. The suite lives in `conformance/` as three coupled artifacts:
   driven by `PUB` cases).
 
 52 cases are byte-runnable today (46 vector-backed against `vectors.json`/`pub_vectors.json` +
-6 self-contained canonical-CBOR reject cases); 5 further cases are verified by implementer or
-deployment attestation, having **no wire bytes to recompute at all** — `DMTAP-PUB-21` (§22.7
-publish consent), `DMTAP-MIXPROF-01`/`-02` (§4.4.10a constraints 1–2: the Bootstrap profile's
-in-product degradation disclosure, and its prohibition on claiming anonymity), and
-`DMTAP-GWROLE-02`/`-03` (§7.11.4/§9.11's gateway posture, and §7.1b's process/privilege
-separation); the remaining 137 carry an exact construction recipe and expected §21 error for the
+6 self-contained canonical-CBOR reject cases); 11 further cases are verified by implementer or
+deployment attestation, having **no wire bytes to recompute at all** — an in-product disclosure
+(§22.7 publish consent, §4.4.10a's Bootstrap degradation notice), a client's own claims about a
+session or an address (§7.10.6, §7.15.3), a process boundary (§7.1b), or the population a
+deployment actually serves (§7.15.4); they are the rows marked `manual-attestation` in
+`conformance/SUITE.md`, each naming the review that settles it. The remaining 166 carry an exact construction recipe and expected §21 error for the
 branches whose subsystems are not yet vectored (mixnet/MLS/gateway/auth, plus the wave-2
 deniable/KT-v1/org/device-attestation families, the `FILE` durability guards, the `PROFILE`
 display-data guards, the optional `PUSH` wake-signaling guards, the wave-6 anti-drift families
-(`MIXPROF`/`FLEET`/`GUARD`/`LOC`/`FLOOR`/`FAILCLASS`/`GWROLE`), and the profile-level `CAD`/`VIDEO`
-checklists — see `conformance/README.md`). The partition is exact: 52 + 5 + 137 = 194. An
+(`MIXPROF`/`FLEET`/`GUARD`/`LOC`/`FLOOR`/`FAILCLASS`/`GWROLE`), the gateway families
+(`GWOPS`/`GWSMTP`/`GWATT`/`GWNAME`/`GWFLOOR`/`GWLEG`), and the profile-level `CAD`/`VIDEO`
+checklists — see `conformance/README.md`). The partition is exact: 52 + 11 + 166 = 229. An
 implementation conforms at a level iff it passes every `MUST` case of that level and of every level
 it composes. The reference `dmtap-core` self-check test drives the vectors, but the spec plus these
 three artifacts are authoritative (§10.4), not the reference.

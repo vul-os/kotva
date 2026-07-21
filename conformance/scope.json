@@ -2233,7 +2233,7 @@
       "section": "21.8",
       "file": "21-errors-iana.md",
       "title": "21.8 Gateway errors (`0x06xx`)",
-      "musts": 2,
+      "musts": 4,
       "class": "RESTATEMENT",
       "reason": "§21 registry Action column for 0x06xx; each MUST restates the disposition owned by the §7 clause its row cites"
     },

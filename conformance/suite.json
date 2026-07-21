@@ -26,7 +26,7 @@
   "referenced_vectors_count": 33,
   "vectors_count_note": "vectors_count is the number of entries in vectors/vectors.json; referenced_vectors_count (33) is how many of them the byte-backed cases currently drive (several drive more than one case). The remaining 35 are pre-generated for construction-todo families not yet wired to a case.",
   "notes": [
-    "reject cases map to spec §21 (141-code registry); error_code + error_name + disposition (Action column) are normative.",
+    "reject cases map to spec §21 (144-code registry); error_code + error_name + disposition (Action column) are normative.",
     "self-contained CBOR reject cases assert a deterministic-CBOR (RFC 8949 §4.2 / §18.1.1) decoder rejects the given bytes.",
     "construction-todo cases are non-deterministic to seal (sealed Envelope/Payload) or belong to subsystems not yet vectored (README 'Coverage vs. deferred')."
   ],
@@ -1265,7 +1265,7 @@
         "§16.3",
         "§2.5"
       ],
-      "checks": "Sphinx packet constant-length on the bucket ladder {16, 64} KiB; wrong length rejected (neither the 2 KiB nor the 8 KiB rung can hold a conformant PQ envelope: under suite 0x02 a minimal MOTE is 11 967 B before any body, \u00a74.4.1)",
+      "checks": "Sphinx packet constant-length on the bucket ladder {16, 64} KiB; wrong length rejected (neither the 2 KiB nor the 8 KiB rung can hold a conformant PQ envelope: under suite 0x02 a minimal MOTE is 11 967 B before any body, §4.4.1)",
       "operation": "mix_packet_validate",
       "construction": "Sphinx packet off the {16, 64} KiB bucket ladder",
       "expect": {
@@ -2751,7 +2751,7 @@
         "§9.7a",
         "§16.5"
       ],
-      "checks": "memory-hard PoW is the interoperable MUST floor: a conformant recipient MUST accept a valid memory-hard PoW solution (Argon2id at or above its advertised difficulty, scope including sender_key per §9.2a) as satisfying its cold-contact requirement, subject only to the §9.4 verification budget and its own rate policy. VDF is an OPTIONAL cost (MAY, \u00a79.4.1) — it bounds aggregate parallelism but leaves a 10-100x latency advantage, its sequentiality is conjectural and processor-bounded, and it is not post-quantum, so it is neither the floor nor a SHOULD",
+      "checks": "memory-hard PoW is the interoperable MUST floor: a conformant recipient MUST accept a valid memory-hard PoW solution (Argon2id at or above its advertised difficulty, scope including sender_key per §9.2a) as satisfying its cold-contact requirement, subject only to the §9.4 verification budget and its own rate policy. VDF is an OPTIONAL cost (MAY, §9.4.1) — it bounds aggregate parallelism but leaves a 10-100x latency advantage, its sequentiality is conjectural and processor-bounded, and it is not post-quantum, so it is neither the floor nor a SHOULD",
       "operation": "cold_sender_admit",
       "construction": "cold MOTE carrying a valid Argon2id solution at the recipient's advertised difficulty and no VDF proof, from a sender with no relationship",
       "expect": {
@@ -3785,6 +3785,660 @@
       "optional_capability": "pub-1",
       "operation": "video_profile_check",
       "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWOPS-01",
+      "level": "Legacy",
+      "category": "GWOPS",
+      "req": "MUST",
+      "clause": [
+        "§7.1a"
+      ],
+      "checks": "Forward-confirmed reverse DNS and a matching HELO. A gateway MUST publish a PTR for its sending address that forward-resolves back to the same host, and MUST use a HELO/EHLO name matching it. This is not hygiene advice: receiving MTAs check FCrDNS before content is ever considered, so a gateway that fails it is rejected or spam-scored on every leg, and the bridge silently stops bridging",
+      "operation": "gateway_dns_posture",
+      "construction": "resolve the gateway's sending address to a PTR and the PTR back to A/AAAA; open an SMTP session and capture the HELO/EHLO name the gateway presents on egress",
+      "expect": {
+        "outcome": "accept",
+        "note": "PTR must forward-resolve to the same host and the egress HELO/EHLO must equal that name; either half missing is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWOPS-02",
+      "level": "Legacy",
+      "category": "GWOPS",
+      "req": "MUST",
+      "clause": [
+        "§7.1a",
+        "§12.3",
+        "§7.14"
+      ],
+      "checks": "A payment method is not a requirement, and an implementation MUST NOT imply one. Nothing in DMTAP requires a gateway operator to charge or a user to pay. An install, onboarding or gateway-enablement flow that presents billing details as a prerequisite for running or using the role — or that gates identity, keys, native mesh delivery, the mixnet or recovery behind one — asserts a requirement the protocol does not have",
+      "operation": "gateway_copy_attestation",
+      "construction": "review of the gateway-enablement and onboarding flows, install documentation and the operator's own copy; no wire bytes to recompute",
+      "expect": {
+        "outcome": "non-conformant if a payment method is presented as a prerequisite for the role, or if any §12.3.1 never-chargeable function is reachable only after billing details are supplied"
+      },
+      "status": "manual-attestation"
+    },
+    {
+      "id": "DMTAP-GWOPS-03",
+      "level": "Legacy",
+      "category": "GWOPS",
+      "req": "MUST",
+      "clause": [
+        "§7.5",
+        "§9.6"
+      ],
+      "checks": "Reputation is locally measured, never a globally published score. A gateway descriptor is discovery-only and self-asserted: it carries no reputation field, no price and no stake. Each sending node derives its own view from its own deliverability results, and a measurement shared by a peer MAY be an input but MUST NOT be treated as authoritative. A global score needs a party to compute it, and that party then decides which gateways receive traffic — the directory-authority problem §4.4.2 removed from the mixnet, reappearing one layer up",
+      "operation": "gateway_selection",
+      "construction": "node A has measured gateway G as delivering successfully to its own destinations; a peer supplies a signed \"G is bad\" measurement; separately, a descriptor for G is presented carrying a reputation/price/stake field",
+      "expect": {
+        "outcome": "accept",
+        "note": "A's routing decision must remain a function of A's own deliverability results; a node bound by the peer's claim alone, or ordering gateways by a published score, is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWOPS-04",
+      "level": "Legacy",
+      "category": "GWOPS",
+      "req": "MUST",
+      "clause": [
+        "§7.12.1",
+        "§7.12"
+      ],
+      "checks": "A client MUST NOT assume a registration mode. A gateway advertises open, key-registered, or both, in its descriptor; a client reads the advertised set and, for key-registered, runs the §7.12.2 handshake first. Assuming open against a key-registered gateway is the client-side half of the open-relay floor",
+      "operation": "gateway_egress_admit",
+      "construction": "gateway advertising key-registered only; a client submits an outbound legacy relay without having run the §7.12.2 handshake",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0607",
+        "error_name": "ERR_GATEWAY_SENDER_UNAUTHENTICATED",
+        "action": "FAIL_CLOSED_BLOCK",
+        "note": "a gateway advertising neither mode performs no third-party relay at all"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWOPS-05",
+      "level": "Legacy",
+      "category": "GWOPS",
+      "req": "MUST",
+      "clause": [
+        "§7.15.4",
+        "§7.5"
+      ],
+      "checks": "Exactly one legacy-access service mode is declared. A gateway operator MUST declare exactly one of public / registered-clients-only / private in its directory descriptor. The mode is what tells a user whether a third party can read the mail it serves (§7.15.3), so a descriptor declaring two modes, or none, is not a richer offer — it is an undisclosed trust boundary",
+      "operation": "gateway_descriptor_validate",
+      "construction": "directory descriptors declaring (a) both public and private, (b) no operator_mode at all",
+      "expect": {
+        "outcome": "reject",
+        "note": "the descriptor is unusable for legacy-access selection; inferring a mode from its absence is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWOPS-06",
+      "level": "Legacy",
+      "category": "GWOPS",
+      "req": "MUST",
+      "clause": [
+        "§7.15.4",
+        "§7.15.3"
+      ],
+      "checks": "The declared mode MUST be enforced. Advertising private while serving third parties, or registered-clients-only while accepting open registration, is misrepresentation rather than a policy choice: the mode is the user's only statement of who can read their mail, and a mode that is not enforced makes the disclosure of §7.15.3 false",
+      "operation": "gateway_mode_attestation",
+      "construction": "deployment review: the declared operator_mode in the descriptor against the population the legacy-access surface actually serves — registration policy, provisioned app-passwords, distinct identities with live sessions",
+      "expect": {
+        "outcome": "non-conformant if any identity outside the declared mode's population holds legacy access, in particular any second identity on a gateway declaring private"
+      },
+      "status": "manual-attestation"
+    },
+    {
+      "id": "DMTAP-GWOPS-07",
+      "level": "Legacy",
+      "category": "GWOPS",
+      "req": "MUST",
+      "clause": [
+        "§7.9",
+        "§7.8",
+        "§18.8.1"
+      ],
+      "checks": "A pure-mesh message MUST NOT appear on any operator's usage claim. Every gateway-touched message carries a verifiable §7.2a attestation naming the gateway domain and receipt time, so a user can confirm each claimed legacy operation against the message's own ProvenanceRecord. A message the client shows as pure-mesh had no operator on its path, so no operator was positioned to observe it — this is the user's evidence, not the operator's accounting mechanism",
+      "operation": "usage_claim_attestation",
+      "construction": "audit of an operator usage claim against the claimed messages' own ProvenanceRecords: every claimed operation must correspond to a MOTE carrying a valid GatewayAttestation for that gateway domain",
+      "expect": {
+        "outcome": "non-conformant if any claimed operation references a MOTE the client renders pure-mesh, or one whose provenance names a different gateway"
+      },
+      "status": "manual-attestation"
+    },
+    {
+      "id": "DMTAP-GWSMTP-01",
+      "level": "Legacy",
+      "category": "GWSMTP",
+      "req": "MUST",
+      "clause": [
+        "§7.2"
+      ],
+      "checks": "Inbound TLS: offer STARTTLS, never silently downgrade the advertised posture. The gateway MX MUST offer STARTTLS (RFC 3207) on its SMTP listener and MUST NOT silently downgrade its own advertised TLS posture: a session that negotiates cleartext where the gateway's published policy promised TLS is a policy violation, not a fallback",
+      "operation": "gateway_smtp_inbound",
+      "construction": "(a) EHLO the gateway MX and check for STARTTLS; (b) with an MTA-STS enforce policy published for the gateway's own MX hostname, drive a session that declines STARTTLS",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0608",
+        "error_name": "ERR_GATEWAY_TLS_POLICY_UNMET",
+        "action": "FAIL_CLOSED_BLOCK",
+        "note": "branch (a) accepts: STARTTLS must be advertised on the listener"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWSMTP-02",
+      "level": "Legacy",
+      "category": "GWSMTP",
+      "req": "MUST",
+      "clause": [
+        "§7.3"
+      ],
+      "checks": "Outbound TLS: enforce a published policy, and never present an unprotected leg as protected. Where the destination domain publishes MTA-STS enforce (RFC 8461) or DANE TLSA (RFC 7672), the gateway MUST enforce TLS to that policy with no downgrade to cleartext or to an unvalidated peer. Where neither is published it MUST attempt opportunistic STARTTLS, and a leg delivered opportunistically or in cleartext MUST be recorded as such — a gateway MUST NOT present an opportunistic or cleartext leg as a protected one",
+      "operation": "gateway_smtp_outbound",
+      "construction": "destination publishing MTA-STS enforce whose MX then offers no STARTTLS (variant: a certificate the policy does not validate); separately, a destination publishing neither, delivered opportunistically",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0608",
+        "error_name": "ERR_GATEWAY_TLS_POLICY_UNMET",
+        "action": "FAIL_CLOSED_BLOCK",
+        "note": "the opportunistic destination accepts only if the leg is recorded as opportunistic/cleartext; recording it as TLS-enforced is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWSMTP-03",
+      "level": "Legacy",
+      "category": "GWSMTP",
+      "req": "MUST",
+      "clause": [
+        "§7.2b"
+      ],
+      "checks": "8-bit transparency, byte-exact. A gateway MUST advertise 8BITMIME (RFC 6152) and MUST carry 8-bit message data byte-exact through verification and wrapping — DKIM is computed over the original bytes, and the bytes wrapped into the MOTE are the bytes received. Lossy re-encoding is forbidden: a body that cannot be transcoded to UTF-8 MUST be carried verbatim as opaque bytes under its original MIME type with its original charset declaration preserved",
+      "operation": "gateway_wrap_rfc5322",
+      "construction": "inbound message with an ISO-2022-JP body carrying a byte sequence that does not transcode cleanly to UTF-8; capture the exact DATA octets and compare with the body bytes the wrapped MOTE carries",
+      "expect": {
+        "outcome": "accept",
+        "note": "8BITMIME advertised; wrapped body bytes byte-identical to the received DATA octets, MIME type and charset preserved; any re-encoding or substitution character is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWSMTP-04",
+      "level": "Legacy",
+      "category": "GWSMTP",
+      "req": "MUST",
+      "clause": [
+        "§7.2b"
+      ],
+      "checks": "Header encoding round-trips. RFC 2047 encoded-words MUST be decoded to UTF-8 for the native subject/display fields of the wrapped MOTE, and non-ASCII header values MUST be (re-)encoded per RFC 2047 on the outbound leg. The decode and the re-encode are a pair: a bridge that decodes inbound but emits raw UTF-8 outbound produces headers a legacy MUA cannot read",
+      "operation": "gateway_header_transcode",
+      "construction": "inbound Subject: as an RFC 2047 encoded-word over a non-ASCII string; relay the resulting MOTE back out to a legacy destination and capture the emitted header",
+      "expect": {
+        "outcome": "match",
+        "note": "the MOTE's native subject field is the decoded UTF-8 string and the outbound Subject: is a valid RFC 2047 encoded-word decoding to the same string"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWSMTP-05",
+      "level": "Legacy",
+      "category": "GWSMTP",
+      "req": "MUST",
+      "clause": [
+        "§7.2b",
+        "§3.9.7"
+      ],
+      "checks": "Internationalized domains go on the wire as A-labels. Domains MUST be converted to A-label form (RFC 5890) for DNS resolution, dialing and SNI; U-labels are display forms, never wire forms. A U-label reaching the wire is both an interoperability failure and a homograph surface, since the comparison that would catch the spoof (§3.9.7) is defined on the canonical form",
+      "operation": "gateway_smtp_outbound",
+      "construction": "relay to a recipient at an IDN domain; capture the name used for the MX lookup, the TLS SNI value and the SMTP envelope",
+      "expect": {
+        "outcome": "accept",
+        "note": "A-label form required in the MX lookup, the SNI and the envelope; a U-label in any wire position is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWSMTP-06",
+      "level": "Legacy",
+      "category": "GWSMTP",
+      "req": "MUST",
+      "clause": [
+        "§7.2b"
+      ],
+      "checks": "SMTPUTF8: fail cleanly, never accept-then-mangle. A gateway that does not advertise SMTPUTF8 (RFC 6531) MUST let a conforming EAI sender fail at its own MTA, and MUST NOT accept EAI envelopes it cannot carry faithfully. Outbound, when a message requires SMTPUTF8 and the destination MX does not advertise it, the gateway MUST fail the send permanently and specifically, surfaced to the sender via the §7.3/§7.4 failure report, and MUST NOT emit a non-conformant 8-bit envelope; where the body is 8-bit and the peer lacks 8BITMIME it MUST either down-convert losslessly or fail with the same specificity",
+      "operation": "gateway_eai_capability",
+      "construction": "(a) a gateway not advertising SMTPUTF8 receives an EAI RCPT TO; (b) a message requiring SMTPUTF8 is relayed to an MX advertising neither SMTPUTF8 nor 8BITMIME, with no lossless down-conversion available",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0609",
+        "error_name": "ERR_GATEWAY_SMTPUTF8_UNSUPPORTED",
+        "action": "REJECT_NOTIFY",
+        "note": "permanent for this message and reported to the sender; accepting then down-converting lossily, or emitting a non-conformant 8-bit envelope, is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWSMTP-07",
+      "level": "Legacy",
+      "category": "GWSMTP",
+      "req": "MUST",
+      "clause": [
+        "§7.10.3a",
+        "§7.11.1"
+      ],
+      "checks": "DSNs are exempted only when correlated. A DSN/NDR (RFC 3464; envelope MAIL FROM:<>) inbound to a gateway alias MUST be recognized as such and exempted from the SPF/DMARC hard-fail and cold-sender gates of §7.11.1 provided the gateway can correlate it — via Original-Recipient and/or the referenced Message-ID — to an outbound message this gateway relayed for that identity inside the node's retry window (§7.4). A null-return-path message it cannot correlate is gated like any other inbound: an uncorrelated MAIL FROM:<> is the classic backscatter/spoof vector",
+      "operation": "gateway_dsn_admit",
+      "construction": "(a) a DSN whose Original-Recipient/Message-ID matches an outbound relay this gateway performed inside the §7.4 window; (b) a byte-identical DSN referencing a message this gateway never relayed",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0701",
+        "error_name": "ERR_CHALLENGE_MISSING_COLD_SENDER",
+        "action": "DEFER_REQUESTS",
+        "note": "branch (a) accepts and is delivered as a system/bounce MOTE with the gates exempted; exempting an uncorrelated MAIL FROM:<> is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWSMTP-08",
+      "level": "Legacy",
+      "category": "GWSMTP",
+      "req": "MUST",
+      "clause": [
+        "§7.10.3a",
+        "§7.4"
+      ],
+      "checks": "A legacy send never fails silently. When the node's outbound retry budget (§7.4) exhausts, the node MUST surface a permanent-failure notice to the sender. The gateway holds no queue, so if the node treats exhaustion as a quiet terminal state the user's message has disappeared with no signal anywhere in the system",
+      "operation": "gateway_outbound_retry",
+      "construction": "relay to a destination MX that 4xxs every attempt; advance past the §7.4 retry budget and inspect the sender-visible outcome",
+      "expect": {
+        "outcome": "accept",
+        "note": "a permanent-failure notice must reach the sender at exhaustion; silently dropping the send, or leaving it displayed as in-flight past the deadline, is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWSMTP-09",
+      "level": "Legacy",
+      "category": "GWSMTP",
+      "req": "MUST",
+      "clause": [
+        "§21.9",
+        "§19.7.1",
+        "§10.7.4",
+        "§7.4"
+      ],
+      "checks": "No 250 before a durable ack. The gateway's inbound leg is an ordinary SMTP transaction and MUST respond with RFC 5321/RFC 3463 codes. Where the recipient is reachable but has not durably acked inside the transaction window — a best-effort buffer accepted the packet, or nothing did — the gateway MUST reply 451 4.4.1 and MUST NOT reply 250 on mere hand-off. Replying 250 closes the SMTP transaction and moves durability out of the legacy sender's queue, so a later mesh-side EXPIRED loses the message with nobody left to notify",
+      "operation": "gateway_smtp_inbound",
+      "construction": "inbound SMTP for a recipient whose node accepts into a best-effort peer buffer but emits no durable ack before the transaction window closes",
+      "expect": {
+        "outcome": "accept",
+        "note": "the gateway must reply 451 4.4.1 and defer to the legacy sender's queue; any 2xx before a durable ack is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWSMTP-10",
+      "level": "Legacy",
+      "category": "GWSMTP",
+      "req": "MUST",
+      "clause": [
+        "§21.9",
+        "§9.2"
+      ],
+      "checks": "A block is indistinguishable from a non-existent address. A recipient that declines via Policy.block (§9.2) MUST be answered with the identical code and enhanced status as \"no such user\" — 550 5.1.1. A distinct 5.7.x would itself reveal that the recipient exists and has blocked this sender, turning the SMTP reply into a block-membership oracle; the block is enforced downstream and never surfaced as its own signal",
+      "operation": "gateway_smtp_inbound",
+      "construction": "two inbound SMTP transactions from the same sender — one to a non-existent address at the gateway, one to an existing recipient whose Policy.block names that sender; compare the replies octet for octet",
+      "expect": {
+        "outcome": "accept",
+        "note": "both replies must be 550 5.1.1 and byte-identical including any text; any divergence is a block-membership oracle and is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWATT-01",
+      "level": "Legacy",
+      "category": "GWATT",
+      "req": "MUST",
+      "clause": [
+        "§7.2a",
+        "§18.3.11"
+      ],
+      "checks": "The attestation key is looked up under the recipient's own domain. A recipient node MUST verify an inbound MOTE's attestation signature against a key published under the recipient's own domain's _dmtap-gw record (or an explicitly trusted gateway set), MUST reject attestations that do not verify, and MUST mark accepted ones as *legacy-origin*. A key the gateway publishes under its own domain proves only that the gateway signed — the question is whether the recipient's domain authorized it",
+      "operation": "gateway_attestation_verify",
+      "construction": "inbound MOTE whose GatewayAttestation.domain/selector resolve to a validly-signing key published under the gateway's own domain, with no _dmtap-gw record under the recipient's domain and the gateway absent from the recipient's trusted set",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0602",
+        "error_name": "ERR_GATEWAY_ATTESTATION_KEY_UNTRUSTED",
+        "action": "DROP_SILENT",
+        "note": "an accepted attestation must additionally mark the message legacy-origin, never end-to-end"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWATT-02",
+      "level": "Legacy",
+      "category": "GWATT",
+      "req": "MUST",
+      "clause": [
+        "§7.2a",
+        "§18.3.11",
+        "§18.9.11"
+      ],
+      "checks": "msg_digest binds the attestation to one message. msg_digest is 0x1e ‖ BLAKE3-256(rfc5322_bytes) over the exact legacy bytes the gateway wrapped. The recipient MUST recompute it from the decrypted body and reject a mismatch, so a valid attestation cannot be lifted from the message it was issued for and re-presented over different content",
+      "operation": "gateway_attestation_verify",
+      "construction": "take a MOTE carrying a valid GatewayAttestation and replace the wrapped RFC 5322 body with different bytes, leaving domain, selector, recv_at and sig untouched",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0601",
+        "error_name": "ERR_GATEWAY_ATTESTATION_INVALID",
+        "action": "DROP_SILENT",
+        "note": "verifying the signature without recomputing msg_digest from the decrypted body is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWATT-03",
+      "level": "Legacy",
+      "category": "GWATT",
+      "req": "MUST",
+      "clause": [
+        "§7.2a",
+        "§13.7"
+      ],
+      "checks": "Anchor honesty. The _dmtap-gw record is a DNS binding, so absent DNSSEC and a KT anchor the attestation inherits the DNS-substitution risk of §13.7 item 6 — a registrar or DNS compromise substitutes the attestation key. A client MUST NOT present such an attestation to users as a stronger assurance than DKIM-class domain authentication",
+      "operation": "client_ux_attestation",
+      "construction": "client-UX review with an attestation whose _dmtap-gw record is neither DNSSEC-signed nor KT-anchored; no wire bytes to recompute",
+      "expect": {
+        "outcome": "non-conformant if the message is presented as verified-origin above DKIM-class domain authentication, or if the anchored/unanchored difference is not surfaced"
+      },
+      "status": "manual-attestation"
+    },
+    {
+      "id": "DMTAP-GWATT-04",
+      "level": "Legacy",
+      "category": "GWATT",
+      "req": "MUST",
+      "clause": [
+        "§7.2a"
+      ],
+      "checks": "High-value recipients require the KT-anchored form. A recipient operating at high value MUST require the KT-anchored _dmtap-gw binding rather than the bare DNS one; at that assurance level a registrar compromise is inside the threat model, and the KT anchor is what makes a substituted attestation key detectable",
+      "operation": "gateway_attestation_verify",
+      "construction": "recipient configured high-value; inbound MOTE whose attestation key is published in DNS only, with no KT entry for the _dmtap-gw binding",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0602",
+        "error_name": "ERR_GATEWAY_ATTESTATION_KEY_UNTRUSTED",
+        "action": "DROP_SILENT"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWATT-05",
+      "level": "Legacy",
+      "category": "GWATT",
+      "req": "MUST",
+      "clause": [
+        "§7.8.3",
+        "§18.3.11"
+      ],
+      "checks": "A chain verifies entry by entry, and the bridging entry under the recipient's own domain. Where more than one gateway bridged a message, Payload.provenance carries an ordered chain of GatewayAttestations. Each entry is verified against the _dmtap-gw key published under its own domain; the entry that bridged mail for the recipient MUST verify under the recipient's own domain, and entries under other domains verify only if that domain is in the recipient's explicitly-trusted set — otherwise they are surfaced as an *unverified hop*, never silently accepted or silently dropped",
+      "operation": "gateway_attestation_verify",
+      "construction": "a two-entry provenance chain in which seq=1 is under an untrusted third-party domain and seq=0, the entry that bridged for the recipient, verifies under the recipient's own domain",
+      "expect": {
+        "outcome": "accept",
+        "note": "seq=1 must be rendered an unverified hop, not silently accepted or dropped; a variant whose recipient-facing entry verifies only under another domain rejects with 0x0602"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWATT-06",
+      "level": "Legacy",
+      "category": "GWATT",
+      "req": "MUST",
+      "clause": [
+        "§21.24a",
+        "§18.3.11"
+      ],
+      "checks": "An unknown attestation discriminator is unverifiable, never ignorable. An unknown GatewayAttestation.disc value MUST be treated as an unverifiable attestation, never silently ignored: an attestation whose kind a verifier cannot check is not a pass. This is the fail-closed analogue of the unknown-suite rule (§1.1) applied to provenance — silently ignoring it would let a forger downgrade a message to \"no attestation present\", which §18.3.5 makes a claim in itself",
+      "operation": "gateway_attestation_verify",
+      "construction": "inbound MOTE carrying a GatewayAttestation with disc = 0x7F (unassigned) and an otherwise well-formed body",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0601",
+        "error_name": "ERR_GATEWAY_ATTESTATION_INVALID",
+        "action": "DROP_SILENT",
+        "note": "ignoring the entry and surfacing the message as carrying no provenance is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWNAME-01",
+      "level": "Legacy",
+      "category": "GWNAME",
+      "req": "MUST",
+      "clause": [
+        "§7.10.1"
+      ],
+      "checks": "Native → legacy rewrites the reply path. Legacy mail cannot route a reply to a non-MX native address: a legacy MTA replying to imran@mydomain.com looks up that domain's MX, finds none, and bounces. So the machine-readable return/reply path (envelope-from and Reply-To:) MUST be the gateway alias, which does have an MX; the display MAY still show the friendly native address as an RFC 5322 display name",
+      "operation": "gateway_reply_path",
+      "construction": "native user sends to a legacy recipient; capture the emitted envelope-from and Reply-To:, then have the legacy recipient reply and follow the route",
+      "expect": {
+        "outcome": "accept",
+        "note": "envelope-from and Reply-To: must be the gateway alias and the reply must map back per §7.10.3; the bare native address in either machine-readable position is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWNAME-02",
+      "level": "Legacy",
+      "category": "GWNAME",
+      "req": "MUST",
+      "clause": [
+        "§7.10.5",
+        "§3.13.1"
+      ],
+      "checks": "A gateway MUST NOT mint a global name. A vanity is a user-chosen local-part in the gateway's own domain: it MUST be dot-free and MUST be valid only fully-qualified (vanity@gatewaydomain), never as a bare handle. Allocating a globally-unique name from a bare string is the flat-namespace consensus problem DMTAP deliberately does not solve; the key-name (§3.9.6) is the floor instead, and a gateway handing out a bare handle claims an authority it does not have",
+      "operation": "gateway_vanity_register",
+      "construction": "request the vanity registrations al.ice (dotted) and alice presented for use as a bare handle with no @gatewaydomain suffix",
+      "expect": {
+        "outcome": "reject",
+        "note": "a dotted local-part is reserved for foreign namespaces (§7.10.5a) and a bare handle has no anchor; issuing either is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWNAME-03",
+      "level": "Legacy",
+      "category": "GWNAME",
+      "req": "MUST",
+      "clause": [
+        "§7.10.5"
+      ],
+      "checks": "A vanity yields to, and never shadows, a real network name. If a resolvable name@domain or name-chain name exists, the anchored name wins; a gateway MUST NOT let a chosen vanity mask or intercept delivery to it. A vanity is first-come and revocable in the gateway's own namespace — the one alias form with ownership semantics — and that ownership stops exactly where an anchor begins",
+      "operation": "gateway_alias_resolve",
+      "construction": "gateway domain gw.example also hosts a resolvable native identity alice@gw.example; a different user holds the vanity alice there; deliver inbound legacy mail to alice@gw.example",
+      "expect": {
+        "outcome": "accept",
+        "note": "delivery must reach the anchored identity; delivering to the vanity holder is non-conformant and the vanity must yield"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWNAME-04",
+      "level": "Legacy",
+      "category": "GWNAME",
+      "req": "MUST",
+      "clause": [
+        "§7.10.5a",
+        "§21.18"
+      ],
+      "checks": "The local-part parsing rule is decidable and closed. A dot means the name is not the gateway's: it MUST be resolved in the namespace it belongs to — through a registered name-chain resolver (§21.18) or by decoding the §7.10.2 packed form — and MUST NOT be treated as a registration in the gateway's own namespace, allocated, sold or squatted. Failure is closed and specific, and the gateway MUST NOT guess which form was meant, nor fall back from a failed chain resolution to a vanity lookup — that fallback lets a squatted vanity intercept mail for a chain name",
+      "operation": "gateway_localpart_parse",
+      "construction": "inbound mail to alice.sol@gw.example where the .sol chain lookup fails and a local vanity alice.sol (or alice) exists; variant: imran.mydomain-.com@gw.example whose encoded form does not decode",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0605",
+        "error_name": "ERR_GATEWAY_ALIAS_UNMAPPED",
+        "action": "RETURN_SENDER_SMTP",
+        "note": "the undecodable variant rejects with 0x0606; any delivery to a local vanity after a failed chain lookup is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWNAME-05",
+      "level": "Legacy",
+      "category": "GWNAME",
+      "req": "MUST",
+      "clause": [
+        "§7.10.6",
+        "§3.13.2",
+        "§3.13.4"
+      ],
+      "checks": "A client MUST NOT present a legacy alias as the user's address. It MUST NOT appear in the share-address, copy-address or QR-and-invite flows, MUST NOT be offered as the identity's display address, and wherever it does appear MUST be labelled with its provenance — \"legacy alias, issued by gw.example, not portable\". The share flow surfaces the user's own domain if they have one, otherwise their chain name, otherwise the key-name, in that order",
+      "operation": "client_ux_attestation",
+      "construction": "client-UX review of the share/copy/QR/invite surfaces and the account's route list, for an identity holding a tier-3 alias and no own domain; no wire bytes to recompute",
+      "expect": {
+        "outcome": "non-conformant if a tier-3 alias appears in any share flow, is offered as the display address, appears unlabelled, or is preferred over an available own-domain or chain name"
+      },
+      "status": "manual-attestation"
+    },
+    {
+      "id": "DMTAP-GWNAME-06",
+      "level": "Legacy",
+      "category": "GWNAME",
+      "req": "MUST",
+      "clause": [
+        "§7.10.6"
+      ],
+      "checks": "The gateway MUST NOT strip the native-name advertisement, and the client MUST let the user turn it off. Outbound legacy mail SHOULD advertise the sender's native name in both a DMTAP-Name: header field and a human-readable signature line; that advertisement is the mechanism that drains aliases rather than hoping they drain, so a gateway MUST NOT strip or rewrite either. It is also an identifier, and some correspondence is deliberately compartmented, so the client MUST offer the user a way to suppress it",
+      "operation": "gateway_smtp_outbound",
+      "construction": "relay an outbound legacy message carrying a DMTAP-Name: header and the body signature line and capture what the destination receives; companion check that the client exposes a control suppressing both",
+      "expect": {
+        "outcome": "accept",
+        "note": "both advertisements must arrive unmodified; stripping or rewriting either at the gateway is non-conformant, as is a client that emits them with no way to turn them off"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWFLOOR-01",
+      "level": "Legacy",
+      "category": "GWFLOOR",
+      "req": "MUST",
+      "clause": [
+        "§7.11.1",
+        "§21.9"
+      ],
+      "checks": "Legacy sender authentication, rejected early. Before injecting anything into the mesh a gateway MUST apply SPF, DKIM and DMARC and reject on hard fail, pre-DATA where possible. The point of pre-DATA is that the gateway holds no queue: accepting the body and deciding later means either storing it or dropping it silently, and both are worse than a 550 the sending MTA can act on",
+      "operation": "gateway_smtp_inbound",
+      "construction": "inbound transaction from an IP outside the envelope domain's SPF record with a DMARC policy of reject; observe at which SMTP verb the rejection occurs",
+      "expect": {
+        "outcome": "accept",
+        "note": "rejection must be 550 5.7.1 at or before DATA; accepting then dropping after wrapping, or injecting, is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWFLOOR-02",
+      "level": "Legacy",
+      "category": "GWFLOOR",
+      "req": "MUST",
+      "clause": [
+        "§7.11.1",
+        "§9.2",
+        "§2.7a"
+      ],
+      "checks": "An injected legacy stranger is a cold contact. The gateway MUST carry the legacy origin through the recipient's §9 cold-sender gate exactly as a native cold sender is carried: it MUST NOT inject legacy mail with the standing of an established contact, and MUST NOT strip or forge the recipient-facing challenge state. Mail it cannot qualify defers to the requests area, never the inbox, and a gateway MUST NOT emit an inbound MOTE that bypasses either check",
+      "operation": "gateway_inbound_inject",
+      "construction": "SPF/DKIM/DMARC-passing inbound mail from a legacy address with no relationship to the recipient; inspect the emitted MOTE's challenge state and its recipient-side placement; variant in which the gateway sets the challenge state to that of an established contact",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0703",
+        "error_name": "ERR_CHALLENGE_FORGED_INVALID",
+        "action": "DROP_SILENT",
+        "note": "the honest branch accepts with cold-sender standing into the requests area; delivery to the inbox on the gateway's say-so is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWFLOOR-03",
+      "level": "Legacy",
+      "category": "GWFLOOR",
+      "req": "MUST",
+      "clause": [
+        "§7.11.3",
+        "§7.13"
+      ],
+      "checks": "Implement the floor, choose the numbers. The interoperable requirement is *that* both directions are gated, *that* the gates fail closed, and *which* signals gate them (SPF/DKIM/DMARC plus cold-sender inbound; authenticated-sender plus rate/volume outbound). The specific values — DMARC override handling, RBL choice, challenge thresholds, egress rates, volume caps — are operator policy and out of scope. A suite that tested the numbers would be enforcing one operator's policy as interop; a suite that tested nothing would let a gateway disable a gate and still claim conformance",
+      "operation": "gateway_policy_floor",
+      "construction": "two gateways with deliberately different thresholds drive the same inbound and outbound corpus; a third has one gate disabled entirely",
+      "expect": {
+        "outcome": "accept",
+        "note": "both threshold variants conform — divergence in the numbers is not a conformance signal; the disabled-gate variant fails GWFLOOR-01, GWFLOOR-02 or LEG-03 as applicable"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWLEG-01",
+      "level": "Legacy",
+      "category": "GWLEG",
+      "req": "MUST",
+      "clause": [
+        "§7.15.1",
+        "§8.2"
+      ],
+      "checks": "The legacy surfaces are the gateway's, and app-passwords are the credential. A gateway serving legacy clients MUST project the identity's one MOTE store through the requested legacy protocol — IMAP/POP3 read access, SMTP-submission outbound, CalDAV/CardDAV as iCalendar/vCard — decrypting as §7.15.3 requires. Authentication is an app-specific password mapped to the identity, so a legacy client never touches the keypair, and revoking that password revokes that client. These are the only legacy client surfaces: the node exposes none of them",
+      "operation": "gateway_legacy_surface",
+      "construction": "authenticate an IMAP client with an app-password, read a folder, revoke that app-password and retry; separately attempt the same IMAP connection against the node's own listeners",
+      "expect": {
+        "outcome": "accept",
+        "note": "the projection must serve only while the app-password is live and the identity keypair is never presented; a node answering IMAP/POP3/CalDAV/CardDAV itself is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWLEG-02",
+      "level": "Legacy",
+      "category": "GWLEG",
+      "req": "MUST",
+      "clause": [
+        "§7.15.2",
+        "§4.3"
+      ],
+      "checks": "The legacy ingress is not the mesh relay. The gateway's legacy-client ingress accepts an inbound legacy connection, terminates TLS and speaks the legacy protocol against the mailbox — so it sees plaintext. It MUST NOT be confused with the node's native mesh relay (Circuit Relay v2 / DCUtR), which carries ciphertext-only, content-blind node↔node traffic and never speaks a legacy protocol. Collapsing the two would silently convert a content-blind role into a plaintext one",
+      "operation": "relay_role_boundary",
+      "construction": "drive an IMAPS session at a node acting as a Circuit Relay v2 relay for third parties; separately verify that the relay path for a mail MOTE carries only ciphertext the relay cannot open",
+      "expect": {
+        "outcome": "accept",
+        "note": "the relay must refuse the legacy protocol and hold no key that opens what it forwards"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-GWLEG-03",
+      "level": "Legacy",
+      "category": "GWLEG",
+      "req": "MUST",
+      "clause": [
+        "§7.15.3",
+        "§8.2",
+        "§8.4"
+      ],
+      "checks": "Gateway-served legacy access is not end-to-end, and the trust boundary is named. A legacy client's mail, calendar and contacts are visible in the clear to whatever gateway serves them, so a client MUST NOT present gateway-served legacy access as end-to-end when served by a non-private gateway, and MUST surface which gateway — and therefore which trust boundary — serves the session. A private gateway (§7.15.4) means the operator is the user and no third party sees it; a public one is the same honest trade as choosing any hosted provider",
+      "operation": "client_ux_attestation",
+      "construction": "client-UX review of the legacy-access settings and any privacy indicator, for an account served by a public gateway and again by a private one; no wire bytes to recompute",
+      "expect": {
+        "outcome": "non-conformant if the public-gateway session is presented as end-to-end or zero-access, or if the serving gateway's identity is not surfaced to the user"
+      },
+      "status": "manual-attestation"
     }
   ],
   "pub_vectors_file": "vectors/pub_vectors.json",
