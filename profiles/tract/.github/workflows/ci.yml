@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push: { branches: [main] }
+  pull_request:
+
+jobs:
+  lint:
+    # tools/lint.py catches the failure mode a spec repo actually has: a section that quietly
+    # acquires authority, a §ref outliving the section it names, a document map that stopped
+    # matching the files. DMTAP paid for these checks retroactively; TRACT runs them from the start.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: python3 tools/lint.py
+
+  pdf:
+    # Building the PDF proves every section still parses and no diagram is malformed. It is not
+    # published from CI — the committed PDF is the release artefact — but a build that stops
+    # working is a spec that has quietly broken.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: cd build && npm install --silent
+      - run: cd build && CHROME_PATH="$(which google-chrome || which chromium-browser || echo /usr/bin/chromium)" node build.mjs
