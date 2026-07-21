@@ -6000,6 +6000,221 @@
         "note": "both records must remain distinct and independently addressable with the claim presented as provenance; auto-merging or suppressing on the claim alone is non-conformant"
       },
       "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-WIRE-01",
+      "level": "Core",
+      "category": "WIRE",
+      "req": "MUST",
+      "clause": [
+        "§18.3.4",
+        "§5.3",
+        "§1.3"
+      ],
+      "checks": "KeyPackageRef.suite MUST equal Envelope.suite. The reference names the specific one-time KeyPackage consumed to initiate the session, and per-message suite is negotiated at KeyPackage granularity — so a reference advertising one suite inside an envelope declaring another is a negotiation the two ends did not agree on. ref and suite are both REQUIRED; loc is an informational hint and its absence changes nothing",
+      "operation": "det_cbor_decode_keypackageref",
+      "construction": "Envelope at suite 0x02 carrying a KeyPackageRef with (a) suite 0x01, (b) ref absent, (c) loc absent and everything else well-formed",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x020D",
+        "error_name": "ERR_MALFORMED_OBJECT",
+        "action": "DROP_SILENT",
+        "note": "a below-the-mark referenced suite is 0x020F; the loc-absent instance accepts"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-WIRE-02",
+      "level": "Core",
+      "category": "WIRE",
+      "req": "MUST",
+      "clause": [
+        "§18.4.3",
+        "§5.3",
+        "§1.3"
+      ],
+      "checks": "A fetched bundle MUST hash to KeyPackageBundleRef.id, and its suites MUST be a subset of Identity.suites. loc and id are REQUIRED: the locator says where to fetch and the content address says what counts as the answer, so a reference without the pin is an invitation to serve anything. Where the OPTIONAL suites is present it MUST be a subset of the identity's own advertised suites — a bundle claiming a suite the identity does not is claiming a capability the identity never signed for",
+      "operation": "det_cbor_decode_bundleref",
+      "construction": "(a) fetch a bundle whose bytes do not hash to id; (b) a KeyPackageBundleRef with id absent; (c) suites [0x02,0x03] against an Identity.suites of [0x02]",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0202",
+        "error_name": "ERR_BAD_CONTENT_ADDRESS",
+        "action": "DROP_SILENT",
+        "note": "the missing id and the suite-superset both reject as 0x020D"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-WIRE-03",
+      "level": "Core",
+      "category": "WIRE",
+      "req": "MUST",
+      "clause": [
+        "§18.4.4",
+        "§1.4"
+      ],
+      "checks": "RecoveryPolicy required fields, and rotate_threshold ≥ recover_threshold. suite, ik, version, methods, recover_threshold, rotate_threshold, ts and sig are all REQUIRED, and the ordering constraint is the load-bearing one: a policy whose rotate_threshold is below its recover_threshold lets a single recovered factor rewrite the policy that governs recovery — the escalation §1.4 rule 2 exists to prevent. version is monotonic and a policy at or below the pinned version is a rollback",
+      "operation": "det_cbor_decode_recoverypolicy",
+      "construction": "RecoveryPolicy instances with a rotate_threshold below its recover_threshold, with methods absent, at a version equal to the pinned one, and signed by IK alone over a guardian removal",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x010C",
+        "error_name": "ERR_RECOVERY_THRESHOLD_INVALID",
+        "action": "FAIL_CLOSED_BLOCK",
+        "note": "the other three branches reject as 0x020D, 0x0105 and 0x010E respectively"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-WIRE-04",
+      "level": "Core",
+      "category": "WIRE",
+      "req": "MUST",
+      "clause": [
+        "§18.4.4",
+        "§1.4"
+      ],
+      "checks": "RecoveryMethod and Threshold shapes. Each method carries its discriminator plus its own required fields — PhraseMethod a recovery_key, DeviceMethod a device_key and a label, SocialMethod a guardians list and a threshold. A Threshold is a disjunction: any_of is REQUIRED and each MethodPredicate carries a method drawn from \"phrase\"/\"device\"/\"social\"/\"ik\" and a count ≥ 1 (exactly 1 for \"ik\", which names no RecoveryMethod). Changing a SocialMethod's guardian set MUST trigger redistribution/resharing rather than a proactive refresh, and rotating a method out MUST re-key the underlying secret rather than merely editing the list",
+      "operation": "det_cbor_decode_recoverymethod",
+      "construction": "(a) a SocialMethod with guardians present and threshold absent; (b) a MethodPredicate with method \"ik\" and count 2; (c) an unknown method string; (d) a policy edit dropping and re-adding a PhraseMethod with the same underlying secret",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x020D",
+        "error_name": "ERR_MALFORMED_OBJECT",
+        "action": "DROP_SILENT",
+        "note": "the re-added phrase factor is non-conformant at §1.4 rule 3: the list changed while the secret did not, so the evicted factor still opens the account"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-WIRE-05",
+      "level": "Core",
+      "category": "WIRE",
+      "req": "MUST",
+      "clause": [
+        "§18.4.5",
+        "§1.5"
+      ],
+      "checks": "KeyRotation required fields, and old_ik MUST be the currently-pinned IK. suite, old_ik, new_ik, reason, ts and sig are REQUIRED; prev and rotate_quorum are OPTIONAL. sig is by old_ik over the body, which is what proves continuity — a rotation signed by new_ik proves only that someone holds the key they are trying to install. Where the identity has a published RecoveryPolicy, old_ik alone does not suffice: the rotation needs either the rotate_quorum co-signature (path (a)) or publication plus an elapsed veto window (path (b))",
+      "operation": "det_cbor_decode_keyrotation",
+      "construction": "(a) KeyRotation whose old_ik is not the pinned key; (b) sig made by new_ik; (c) reason absent; (d) an identity with a published RecoveryPolicy receiving a rotation with rotate_quorum absent and no elapsed veto window",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0104",
+        "error_name": "ERR_IDENTITY_CHAIN_BROKEN",
+        "action": "FAIL_CLOSED_BLOCK",
+        "note": "the missing reason rejects as 0x020D and the unquorumed rotation as 0x0121; the pin must not advance to new_ik in either case"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-WIRE-06",
+      "level": "Core",
+      "category": "WIRE",
+      "req": "MUST",
+      "clause": [
+        "§18.4.6",
+        "§1.6"
+      ],
+      "checks": "MoveRecord rebinds a name and never a key. suite, ik, from, to, ts and sig are REQUIRED; prev is OPTIONAL. The key is unchanged by a move — that is the whole point — so contacts route by key and verify the move against the pinned IK, and a forged move cannot redirect them. A MoveRecord presenting a different ik, or signed by anything other than the pinned key, is not a move; it is an attempt to substitute an identity behind a name change",
+      "operation": "det_cbor_decode_moverecord",
+      "construction": "(a) MoveRecord whose ik differs from the pinned identity key; (b) sig by a device key rather than IK; (c) to absent; (d) a valid move followed by a message from the pinned key at the new name",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x010A",
+        "error_name": "ERR_MOVE_RECORD_INVALID",
+        "action": "FAIL_CLOSED_BLOCK",
+        "note": "the missing to rejects as 0x020D; the valid move accepts and the pin follows the key"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-WIRE-07",
+      "level": "Core",
+      "category": "WIRE",
+      "req": "MUST",
+      "clause": [
+        "§18.6.1",
+        "§5.8.1",
+        "§5.8.2"
+      ],
+      "checks": "GroupState is a committer-signed projection, not the authority. All of group_id, suite, epoch, committer, posting_model, membership_visibility, join_policy, roster, log_head, version, ts, committer_sig and group_identity are REQUIRED; only name is OPTIONAL. The enumerated fields are closed sets — posting-model, visibility, join-policy and role each admit exactly the listed strings — the roster carries ≥ 1 entry including ≥ 1 owner, and version is monotonic so a state at or below the pinned version is a rollback. The authoritative ordering remains the hash-chained log: GroupState is what members pin, log_head is what it points at",
+      "operation": "det_cbor_decode_groupstate",
+      "construction": "GroupStates with an unlisted join_policy string, an empty roster, a roster with no owner, a version below the pinned value, a committer_sig by a non-committer member, and one with name absent and everything else well-formed",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x020D",
+        "error_name": "ERR_MALFORMED_OBJECT",
+        "action": "DROP_SILENT",
+        "note": "the rollback rejects as 0x0105, the wrong signer as 0x0409, and the name-absent instance accepts"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-WIRE-08",
+      "level": "Core",
+      "category": "WIRE",
+      "req": "MUST",
+      "clause": [
+        "§18.6.2",
+        "§5.1"
+      ],
+      "checks": "GroupEvent carries MLS bytes verbatim and orders them. Every field is REQUIRED. mls is the opaque TLS-encoded MLSMessage, carried byte-for-byte — DMTAP does not re-encode it, and every handshake stays member-signed inside that blob, so the committer signs ordering only and can stall but never forge. log_seq is strictly increasing and prev chains to the previous entry (genesis uses an all-zero digest with the v0 prefix): a gap or a duplicate is a fork signal",
+      "operation": "det_cbor_decode_groupevent",
+      "construction": "(a) a re-encoded mls blob semantically equal but not byte-identical to what was received; (b) a log_seq gap; (c) two events at one log_seq with the same prev; (d) a genesis event with prev absent; (e) committer_sig made over a different log_seq",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0404",
+        "error_name": "ERR_COMMITTER_FORK_DETECTED",
+        "action": "HALT_ALERT",
+        "note": "the re-encoded blob fails the inner member signature (0x0208), the gap is 0x0403 HOLD_RESYNC, and the missing genesis prev is 0x020D"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-WIRE-09",
+      "level": "Core",
+      "category": "WIRE",
+      "req": "MUST",
+      "clause": [
+        "§18.7.1",
+        "§13.3",
+        "§16.1"
+      ],
+      "checks": "Challenge required fields and its validity window. rp_origin, nonce, issued_at, exp and aud are REQUIRED; scope is OPTIONAL. rp_origin is the RP's true origin — phishing resistance depends entirely on binding to it and having it injected by a trusted client, never trusted from the RP by the signer. The nonce is single-use and valid ≤ 120 s with a replay cache of ≥ 300 s, and an assertion presented after exp MUST be rejected",
+      "operation": "det_cbor_decode_challenge",
+      "construction": "Challenges with aud absent, with exp before issued_at, with a nonce already in the replay cache, and an assertion presented 121 s after issue",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x020D",
+        "error_name": "ERR_MALFORMED_OBJECT",
+        "action": "DROP_SILENT",
+        "note": "the replayed nonce rejects as 0x0502 and the late assertion as 0x0503"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-WIRE-10",
+      "level": "Core",
+      "category": "WIRE",
+      "req": "MUST",
+      "clause": [
+        "§18.7.2",
+        "§13.3",
+        "§18.9.8"
+      ],
+      "checks": "Assertion echoes exactly, and scope is [] rather than absent inside the preimage. rp_origin, nonce, issued_at, exp, aud, from, sig and cnf are REQUIRED; scope is an OPTIONAL echo that is the empty array when the Challenge omitted it. The echoed fields MUST equal the Challenge values and the RP MUST verify rp_origin is its own origin and aud matches it. from is the identity-revealing login signer — an IK-authorized device key that MUST resolve to the pinned name → key identity — and is not the session key: cnf = H(session_pubkey) is inside the signed preimage, so a captured assertion cannot be replayed with an attacker-chosen session key, and the RP MUST bind the session only to cnf",
+      "operation": "det_cbor_decode_assertion",
+      "construction": "(a) an Assertion whose rp_origin differs from the Challenge; (b) cnf absent; (c) cnf replaced after signing; (d) a Challenge with no scope answered by an Assertion omitting scope entirely rather than sending []; (e) from a device key that does not resolve to the pinned identity",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0501",
+        "error_name": "ERR_ORIGIN_MISMATCH",
+        "action": "FAIL_CLOSED_BLOCK",
+        "note": "the missing cnf is 0x020D; the tampered cnf and the omitted empty scope both fail the §18.9.8 preimage signature (0x0208); an unresolvable signer is 0x0104"
+      },
+      "status": "construction-todo"
     }
   ],
   "pub_vectors_file": "vectors/pub_vectors.json",

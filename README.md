@@ -273,10 +273,10 @@ them (the numbered sections govern the normative bytes).
 | [`substrate/SYNC.md`](substrate/SYNC.md) | ③ Sync | **The one new spec** — signed multi-author CRDT ops, version-vector + range-Merkle reconciliation, signed snapshots, sparse namespace sync |
 | [`substrate/ROLES.md`](substrate/ROLES.md) | ④ Roles + ⑤ Wake | Infrastructure roles as an open key-addressed protocol + content-free wake (RFC 8030/8291/8292) |
 
-**Conformance coverage (honest status).** The [`conformance/`](conformance/) catalog has **308
+**Conformance coverage (honest status).** The [`conformance/`](conformance/) catalog has **318
 numbered cases** (SUITE.md ≡ suite.json). **52 are byte-runnable today** — 46 vectored cases
 backed by known-answer vectors (**68 core vectors** in `vectors/vectors.json` + **15 DMTAP-PUB
-vectors** in `vectors/pub_vectors.json`) plus 6 self-contained canonical-CBOR reject cases; **239
+vectors** in `vectors/pub_vectors.json`) plus 6 self-contained canonical-CBOR reject cases; **249
 carry an exact construction recipe** and expected §21 error, pending vectors for subsystems not
 yet byte-pinned (mixnet / MLS / gateway / auth and the wave-2/3 families, the wave-6 anti-drift
 families `MIXPROF`/`FLEET`/`GUARD`/`LOC`/`FLOOR`/`FAILCLASS`/`GWROLE`, the gateway families
@@ -284,8 +284,8 @@ families `MIXPROF`/`FLEET`/`GUARD`/`LOC`/`FLOOR`/`FAILCLASS`/`GWROLE`, the gatew
 checklists); and 17 are manual-attestation cases — the MUSTs with no wire bytes to
 recompute at all (an in-product disclosure, a client's claim about a session or an address, a
 process boundary, or the population a deployment serves), verified by implementer or
-deployment review rather than by a runner (46 + 6 + 239 + 17 = 308). Every reject
-case names one of the **144 codes** in the §21 registry. So the runnable ratio is **52/308 today**,
+deployment review rather than by a runner (46 + 6 + 249 + 17 = 318). Every reject
+case names one of the **144 codes** in the §21 registry. So the runnable ratio is **52/318 today**,
 growing as each subsystem gains a fixed-input KAT.
 
 ## Building the PDF
