@@ -99,6 +99,13 @@ Worth stating precisely, because "deemed supplier" is easy to over-read:
 
 ## 5. Recommendation
 
+> **Adopted 2026-07-21 as decision D1, with one correction to the reasoning below.** See
+> [DECISIONS.md](DECISIONS.md#d1--eu-vat-posture). The adopted posture is **outside Art 14a by
+> default, inside by deliberate decision with an IOSS registration** — not "outside permanently".
+> And **Option C is hygiene, not a defence**: Art 5b needs all three limbs clear, separating
+> settlement clears limb (b) alone, and a storefront where a buyer clicks buy is involved in the
+> ordering (limb (c)). The analysis below stands; the weight it gives C does not.
+
 **B, with C as the default posture for gateways that don't take Option B.**
 
 Reasoning:
