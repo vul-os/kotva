@@ -6849,9 +6849,9 @@
         "\u00a725.4.1",
         "\u00a725.5.1"
       ],
-      "checks": "an unrecognized v/suite on a Subscription/SubscriptionRevoke MUST be rejected, never guessed \u2014 the same rule \u00a722.3.1/\u00a722.4.1 apply, scope extended to this appendix's objects",
+      "checks": "an unrecognized v/suite on a Subscription MUST be rejected, never guessed \u2014 the same rule \u00a722.3.1/\u00a722.4.1 apply, scope extended to this appendix's objects. A SubscriptionRevoke has no v/suite of its own: it is never evaluated without its target Subscription (whose subscription_id it names), so the target's v/suite govern and this rule has no surface there (\u00a725.5.1).",
       "operation": "pub_object_decode",
-      "construction": "Subscription with v=1 (any value != 0)",
+      "construction": "Subscription with v=1 (any value != 0), and a Subscription whose suite is unsupported",
       "expect": {
         "outcome": "reject",
         "error_code": "0x0901",

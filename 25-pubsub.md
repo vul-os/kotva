@@ -301,6 +301,23 @@ own — nothing ever points *at* a revoke — but it is self-signed for the iden
 (§25.4.1): a holder the publisher delegates to (§25.4.3) can honor a revoke it never saw travel
 through the original MOTE transport, by verifying the object alone.
 
+**No `v`/`suite` fields, and why that is not an omission (normative).** A `SubscriptionRevoke`
+carries neither a version nor a suite discriminator, unlike every other §22/§25 signed object. It
+does not need them: a revoke is **never evaluated on its own**. `subscription` (key 1) names a
+`subscription_id`, and a verifier cannot check that field at all without already holding the target
+`Subscription` — so the target's `v` and `suite` are necessarily in hand, and they govern the
+`sig` check. Adding independent discriminators would create a second, separately-negotiable
+algorithm choice for a signature that is only ever meaningful relative to an object that has
+already fixed one, and a mismatch between the two would be a new failure mode with no useful
+resolution.
+
+The consequence is normative and easy to get wrong in the other direction: a verifier MUST NOT
+attempt to evaluate a `SubscriptionRevoke` without its target. A revoke naming a `subscription_id`
+the holder does not have is not "valid but unmatched" — it is **unevaluable**, and MUST NOT be
+recorded as an accepted revocation on the strength of its signature alone (that signature proves
+only that *someone* signed some bytes; whether that someone is the subscriber is precisely the
+check that requires the target, §25.5.1 `signer`).
+
 ### 25.5.2 Effect (normative)
 
 > Once a publisher or any delegated holder (§25.4.3) has accepted a valid `SubscriptionRevoke`
@@ -537,7 +554,7 @@ advertises `pubsub-1` is not held to any of them.
 
 | Invariant | Clause | Trigger | Behavior / error on violation |
 |-----------|--------|---------|-------------------------------|
-| **`Subscription`/`SubscriptionRevoke` unknown version/suite** | §25.4.1, §25.5.1 | a `v`/`suite` this implementation does not support | reject, never guess; `ERR_PUB_UNSUPPORTED_VERSION` `0x0901`, FAIL_CLOSED_BLOCK (the same code §22.3.1/§22.4.1 use, scope extended to this appendix's objects) |
+| **`Subscription` unknown version/suite** | §25.4.1 | a `v`/`suite` this implementation does not support | reject, never guess; `ERR_PUB_UNSUPPORTED_VERSION` `0x0901`, FAIL_CLOSED_BLOCK (the same code §22.3.1/§22.4.1 use, scope extended to this appendix's objects). A `SubscriptionRevoke` has **no** `v`/`suite` of its own — it inherits both from the target `Subscription` it names, which a verifier necessarily holds (§25.5.1) — so this rule has no surface there. |
 | **`Subscription` missing mandatory `expires`** | §25.4.2 | decode of a `Subscription` lacking key `7` | malformed, reject on decode — no indefinite subscription exists |
 | **`Subscription` signature / DeviceCert chain** | §25.4.1 | `sig` fails under `signer`, or `signer` not authorized by `subscriber` | reject; `ERR_PUB_SUBSCRIPTION_SIG_INVALID` `0x090E`, FAIL_CLOSED_BLOCK |
 | **Expired `Subscription` honored** | §25.4.2 | current time > `expires`, and the holder still treats it as active / pushes a hint under it | reject/stop; `ERR_PUB_SUBSCRIPTION_EXPIRED` `0x090F`, FAIL_CLOSED_BLOCK |
