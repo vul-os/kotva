@@ -90,9 +90,15 @@ make pdf           # first run: (cd build && npm install)
 
 ## Implementation
 
-[**Soko**](https://github.com/vul-os/soko) is the reference implementation. It is not the standard
-and is not required to speak it: independent implementations must be buildable from this
-specification alone. Where Soko and this document disagree, **this document wins**.
+[**Soko**](https://github.com/vul-os/soko) is the reference implementation — Rust, MIT, with a
+crate per section of this document and tests concentrated on the failures that are silent rather
+than loud: volumetric weight, currency mismatch in a route total, escrow scope intersection, place
+of supply for an event held abroad, concurrent replicas not overselling.
+
+It is **not the standard** and is not required to speak it: independent implementations must be
+buildable from this specification alone, without reading any code. Where Soko and this document
+disagree, **this document wins** — and if this document turns out to be unimplementable, that is a
+defect here, not there.
 
 ## Licence
 
