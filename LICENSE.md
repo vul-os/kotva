@@ -7,4 +7,4 @@ implement, quote, and build on it freely with attribution.
 Reference implementations of DMTAP (e.g. Envoir) are licensed separately under permissive
 open-source terms (MIT) so any party — including competitors — may embed them.
 
-Copyright (c) 2026 Imran Paruk and the DMTAP contributors.
+Copyright (c) 2026 VulOS (https://github.com/vul-os)
