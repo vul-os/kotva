@@ -4439,6 +4439,312 @@
         "outcome": "non-conformant if the public-gateway session is presented as end-to-end or zero-access, or if the serving gateway's identity is not surfaced to the user"
       },
       "status": "manual-attestation"
+    },
+    {
+      "id": "DMTAP-AUTHORIG-01",
+      "level": "Auth",
+      "category": "AUTHORIG",
+      "req": "MUST",
+      "clause": [
+        "§13.3.1",
+        "§13.1",
+        "§13.7"
+      ],
+      "checks": "A relayed challenge has no pending intent and MUST be refused. For any node-signed login the node MUST bind the challenge to a pending, user-initiated login intent — a nonce the node itself minted at the moment the user started a login on the node's own authenticated client. An unsolicited challenge relayed by a third party has nothing to match, which is precisely what makes the phisher's relay attack detectable: the phisher can reproduce the challenge, but cannot cause the victim's node to have minted an intent for it",
+      "operation": "auth_node_approval",
+      "construction": "a valid unexpired Challenge for a real RP presented to the user's node over a channel the node did not originate a request for, compared against the same challenge delivered against a live intent the node minted",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0507",
+        "error_name": "ERR_UNTRUSTED_APPROVAL_CHANNEL",
+        "action": "FAIL_CLOSED_BLOCK",
+        "note": "only the intent-matched challenge may be signed; signing both is a consent-farming oracle"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-AUTHORIG-02",
+      "level": "Auth",
+      "category": "AUTHORIG",
+      "req": "MUST",
+      "clause": [
+        "§13.3.1",
+        "§10.7.3"
+      ],
+      "checks": "Bare node-signed login is FORBIDDEN, and \"approve any challenge\" is not a mode. A remote node signing on its own authority, without a local user-verification bound to the origin, is forbidden: the only permitted remote-node design is one where the passkey/WebAuthn ceremony happens in the user's client and the node's key is invoked only afterwards. Nodes MUST NOT offer an \"approve any challenge\" setting — a mode that pre-approves is indistinguishable, to the protocol, from the attack the intent binding exists to stop",
+      "operation": "auth_node_approval",
+      "construction": "(a) drive a login against a node configured for bare node-signed operation with no client-side user verification; (b) enumerate the node's approval settings for any option approving without per-login user action",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0507",
+        "error_name": "ERR_UNTRUSTED_APPROVAL_CHANNEL",
+        "action": "FAIL_CLOSED_BLOCK",
+        "note": "exposing an approve-any-challenge mode at all is non-conformant, whether or not it is enabled"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-AUTHORIG-03",
+      "level": "Auth",
+      "category": "AUTHORIG",
+      "req": "MUST",
+      "clause": [
+        "§13.3.1",
+        "§13.7"
+      ],
+      "checks": "A companion client TOFU-pins the RP origin and fails closed on mismatch. A user without a passkey MAY use an authenticated paired companion client as the trusted client, but the companion receives rp_origin as *data* and can only display it — degrading to the user-verified mode §13.7 limit 1 calls weaker. To restore a machine-enforced comparison, a companion client MUST pin the RP's origin on first login and fail closed on any origin mismatch thereafter, so an established RP cannot later be confused with a look-alike",
+      "operation": "auth_companion_origin_pin",
+      "construction": "complete a first login to https://rp.example through the companion path, then present a challenge from a look-alike origin (and an IDN homograph variant) for the same pinned RP identifier",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0501",
+        "error_name": "ERR_ORIGIN_MISMATCH",
+        "action": "FAIL_CLOSED_BLOCK",
+        "note": "displaying the look-alike origin and relying on the user to notice it is the weaker mode §13.7 limit 1 forbids as the only mode"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-AUTHORIG-04",
+      "level": "Auth",
+      "category": "AUTHORIG",
+      "req": "MUST",
+      "clause": [
+        "§13.3.1"
+      ],
+      "checks": "Approvals are rate-limited and logged. The consent-farming defence is not only the intent binding: a node MUST rate-limit and log approvals, so a campaign that induces a user to approve repeatedly is bounded and, afterwards, visible. A node that approves without limit leaves no evidence that the attack happened",
+      "operation": "auth_node_approval",
+      "construction": "drive N intent-matched approval prompts in rapid succession past the node's configured budget, then inspect the node's approval log",
+      "expect": {
+        "outcome": "accept",
+        "note": "approvals beyond the budget must be refused and every approval, granted or refused, must appear in the log with its rp_origin and time"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-AUTHSESS-01",
+      "level": "Auth",
+      "category": "AUTHSESS",
+      "req": "MUST",
+      "clause": [
+        "§13.4"
+      ],
+      "checks": "A native session is key-bound, never bearer. Every request on a native session carries a fresh proof of possession — a DPoP JWT (RFC 9449) signed by the session key bound at login, or GNAP (RFC 9635) continuation. A bearer session on the native path is non-conformant: the whole \"a stolen token is useless without the key\" property (§13.1 goal 3) is exactly this rule and nothing else",
+      "operation": "auth_session_request",
+      "construction": "capture a valid native-session request, strip the DPoP proof and replay the token alone; variant: replay a captured DPoP proof on a second request",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0506",
+        "error_name": "ERR_DPOP_PROOF_INVALID",
+        "action": "FAIL_CLOSED_BLOCK",
+        "note": "a native session that authorizes on the token alone is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-AUTHSESS-02",
+      "level": "Auth",
+      "category": "AUTHSESS",
+      "req": "MUST",
+      "clause": [
+        "§13.4",
+        "§1.5"
+      ],
+      "checks": "Revocation costs a session, not an identity. Revoking one app or device session publishes a revocation to the transparency log and/or a short-lived status endpoint and MUST NOT require rotating IK; rotating a device key (§1.5) revokes all of that device's sessions at once. Session keys are per-RP, per-device ephemeral keys authorized by a device key, never IK itself — which is what bounds the blast radius and makes granular revocation possible in the first place",
+      "operation": "auth_session_revoke",
+      "construction": "establish two sessions on device D (RPs X and Y) and one on device E; revoke the D-X session, then rotate D's device key; inspect Identity.version and each session's liveness",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0504",
+        "error_name": "ERR_SESSION_REVOKED",
+        "action": "REJECT_NOTIFY",
+        "note": "revoking one session must not change Identity; rotating D's device key must terminate exactly D's sessions and leave E's alive"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-AUTHSESS-03",
+      "level": "Auth",
+      "category": "AUTHSESS",
+      "req": "MUST",
+      "clause": [
+        "§13.4",
+        "§16"
+      ],
+      "checks": "Bounded re-validation. Session authorizations MUST be short-lived, and an RP MUST NOT treat a login-time delegation as valid indefinitely: it MUST re-validate the delegation against the user's status endpoint or KT head at a bounded interval (§16), or bind the session to a revocation-list epoch it refreshes at that interval, and MUST terminate a session whose delegation no longer validates at the next check",
+      "operation": "auth_session_revalidate",
+      "construction": "establish a session, revoke the authorizing delegation at the user's status endpoint, advance past the §16 re-validation interval and issue a request with a valid fresh DPoP proof",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0504",
+        "error_name": "ERR_SESSION_REVOKED",
+        "action": "REJECT_NOTIFY",
+        "note": "a well-formed proof does not extend a delegation that no longer validates"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-AUTHSESS-04",
+      "level": "Auth",
+      "category": "AUTHSESS",
+      "req": "MUST",
+      "clause": [
+        "§13.4",
+        "§1.4",
+        "§10.7.3"
+      ],
+      "checks": "Recovery invalidates every prior session authorization, and the epoch is keyed to Identity.version. Losing IK and recovering MUST invalidate all prior session authorizations. A bare revocation list cannot deliver that: it enumerates *explicitly revoked* sessions, and a recovering owner on a fresh device with an empty store does not know which RPs hold live sessions, so a pre-recovery session survives and the guarantee silently fails. The revocation-list epoch MUST therefore be keyed to Identity.version (bumped by any KeyRotation/recovery), a session MUST carry the version it was authorized under, and re-validation MUST terminate it when the current version is higher. An RP that cannot bind its epoch to Identity.version MUST use the delegation-re-chain option instead",
+      "operation": "auth_session_revalidate",
+      "construction": "RP holds a session authorized at Identity.version = n; the owner performs a full §1.4 recovery on a fresh device with no record of that RP, advancing the published version to n+1; the RP re-validates",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x050A",
+        "error_name": "STATUS_SESSIONS_INVALIDATED_ON_RECOVERY",
+        "note": "the session must terminate on the version bump alone, with no revocation entry naming it"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-AUTHSESS-05",
+      "level": "Auth",
+      "category": "AUTHSESS",
+      "req": "MUST",
+      "clause": [
+        "§13.4",
+        "§16",
+        "§3.3"
+      ],
+      "checks": "Unreachable status endpoint: a bounded grace window, then closed. If the status endpoint or KT head is unreachable at a re-validation check, the RP MUST NOT honour the session indefinitely — fail-open lets an attacker who partitions the endpoint keep a revoked session alive — and SHOULD NOT hard-fail instantly, which would log everyone out on a transient outage. It MUST honour the last successfully-validated delegation only until a bounded grace window (2× the re-validation interval, §16), then fail closed and require re-authentication",
+      "operation": "auth_session_revalidate",
+      "construction": "partition the RP from the status endpoint immediately after a successful validation; issue requests at intervals spanning the grace window and past it, with valid DPoP proofs throughout",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0505",
+        "error_name": "ERR_SESSION_EXPIRED",
+        "action": "REJECT_NOTIFY",
+        "note": "requests inside the 2x-interval grace window accept; honouring the session past it, or failing at the first unreachable check, are both non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-AUTHSESS-06",
+      "level": "Auth",
+      "category": "AUTHSESS",
+      "req": "MUST",
+      "clause": [
+        "§13.4",
+        "§13.6"
+      ],
+      "checks": "No proof-of-possession on the bridge path, and implementers MUST NOT assume otherwise. A bridged login mints a classical OIDC ID Token — a *bearer* token — so §13.1 goal 3 is forfeited there. This is a disclosed exception, not a gap: what is non-conformant is a product that carries the native path's key-bound guarantee across to bridged sessions in its documentation, its UI, or its RP-side session handling",
+      "operation": "auth_bridge_session",
+      "construction": "complete a bridged login and inspect the resulting session's requests for any proof of possession; alongside, review what the product tells the user and the RP about that session's security properties",
+      "expect": {
+        "outcome": "accept",
+        "note": "the bridged session is a bearer session and must be presented as one; presenting it as key-bound is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-AUTHBRIDGE-01",
+      "level": "Auth",
+      "category": "AUTHBRIDGE",
+      "req": "MUST",
+      "clause": [
+        "§13.6",
+        "§3.4"
+      ],
+      "checks": "did.json is a pointer, not a proof. A user's did:web document MUST be byte-consistent with the §3 DNS name → key binding and its KT entry — same IK, same current Identity hash — and an RP MUST cross-check the did.json key against DNS + KT and pin it, never trusting the DID document alone. It is the same discovery-not-proof pointer as the DNS record itself",
+      "operation": "auth_did_resolve",
+      "construction": "publish a did.json at did:web:yourdomain:users:alice whose key differs from the _dmtap DNS binding and the identity's KT entry; drive an RP login that resolves the DID document",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0120",
+        "error_name": "ERR_RESOLVER_DISAGREEMENT",
+        "action": "HALT_ALERT",
+        "note": "authenticating on the DID document's key alone is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-AUTHBRIDGE-02",
+      "level": "Auth",
+      "category": "AUTHBRIDGE",
+      "req": "MUST",
+      "clause": [
+        "§13.6",
+        "§10.7.3",
+        "§13.7"
+      ],
+      "checks": "One ceremony per consuming RP, one audience per assertion. Every ID Token the bridge mints MUST embed the user's own §13.3 signed assertion and its cnf. To make direct verification meaningful and prevent cross-RP assertion reuse, the bridge MUST run a distinct §13.3 ceremony per consuming RP, with the assertion's rp_origin/aud set to the target RP's identifier and a fresh per-RP cnf — never one bridge-audienced assertion replayed into several tokens. An RP verifying the embedded assertion directly MUST check assertion.aud equals its own identifier and fail closed on mismatch",
+      "operation": "auth_bridge_mint",
+      "construction": "bridge mints tokens for RPs X and Y from a single ceremony audienced to the bridge; RP X verifies the embedded assertion directly; compare the cnf values in the two tokens",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0501",
+        "error_name": "ERR_ORIGIN_MISMATCH",
+        "action": "FAIL_CLOSED_BLOCK",
+        "note": "an identical cnf across the two RPs' tokens is independently non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-AUTHBRIDGE-03",
+      "level": "Auth",
+      "category": "AUTHBRIDGE",
+      "req": "MUST",
+      "clause": [
+        "§13.6",
+        "§3.5"
+      ],
+      "checks": "Every minted token is logged, and the log is what makes a forged login detectable. Every token the bridge mints MUST be appended to a bridge-transparency log (KT-style, §3.5) that the user's node monitors, so a bridge minting a login the user never performed is detectable. Without the append, the bridge's compromise is not merely possible but silent — and the whole bound DMTAP-Auth claims over a classical IdP is detection",
+      "operation": "auth_bridge_log_monitor",
+      "construction": "have the bridge mint a token for a login the user never initiated and run the node's monitor against the bridge log; variant in which the bridge omits the append for that token",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0108",
+        "error_name": "ERR_KT_PROOF_INVALID",
+        "action": "HALT_ALERT",
+        "note": "the appended case accepts and must surface the unrecognized login to the monitoring node"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-AUTHBRIDGE-04",
+      "level": "Auth",
+      "category": "AUTHBRIDGE",
+      "req": "MUST",
+      "clause": [
+        "§13.7",
+        "§10.7.3",
+        "§3.5.2"
+      ],
+      "checks": "High-value login RPs require multi-log consistency or an OOB-verified pin. A v0 single KT log that can present a split view is, for auth specifically, a silent per-RP account takeover: the RP is shown a key the owner never published and has no second opinion to contradict it. DMTAP-Auth therefore REQUIRES — even in v0 — that high-value login RPs verify the name → key binding against multiple independent KT logs, or against an out-of-band-verified pin, never a single unaudited log",
+      "operation": "auth_kt_binding_verify",
+      "construction": "high-value RP; present a name-to-key binding attested by one log only (variant: by a log set that does not reach the §3.5.2(b) quorum), with no OOB-verified pin on file",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0111",
+        "error_name": "ERR_KT_LOG_QUORUM_UNMET",
+        "action": "FAIL_CLOSED_BLOCK"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-AUTHBRIDGE-05",
+      "level": "Auth",
+      "category": "AUTHBRIDGE",
+      "req": "MUST",
+      "clause": [
+        "§13.7",
+        "§6"
+      ],
+      "checks": "Login is a deliberate, per-RP disclosure — and a global sub MUST say so. Authenticating to an RP intentionally reveals the user's identity to that RP; it is opt-in and per-RP and MUST NOT be conflated with, or allowed to weaken, the mail/messaging metadata-privacy guarantees of §6. Pairwise subject identifiers stay a SHOULD because some RP ecosystems need a stable portable sub, but a bridge that issues a global sub MUST disclose to the user that its RPs can correlate them across sites by it",
+      "operation": "auth_disclosure_attestation",
+      "construction": "review of the bridge's consent screen and documentation for a deployment issuing a global sub, and of the client's copy for any claim that logging in preserves the §6 metadata-privacy properties",
+      "expect": {
+        "outcome": "non-conformant if a global sub is issued without the cross-site-correlation disclosure, or if login is presented as inheriting the messaging layer's metadata privacy"
+      },
+      "status": "manual-attestation"
     }
   ],
   "pub_vectors_file": "vectors/pub_vectors.json",
