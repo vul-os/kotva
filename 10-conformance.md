@@ -128,7 +128,7 @@ cases that **pass** (61 of 327 are byte-runnable today, and no implementation ha
 against the suite); and it is measured against a **curated** denominator whose classification is a
 judgement, auditable in `conformance/scope.json` and re-checkable by `make lint` (check C10, which
 fails the build if a MUST-bearing section is left unclassified). The uncurated figure over every
-capitalised MUST is **83%**. Read the number as "nothing implementable is entirely unattended",
+capitalised MUST is **84%**. Read the number as "nothing implementable is entirely unattended",
 never as a pass mark. The reference `dmtap-core` self-check test drives the vectors, but the spec plus these
 three artifacts are authoritative (§10.4), not the reference.
 

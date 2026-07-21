@@ -299,7 +299,7 @@ tool itself so the figure never travels without them: it is **section-level, not
 section counts as covered if *any* case cites it); it counts cases that **exist**, not cases that
 **pass** — no implementation has been run against this suite; and the denominator is a
 **judgement**, so the intended response to disagreeing with a classification is to reclassify it
-`IMPL` and write the case. The uncurated figure over every capitalised MUST is **83%**, and
+`IMPL` and write the case. The uncurated figure over every capitalised MUST is **84%**, and
 `make coverage` prints both.
 
 ## Building the PDF

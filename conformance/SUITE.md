@@ -145,7 +145,7 @@ easy to over-read, so:
   default and every exclusion names its owner — but the classification is a judgement, and the
   intended response to disagreeing with one is to reclassify it `IMPL` and write the case.
 
-The raw figure — every capitalised MUST in the specification, unclassified — is **83%**. Both
+The raw figure — every capitalised MUST in the specification, unclassified — is **84%**. Both
 numbers are printed by `make coverage`, deliberately, so the curation can be checked rather than
 trusted.
 

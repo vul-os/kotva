@@ -49,7 +49,7 @@ each. The figure carries three structural limits, printed by the tool alongside 
    `IMPL` and write the case; `make lint` check C10 fails the build if any MUST-bearing section is
    left unclassified.
 
-The uncurated figure, over every capitalised MUST in the specification, is **83%**.
+The uncurated figure, over every capitalised MUST in the specification, is **84%**.
 
 ### How a third-party implementer uses the suite
 
