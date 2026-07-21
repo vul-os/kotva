@@ -4745,6 +4745,425 @@
         "outcome": "non-conformant if a global sub is issued without the cross-site-correlation disclosure, or if login is presented as inheriting the messaging layer's metadata privacy"
       },
       "status": "manual-attestation"
+    },
+    {
+      "id": "DMTAP-BOOT-01",
+      "level": "Core",
+      "category": "BOOT",
+      "req": "MUST",
+      "clause": [
+        "§4.2.2",
+        "§3.4"
+      ],
+      "checks": "Contacts are the bootstrap set, and the shipped list is a last resort. A node that has ever pinned a contact already holds signed, verifiable peers and MUST attempt those first. Once a node has peers its BootstrapSet role ends permanently: it MUST prefer path 1 and MUST NOT re-consult the BootstrapSet while any known peer is reachable. A design where nodes periodically return to a well-known set has a permanent central dependency however that set is owned",
+      "operation": "node_bootstrap",
+      "construction": "instrumented node with at least one pinned contact whose last-known address is reachable; restart it cold and count outbound connection attempts by category; variant with a reachable but stale-addressed contact",
+      "expect": {
+        "outcome": "accept",
+        "note": "zero BootstrapSet contacts while any known peer is reachable, and pinned contacts attempted first"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-BOOT-02",
+      "level": "Core",
+      "category": "BOOT",
+      "req": "MUST",
+      "clause": [
+        "§4.2.2"
+      ],
+      "checks": "≥ 3 nodes under ≥ 3 disjoint announced BGP origin ASNs. A BootstrapSet whose entries all sit in one network is non-conformant, because it is indistinguishable from a central server. The axis is deliberately ASNs, not attested operators: running a bootstrap entry needs no scarce resource, so requiring a credential here would impose one on the single path a brand-new network must have working on day one, and would be unsatisfiable at launch. ASN-disjointness delivers the property that matters — no single network, datacenter or legal order controls every entry point — and is checkable from the addresses in the list itself",
+      "operation": "bootstrapset_validate",
+      "construction": "signed BootstrapSets with (a) 3 entries all announcing from one origin ASN, (b) 2 entries under 2 ASNs, (c) 3 entries under 3 disjoint ASNs",
+      "expect": {
+        "outcome": "reject",
+        "note": "(a) and (b) reject, (c) accepts; rejecting (c) for lack of operator attestation is also non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-BOOT-03",
+      "level": "Core",
+      "category": "BOOT",
+      "req": "MUST",
+      "clause": [
+        "§4.2.2",
+        "§3.3"
+      ],
+      "checks": "Inspectable, overridable, and discovery-only. The BootstrapSet MUST be user-inspectable and user-overridable in the client, and the client MUST surface which entry it actually used. It is discovery, never trust: a bootstrap peer can introduce a node to the network and can withhold, but every identity learned through it is verified against KT and pinned exactly as any other — a hostile bootstrap peer yields no peers, never wrong ones",
+      "operation": "node_bootstrap",
+      "construction": "a hostile bootstrap entry returning a peer whose claimed name-to-ik binding fails KT verification; alongside, inspect the client for the list, an override control and the used-entry indicator",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0108",
+        "error_name": "ERR_KT_PROOF_INVALID",
+        "action": "FAIL_CLOSED_BLOCK",
+        "note": "the node must end with no peer rather than a wrong one; a list that is not inspectable/overridable, or a used entry that is not surfaced, is independently non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-BOOT-04",
+      "level": "Core",
+      "category": "BOOT",
+      "req": "MUST",
+      "clause": [
+        "§4.1",
+        "§18.5.1",
+        "§21.24"
+      ],
+      "checks": "libp2p is v0's substrate, not a flag day. A LocationRecord carries an explicit substrate discriminator from the Transport Substrates registry (§21.24), and its peer_id/addrs are interpreted relative to that substrate; an absent field means libp2p for backward compatibility. A resolver dials a record only on a substrate it implements, and a record on a substrate it does not implement is simply unreachable to it — never guessed at, and never assumed to be libp2p because that is the only value v0 defines",
+      "operation": "location_resolve",
+      "construction": "LocationRecords carrying (a) substrate absent, (b) substrate = 0x01, (c) substrate = 0xE0 (Private Use, unimplemented), each with well-formed addrs for its own substrate",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0303",
+        "error_name": "ERR_LOCATION_UNREACHABLE",
+        "action": "ROTATE_RETRY",
+        "note": "(a) and (b) accept as libp2p; interpreting (c)'s addrs as multiaddrs and dialing them is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-COVER-01",
+      "level": "Private",
+      "category": "COVER",
+      "req": "MUST",
+      "clause": [
+        "§4.4.5",
+        "§16.3",
+        "§14.1"
+      ],
+      "checks": "Constant-rate cover is the default for always-on nodes. Every private-tier node emits two Poisson streams — loop cover through a full 3-hop path back to itself via a SURB, and drop cover to a random mix that discards at the last hop. But an always-on node MUST emit constant-rate cover: Poisson cover blurs the relationship between activity and traffic, whereas constant-rate cover yields nothing to traffic analysis however long the observation. At one cell per 30 s that is ≈ 5.6 MB/day, so the defence is free for exactly the device class that holds the mailbox; Poisson remains permitted only for battery- or metered-constrained devices",
+      "operation": "cover_traffic_emit",
+      "construction": "always-on mains-powered node with a public address; record egress cell timestamps over a window spanning long idle and heavy-activity periods; repeat on a battery-constrained intermittent device",
+      "expect": {
+        "outcome": "accept",
+        "note": "the always-on node's envelope must be flat and uncorrelated with activity; an emission rate that tracks activity is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-COVER-02",
+      "level": "Private",
+      "category": "COVER",
+      "req": "MUST",
+      "clause": [
+        "§4.4.5",
+        "§6.4"
+      ],
+      "checks": "Recipient-side loop cover closes the receipt-timing leak. An always-on recipient node MUST also receive a steady loop-cover stream, so real receipts are indistinguishable from cover on its delivery link. Without it an observer of the recipient's link learns *when* mail arrives even though it cannot read it — and §6.4 item 2 is the clause that owns this, not the honest-limits prose",
+      "operation": "cover_traffic_receive",
+      "construction": "observe an always-on recipient node's inbound link across a period containing real deliveries and a period containing none; compare the arrival distributions",
+      "expect": {
+        "outcome": "accept",
+        "note": "the two periods must be indistinguishable at the link; sending-side cover does not substitute for recipient-side loop cover"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-COVER-03",
+      "level": "Private",
+      "category": "COVER",
+      "req": "MUST",
+      "clause": [
+        "§4.4.7",
+        "§16.3"
+      ],
+      "checks": "The detection rule is a measurement, not an intuition. A node MUST track, over a sliding window, the fraction of its loops that return within their expected delay budget and their latency distribution; if the return fraction drops below the loop-loss threshold (§16.3), or latencies inflate beyond what the exponential budget explains, it MUST infer an active drop/delay attack on its paths and raise ERR_MIX_ACTIVE_ATTACK_SUSPECTED",
+      "operation": "mix_loop_detect",
+      "construction": "hold the fleet and paths fixed and drop a controlled fraction of the node's traffic at one mix, sweeping across the §16.3 threshold; separately add latency beyond the exponential budget with no loss",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x030F",
+        "error_name": "ERR_MIX_ACTIVE_ATTACK_SUSPECTED",
+        "action": "HALT_ALERT",
+        "note": "a node that only counts delivery failures and never measures its own loops cannot pass"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-COVER-04",
+      "level": "Private",
+      "category": "COVER",
+      "req": "MUST",
+      "clause": [
+        "§4.4.7",
+        "§4.4.9"
+      ],
+      "checks": "Rotate, alert, fail closed — never silently continue. On an inferred active attack the node MUST (1) rotate away from the implicated mixes and entry guards and rebuild over alternate, operator-diverse paths, (2) raise a HALT_ALERT to the user, and (3) fail closed for the private tier: it MUST NOT silently fall back to fast, or to a shorter or less diverse path, to get the message through. That fallback is exactly the adversary's goal — an attacker who can degrade a path gets to choose the tier the message travels on",
+      "operation": "mix_active_attack_response",
+      "construction": "drive the COVER-03 detection to fire while a private-tier MOTE is queued; record the tier, hop count and guard set of every subsequent dispatch attempt and the user-visible state",
+      "expect": {
+        "outcome": "accept",
+        "note": "paths must be rebuilt away from the implicated mixes and guards with a HALT_ALERT surfaced and the MOTE held at private; any dispatch at fast or below the profile bar is non-conformant, and 0x0310 is the correct refusal"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-COVER-05",
+      "level": "Private",
+      "category": "COVER",
+      "req": "MUST",
+      "clause": [
+        "§4.4.3",
+        "§4.4.6"
+      ],
+      "checks": "A fresh, independent path per Sphinx cell. A sender MUST select an independent path for each cell — including every cell of a multi-cell MOTE and every cover packet — so no persistent circuit exists to correlate. This is also what makes private retry work at all: §4.7 requires a re-onion-wrap before re-dispatch, because identical Sphinx bytes are dropped at the first honest hop as a per-hop-tag replay",
+      "operation": "mix_path_select",
+      "construction": "send a multi-cell private MOTE and a burst of cover packets and extract each cell's hop sequence; companion: force a RETRY transition and compare the re-dispatched bytes with the original",
+      "expect": {
+        "outcome": "accept",
+        "note": "no two cells may share a path and the retry must carry fresh alpha/per-hop tags under a stable envelope id; identical private bytes are dropped at the first hop as 0x030E"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-COVER-06",
+      "level": "Private",
+      "category": "COVER",
+      "req": "MUST",
+      "clause": [
+        "§4.4.2a",
+        "§4.4.2"
+      ],
+      "checks": "The mix role is default-on for always-on public nodes, and default-off for everything else. A mixnet with no mixes protects nobody and DMTAP has no launching operator whose fleet it could borrow, so a node that is always-on and has a public address MUST default to serving the mix role and MUST publish a MixNodeDescriptor. The operator MAY turn it off — the requirement is on the default. Symmetrically, intermittent, battery- or metered-connection devices and nodes without a public address MUST NOT default to it: a mix that disappears mid-epoch degrades everyone's paths",
+      "operation": "mix_role_default",
+      "construction": "first-run configuration on (a) a mains-powered node with a public address, (b) a phone on a metered connection, (c) a node behind NAT with no public address — inspect the default mix-role setting and whether a MixNodeDescriptor is published",
+      "expect": {
+        "outcome": "accept",
+        "note": "(a) must default on and publish a descriptor; (b) and (c) must default off and publish none"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-TIER-01",
+      "level": "Private",
+      "category": "TIER",
+      "req": "MUST",
+      "clause": [
+        "§4.5",
+        "§6.5",
+        "§2.5"
+      ],
+      "checks": "Large-tier bulk does not traverse the mixnet, and is not described as if it did. Blobs above the large-tier boundary MUST NOT traverse the mixnet — the bandwidth and latency are impractical — while normal-tier chunks do ride it like messages. The control MOTE carrying the manifest and key travels private; the bytes do not. The honest consequence is that a well-positioned observer learns the fact and approximate size of a large transfer, and an implementation MUST NOT claim mixnet-grade metadata privacy for it",
+      "operation": "file_transfer_tier",
+      "construction": "offer a large-tier file; trace the control MOTE and the chunk fetches separately and inspect what the client tells the user about the transfer's privacy",
+      "expect": {
+        "outcome": "accept",
+        "note": "control MOTE on private, chunk fetch on the fast/bulk path; routing chunks over the mixnet, or claiming mixnet-grade privacy for them, is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-TIER-02",
+      "level": "Private",
+      "category": "TIER",
+      "req": "MUST",
+      "clause": [
+        "§4.9.3",
+        "§6.6"
+      ],
+      "checks": "Prefer the open push provider wherever the platform allows. A conforming node MUST prefer an open provider — UnifiedPush or Web Push — wherever the platform allows, and MUST fall back to APNs or FCM only on a platform that mandates them. The wake payload is the same RFC 8291-sealed content-free token either way, so the provider choice changes only who is in the path, which is exactly why the preference is normative rather than advisory",
+      "operation": "push_provider_select",
+      "construction": "enable push on (a) a desktop/browser platform where Web Push is available, (b) a de-Googled Android with UnifiedPush available, (c) iOS; inspect the provider tag in the resulting PushSubscription",
+      "expect": {
+        "outcome": "accept",
+        "note": "selecting a closed bridge where an open provider is available is non-conformant even though the sealed token is identical"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-REST-01",
+      "level": "Private",
+      "category": "REST",
+      "req": "MUST",
+      "clause": [
+        "§6.7",
+        "§1.2a",
+        "§16.9"
+      ],
+      "checks": "The at-rest key is unlock-gated and evicted on relock. The at-rest key MUST be released only on device unlock — wrapped by a key the hardware keystore yields after a successful biometric/PIN authentication — and evicted from memory on relock or timeout (§16.9); implementations MUST NOT keep it resident indefinitely across a locked device. The single exception is a platform with no unlock signal (a headless always-on box), which MUST instead seal the key to the strongest available boot-time protection; the eviction it cannot observe does not apply and everything else does",
+      "operation": "store_at_rest_key",
+      "construction": "unlock a device, read the store, relock, wait past the §16.9 timeout and inspect process memory for the at-rest key; repeat on a headless node with no lock concept and inspect how the key is sealed at boot",
+      "expect": {
+        "outcome": "accept",
+        "note": "the key must be absent after relock+timeout and store reads must fail until the next unlock; on a headless node it must be keystore- or full-disk-sealed at boot"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-REST-02",
+      "level": "Private",
+      "category": "REST",
+      "req": "MUST",
+      "clause": [
+        "§6.7",
+        "§18.3.6"
+      ],
+      "checks": "sensitive is MAY-send, MUST-honor. A sender MAY mark a message sensitive (a Headers flag); the receiving client MUST NOT persist it at rest — it is held in memory for an ephemeral view and dropped, never written to the durable MOTE store — so a later seizure reveals nothing of it. Like redact/expires this is cooperative and a least-persistence reduction, not a guarantee against a live endpoint, and it MUST NOT be presented as one",
+      "operation": "store_sensitive_flag",
+      "construction": "deliver a sensitive-flagged MOTE, view it, then power-cycle and inspect the durable store, any search index, thumbnail/preview cache and the device-cluster sync journal",
+      "expect": {
+        "outcome": "accept",
+        "note": "no trace of the body may survive in any durable artifact including derived indexes and the cluster journal"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-REST-03",
+      "level": "Private",
+      "category": "REST",
+      "req": "MUST",
+      "clause": [
+        "§6.7",
+        "§5.5",
+        "§5.8.2"
+      ],
+      "checks": "Removal from a shared folder re-keys the files. MLS removal blocks a removed member's *future* messages but does not revoke file keys they already hold, so when a member is removed from a shared file folder the node MUST re-key and re-encrypt every file that member had access to by default, and confidential folders MUST always re-key with no opt-out. Without it a removed member keeps indefinite read access to everything already shared, and clients MUST surface that pre-removal copies already taken cannot be reached",
+      "operation": "file_rekey_on_removal",
+      "construction": "share a folder with member M, let M fetch the chunks, remove M from the group and inspect whether stored chunks are re-encrypted under fresh per-file keys; variant: a confidential folder with re-keying disabled by policy",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0805",
+        "error_name": "ERR_FILE_KEY_MISSING_OR_REVOKED",
+        "note": "the honest branch accepts with files re-keyed; a confidential folder that allows the re-key opt-out is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-REST-04",
+      "level": "Private",
+      "category": "REST",
+      "req": "MUST",
+      "clause": [
+        "§6.8",
+        "§18.8.1",
+        "§6.2"
+      ],
+      "checks": "Provenance names boundaries, never nodes. A ProvenanceRecord MUST NOT contain — and a node MUST NOT synthesize — anything from which the path could be reconstructed. For the private tier the recipient learns only the profile floor the path satisfied, never a mix-node identity, address, exact hop count, path descriptor or per-hop timing: the private path is by design unknown even to the recipient's own node. The record is node-local, served only to the owner's own cluster, and never attached to a forwarded MOTE",
+      "operation": "provenance_record_build",
+      "construction": "receive a private-tier MOTE and dump the full ProvenanceRecord, then forward that MOTE and inspect the emitted object for any provenance field",
+      "expect": {
+        "outcome": "accept",
+        "note": "only a profile-floor statement may appear; an exact hop count, node identity, address, timing, or a forwarded provenance field is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-REST-05",
+      "level": "Private",
+      "category": "REST",
+      "req": "MUST",
+      "clause": [
+        "§6.9",
+        "§6.4",
+        "§2.2a",
+        "§18.3.2"
+      ],
+      "checks": "Blinded tags are not recipient anonymity, and v0's single KT log is not equivocation-proof. A BlindedTag is unlinkable to the persistent key across time and observers but does not hide last-hop delivery, and implementations MUST NOT present it as full recipient anonymity. In the same spirit, sealed sender plus mixnet hides receipt *timing* but does not erase last-hop observability — and every high-value contact, and every DMTAP-Auth login RP, MUST require multi-log consistency rather than relying on a single v0 log",
+      "operation": "client_ux_attestation",
+      "construction": "review of the client's privacy copy and any per-message or per-contact privacy indicator, on a deployment using blinded tags and the v0 single-log KT profile; no wire bytes to recompute",
+      "expect": {
+        "outcome": "non-conformant if a blinded tag is presented as recipient anonymity, if last-hop observability is undisclosed where an anonymity claim is made, or if a high-value contact is verified against a single unaudited log"
+      },
+      "status": "manual-attestation"
+    },
+    {
+      "id": "DMTAP-CLIUX-01",
+      "level": "Clients",
+      "category": "CLIUX",
+      "req": "MUST",
+      "clause": [
+        "§8.5",
+        "§8.1"
+      ],
+      "checks": "Native surfaces only on the node. Every data class — mail, chat, files, calendar, contacts, identity and login — lives on the user's node, end-to-end encrypted, synced across the device cluster over JMAP, shared through the same MLS groups and routed over the same mesh, with no central server on the native path. The node runs native surfaces only (JMAP + the mesh) and no legacy protocol server of any kind: IMAP/POP/SMTP/CalDAV/CardDAV live only on the gateway (§7.15) as edge surfaces, and the OIDC bridge is likewise an edge surface",
+      "operation": "node_surface_probe",
+      "construction": "port-scan and protocol-probe a node for IMAP/POP3/SMTP/CalDAV/CardDAV/OIDC listeners; separately exercise calendar and contacts end to end and confirm they resolve through JMAP and the mesh",
+      "expect": {
+        "outcome": "accept",
+        "note": "a node answering any legacy protocol itself is non-conformant, as is any data class depending on a central service on the native path"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-CLIUX-02",
+      "level": "Clients",
+      "category": "CLIUX",
+      "req": "MUST",
+      "clause": [
+        "§8.5",
+        "§13.5",
+        "§13.4",
+        "§3.5",
+        "§17.6"
+      ],
+      "checks": "No silent grant. Silent grants that redirect or delegate the user's data — auto-forward rules, new capability delegations (§13.5) and new RP-session authorizations (§13.4) — MUST be surfaced to the owner's device cluster and logged to KT self-monitoring, so a business-email-compromise-style silent redirect is owner-visible rather than covert. Silent forwarding-rule injection is a live real-world account-takeover technique, and the defence needs no new cryptography: it is an existing replication path plus a rule that it MUST be used",
+      "operation": "grant_visibility",
+      "construction": "install an auto-forward rule, mint a capability delegation and authorize an RP session through every surface the implementation exposes, including admin and recovery paths; then inspect every other cluster device and the KT self-monitoring feed",
+      "expect": {
+        "outcome": "accept",
+        "note": "all three must appear on every cluster device and in the KT self-monitoring path; any grant installable without appearing on both is non-conformant"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-CLIUX-03",
+      "level": "Clients",
+      "category": "CLIUX",
+      "req": "MUST",
+      "clause": [
+        "§8.6",
+        "§6.6",
+        "§4.4.11",
+        "§4.4.10a",
+        "§7.9"
+      ],
+      "checks": "Do not over-claim on private, and never invent a hop. While the mix fleet is small the client MUST honour the §6.6/§4.4.11 disclosure and MUST NOT present private as absolute anonymity; the transport-path graph shows boundary crossings, never a node-by-node trace, and individual mix nodes MUST NOT be drawn because the node does not know them (§6.8). On the Bootstrap profile the client MUST additionally show that metadata privacy is degraded and why, and MUST NOT state an anonymity set at all. And it MUST NOT show a pure-mesh message as a gateway operation — no operator was on that path to observe it",
+      "operation": "client_ux_attestation",
+      "construction": "client-UX review of the transport-path surface on a Standard-profile fleet and a Bootstrap-profile fleet, for a private message, a fast message, a gateway-touched message and a pure-mesh message",
+      "expect": {
+        "outcome": "non-conformant if private is rendered as absolute anonymity, if an individual mix node appears, if Bootstrap is shown without its degradation reason or with an anonymity-set figure, or if a pure-mesh message is attributed to a gateway"
+      },
+      "status": "manual-attestation"
+    },
+    {
+      "id": "DMTAP-CLIUX-04",
+      "level": "Clients",
+      "category": "CLIUX",
+      "req": "MUST",
+      "clause": [
+        "§8.7",
+        "§5.2.1",
+        "§10.7.4"
+      ],
+      "checks": "Deniable mode is an explicit per-conversation choice, and its absence is never a silent downgrade. A client offering deniable 1:1 MUST present it as an explicit per-conversation user choice, never a silent default, and MUST show that a deniable transcript is unattributable. Where the recipient has not advertised the capability the client MUST surface the choice — send non-deniable, or don't send — and MUST NOT silently downgrade the user's *expectation* of deniability, which is the one thing the mode exists to provide",
+      "operation": "client_ux_attestation",
+      "construction": "client-UX review of the deniable-mode selector, what it says a deniable transcript is, and the flow taken when the recipient has not advertised deniable-1:1 (the 0x040E path)",
+      "expect": {
+        "outcome": "non-conformant if deniable mode is a silent default, if unattributability is not shown, or if an unavailable recipient yields a non-deniable send without an explicit user decision"
+      },
+      "status": "manual-attestation"
+    },
+    {
+      "id": "DMTAP-CLIUX-05",
+      "level": "Clients",
+      "category": "CLIUX",
+      "req": "MUST",
+      "clause": [
+        "§8.7",
+        "§3.10.2",
+        "§3.10.5",
+        "§1.2a"
+      ],
+      "checks": "Org custody is disclosed, and attestation is advisory hardening. A client MUST render an org-managed (escrowed-key) account distinguishably and MUST NOT present it as equivalent to a sovereign identity (ERR_ORG_MANAGED_UNDISCLOSED, 0x0115), and MUST show every administrative capability an org holds over the account — including the offboarding path. Separately, it MUST make clear that device attestation is advisory hardening: an unattested device is not thereby untrusted, and presenting attestation as a security guarantee misstates what a platform attestation proves",
+      "operation": "client_ux_attestation",
+      "construction": "client-UX review of an org-managed account's rendering, the org-capability list and offboarding disclosure, and the copy shown for an attested versus unattested device",
+      "expect": {
+        "outcome": "non-conformant if an org-managed account renders indistinguishably from a sovereign one, if the org's capabilities are not shown, or if attestation is presented as more than advisory hardening"
+      },
+      "status": "manual-attestation"
     }
   ],
   "pub_vectors_file": "vectors/pub_vectors.json",
