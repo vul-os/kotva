@@ -274,10 +274,10 @@ them (the numbered sections govern the normative bytes).
 | [`substrate/SYNC.md`](substrate/SYNC.md) | ③ Sync | **The one new spec** — signed multi-author CRDT ops, version-vector + range-Merkle reconciliation, signed snapshots, sparse namespace sync |
 | [`substrate/ROLES.md`](substrate/ROLES.md) | ④ Roles + ⑤ Wake | Infrastructure roles as an open key-addressed protocol + content-free wake (RFC 8030/8291/8292) |
 
-**Conformance coverage (honest status).** The [`conformance/`](conformance/) catalog has **346
+**Conformance coverage (honest status).** The [`conformance/`](conformance/) catalog has **347
 numbered cases** (SUITE.md ≡ suite.json). **62 are byte-runnable today** — 56 vectored cases
 backed by known-answer vectors (**69 core vectors** in `vectors/vectors.json` + **15 DMTAP-PUB
-vectors** in `vectors/pub_vectors.json`) plus 6 self-contained canonical-CBOR reject cases; **265
+vectors** in `vectors/pub_vectors.json`) plus 6 self-contained canonical-CBOR reject cases; **266
 carry an exact construction recipe** and expected §21 error, pending vectors for subsystems not
 yet byte-pinned (mixnet / MLS / gateway / auth and the wave-2/3 families, the wave-6 anti-drift
 families `MIXPROF`/`FLEET`/`GUARD`/`LOC`/`FLOOR`/`FAILCLASS`/`GWROLE`, the gateway families
@@ -285,13 +285,13 @@ families `MIXPROF`/`FLEET`/`GUARD`/`LOC`/`FLOOR`/`FAILCLASS`/`GWROLE`, the gatew
 the DMTAP-PUBSUB guards `PUBSUB`, §25); and 18 are manual-attestation cases — the MUSTs with no
 wire bytes to recompute at all (an in-product disclosure, a client's claim about a session or an
 address, a process boundary, or the population a deployment serves), verified by implementer or
-deployment review rather than by a runner (56 + 6 + 265 + 19 = 346). Of the (non-self-contained)
+deployment review rather than by a runner (56 + 6 + 266 + 19 = 347). Of the (non-self-contained)
 reject cases, 140 name one of the **144 codes** in the core §21.3–§21.11 registry; the rest reject
 either against an extension registry code (`ERR_PUB_*`, §21.24b/§21.24d) or at a level no registry
 codes at all — a known-answer verification that simply returns false, a profile-checklist item
 (`CAD`/`VIDEO`/`PUBSUB`), or an offline validation of a descriptor, a `BootstrapSet` or a
 registration request, none of which is a wire failure a peer is told about. So the runnable ratio
-is **62/346 today**, growing as each subsystem gains a fixed-input KAT.
+is **62/347 today**, growing as each subsystem gains a fixed-input KAT.
 
 **Normative coverage, and what it is not.** `make coverage` reports **100% of IMPL MUSTs sit in a
 section some case cites** — measured against the curated denominator in

@@ -2846,6 +2846,26 @@
       "status": "construction-todo"
     },
     {
+      "id": "DMTAP-FLOOR-05",
+      "level": "Core",
+      "category": "FLOOR",
+      "req": "MUST",
+      "clause": [
+        "\u00a79.4",
+        "\u00a79.7a",
+        "\u00a716.5",
+        "\u00a716.1"
+      ],
+      "checks": "Both epoch scopes are acceptable. A recipient MUST accept a work proof scoped to EITHER its published beacon OR the UTC-date fallback (within the \u00a716.1 skew window), and MUST NOT reject solely for the coarser scope. The fallback is conditioned on the recipient's behaviour but chosen by the sender, who cannot distinguish 'publishes none' from 'cannot reach it'; and a key-name-only identity has no publication surface for a beacon at all, so requiring it makes the \u00a79.7a floor unreachable for the sovereign user it exists for.",
+      "operation": "policy_validate",
+      "construction": "recipient publishes a beacon; then (a) a cold MOTE whose PoW is scoped to that beacon; (b) an otherwise identical cold MOTE whose PoW is scoped to the current UTC date; (c) the same, scoped to a UTC date outside the \u00a716.1 skew window",
+      "expect": {
+        "outcome": "accept",
+        "note": "(a) and (b) MUST BOTH be accepted toward the \u00a716.5 floor \u2014 rejecting (b) solely for using the coarser scope is non-conformant and renders the floor unreachable for a key-name-only sender; (c) rejected as stale. A recipient MAY grant (a) a larger budget than (b), but MUST NOT make the beacon the only acceptable scope"
+      },
+      "status": "construction-todo"
+    },
+    {
       "id": "DMTAP-FAILCLASS-01",
       "level": "Core",
       "category": "FAILCLASS",

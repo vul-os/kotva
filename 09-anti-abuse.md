@@ -140,6 +140,31 @@ recipient's node**. A recipient that publishes no beacon falls back to the **cur
 — the coarsest permissible beacon. Either way, the epoch scope is what makes precomputed
 puzzles stale.
 
+**Acceptance MUST be sender-agnostic (normative).** A recipient **MUST accept a work proof scoped
+to *either* its current published beacon *or* the UTC-date fallback** (within the §16.1 clock-skew
+window), and **MUST NOT reject a proof solely because it used the coarser scope**.
+
+Without this rule the fallback is unusable, because **it is conditioned on the recipient's
+behaviour but the choice is made by the sender**. A sender that cannot *fetch* the beacon cannot
+distinguish "this recipient publishes none" from "I cannot reach the place it is published" —
+censorship, an eclipsed resolver, an offline directory all look identical. It computes over the
+UTC date, a recipient that *does* publish rejects the proof as out-of-scope, and the message is
+**silently undeliverable with no error the sender can act on**.
+
+The case that makes this decisive is the one §9.7a exists for. A **key-name-only identity**
+(resolver type `self`) has **no publication surface at all**: §3.12.4 defines its discovery as a
+local derivation with "no lookup, no authority", so there is no `_dmtap` record and no directory
+in which a beacon could live. Requiring the beacon would make the zero-relationship floor
+unreachable for precisely the sovereign, no-infrastructure user §3.13 promises it to — the floor
+would guarantee acceptance of a proof that user cannot construct.
+
+**The cost, stated plainly:** the UTC-date fallback is **coarser**, so it bounds precomputation to
+a day rather than to the §16.5 beacon cadence. That is the correct trade — a day-bounded precompute
+window still makes stockpiled puzzles stale, while the alternative is a floor that silently fails
+closed on the users it was written for. A recipient MAY additionally *prefer* beacon-scoped proofs
+(e.g. grant them a larger budget) and MAY require the beacon from senders that demonstrably
+resolved the recipient's `Identity`; it MUST NOT make the beacon the only acceptable scope.
+
 **CAUTION.** PoW is a **last-resort** tier, not primary: there is no live standard, and plain
 hashcash asymmetry favors organized spammers (botnets/GPUs) over low-power legitimate senders
 (phones). DMTAP PoW MUST use a **memory-hard** function (Argon2/scrypt-style) to flatten that

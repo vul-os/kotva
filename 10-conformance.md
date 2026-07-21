@@ -76,11 +76,11 @@ The **conformance test suite** is the *operational definition* of compatibility.
 means "passes the suite," not "resembles the reference." This is the primary defense against
 fragmentation. The suite lives in `conformance/` as three coupled artifacts:
 
-- **`conformance/SUITE.md`** — the normative test-case catalog: 346 numbered cases
+- **`conformance/SUITE.md`** — the normative test-case catalog: 347 numbered cases
   (`DMTAP-<category>-<NN>`) grouped by the levels above, each pinning its spec clause, input,
   expected result (accept / reject + the §21 error code), and MUST/SHOULD.
 - **`conformance/suite.json`** — the machine-readable mirror of those cases, so a runner in **any
-  language** can drive them. It mirrors all 346 (SUITE.md and suite.json are in sync — the wave-2
+  language** can drive them. It mirrors all 347 (SUITE.md and suite.json are in sync — the wave-2
   deniable-1:1 and KT-v1-hardening families, the `PROFILE` display-data cases, the optional
   `PUSH` wake-signaling cases, the `FILE` durability cases, the wave-3 device-cluster `SYNC`,
   `ALIAS`, and gateway-alias `GWALIAS` families, the pluggable-resolver `RESOLVE` family, the
@@ -120,13 +120,13 @@ display-data guards, the optional `PUSH` wake-signaling guards, the wave-6 anti-
 (`MIXPROF`/`FLEET`/`GUARD`/`LOC`/`FLOOR`/`FAILCLASS`/`GWROLE`), the gateway families
 (`GWOPS`/`GWSMTP`/`GWATT`/`GWNAME`/`GWFLOOR`/`GWLEG`), the profile-level `CAD`/`VIDEO` checklists,
 and the DMTAP-PUBSUB guards (`PUBSUB`, §25) — see `conformance/README.md`). The partition is exact:
-62 + 19 + 265 = 346. An implementation conforms at a level iff it passes every `MUST` case of that
+62 + 19 + 266 = 347. An implementation conforms at a level iff it passes every `MUST` case of that
 level and of every level it composes.
 
 **On the coverage figure.** `make coverage` reports that **100%** of `IMPL` MUSTs sit in a section
 some case cites. That is a **floor and a section-level measure**: a section counts as covered if
 *any* case cites it, not if every MUST in it is exercised; it counts cases that **exist**, not
-cases that **pass** (62 of 346 are byte-runnable today, and no implementation has yet been run
+cases that **pass** (62 of 347 are byte-runnable today, and no implementation has yet been run
 against the suite); and it is measured against a **curated** denominator whose classification is a
 judgement, auditable in `conformance/scope.json` and re-checkable by `make lint` (check C10, which
 fails the build if a MUST-bearing section is left unclassified). The uncurated figure over every
