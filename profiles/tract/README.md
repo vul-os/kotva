@@ -95,6 +95,26 @@ make lint-strict   # warnings fail too; use before a release tag
 make pdf           # first run: (cd build && npm install)
 ```
 
+## Help wanted
+
+Several things in this specification are blocked on **expertise this project does not have**, and
+in some cases multiple research passes returned nothing verifiable. Those are recorded as
+unevidenced rather than quietly asserted — see [docs/HELP-WANTED.md](docs/HELP-WANTED.md) for the
+specific questions and what kind of person can answer each.
+
+The short version:
+
+| | |
+|---|---|
+| **A second implementation** | the single most valuable contribution. §16 is frozen and has 21 conformance vectors, and exactly one implementation — which proves nothing about whether the *document* is buildable from |
+| **Data-protection law** | three passes, nothing verified. Needs a practitioner, not another literature review (§22) |
+| **EU VAT** | decided on an engineering reading, explicitly pending advice (D1) |
+| **Logistics, analytics, reputation** | §8, §13 and §10 are unevidenced and marked as such |
+| **Adversarial review** | the two most valuable contributions so far both came from trying to break something |
+
+If your finding is that something here is **wrong**, that is the most welcome kind. §21 exists
+because the evidence contradicted the design.
+
 ## Implementation
 
 [**Soko**](https://github.com/vul-os/soko) is the reference implementation — Rust, MIT, with a
