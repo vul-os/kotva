@@ -87,10 +87,21 @@ default/normative or dangle refs to the moved section — reconcile to opt-in/re
   Tariff.identity attribution added, 2 sibling mime values assigned non-colliding; 2 false-positives
   correctly skipped). **Critique round 1 CLOSED 8/8.**
 
-**Critique round 2 (fresh lens-set — cross-ref-integrity · wire/CDDL · distributed-systems/determinism ·
-simplicity/over-engineering · contradiction/overclaim):** running as read-only workflow → adversarial
-verify → confirmed-only. Adjudicates the deferred compute-kind + media-relay/reachability collapse and the
-ADOPTION.md/RGA wording. Needs TWO consecutive clean passes (round 3 with a different mix) to declare PERFECTED.
+**Critique round 2 (workflow `wp8pff72w`, 5 lenses + adversarial verify) — NOT clean: 6 confirmed, 1 refuted.**
+Deferred questions ADJUDICATED as non-findings: media-relay vs reachability-adapter = distinct planes (SFU vs
+NAT-ingress, composed in profiles/rtc.md); compute = disclosed provisional slot (not over-engineering);
+ADOPTION/RGA = not a contradiction (ADOPTION calls *Yjs* load-bearing, RGA gaps are gaps). Refuted finding
+(RecoveryPolicy recover_threshold "weakening") = actually a STRENGTHENING (adds a factor → harder), Table D
+correctly silent. The 6 confirmed (each a different file → 2 disjoint fix-agents):
+- [~] **F1 (HIGH)** substrate/SYNC.md §6.2 — stability cut = min-of-max-applied but §2.3/§5.1 require the
+  contiguous_below completeness watermark; silent lost-write in §4.6 PN-counter compaction under gapped
+  delivery (C-15 fixed pull-vector/covers but skipped the cut). **agent F1 in flight.**
+- [~] **F2 batch** (agent F2 in flight): (MED) coordinator/CONTRACT.md 5 cross-dir links missing `../`;
+  (MED) 18-wire-format.md:1803 "kind … key 1" → key 2 (kind is key 2, suite is key 1); (MED) 17-parity.md:113
+  stale "full mixnet privacy"/"onion" attachment-tier labels → fast default + never-mixnet bulk; (LOW)
+  docs/research/coverage-matrix.md compute "does not exist / add it" → already a provisional kind; (LOW)
+  11-grounding-and-references.md:75 unqualified "DMTAP targets a global passive adversary" → mixnet does; default = reduction.
+After F1+F2 land → **critique round 3** (different lens mix); two consecutive clean → PERFECTED.
 
 **W3 (simplify):** compress per-doc SEC-invariant/honest-residual boilerplate to reference tables
 (THREAT-MODEL = single argued source, ~15-20% cut, zero normative loss); turn reproduced index tables into
