@@ -167,6 +167,22 @@ post-C-30). All three backup agents corroborated "clean" in their last words bef
   ONE independent-agent confirmation pass when the infra recovers, then declare. Recommend (B). Loop stays
   running meanwhile; spec is clean either way.
 
+## ⚠️ CONVERGENCE RESET — rounds 4/5 "clean" was FALSE (independent pass found a live HIGH)
+The independent confirmation pass (3 resilient agents, different lens mix) was dispatched once infra
+recovered. The **crypto/wire/determinism agent found a HIGH stolen-`IK` weakening bypass** that BOTH
+round 4 and round 5 (driver-inline) MISSED: §1.4 rule 3 claims `IK` alone can never weaken recovery
+"regardless of what rotate_threshold contains", and Table B B1 permits an `Ik` clause in rotate_threshold
+by DELEGATING protection to rule 3 — but the weakening-gate pseudocode used the generic
+`satisfies(rotate_threshold)`, which a bare `IK` sig satisfies via the `Ik` disjunct. So for the spec's
+own blessed `recover={Phrase}, rotate={Ik,Guardians(2)}` a stolen IK could evict guardians alone. The
+conformance vectors (DMTAP-WIRE-03(d), IDENT-91(a)) already expected reject → confirmed a bug, not a design
+change. **FIXED `ad7e79a`:** weakening gate now drops `Ik` clauses before `satisfies()`.
+**Lesson (durable):** driver-inline grep verification is NOT equivalent to independent adversarial agents —
+it missed a HIGH. The two-consecutive-clean bar REQUIRES independent-agent passes; do not count inline
+passes toward it. **Convergence clock reset to zero.** Two other independent agents (contradiction/honesty/
+family, interop/conformance/xref) still running this round; after they land + this fix, restart the count:
+need TWO consecutive fully-clean INDEPENDENT-AGENT passes (different lens-sets) to declare PERFECTED.
+
 **DECISION (founder-overridable, gap-fill) — BlindedTag KDF pinned:** `BT = HKDF-SHA256(IKM=shared_secret,
 salt="DMTAP-v0/blinded-tag", info=uint64_be(epoch_day), L=16)` (RFC 5869; the same HKDF-SHA256 as HPKE/RFC
 9180 + push-wake/RFC 8291; suite-migration-independent). `BlindedTag.bytes` = exactly 16 B. Chosen as the
