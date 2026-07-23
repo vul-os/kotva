@@ -7,35 +7,55 @@ honestly, defines the guarantees, and marks the boundaries we do *not* claim.
 
 | Adversary | Capability | DMTAP posture |
 |-----------|-----------|--------------|
-| Network eavesdropper (local) | reads links near a node | defeated (encryption + onion) |
-| Malicious relay / mix node | sees ciphertext it forwards | defeated (content-blind, no single hop links ends) |
-| Curious directory / DNS / KT log | sees lookups | mitigated (mixnet-routed lookups §3.7); binding tamper-evident (KT §3.5) |
-| **Global passive adversary** | observes all links, all timing | **primary target**: social graph + timing hidden by mixnet + cover traffic |
-| Global *active* adversary (inject/drop/delay at will, unlimited resources) | shapes traffic to correlate | **not fully defeated** — see §6.6 |
+| Network eavesdropper (local) | reads links near a node | defeated by end-to-end encryption; sealed sender hides the sender from this observer (not from a global one, below) |
+| Malicious relay / mix node | sees ciphertext it forwards | defeated (content-blind; on the `fast` tier a relay still sees the endpoints it directly connects, §6.5) |
+| Curious directory / DNS / KT log | sees lookups | binding tamper-evident (KT §3.5); lookup privacy beyond that is the opt-in mixnet's routing (§3.7, [docs/research/mixnet.md](docs/research/mixnet.md)) |
+| **Global passive adversary** | observes all links, all timing | **default posture: NOT defeated for the social graph.** By default (`fast` tier), a global passive adversary recovers the communication graph via IP + timing + volume correlation; sealed sender denies it the sender's identity/signature but not the graph. Graph/timing privacy against this adversary is available only via the opt-in, research-tier mixnet (§4.4, `private` tier) — see the honest restatement below and §6.9 SP-3 |
+| Global *active* adversary (inject/drop/delay at will, unlimited resources) | shapes traffic to correlate | **not defeated by default**; the opt-in mixnet adds detection/response mechanisms discussed in §6.6 item 1, themselves research-tier |
 | Compromised endpoint (node seized/keylogged) | reads that node's plaintext | **hardened, then bounded** (§6.6 item 3): hardware-backed non-exportable keys (§1.2a), device-unlock-gated at-rest encryption (§6.7), per-device sealing, and fast revocation heal all cases **except** a device *actively compromised while unlocked and in use* |
 
-DMTAP's headline guarantee is **strong metadata privacy against a global *passive* adversary.**
+**DMTAP's default guarantee is a metadata *reduction*, not global-passive-adversary immunity.**
+Sealed sender (§6.2) keeps the sender's identity and authenticating signature inside the
+encrypted payload, so every intermediary on the default `fast` tier sees only ciphertext
+addressed to an opaque destination — not who sent it. It does **not**, by itself, hide *that a
+message moved from IP A to IP B at time T of size S*: a global passive adversary correlating IP,
+timing, and volume across links can still recover the communication graph on the default tier.
+**Strong metadata privacy against a global passive adversary — hiding the graph and timing, not
+just the sender's identity — is the job of the mixnet, and the mixnet is an opt-in, research-tier
+layer** (§4.4, [docs/research/mixnet.md](docs/research/mixnet.md)), not a default guarantee. This
+is the honest restatement of what was previously stated as DMTAP's headline property; see §6.9
+SP-3/SP-4 for the falsifiable claims as they now stand.
 
 ## 6.2 What is protected, and how
 
 - **Content** — MLS/HPKE end-to-end encryption (§2, §5). Only recipients decrypt.
 - **Authenticity** — signed payloads; identity bound to name via KT (§1, §3).
-- **Sender identity** — **sealed sender**: the sender's identity and authenticating signature
-  live *inside* the encrypted payload; intermediaries see only ciphertext to an opaque
-  destination (§2.2). Honest scope: sealed sender hides the sender from *intermediaries*, but
-  **does not hide the sender's IP** (the mixnet does that) and is a metadata-*reduction*, not
+- **Sender identity, by default (`fast` tier)** — **sealed sender**: the sender's identity and
+  authenticating signature live *inside* the encrypted payload; intermediaries see only
+  ciphertext to an opaque destination (§2.2). Honest scope: sealed sender hides the sender from
+  *intermediaries*, but **does not hide the sender's IP** and is a metadata-*reduction*, not
   elimination — receipt/timing side channels can statistically erode it (Martiny et al.,
-  NDSS 2021), which is why cover traffic (§6.3) and mixing are load-bearing, not optional.
-- **Recipient identity** — the mixnet delivers by **push to an always-on node** whose network
-  identity is decoupled from the human identity; this removes the store-and-poll step PIR
-  exists to protect (§6.4).
-- **Social graph & timing** — **mixnet** (onion routing + Poisson mixing delays) so no node
-  sees both ends and timing correlation is defeated; plus **cover traffic** and **size
-  padding** (§6.3).
-- **Discovery** — name→key lookups routed through the mixnet, hiding *who* looks up *whom*
-  (§3.7).
+  NDSS 2021). This is the default guarantee; it does not depend on the mixnet.
+- **Recipient identity** — an always-on node receives by **push**, decoupling its network
+  identity from the human identity; this removes the store-and-poll step PIR exists to protect
+  (§6.4). This holds on the default `fast` tier as much as on the opt-in mixnet tier — it is a
+  property of push delivery, not of onion routing.
+- **Social graph & timing — NOT protected by default; opt-in mixnet only.** On the default
+  `fast` tier the graph and timing are **observable** to a network-position or global adversary
+  (§6.1). Hiding them requires the **opt-in, research-tier mixnet** (onion routing + Poisson
+  mixing delays, so no node sees both ends and timing correlation is defeated) plus **cover
+  traffic** and **size padding** — see [docs/research/mixnet.md](docs/research/mixnet.md) and the
+  honest restatement in §6.1.
+- **Discovery** — name→key lookups (§3.7) get the same treatment: private/unlinkable lookup is a
+  property of routing them through the opt-in mixnet; on the default tier a lookup is observable
+  to whoever the resolution path passes through.
 
-## 6.3 Mixnet, cover traffic, padding
+## 6.3 Mixnet, cover traffic, padding (opt-in, research-tier — non-normative)
+
+**This subsection describes the `private` tier's mixnet, which is research-tier and OPT-IN**
+(§4.4, [docs/research/mixnet.md](docs/research/mixnet.md)) — it is not part of the default
+guarantee (§6.1) and not conformance-tested. It applies only to an implementation that chooses to
+offer, and a user who chooses to select, the `private` tier.
 
 - **Onion packets** (Sphinx-format, constant length) traverse a path of mix nodes; each peels
   one layer.
@@ -45,12 +65,14 @@ DMTAP's headline guarantee is **strong metadata privacy against a global *passiv
   cannot distinguish real activity from cover. Rate is a **tunable knob** (higher rate → more
   privacy, more bandwidth).
 - **Size padding** — MOTEs are padded to fixed size buckets so the *exact* length does not leak
-  (an observer learns only which of the **two** size buckets, §4.4.1 — at most one bit per message).
+  (an observer learns only which of the **two** size buckets — [docs/research/mixnet.md
+  §4.4.1](docs/research/mixnet.md) — at most one bit per message).
 
-These are **normative and fully specified** — the Sphinx packet format, mix directory, path
-selection, key rotation, cover-traffic rates, active-attack detection, entry guards, operator
-diversity, fail-closed no-downgrade, and the high-security profile — in **§4.4.1–§4.4.10** with
-parameters in **§16.3**; this subsection is the summary, §4.4 is the buildable specification.
+The full mechanism — the Sphinx packet format, mix directory, path selection, key rotation,
+cover-traffic rates, active-attack detection, entry guards, operator diversity, fail-closed
+no-downgrade, and the high-security profile — is specified **verbatim, in full, as research-tier
+non-normative material** in [docs/research/mixnet.md §4.4.1–§4.4.10](docs/research/mixnet.md);
+this subsection is a summary of that opt-in layer, not a description of the default.
 
 Email's asynchrony is the enabling property: minutes of latency are acceptable for the
 `private` tier, and higher latency yields stronger anonymity.
@@ -60,11 +82,14 @@ Email's asynchrony is the enabling property: minutes of latency are acceptable f
 PIR (Pung, Talek) exists to hide **which record a client reads from an untrusted shared
 mailbox that holds everyone's mail** — a leak that only exists *because* those systems use a
 polled central store to support offline recipients. DMTAP makes a different **design choice**
-for the case it can: **an always-on recipient node receives by push** through the mixnet, so
-for *that* node there is no untrusted shared store being queried and thus no read-access-pattern
-to hide for its live traffic. This is a genuine architectural difference for the always-on case,
-not a trick. (Note: Loopix itself *does* use provider store-and-poll to serve offline clients;
-DMTAP's always-on-push is a deliberate divergence, not an inherent property of mixnets.)
+for the case it can: **an always-on recipient node receives by push** — over the default `fast`
+tier's direct connections, or over the opt-in mixnet's onion-routed delivery if that tier is in
+use (§4.6) — so for *that* node there is no untrusted shared store being queried and thus no
+read-access-pattern to hide for its live traffic. This is a genuine architectural difference for
+the always-on case, not a trick, and it does **not** depend on the mixnet: it is a property of
+push vs. poll, and holds on the default tier as much as the opt-in one. (Note: Loopix itself
+*does* use provider store-and-poll to serve offline clients; DMTAP's always-on-push is a
+deliberate divergence, not an inherent property of mixnets.)
 
 **This is not the whole picture, and an earlier revision of this section let it read as though it
 were.** Push-through-the-mixnet is only a description of what happens while a recipient node is
@@ -79,23 +104,34 @@ buffered/offline case is a separate, disclosed exposure, stated honestly at §6.
 than folded into this section's "no untrusted shared store" claim, which held only for the
 always-on path this paragraph actually describes.
 
-**But push delivery is not "recipient anonymity, solved."** Three residual exposures remain.
-The requirements in items 1–2 below are **normative and owned here** (this clause, not the
-honest-limits prose of §6.6, is their home; §6.6 and §6.9 point back to it):
+**But push delivery is not "recipient anonymity, solved."** Three residual exposures remain, and
+on the default `fast` tier the first is what a global observer actually gets for free — there is
+no cover traffic to blur it. Item 1's requirement is **normative and owned here** (this clause,
+not the honest-limits prose of §6.6, is their home; §6.6 and §6.9 point back to it) and applies
+**regardless of tier**; items 2–3 are the opt-in mixnet's mitigations for the same exposures and
+apply **only when that research-tier layer is in use**:
 
-1. **Last-hop / receipt visibility.** The final mix and a global observer of the recipient's
-   link learn that *a packet was delivered to node X*. An always-on node has a **stable,
-   targetable network presence** — itself a fingerprint. The node's network identity MUST be
-   cryptographically and durably **decoupled** from the human identity (pseudonymous peer id,
-   no re-identifying metadata).
-2. **Receipt-timing.** Without cover on the delivery link, observing the node reveals *when*
-   messages arrive. The recipient node MUST receive a steady **Poisson cover stream** so real
-   receipts are indistinguishable from cover (as Loopix does with loop + link cover).
-3. **Long-term intersection / statistical-disclosure attacks.** Persistent presence is
-   exposed to correlation across many rounds; cover traffic bounds but does not eliminate this
-   (cf. Vuvuzela's differential-privacy noise, which degrades over volume). This is inherited,
-   not solved; the bounding mechanisms (entry guards, operator diversity, cover rates) are
-   normative in §4.4.5 and §4.4.8.
+1. **Last-hop / receipt visibility (normative, all tiers).** A global observer of the recipient's
+   link — the final mix on the opt-in `private` tier, or simply the recipient's link on the
+   default `fast` tier — learns that *a packet was delivered to node X*, and on `fast` also learns
+   *when* and *how much*: there is no cover traffic on the default tier to blur this. An always-on
+   node has a **stable, targetable network presence** — itself a fingerprint — regardless of tier.
+   The node's network identity MUST be cryptographically and durably **decoupled** from the human
+   identity (pseudonymous peer id, no re-identifying metadata); this is the one mitigation that
+   applies by default.
+2. **Receipt-timing — opt-in mixnet only.** Without cover on the delivery link, observing the
+   node reveals *when* messages arrive; on the default `fast` tier this is simply the disclosed
+   residual of item 1, unmitigated. A recipient node that has opted into the research-tier
+   `private` mixnet MUST receive a steady **Poisson cover stream** so real receipts are
+   indistinguishable from cover (as Loopix does with loop + link cover) —
+   [docs/research/mixnet.md §4.4.5](docs/research/mixnet.md).
+3. **Long-term intersection / statistical-disclosure attacks — opt-in mixnet only.** Persistent
+   presence is exposed to correlation across many rounds on any tier; on the default `fast` tier
+   nothing bounds this beyond sealed sender (§6.2). Cover traffic bounds but does not eliminate
+   this for a node that has opted into the mixnet (cf. Vuvuzela's differential-privacy noise,
+   which degrades over volume) — the bounding mechanisms (entry guards, operator diversity, cover
+   rates) are research-tier, non-normative, and specified in [docs/research/mixnet.md
+   §4.4.5, §4.4.8](docs/research/mixnet.md).
 
 **Offline buffering — the honest state, not the comfortable one.** If a node is down, a peer/relay
 holds sealed ciphertext (§14.5) for later pickup. **A prior revision of this paragraph described
@@ -110,16 +146,19 @@ retrieval ceremony that would remove it — this is the priced-in cost of not pa
 
 ## 6.5 Privacy tiers (and where each product sits)
 
-| Tier | Path | Latency | Graph privacy | Default for |
-|------|------|---------|---------------|-------------|
-| `private` | full mixnet + cover | minutes | strong (global passive) — quantified, see §6.4/§4.4.11 | mail, all control MOTEs, **normal-size files** |
-| `fast` | direct / few-hop | sub-second | content only | live chat (both online), **large-file bulk** |
+| Tier | Path | Latency | Graph privacy | Status | Default for |
+|------|------|---------|---------------|--------|-------------|
+| `fast` | direct / few-hop | sub-second | sealed sender vs. intermediaries; graph observable to a network/global adversary (§6.1) | **normative, default** | mail, all control MOTEs, live chat, **normal-size files**, **large-file bulk** |
+| `private` | full mixnet + cover | minutes | additionally hides the graph from a global passive adversary, subject to §4.4.11's honest low-adoption model | **research-tier, OPT-IN** — [docs/research/mixnet.md](docs/research/mixnet.md) | nothing by default; a deliberate, user-surfaced choice |
 
-- Default is `private`. `fast` is opt-in. Because *choosing* `fast` is itself a signal, clients
-  keep `private` as the standing default and cover it with cover traffic.
-- **Files:** the control MOTE is always `private`. **Normal-size files route through the
-  mixnet like messages (same private-tier metadata privacy as messages — strong vs a global
-  passive adversary; the §6.6 residuals apply).** **Large-file bulk** uses `fast` — but MUST
+- **Default is `fast`.** `private` is opt-in, for implementations that choose to offer the
+  research-tier mixnet. Because *choosing* `private` is itself a signal, a client that offers it
+  SHOULD make the choice deliberate and user-surfaced.
+- **Files:** the control MOTE follows the same default-`fast`/opt-in-`private` rule as any other
+  control MOTE (§4.6). **Normal-size files route through whichever tier the message itself
+  uses** — the default `fast` tier's guarantee, or the opt-in mixnet's private-tier metadata
+  privacy if a sender has selected it (the §6.6 residuals apply either way). **Large-file bulk**
+  uses `fast` — but MUST
   be **onion-routed (a few hops, Tor-style) + size-padded to buckets + swarmed from multiple
   holders**, accepting bandwidth cost. **This bulk tier is explicitly weaker:** like Tor, it
   provides relationship anonymity against *local/partial* adversaries but is **vulnerable to
@@ -130,35 +169,47 @@ retrieval ceremony that would remove it — this is the priced-in cost of not pa
 
 ## 6.6 Honest boundaries (what we do NOT claim)
 
-1. **Global active adversary — the irreducible residual *after* the mechanisms.** DMTAP does not
-   treat the active adversary as an unaddressed limit: §4.4.6–§4.4.10 specify concrete, normative
-   defenses — **per-epoch mix replay caches** (drop replayed packets), **tagging-resistant
-   integrity-protected Sphinx headers**, **memoryless Poisson mixing** (timing correlation stays
-   hard even under active delay injection), **loop-cover active-attack detection** that turns
-   drop/delay/flooding from undetectable into **detected → rotate + `HALT_ALERT` + fail-closed**,
-   **entry guards + `≥ 3`-disjoint-operator path diversity** bounding long-term intersection,
-   **attested (non-token) mix identities** for Sybil resistance, and a **no-silent-downgrade
-   rule** (§4.4.9) so DoSing the mixnet cannot strip the tier. A **user-selectable high-security
-   profile** (§4.4.10 — 5 hops, longer delays, constant-rate cover, tighter guards/diversity) is
-   the lever to climb toward the bound.
-   **After all of that**, an irreducible residual remains: by the **Anonymity Trilemma** (Das,
-   Meiser, Mohammadi & Kate, *"Anonymity Trilemma: Strong Anonymity, Low Bandwidth Overhead, Low
-   Latency — Choose Two,"* IEEE S&P 2018), strong anonymity provably **cannot** be had without
-   paying in latency and/or bandwidth, so a global *active* adversary with unlimited resources that
-   controls a large enough fraction of the network can still mount long-term statistical disclosure
-   at *some* latency/cost point. DMTAP **approaches** that mathematical floor as the high-security
-   profile's latency/overhead grows; it does **not** pretend to defeat an omnipotent adversary at
-   zero cost. This is the honest floor *after* the maximal defense, not a substitute for it.
+1. **Global active adversary — undefended by default; the irreducible residual *after* the
+   mechanisms of the opt-in mixnet.** On the **default `fast` tier there is no active-adversary
+   defense at all** — no replay cache, no cover traffic, no entry guards; a global active
+   adversary correlates trivially, and this is simply the cost of the default tier's honest scope
+   (§6.1). The rest of this item describes what the **opt-in, research-tier mixnet**
+   ([docs/research/mixnet.md](docs/research/mixnet.md)) adds for an implementation and user that
+   choose it, and none of it is a default guarantee: **per-epoch mix replay caches** (drop
+   replayed packets), **tagging-resistant integrity-protected Sphinx headers**, **memoryless
+   Poisson mixing** (timing correlation stays hard even under active delay injection),
+   **loop-cover active-attack detection** that turns drop/delay/flooding from undetectable into
+   **detected → rotate + `HALT_ALERT` + fail-closed**, **entry guards + `≥ 3`-disjoint-operator
+   path diversity** bounding long-term intersection, **attested (non-token) mix identities** for
+   Sybil resistance, and a **no-silent-downgrade rule**
+   ([docs/research/mixnet.md §4.4.9](docs/research/mixnet.md)) so DoSing the mixnet cannot strip
+   the tier for a user who selected it. A **user-selectable high-security profile**
+   ([docs/research/mixnet.md §4.4.10](docs/research/mixnet.md) — 5 hops, longer delays,
+   constant-rate cover, tighter guards/diversity) is the lever to climb toward the bound, for a
+   user who has already opted into the mixnet.
+   **After all of that**, an irreducible residual remains **for the opt-in tier**: by the
+   **Anonymity Trilemma** (Das, Meiser, Mohammadi & Kate, *"Anonymity Trilemma: Strong Anonymity,
+   Low Bandwidth Overhead, Low Latency — Choose Two,"* IEEE S&P 2018), strong anonymity provably
+   **cannot** be had without paying in latency and/or bandwidth, so a global *active* adversary
+   with unlimited resources that controls a large enough fraction of the mix fleet can still mount
+   long-term statistical disclosure at *some* latency/cost point. The mixnet **approaches** that
+   mathematical floor as the high-security profile's latency/overhead grows; it does **not**
+   pretend to defeat an omnipotent adversary at zero cost, and none of this applies at all to the
+   default `fast` tier, which makes no such attempt. This is the honest floor *after* the maximal
+   opt-in defense, not a substitute for it.
    One concrete edge of that residual: **sub-threshold selective dropping** — an adversary dropping
    fewer than the loop-loss detection threshold (< 20%, §16.3) of a target's packets — stays under
-   the §4.4.7 detector, so it is **bounded, not eliminated**; the trade is that so little is dropped
-   it accomplishes little, and the **High-security profile** (faster loops, §4.4.10) tightens the
-   detectable floor further.
-   One claim is prohibited outright (normative, owned here): an implementation or operator MUST
-   NOT claim that raising hop count alone defends against colluding entry+exit mixes. Hops buy
-   timing-correlation resistance against *observers*; entry guards + attested operator diversity
-   bound *endpoint collusion* (≈ *f*², §4.4.8, §4.4.10) — and neither substitutes for the other.
-   The measured basis is reported informatively in §6.10.
+   the [docs/research/mixnet.md §4.4.7](docs/research/mixnet.md) detector, so it is **bounded, not
+   eliminated**; the trade is that so little is dropped it accomplishes little, and the
+   **High-security profile** (faster loops, [docs/research/mixnet.md
+   §4.4.10](docs/research/mixnet.md)) tightens the detectable floor further.
+   One claim is prohibited outright (normative, owned here, and binding regardless of tier): an
+   implementation or operator MUST NOT claim that raising hop count alone defends against
+   colluding entry+exit mixes. Hops buy timing-correlation resistance against *observers*; entry
+   guards + attested operator diversity bound *endpoint collusion* (≈ *f*²,
+   [docs/research/mixnet.md §4.4.8, §4.4.10](docs/research/mixnet.md)) — and neither substitutes
+   for the other. The measured basis is reported informatively, as a research-tier mechanism-model
+   simulation, in §6.10.
 2. **Large-file bulk metadata.** Onion-routing + padding + swarming makes it *strong*, not
    *free* and not *perfect* — the fact and approximate volume of a large transfer may remain
    partially observable at high adversary capability.
@@ -201,17 +252,22 @@ retrieval ceremony that would remove it — this is the priced-in cost of not pa
    stated as such. For **DMTAP-Auth (§13)** specifically, a split view is a **silent per-RP
    account takeover**, so high-value login RPs MUST require **multi-log consistency or an
    OOB-verified pin even in v0** — the owning requirement is §13.7 item 6.
-7. **Group handshake ordering is a metadata concentration point.** The per-group committer/
-   ordering channel (§5.1) necessarily sees all of a group's handshake traffic; this is an
-   explicit exception to the "no single node sees both ends" framing, bounded by rotating the
-   committer and keeping application traffic on the mixnet. **Additionally, in v0 the ordered,
-   reliable handshake channel is not itself required to ride the mixnet** (§5.1 routes it for
-   liveness), so a *network* observer — not only the committer — can see the timing of membership
-   changes (Add/Remove Commits, Welcomes), which is membership-graph metadata the mixnet otherwise
-   hides. Application traffic stays cover-indistinguishable; the handshake channel does not. Closing
+7. **Group handshake ordering is a metadata concentration point (relevant when the opt-in mixnet
+   is used).** The per-group committer/ordering channel (§5.1) necessarily sees all of a group's
+   handshake traffic; this is an explicit exception to the "no single node sees both ends"
+   framing. For an implementation/user that has opted into the research-tier `private` mixnet,
+   this was intended to be bounded by rotating the committer and keeping application traffic on
+   the mixnet. **Additionally, in v0 the ordered, reliable handshake channel is not itself required
+   to ride the mixnet** (§5.1 routes it for liveness), so a *network* observer — not only the
+   committer — can see the timing of membership changes (Add/Remove Commits, Welcomes), which is
+   membership-graph metadata the opt-in mixnet otherwise hides *for those who use it*; on the
+   default `fast` tier this metadata is observable regardless, consistent with §6.1. Application
+   traffic on the mixnet stays cover-indistinguishable; the handshake channel does not. Closing
    this fully (carrying handshakes over the `private` tier, realizing "ordered/reliable" as the
    committer's on-arrival log order rather than an in-transit bypass, and bringing any retained
-   low-latency committer path under the §4.4.9 no-silent-downgrade rule) is a tracked v0 residual.
+   low-latency committer path under the no-silent-downgrade rule,
+   [docs/research/mixnet.md §4.4.9](docs/research/mixnet.md)) is a tracked residual of that
+   opt-in layer.
 8. **`redact`/`expires` are unenforceable** against a non-compliant recipient that already holds
    the plaintext — they are cooperative hints, not guarantees (relevant to any "right to
    erasure" framing).
@@ -229,10 +285,11 @@ retrieval ceremony that would remove it — this is the priced-in cost of not pa
    global-active-adversary residual (item 1) — the maximal open mechanism is applied first, and the
    irreducible **platform-mandated** leak is stated plainly rather than papered over. Where the
    platform permits an open provider (UnifiedPush / Web Push), this residual does not arise at all.
-   Because a per-arrival wake is itself an activity-dependent timing signal *outside* the mixnet's
-   cover traffic, it composes with item 1: under the **High-security profile** (§4.4.10) wake
-   jitter/batching is therefore a **MUST** (§4.9.1), so the wake path does not reintroduce the
-   recipient-arrival timing channel the profile's constant-rate cover closes.
+   Because a per-arrival wake is itself an activity-dependent timing signal *outside* any cover
+   traffic, it composes with item 1: under the opt-in research-tier **High-security profile**
+   ([docs/research/mixnet.md §4.4.10](docs/research/mixnet.md)) wake jitter/batching is therefore
+   a **MUST for an implementation offering that profile** (§4.9.1), so the wake path does not
+   reintroduce the recipient-arrival timing channel the profile's constant-rate cover closes.
 10. **Referenced-file availability is a contract, not a property of the hash.** A content address
     stays useful only while **some node still serves the bytes**, so "forever access even after the
     peer drops" is **not free**. DMTAP does not treat this as unaddressed: **Inline** files are
@@ -259,19 +316,25 @@ retrieval ceremony that would remove it — this is the priced-in cost of not pa
     serving sealed chunks does not — hence public-object serving is a **per-operator opt-in**,
     never a default-on behavior of a conformant node; the owning requirement is §22, negotiated
     as the `pub-1` capability (§10.2).
-13. **The volunteer infrastructure may simply fail to materialise.** DMTAP has no commercial engine
-    behind its infrastructure: the mixnet, the KT log set, the rendezvous layer and the buffer
-    holders are all **roles taken reciprocally by participants** (§0.2.2, §4.4.2a, §14.1), not
-    services anyone is paid to provide. Defaults are set to make provision automatic where the cost
-    is negligible — the mix role is default-on for always-on public nodes — but a **default is not a
-    guarantee**. If too few nodes take these roles, the honest consequence is: `private`-tier paths
-    become unbuildable, and delivery **degrades to the `fast` tier** (§4.6) — still end-to-end
-    encrypted, still authenticated, still sealed-sender, but **without default metadata privacy**,
-    with the graph observable to a network observer (§6.5). The intermediate state is named rather
-    than hidden (the **Bootstrap profile**, §4.4.10a, which carries no anonymity claim), the
-    fail-closed rule still forbids a *silent* downgrade (§4.4.9), and the network's actual capacity
-    is publishable and checkable (§14.6.3). This is the price of having nobody paid to keep the
-    lights on, stated up front instead of discovered later.
+13. **The opt-in mixnet's volunteer infrastructure may simply never materialise — and that is now
+    the honest starting assumption, not a fallback case.** DMTAP has no commercial engine behind
+    its infrastructure: the KT log set and the rendezvous layer are roles taken reciprocally by
+    participants (§0.2.2, §14.1) that the `fast`-tier default depends on, and they are load-bearing
+    regardless of the mixnet. The **mixnet fleet** specifically (mix nodes, the research-tier
+    `private` path, [docs/research/mixnet.md](docs/research/mixnet.md)) is an *additional*,
+    opt-in role with its own default-on proposal for always-on public nodes that choose to
+    implement it ([docs/research/mixnet.md §4.4.2a](docs/research/mixnet.md)) — but because that
+    layer is research-tier, unshipped, and untested at scale, DMTAP does not assume it exists: the
+    default (`fast`) does not depend on it, `private`-tier paths are simply **unbuilt** unless and
+    until an implementation ships the mix role and enough operators run it, and a client MUST NOT
+    present `private` as available before that is true. If it never reaches useful scale, nothing
+    about the default guarantee (§6.1) regresses — it was never conditioned on the mixnet
+    materialising. What *is* lost is upside: the honest-low-adoption model
+    ([docs/research/mixnet.md §4.4.11](docs/research/mixnet.md)) and the **Bootstrap profile**
+    ([docs/research/mixnet.md §4.4.10a](docs/research/mixnet.md), which carries no anonymity
+    claim) describe what a small fleet buys *if and when the layer ships*, not a guarantee this
+    specification makes about the present. This is the price of having nobody paid to keep an
+    optional layer's lights on, stated up front instead of discovered later.
 14. **A third-party gateway reads your inbound legacy mail in the clear.** The legacy leg is
     plaintext by construction (§7.10.4), and a gateway serving legacy *clients* must decrypt the
     mailbox to speak IMAP/POP/DAV at all (§7.15.3). Now that "operator" means **whoever chose to
@@ -414,11 +477,13 @@ DMTAP lets a recipient learn and verify a message's **transport-path provenance*
 arrived on, whether it was gateway-touched or pure-mesh, and a coarse hop descriptor (§7.8, wire
 objects §18.3.11 / §18.8.1). This is deliberately constrained so it **reveals only trust-boundary
 crossings the recipient can already infer, and nothing more** — it MUST NOT weaken sealed sender
-(§6.2) or mixnet anonymity (§4.4):
+(§6.2) or the opt-in mixnet's anonymity property when that tier is in use (§4.4,
+[docs/research/mixnet.md](docs/research/mixnet.md)):
 
 - **Provenance answers "which trust boundaries did this cross?", never "which nodes carried it?"**
   For the `private` tier the recipient learns only the **profile floor** the path satisfied
-  (`≥ 3` / `≥ 5` hops, §4.4.10) — **never** a mix-node identity, address, exact hop count, path
+  (`≥ 3` / `≥ 5` hops, [docs/research/mixnet.md §4.4.10](docs/research/mixnet.md)) — **never** a
+  mix-node identity, address, exact hop count, path
   descriptor, or per-hop timing. The private path is, by design, unknown even to the recipient's
   own node (that is the anonymity guarantee, §6.2); a `ProvenanceRecord` MUST NOT contain, and a
   node MUST NOT synthesize, anything from which the path could be reconstructed (§18.8.1 privacy
@@ -451,9 +516,15 @@ property has a caveat, the caveat is part of the statement.
 
 Two structural facts frame the whole table. **Confidentiality and authenticity (SP-1, SP-2) hold
 against a global *active* adversary** — breaking them requires a signing/decryption key, which
-adversary reach does not confer. **The metadata properties (SP-3–SP-5) degrade with adversary
-reach**: strong against a global *passive* adversary, *bounded* (not defeated) against a global
-*active* one (§6.6 item 1). This asymmetry is the honest core of DMTAP's posture.
+adversary reach does not confer, **and this holds on the default `fast` tier, with no mixnet
+required.** **The metadata properties (SP-3–SP-5) are, by contrast, tier-dependent.** On the
+**default `fast` tier**, sender identity is reduced (sealed sender vs. intermediaries) but the
+graph and timing are observable to a global passive adversary — no property here claims otherwise
+for that tier. **Strong graph/timing privacy against a global passive adversary, and any bound at
+all against a global active one, is available only via the opt-in, research-tier mixnet**
+(§4.4, [docs/research/mixnet.md](docs/research/mixnet.md)) and is stated as such in SP-3/SP-4
+below, which are themselves marked research-tier, not default guarantees (§6.6 item 1). This
+tier-dependence is the honest core of DMTAP's posture.
 
 **SP-1 — Message confidentiality (end-to-end).**
 - *Claim (falsifiable):* No party other than the intended recipient(s) — no relay, mix, gateway,
@@ -468,7 +539,10 @@ reach**: strong against a global *passive* adversary, *bounded* (not defeated) a
   plaintext (§6.6 item 3); the legacy-gateway leg is plaintext by construction (§7 opening); a
   first-contact MITM before KT/OOB can substitute the encryption key (§6.6 item 4). Harvest-now:
   content is PQ-migratable (suite `0x02`, §1.1) but v0 classical-suite ciphertext recorded today is
-  exposed to a future quantum break until the identity migrates (§4.4.12 content note).
+  exposed to a future quantum break until the identity migrates (§5.1). This is distinct from —
+  and unconditioned on — the opt-in mixnet's own, separate harvest-now exposure at its routing
+  layer ([docs/research/mixnet.md §4.4.12](docs/research/mixnet.md)), which only arises for a
+  sender who has opted into the `private` tier.
 
 **SP-2 — Content authenticity & integrity.**
 - *Claim:* A recipient accepts a `Payload` as authored by identity `IK` only if `IK` actually
@@ -481,36 +555,66 @@ reach**: strong against a global *passive* adversary, *bounded* (not defeated) a
   (SP-9, §6.6 item 6); deniable-mode messages deliberately carry **no** content signature — their
   authenticator is a shared-key MAC (SP-7, §5.2.1(c)).
 
-**SP-3 — Sender anonymity against a GLOBAL PASSIVE adversary (the headline property).**
-- *Claim:* A global passive adversary observing all links and all timing cannot learn who sent a
-  `private`-tier MOTE to whom, beyond the disclosed residual.
-- *Holds by:* sealed sender (identity + authenticating signature sealed inside the payload, §2.2,
-  §6.2); Sphinx onion routing + memoryless Poisson mixing (§4.4.1, §4.4.6); mandatory cover traffic
-  + size-bucket padding (§4.4.5, §6.3); mixnet-routed lookups (§3.7).
-- *Against:* the global **passive** adversary — DMTAP's primary/headline target (§6.1).
-- *Residual:* metadata *reduction*, not elimination — sealed sender is statistically eroded by
-  receipt/timing side channels (Martiny et al., NDSS 2021), which is why cover traffic is
-  load-bearing, not optional (§6.2); last-hop delivery observability remains (§6.4 items 1–3);
-  long-term intersection is bounded, not eliminated (§6.6 item 5, §4.4.8); while the fleet is small
-  the guarantee is Tor-with-few-relays, not a strong global mixnet (§4.4.11); the v0 onion is not PQ
-  — a harvest-now adversary could retroactively deanonymize the recorded social graph (§4.4.12).
+**SP-3 — Sender anonymity against a GLOBAL PASSIVE adversary — NON-NORMATIVE, RESEARCH-TIER,
+scoped to the opt-in `private` mixnet only. Demoted from its former "headline property" status.**
+- *Claim (research-tier, not a default guarantee):* **IF** a sender and recipient have both opted
+  into the research-tier `private` mixnet ([docs/research/mixnet.md](docs/research/mixnet.md)),
+  **THEN**, subject to the disclosed residuals below, a global passive adversary observing all
+  links and all timing is intended not to learn who sent that MOTE to whom. This claim is **not
+  conformance-tested**, is **not** part of any default guarantee, and does not hold at all for the
+  default `fast` tier — on `fast`, sealed sender (§6.2) reduces what intermediaries learn but a
+  global passive adversary recovers the graph via IP + timing + volume correlation (§6.1). **The
+  honest default, restated:** sealed sender is a metadata *reduction* against intermediaries, not
+  global-passive-adversary immunity; graph/timing privacy against that adversary is the opt-in
+  mixnet, not a default property of DMTAP.
+- *Would hold by (research-tier mechanism, if implemented and selected):* sealed sender (identity
+  + authenticating signature sealed inside the payload, §2.2, §6.2) — this part **is** default and
+  normative; plus, only within the opt-in mixnet: Sphinx onion routing + memoryless Poisson mixing
+  ([docs/research/mixnet.md §4.4.1, §4.4.6](docs/research/mixnet.md)); mandatory cover traffic +
+  size-bucket padding ([docs/research/mixnet.md §4.4.5](docs/research/mixnet.md), §6.3); and
+  mixnet-routed lookups (§3.7, opt-in).
+- *Against:* the global **passive** adversary, and only within the scope of the opt-in mixnet.
+- *Residual:* metadata *reduction*, not elimination, even within the opt-in tier — sealed sender
+  is statistically eroded by receipt/timing side channels (Martiny et al., NDSS 2021), which is
+  why cover traffic is load-bearing, not optional, *for implementations that offer the mixnet*
+  (§6.2); last-hop delivery observability remains (§6.4 items 1–3); long-term intersection is
+  bounded, not eliminated (§6.6 item 5, [docs/research/mixnet.md
+  §4.4.8](docs/research/mixnet.md)); while the fleet is small the guarantee is
+  Tor-with-few-relays, not a strong global mixnet ([docs/research/mixnet.md
+  §4.4.11](docs/research/mixnet.md)); the v0 onion is not PQ — a harvest-now adversary could
+  retroactively deanonymize the recorded social graph ([docs/research/mixnet.md
+  §4.4.12](docs/research/mixnet.md)). **Above all: none of this is available unless an
+  implementation ships the mixnet and both parties opt in** — that is the residual that matters
+  most, and it did not exist when this property was the stated default.
 
-**SP-4 — Sender anonymity against a GLOBAL ACTIVE adversary (reduced and disclosed).**
-- *Claim:* A global *active* adversary (inject/drop/delay at will) is forced to pay latency and/or
-  bandwidth to correlate, and its drop/delay/flooding is **detected and responded to** — but it is
-  **not fully defeated**.
-- *Holds by:* per-epoch replay caches, tagging-resistant Sphinx (header MAC `γ` + wide-block LIONESS
-  payload PRP), memoryless Poisson mixing (§4.4.6); loop-cover active-attack detection →
-  rotate + `HALT_ALERT` + fail-closed (§4.4.7); entry guards + **attested** operator-diversity
-  (§4.4.8); fail-closed no-downgrade (§4.4.9); the user-selectable High-security profile (§4.4.10).
-- *Against:* the global **active** adversary.
-- *Residual (bounded, not eliminated):* the Anonymity Trilemma floor (§6.6 item 1, Das et al.,
-  IEEE S&P 2018) — strong anonymity provably cannot be free; sub-threshold selective dropping stays
-  under the §4.4.7 detector (§6.6 item 1, §16.3); the colluding entry+exit floor is ≈ *f*² and is
-  **not** reduced by adding hops (§4.4.10). DMTAP *approaches* the mathematical floor as the
-  profile's latency/overhead grows; it does not claim to defeat an omnipotent active adversary. The
-  mechanism-model simulation corroborating this shape (chance-floor convergence, 20%-loss detection,
-  ≈ *f*² collusion, hops-≠-collusion-defense) is reported — with its honest caveats — in §6.10.
+**SP-4 — Sender anonymity against a GLOBAL ACTIVE adversary — NON-NORMATIVE, RESEARCH-TIER, scoped
+to the opt-in `private` mixnet only.**
+- *Claim (research-tier, not a default guarantee):* **IF** the opt-in `private` mixnet is in use,
+  a global *active* adversary (inject/drop/delay at will) is intended to be forced to pay latency
+  and/or bandwidth to correlate, with its drop/delay/flooding **detected and responded to** — but
+  **not fully defeated**. On the default `fast` tier there is **no** active-adversary defense of
+  any kind (§6.6 item 1) — this claim does not apply there at all.
+- *Would hold by (research-tier mechanism):* per-epoch replay caches, tagging-resistant Sphinx
+  (header MAC `γ` + wide-block LIONESS payload PRP), memoryless Poisson mixing
+  ([docs/research/mixnet.md §4.4.6](docs/research/mixnet.md)); loop-cover active-attack detection
+  → rotate + `HALT_ALERT` + fail-closed ([docs/research/mixnet.md
+  §4.4.7](docs/research/mixnet.md)); entry guards + **attested** operator-diversity
+  ([docs/research/mixnet.md §4.4.8](docs/research/mixnet.md)); fail-closed no-downgrade
+  ([docs/research/mixnet.md §4.4.9](docs/research/mixnet.md)); the user-selectable High-security
+  profile ([docs/research/mixnet.md §4.4.10](docs/research/mixnet.md)) — all of it research-tier
+  and opt-in.
+- *Against:* the global **active** adversary, only within the scope of the opt-in mixnet.
+- *Residual (bounded, not eliminated, and entirely conditional on opting in):* the Anonymity
+  Trilemma floor (§6.6 item 1, Das et al., IEEE S&P 2018) — strong anonymity provably cannot be
+  free; sub-threshold selective dropping stays under the [docs/research/mixnet.md
+  §4.4.7](docs/research/mixnet.md) detector (§6.6 item 1, §16.3); the colluding entry+exit floor
+  is ≈ *f*² and is **not** reduced by adding hops ([docs/research/mixnet.md
+  §4.4.10](docs/research/mixnet.md)). The mixnet *approaches* the mathematical floor as the
+  profile's latency/overhead grows; it does not claim to defeat an omnipotent active adversary, and
+  none of it applies to a party that has not opted in. The mechanism-model simulation
+  corroborating this shape (chance-floor convergence, 20%-loss detection, ≈ *f*² collusion,
+  hops-≠-collusion-defense) is reported — with its honest caveats, as research-tier corroboration,
+  not deployment evidence — in §6.10.
 
 **SP-5 — Recipient unlinkability (blinded delivery tags) — scoped to established contact.**
 - *Claim:* For an **established contact** (steady-state delivery, `to = BlindedTag`), an observer
@@ -525,8 +629,10 @@ reach**: strong against a global *passive* adversary, *bounded* (not defeated) a
   established-contact path only.
 - *Residual (stated, not overclaimed):* blinding removes the persistent-key linkage in the envelope;
   it does **not** hide *that a packet was delivered to a particular always-on node* — a stable
-  network presence is itself a fingerprint (§6.4 item 1, §2.2a). Recipient-side cover (§4.4.5) blurs
-  receipt *timing* but does not erase last-hop observability. Implementations MUST NOT present
+  network presence is itself a fingerprint (§6.4 item 1, §2.2a). Recipient-side cover
+  ([docs/research/mixnet.md §4.4.5](docs/research/mixnet.md), opt-in mixnet only) blurs receipt
+  *timing* for a recipient who has opted in, but does not erase last-hop observability, and on the
+  default `fast` tier there is no cover at all (§6.4 item 2). Implementations MUST NOT present
   blinded tags as full recipient anonymity (§2.2a). This is a *reduction*, not a solved property.
   **On the cold/first-contact path, DMTAP makes no recipient-unlinkability claim at all, and the
   gap is total, not partial:** a cold envelope's `to` is `KeyTag` — the recipient's own identity
@@ -548,11 +654,14 @@ reach**: strong against a global *passive* adversary, *bounded* (not defeated) a
   exists.** It does not apply, and is not weakened-but-still-partially-true for, a MOTE sent before
   one does — that case is a distinct, disclosed gap stated in the residual below, not a bounded
   degradation of this claim.
-- *Holds by:* MLS TreeKEM epoch advancement (§5.1, §5.2); mix-key epoch rotation + deletion at
-  `valid_until` gives the mixnet FS against later node seizure (§4.4.4); per-file keys for at-rest
-  blobs (§6.7); the optional deniable mode adds *per-message* FS/PCS via the Double Ratchet
-  (§5.2.1(b)).
-- *Against:* an adversary that later seizes a device or mix (FS), and a bounded-duration endpoint
+- *Holds by:* MLS TreeKEM epoch advancement (§5.1, §5.2); for a party that has opted into the
+  research-tier mixnet, mix-key epoch rotation + deletion at `valid_until` additionally gives
+  forward secrecy against later mix-node seizure
+  ([docs/research/mixnet.md §4.4.4](docs/research/mixnet.md), opt-in only); per-file keys for
+  at-rest blobs (§6.7); the optional deniable mode adds *per-message* FS/PCS via the Double
+  Ratchet (§5.2.1(b)).
+- *Against:* an adversary that later seizes a device (FS; a mix, additionally, only within the
+  opt-in mixnet), and a bounded-duration endpoint
   compromise that is subsequently revoked (PCS) — for traffic carried inside an established
   session.
 - *Residual:* MLS PCS is **per-epoch/per-Commit**, coarser than Double-Ratchet per-message healing —
@@ -594,10 +703,11 @@ reach**: strong against a global *passive* adversary, *bounded* (not defeated) a
   capability set; every downgrade is either refused (fail-closed) or a deliberate, user-surfaced
   choice.
 - *Holds by:* unknown `v`/`suite` rejected fail-closed (§10.1); per-contact suite high-water-mark
-  ratchet (§1.3, `0x020F`); fail-closed no `private → fast` and no High-security → Standard
-  downgrade (§4.4.9, `0x0310`); monotonic capability announcements (§10.2, `0x030A`); deniable-mode
-  no-silent-downgrade (§5.2.1(d), `0x040E`). These rules are collected and audited as a **set** in
-  §10.7.
+  ratchet (§1.3, `0x020F`); for a party that has opted into a stronger tier/profile, fail-closed
+  no silent `private → fast` and no silent High-security → Standard downgrade
+  ([docs/research/mixnet.md §4.4.9](docs/research/mixnet.md), `0x0310`); monotonic capability
+  announcements (§10.2, `0x030A`); deniable-mode no-silent-downgrade (§5.2.1(d), `0x040E`). These
+  rules are collected and audited as a **set** in §10.7.
 - *Against:* a global active adversary (DoS-to-downgrade) and an on-path MITM.
 - *Residual:* enforcement is per-recipient and local, so it is only as good as the implementation —
   "metadata privacy is weakest-link" (§6.6 item 5); a suite high-water-mark lowers **only** through
@@ -665,19 +775,19 @@ excluded, not covered.**
 
 ### 6.9.1 The map, in one table
 
-| # | Property | Holds by (§) | Against | Residual (§) |
-|---|----------|--------------|---------|--------------|
-| SP-1 | Message confidentiality (E2E) | §2.4, §5.1 | passive **+ active** | endpoint floor §6.6 item 3; gateway leg §7; first-contact §6.6 item 4; harvest-now §4.4.12 |
-| SP-2 | Content authenticity / integrity | §2.7 step 8, §2.2, §18.9 | passive **+ active** | binding = KT profile SP-9 / §6.6 item 6; deniable = MAC not sig §5.2.1(c) |
-| SP-3 | Sender anonymity vs global **passive** | §2.2, §4.4.5–6, §6.3, §3.7 | global passive (headline) | reduction not elimination §6.2, §6.4, §6.6 item 5, §4.4.11–12 |
-| SP-4 | Sender anonymity vs global **active** | §4.4.6–§4.4.10 | global active | Trilemma floor §6.6 item 1; sub-threshold drop §16.3 |
-| SP-5 | Recipient unlinkability (blinded tags) — **established contact only** | §2.2a, §6.4 | passive / final mix | last-hop observability remains §6.4 item 1, §2.2a; **cold path: no claim at all** — `to`=`KeyTag` + challenge fields (`origin`/`audience`/`epoch_nonce`) leak recipient §6.6 item 18 |
-| SP-6 | Forward secrecy + PCS — **established session only** | §5.2, §4.4.4, §6.7, §5.2.1(b) | later seizure / revoked compromise | per-epoch coarser §5.2; send-only = FS only §5.2.1(b); **pre-session HPKE MOTEs: no FS at all**, `epoch` absent, `fs_ratchet` removed as undefined |
-| SP-7 | Deniability / repudiation (1:1 opt-in) | §5.2.1 | cryptographic-transcript judge | default non-repudiable §5.2; not endpoint §6.6 item 3; X3DH online bound §5.2.1(e) |
-| SP-8 | Downgrade resistance | §1.3, §4.4.9, §10.2, §10.1 | active DoS / MITM | weakest-link §6.6 item 5 (full set §10.7) |
-| SP-9 | KT / equivocation detection | §3.5.2 (v1) / §3.5.1 (v0) | malicious KT log | **v0 not equivocation-proof §6.6 item 6** |
-| SP-10 | Recoverability from compromise | §1.4, §1.5, §6.7, §13.4 | loss / partial compromise | `IK`+quorum takeover; content needs backup §1.4 |
-| SP-11 | Anti-abuse without deanonymization — **ARC/PoW/postage only; vouch excluded** | §9.3–§9.5, §2.7 step 6, §9.2a | deanonymizing recipient/operator | issuer-layer only §9.3.2; committer vouch-trust power §9.9; **vouch (§9.7) discloses sender+voucher+recipient in cleartext — a carve-out, not a residual — §6.6 item 18, §9.1 item 4** |
+| # | Property | Status | Holds by (§) | Against | Residual (§) |
+|---|----------|--------|--------------|---------|--------------|
+| SP-1 | Message confidentiality (E2E) | normative, default | §2.4, §5.1 | passive **+ active** | endpoint floor §6.6 item 3; gateway leg §7; first-contact §6.6 item 4; harvest-now §5.1 |
+| SP-2 | Content authenticity / integrity | normative, default | §2.7 step 8, §2.2, §18.9 | passive **+ active** | binding = KT profile SP-9 / §6.6 item 6; deniable = MAC not sig §5.2.1(c) |
+| SP-3 | Sender anonymity vs global **passive** | **research-tier, OPT-IN mixnet only — not default** | §2.2 (sealed sender, default); [docs/research/mixnet.md §4.4.5–6](docs/research/mixnet.md), §6.3, §3.7 (opt-in) | global passive, **only within the opt-in mixnet** | reduction not elimination §6.2, §6.4, §6.6 item 5, [docs/research/mixnet.md §4.4.11–12](docs/research/mixnet.md); **no claim at all on the default `fast` tier** |
+| SP-4 | Sender anonymity vs global **active** | **research-tier, OPT-IN mixnet only — not default** | [docs/research/mixnet.md §4.4.6–§4.4.10](docs/research/mixnet.md) | global active, **only within the opt-in mixnet** | Trilemma floor §6.6 item 1; sub-threshold drop §16.3; **no defense at all on the default `fast` tier** |
+| SP-5 | Recipient unlinkability (blinded tags) — **established contact only** | normative, default (mixnet-only mitigation is opt-in) | §2.2a, §6.4 | passive / final mix | last-hop observability remains §6.4 item 1, §2.2a; **cold path: no claim at all** — `to`=`KeyTag` + challenge fields (`origin`/`audience`/`epoch_nonce`) leak recipient §6.6 item 18 |
+| SP-6 | Forward secrecy + PCS — **established session only** | normative, default (mix-key FS is opt-in mixnet extra) | §5.2, [docs/research/mixnet.md §4.4.4](docs/research/mixnet.md), §6.7, §5.2.1(b) | later seizure / revoked compromise | per-epoch coarser §5.2; send-only = FS only §5.2.1(b); **pre-session HPKE MOTEs: no FS at all**, `epoch` absent, `fs_ratchet` removed as undefined |
+| SP-7 | Deniability / repudiation (1:1 opt-in) | normative, default | §5.2.1 | cryptographic-transcript judge | default non-repudiable §5.2; not endpoint §6.6 item 3; X3DH online bound §5.2.1(e) |
+| SP-8 | Downgrade resistance | normative, default | §1.3, [docs/research/mixnet.md §4.4.9](docs/research/mixnet.md), §10.2, §10.1 | active DoS / MITM | weakest-link §6.6 item 5 (full set §10.7) |
+| SP-9 | KT / equivocation detection | normative, default | §3.5.2 (v1) / §3.5.1 (v0) | malicious KT log | **v0 not equivocation-proof §6.6 item 6** |
+| SP-10 | Recoverability from compromise | normative, default | §1.4, §1.5, §6.7, §13.4 | loss / partial compromise | `IK`+quorum takeover; content needs backup §1.4 |
+| SP-11 | Anti-abuse without deanonymization — **ARC/PoW/postage only; vouch excluded** | normative, default | §9.3–§9.5, §2.7 step 6, §9.2a | deanonymizing recipient/operator | issuer-layer only §9.3.2; committer vouch-trust power §9.9; **vouch (§9.7) discloses sender+voucher+recipient in cleartext — a carve-out, not a residual — §6.6 item 18, §9.1 item 4** |
 
 An implementation or a formal model that exhibits a counterexample to any SP-*n* **claim line
 above** — without invoking its stated residual — has found a spec-level defect, and it MUST be
@@ -690,21 +800,31 @@ Envoir monorepo), not in this spec repo. They are versioned against the mechanis
 are the executable counterpart to this falsifiable-claims table; a divergence between a model and
 this text is resolved in favor of the **spec** (§10.4).
 
-## 6.10 Measured anonymity evidence (mechanism-model simulation — supporting, not deployment proof)
+## 6.10 Measured anonymity evidence (mechanism-model simulation — research-tier, non-normative, supporting the opt-in mixnet only)
 
-The §6.9 properties are stated to be **refutable**; this subsection reports what a **mixnet
-anonymity simulator** in the reference measured when the §4.4 mechanisms were exercised against a
-global adversary. It is offered as **corroborating evidence** for SP-3/SP-4 (and the §6.6 item 1
-honest floor), and it is **explicitly caveated**:
+**This entire subsection is research-tier and non-normative**, exactly like the SP-3/SP-4 claims
+it corroborates ([docs/research/mixnet.md](docs/research/mixnet.md)) — it is evidence about the
+opt-in `private` mixnet, not about DMTAP's default (`fast`-tier) guarantee, and it is retained here
+(rather than moved) because it is evidence *about a claim*, stated in falsifiable form in §6.9,
+not machinery a future graduation needs to restore byte-for-byte. The §6.9 properties are stated
+to be **refutable**; this subsection reports what a **mixnet anonymity simulator** in the
+reference measured when the opt-in mixnet's mechanisms
+([docs/research/mixnet.md §4.4](docs/research/mixnet.md)) were exercised against a global
+adversary. It is offered as **corroborating evidence** for SP-3/SP-4 (and the §6.6 item 1 honest
+floor) — properties that hold, if at all, only for a party that has opted into that research-tier
+layer — and it is **explicitly caveated**:
 
-> **This is a mechanism-model simulation, NOT the deployed network.** The simulator models the
-> §4.4 constructions — Poisson per-hop mixing, loop/drop cover, stratified path selection, entry
-> guards, operator diversity, and colluding-mix placement — under an idealized traffic model. It
-> is a *sanity check that the mechanisms behave as designed in the abstract*, not a measurement of
-> a real fleet, and it is **not a substitute** for the pre-deployment external audit gate
-> (§12.8.4). Real-world anonymity depends on the live anonymity set (§4.4.11), implementation
-> fidelity (the weakest-link caveat, §6.6 item 5), and side channels a mechanism model does not
-> capture. No production claim rests on these numbers.
+> **This is a mechanism-model simulation, NOT the deployed network, and it says nothing about the
+> default `fast` tier.** The simulator models the opt-in mixnet's constructions
+> ([docs/research/mixnet.md §4.4](docs/research/mixnet.md)) — Poisson per-hop mixing, loop/drop
+> cover, stratified path selection, entry guards, operator diversity, and colluding-mix placement
+> — under an idealized traffic model. It is a *sanity check that the mechanisms behave as designed
+> in the abstract*, not a measurement of a real fleet (none has shipped), and it is **not a
+> substitute** for the pre-deployment external audit gate (§12.8.4). Real-world anonymity depends
+> on the live anonymity set ([docs/research/mixnet.md §4.4.11](docs/research/mixnet.md)),
+> implementation fidelity (the weakest-link caveat, §6.6 item 5), and side channels a mechanism
+> model does not capture. No production claim rests on these numbers, and no claim here extends to
+> a party that has not opted into the mixnet.
 
 With that caveat, the simulator's four measured findings each map to a claimed property:
 
@@ -714,25 +834,28 @@ With that caveat, the simulator's four measured findings each map to a claimed p
    cover-traffic rate and hop count increased: with enough cover and mixing, the adversary's
    guess approached a **uniform random guess over the anonymity set**. This is the mechanism-model
    evidence for **SP-3** (sender anonymity vs. global passive) and shows *why* cover traffic is
-   load-bearing, not optional (§6.2, §4.4.5) — the convergence is *to* the floor, not *below* it,
-   and it is a floor set by N, i.e. by adoption (§4.4.11), which the model idealizes.
+   load-bearing, not optional (§6.2, [docs/research/mixnet.md §4.4.5](docs/research/mixnet.md)) — the convergence is *to* the floor, not *below* it,
+   and it is a floor set by N, i.e. by adoption ([docs/research/mixnet.md §4.4.11](docs/research/mixnet.md)), which the model idealizes.
 
 2. **Active drop attacks are detected at the 20%-loss loop threshold.** When the simulated
-   adversary dropped packets on a target's paths, the **loop-cover return fraction** (§4.4.7) fell
-   below its detection threshold at ≈ **20% loss** (§16.3), triggering the inferred-active-attack
-   response — rotate + `HALT_ALERT` + fail-closed (`0x030F`). This is the evidence for **SP-4**'s
-   "drop/delay is *detected and responded to*": above-threshold suppression is caught; the honest
-   residual is **sub-threshold** dropping (< 20%), which stays under the detector but, dropping so
-   little, accomplishes correspondingly little (§6.6 item 1). Faster loops (High-security, §4.4.10)
-   tighten this floor.
+   adversary dropped packets on a target's paths, the **loop-cover return fraction**
+   ([docs/research/mixnet.md §4.4.7](docs/research/mixnet.md)) fell below its detection threshold
+   at ≈ **20% loss** (§16.3), triggering the inferred-active-attack response — rotate +
+   `HALT_ALERT` + fail-closed (`0x030F`). This is the evidence for **SP-4**'s "drop/delay is
+   *detected and responded to*": above-threshold suppression is caught; the honest residual is
+   **sub-threshold** dropping (< 20%), which stays under the detector but, dropping so little,
+   accomplishes correspondingly little (§6.6 item 1). Faster loops (High-security,
+   [docs/research/mixnet.md §4.4.10](docs/research/mixnet.md)) tighten this floor.
 
 3. **Anonymity degrades with the compromised fraction f, tracking ≈ f².** As the fraction *f* of
    mixes under adversary control grew, the simulated deanonymization probability rose **≈ f²** —
    the joint probability that **both** the entry **and** the exit of a path are adversarial, the
    placement from which a colluding pair correlates a flow. This is the quantitative shape of the
-   §4.4.8 bound and of the §6.6 item 1 residual: entry guards + **attested** operator diversity
-   (§4.4.8) are what hold the exponent at ≈ *f*² rather than letting a single Sybil operator faking
-   *N* identities collapse it to ≈ *f* (§4.4.8, §10.7.2). It also quantifies **SP-4**'s "bounded,
+   [docs/research/mixnet.md §4.4.8](docs/research/mixnet.md) bound and of the §6.6 item 1
+   residual: entry guards + **attested** operator diversity ([docs/research/mixnet.md
+   §4.4.8](docs/research/mixnet.md)) are what hold the exponent at ≈ *f*² rather than letting a
+   single Sybil operator faking *N* identities collapse it to ≈ *f* ([docs/research/mixnet.md
+   §4.4.8](docs/research/mixnet.md), §10.7.2). It also quantifies **SP-4**'s "bounded,
    not eliminated" — the bound is ≈ *f*², not zero.
 
 4. **More hops defend against timing correlation but NOT against colluding entry+exit mixes.** The
@@ -742,9 +865,10 @@ With that caveat, the simulator's four measured findings each map to a claimed p
    middle hops does not reduce the chance that the two *ends* are both adversarial. Hop count and
    operator diversity therefore defend **different** attacks: hops buy timing-correlation resistance
    (against observers), diversity + guards buy entry+exit-collusion resistance (against colluding
-   mixes), and **neither substitutes for the other** (§4.4.10). Any claim that "just add more hops"
-   defeats a colluding-endpoint adversary is refuted by this measurement; the normative
-   prohibition on making that claim is owned by §6.6 item 1 — this section stays informative.
+   mixes), and **neither substitutes for the other** ([docs/research/mixnet.md
+   §4.4.10](docs/research/mixnet.md)). Any claim that "just add more hops" defeats a
+   colluding-endpoint adversary is refuted by this measurement; the normative prohibition on
+   making that claim is owned by §6.6 item 1 — this section stays informative.
 
 **Honest reading.** These results *support* the claims exactly as §6.9 states them and *refute* the
 overclaims §6.6 disallows: passive correlation is driven to the chance floor (not below), active

@@ -173,110 +173,16 @@ hashcash asymmetry favors organized spammers (botnets/GPUs) over low-power legit
 asymmetry, and difficulty SHOULD be adaptive. Prefer the token/reputation path (§9.3) whenever
 available.
 
-### 9.4.1 Sequential work (VDF) as an OPTIONAL cold-contact cost (normative)
+### 9.4.1 Sequential work (VDF) as an OPTIONAL cold-contact cost — RELOCATED (non-normative, research-tier)
 
-Memory-hardness narrows the parallel adversary's advantage; it does not remove it. A GPU farm or
-a botnet still computes Argon2 far faster in aggregate than a phone, so the cost gradient
-continues to run **against** the legitimate low-power sender and **for** the organized one —
-which is the wrong way round for a mechanism whose entire purpose is to make bulk sending
-uneconomic. Against precisely the adversary this protocol is designed to withstand — one whose
-defining advantage is **access to a great deal of compute** — a compute-denominated puzzle is the
-weakest possible choice of scarcity.
-
-Rank the available scarcities by how much an adversary's compute budget helps them:
-
-| Scarcity | Does rented compute help? | Mechanism |
-|---|---|---|
-| **Social proximity** | Not at all — cannot be bought | vouch / introduction (§9.7) |
-| **Money** | No — cost is linear, no asymmetry to exploit | postage (§9.5) |
-| **Sequential time** | *Aggregate* parallelism buys ≈ nothing; a ≈ **10–100×** per-gate latency advantage remains | **VDF (this section)** |
-| **Parallel compute** | Yes — the whole compute budget applies | memory-hard PoW (§9.4) |
-
-A **Verifiable Delay Function** — a Wesolowski- or Pietrzak-style sequential-squaring VDF over the
-same scope as §9.4 (`id ‖ recipient ‖ nonce(epoch)`, §16.5), delay parameter set so one legitimate
-message costs a few seconds of wall-clock — is therefore an attractive shape of cost, for two
-reasons:
-
-- **It bounds the *aggregate-parallelism* advantage.** Repeated squaring is believed not to
-  parallelize, so 100 000 rented cores compute one puzzle no faster than one core does: a botnet's
-  breadth buys it essentially nothing *per puzzle*. **This is not the same as flattening the
-  hardware spread.** What survives untouched is the
-  **per-gate latency constant factor** — faster silicon, a tighter multiplier, an ASIC — which the
-  VDF literature itself budgets as a routine design parameter (a ≈ 10× faster-evaluator allowance)
-  and separately reasons about at ASIC scale (≈ 100×). The honest claim is therefore: a VDF turns
-  *"as fast as your whole fleet"* into *"as fast as your single best circuit"*, a **10–100×**
-  residual advantage, not a ≈ 10× total spread against ≈ 1000×.
-- **Verification is asymmetric by construction, which independently fixes a DoS hole.** A VDF
-  proof verifies in milliseconds regardless of how long it took to produce. This removes the
-  problem §9.4 is forced to work around above: because Argon2id verification costs the *recipient*
-  roughly what it cost the *sender*, a flood of bogus PoW attachments is itself a memory/CPU
-  denial-of-service on the recipient, which is why that clause must impose a verification budget
-  and defer unverified MOTEs. A VDF has no such symmetry — a recipient can verify every proof it
-  is offered, cheaply, and needs no defer-without-verifying escape hatch.
-
-**Conformance — VDF is MAY; memory-hard PoW is the MUST floor (normative).** The interoperable
-floor is the older mechanism, deliberately, and the VDF is an option layered above it rather than
-a recommendation:
-
-- A recipient's `ChallengeSpec` (§9.2) MAY specify `vdf(delay)` **alongside** `pow(bits)`, and an
-  implementation **MAY** prefer `vdf` where both parties support it. It is deliberately **not** a
-  `SHOULD`: the disclosures below — a conjectural, processor-bounded sequentiality assumption and
-  a construction that is **not post-quantum** — are not the grounds on which this specification
-  recommends anything.
-- A conformant recipient **MUST accept a valid memory-hard PoW solution** (§9.4) as satisfying its
-  cold-contact requirement, subject only to the verification budget below and to the recipient's
-  own rate policy. It **MUST NOT** require a VDF as the *only* acceptable proof, because that would
-  make reachability conditional on an unstandardized construction (below) — and a sender who cannot
-  produce the one proof a recipient will take is simply undeliverable, which §9.7a exists to
-  prevent. A VDF-only cold-contact policy is therefore itself non-conformant
-  (`ERR_POLICY_BELOW_FLOOR`, `0x070F`, §21.10), exactly as any policy under which a valid work
-  proof is never sufficient is.
-- The binding rule of §9.2a applies to both: the proof's scope MUST include `sender_key`, so a
-  stolen proof is worthless under any other ephemeral key. Parameters are pinned in §16.5.
-
-**Honest limits — the three reasons this is a MAY and not the floor.** Each is a property of the
-construction, not a maturity opinion:
-
-1. **Sequentiality is a conjecture, and it is bounded by a processor count — not a theorem.** The
-   foundational VDF definition permits `Eval` up to **poly log(t) parallelism**, and observes that
-   constructions requiring *no* parallelism are "unlikely to exist (without trusted hardware)".
-   Sequentiality is defined only **relatively**: a VDF is `(p, σ)`-sequential against an adversary
-   holding at most `p(t)` processors. Both the Wesolowski and Pietrzak constructions then inherit
-   their sequentiality from an **unproven belief** about repeated squaring in a group of unknown
-   order. "Cannot be parallelized" is therefore shorthand for "is believed not to parallelize,
-   against an adversary below a stated processor bound" — which is a perfectly usable engineering
-   assumption for a spam cost, and not one to build a MUST on.
-2. **It bounds aggregate parallelism only** — see above. A **10–100×** per-gate latency advantage
-   for better silicon remains fully intact, so the gradient is improved, not inverted.
-3. **It is not post-quantum, and the rest of this suite is.** Both named constructions rest on a
-   **group of unknown order**; a quantum adversary computes that order and collapses `t` sequential
-   squarings into a **single reduced exponentiation**, destroying exactly the sequentiality the
-   anti-abuse use depends on. **No simple post-quantum VDF exists to substitute.** Pinning a
-   PQ-hybrid suite as the REQUIRED default (§1.1, justified by harvest-now-decrypt-later) while
-   *recommending* an RSA-group or class-group VDF would be internally inconsistent.
-
-   **Why that inconsistency is tolerable rather than fatal — stated plainly rather than hidden.**
-   The two exposures are not the same kind of thing. A quantum break of the KEM is
-   **retroactive**: traffic recorded today is decrypted later, and nothing done afterwards repairs
-   it — which is why §1.1 pays for PQ up front. A quantum break of the VDF is **prospective and
-   local**: it makes cold-contact work cheap *from that day forward* for whoever holds the machine,
-   costing the recipient some additional junk in the **requests area** (never the inbox, §2.7a),
-   and it is repaired by the recipient raising `pow(bits)` or leaning on the vouch (§9.7), postage
-   (§9.5) and ARC (§9.3) tiers, none of which depend on it. A future spam-cost problem is
-   survivable; a retroactive confidentiality catastrophe is not. The VDF is confined to the tier
-   where that asymmetry holds, and is a `MAY` so that no reachability ever depends on it.
-
-**And a setup problem, weaker than the strong form of the objection.** A group of unknown order is
-in practice either an **RSA modulus from a trusted setup** — whoever generated it can shortcut
-every puzzle — or a **class group** of an imaginary quadratic field, which needs no setup. The
-trusted-setup objection is real but not decisive: the same literature offers a **sufficiently
-large random `N`** as an alternative (noting the cost — it gives the adversary *more*
-parallelization opportunity and increases verifier time) as well as class groups. What actually
-keeps a VDF out of the floor is not that class groups are unproven — this specification makes no
-such claim — but that there is **no IETF standard, no interoperable parameter set and no pinned
-proof encoding** for either choice, so two independent implementations cannot be expected to agree
-byte-for-byte. That is the opposite of what a floor is for. Memory-hard PoW is the weaker mechanism
-that everyone can implement today, which is exactly what makes it the floor.
+A **Verifiable Delay Function** (Wesolowski-/Pietrzak-style sequential squaring) as an additional,
+optional cold-contact cost — layered *above*, never *instead of*, the memory-hard PoW floor above
+— is a **research-tier, OPT-IN** mechanism; see
+[docs/research/vdf.md](docs/research/vdf.md), which carries this subsection's full former content
+verbatim. It is **not normative and not conformance-tested**. The interoperable floor stays
+memory-hard PoW (§9.4, above), unchanged by this move: §9.7a already states, independently, that a
+conformant recipient MUST accept a bare memory-hard PoW solution and MUST NOT require a VDF as the
+only acceptable proof.
 
 **Bounding verification cost — the verifier's own memory-hard budget (normative).** A memory-hard
 Argon2id verification is **symmetric**: checking a solution costs the recipient roughly what
@@ -330,20 +236,24 @@ For decentralized legacy gateways (§7):
 - **Per-identity accountability**: every outbound handoff carries the sender's signature +
   postage, so a gateway attributes abuse to a *token/identity*, not an IP — making a shared
   reputation pool safe to decentralize.
-- **Structural independence**: operator attestation plus **ASN/jurisdiction diversity**
-  (§4.4.8) — the Sybil-resistance mechanisms that need no adjudicator. DMTAP deliberately does
-  **not** specify an operator stake/bond or a slashing scheme: enforcing one requires an escrow
-  and an adjudicator empowered to seize funds, which is a central authority more powerful than
-  anything else in this specification (§4.4.8, normative note). Deployments may run bonds as
-  operator policy; the protocol claims no such deterrent.
+- **Structural independence**: operator attestation plus **ASN/jurisdiction diversity** — the
+  same Sybil-resistance reasoning applied to the (research-tier, opt-in) mixnet's entry-guard
+  diversity ([docs/research/mixnet.md §4.4.8](docs/research/mixnet.md)) — needs no adjudicator.
+  DMTAP deliberately does **not** specify an operator stake/bond or a slashing scheme: enforcing
+  one requires an escrow and an adjudicator empowered to seize funds, which is a central authority
+  more powerful than anything else in this specification (§12.8.6; see also
+  [docs/research/mixnet.md](docs/research/mixnet.md)'s parallel normative note for the mixnet
+  case). Deployments may run bonds as operator policy; the protocol claims no such deterrent.
 - **Reputation routing — locally measured, never globally published**: each node routes outbound
   legacy mail by **its own** measured deliverability-to-destination, and bad operators lose that
   node's traffic. This is the enforcement mechanism — automatic, adjudicator-free, and applied by
   each node independently. A **network-wide published score is forbidden** (§7.5): computing one
-  requires a party that aggregates and ranks, which is the directory-authority problem §4.4.2
-  deleted from the mixnet, re-created for gateways — a single point of censorship over who may
-  carry legacy mail. Local measurement is also strictly more accurate, since deliverability is
-  per-sender and per-destination rather than a global scalar.
+  requires a party that aggregates and ranks, which is the same directory-authority problem the
+  (research-tier) mixnet's derived fleet view was designed to avoid
+  ([docs/research/mixnet.md §4.4.2](docs/research/mixnet.md)) — re-created for gateways it would
+  be a single point of censorship over who may carry legacy mail. Local measurement is also
+  strictly more accurate, since deliverability is per-sender and per-destination rather than a
+  global scalar.
 
 ## 9.7 Vouch / introduction (first-class)
 
@@ -403,11 +313,13 @@ the opposite.
 Therefore: **a conformant recipient MUST NOT operate a policy under which a valid work proof is
 never sufficient** — it MUST admit, up to the aggregate resource budget of §16.5, a sender
 presenting **only** a
-valid work proof — **either** a sequential-work proof (`vdf`, §9.4.1) **or** a memory-hard PoW
+valid work proof — **either** a sequential-work proof (`vdf`, §9.4.1 —
+[docs/research/vdf.md](docs/research/vdf.md), research-tier and OPT-IN) **or** a memory-hard PoW
 solution (§9.4), the recipient's choice of preference but **both** acceptable — bound to the
 recipient's current epoch beacon, with **no** token, **no** postage, and **no** vouch. A recipient
 that would accept only a VDF has set an unstandardized, non-post-quantum construction as the price
-of contacting it (§9.4.1), which is the floor failing in a new way rather than holding. Floor deliveries land in the requests area (§2.7a), not
+of contacting it ([docs/research/vdf.md §9.4.1](docs/research/vdf.md)), which is the floor failing
+in a new way rather than holding. Floor deliveries land in the requests area (§2.7a), not
 the inbox — the recipient's surfacing policy is unchanged and the user still sees nothing they
 did not ask for. What the floor guarantees is narrower and non-negotiable: that a stranger with
 nothing but a keypair and a few seconds of work — memory-hard by default, sequential if the
@@ -452,34 +364,42 @@ is a network where only the already-connected can participate, which is the prec
 naming ladder (§3.13) and the key-name floor (§3.9.6) exist to prevent. This is a
 collective-action problem, and the only place to solve it is in the conformance requirements.
 
-## 9.8 Mixnet abuse
+## 9.8 Mixnet abuse (scoped to the opt-in research-tier mix role)
+
+This section applies **only to an implementation that has chosen to run the research-tier mix
+role** (§4.4, [docs/research/mixnet.md](docs/research/mixnet.md)) — it is conditional on that
+opt-in choice, not a Core requirement, and does not apply to a node that only ever forwards `fast`
+tier traffic. For a node that does run the mix role, the following remain the correct rules:
 
 Mix nodes are content-blind and cannot filter content — and, crucially, an entry mix **cannot**
 verify the recipient-facing anti-abuse proof (ARC token / postage / PoW) either. The proof rides
-the **cleartext envelope**, not the payload (§2.2b) — but Sphinx onion-layering (§4.4) hides that
-envelope from every mix except the one peeling the final layer: each mix peels exactly one layer
-and forwards on its own hop's routing info alone, never seeing the recipient-scoped envelope
-underneath. Only the **exit mix** peels that last layer and sees `challenge`; an entry mix has
-nothing to check because the proof has not yet been revealed to it, not because it is sealed
-inside encrypted payload. Mixnet flood-abuse is therefore bounded by mechanisms a
-**content-blind** node can actually apply:
+the **cleartext envelope**, not the payload (§2.2b) — but Sphinx onion-layering
+([docs/research/mixnet.md §4.4](docs/research/mixnet.md)) hides that envelope from every mix
+except the one peeling the final layer: each mix peels exactly one layer and forwards on its own
+hop's routing info alone, never seeing the recipient-scoped envelope underneath. Only the **exit
+mix** peels that last layer and sees `challenge`; an entry mix has nothing to check because the
+proof has not yet been revealed to it, not because it is sealed inside encrypted payload. Mixnet
+flood-abuse is therefore bounded by mechanisms a **content-blind** node can actually apply:
 
-- **Per-connection / per-guard-operator rate limiting (MUST).** An entry mix admits Sphinx cells
-  under a **per-connection and per-operator rate budget** — it limits how fast any one source (and
-  any one upstream operator) may inject cells — **not** by inspecting a sealed recipient proof it
-  cannot read. This is the honest entry-admission control: it caps injection rate blind to content.
+- **Per-connection / per-guard-operator rate limiting (MUST, for an implemented mix role).** An
+  entry mix admits Sphinx cells under a **per-connection and per-operator rate budget** — it
+  limits how fast any one source (and any one upstream operator) may inject cells — **not** by
+  inspecting a sealed recipient proof it cannot read. This is the honest entry-admission control:
+  it caps injection rate blind to content.
 - **Optional mix-visible anti-flood PoW (MAY).** A mix MAY additionally require a **small
   proof-of-work bound to the mix hop itself** (a puzzle over the cell + epoch the mix *can* check
   without decrypting) as an anti-flood cost knob under load — distinct from the recipient's §9.4
   cold-sender PoW, which the mix cannot see.
-- **Operator rate limits and attested diversity (MUST).** Operator-level rate limits, plus the
-  attested-operator and ASN-diversity requirements of §4.4.8, make sustained flooding costly and
+- **Operator rate limits and attested diversity (MUST, for an implemented mix role).**
+  Operator-level rate limits, plus the attested-operator and ASN-diversity requirements of
+  [docs/research/mixnet.md §4.4.8](docs/research/mixnet.md), make sustained flooding costly and
   attributable without requiring any adjudicator to seize a bond (§9.6).
 
 The recipient's token/postage/PoW proof (§9.3–§9.5) still gates whether the message is *accepted
 into the recipient's inbox* — but it is enforced at the **recipient**, after mix delivery, never
 mistaken for something an entry mix verifies. Cover traffic is itself **rate-bounded per node**
-(§4.4.7) so cover cannot be turned into the flood.
+([docs/research/mixnet.md §4.4.7](docs/research/mixnet.md)) so cover cannot be turned into the
+flood.
 
 ## 9.9 Group-address amplification
 
