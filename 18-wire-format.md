@@ -1725,14 +1725,14 @@ CapabilityRevocation = {
 |--------|-------|----:|------|----------|-----------------------|
 | `CapabilityToken` | `iss` | 2 | `ik-pub` | MUST | The delegator. For the **root** link (`prnt` absent) `iss` MUST be an authority the verifier already trusts for `caps` — the user's `IK`/device key (§13.5) or the **domain authority** for org roles (§13.5.1). |
 | | `aud` | 3 | `ik-pub` | MUST | The delegatee this grant empowers; to **invoke**, a party proves possession of `aud` (via the session/DPoP key, §13.4). |
-| | `caps` | 4 | `[+ Capability]` | MUST | The granted rights. **Attenuation invariant:** each `Capability` MUST be **≤** a capability granted by the parent (`prnt`) — same-or-narrower `resource`, same `ability`, and caveats only **added/tightened**. A token granting anything its parent did not is invalid (`ERR_CAPABILITY_DELEGATION_INVALID`, `0x0508`). |
+| | `caps` | 4 | `[+ Capability]` | MUST | The granted rights. **Attenuation invariant:** each `Capability` MUST be **≤** a capability granted by the parent (`prnt`) — same-or-narrower `resource`, same `ability`, and caveats only **added/tightened** — the caveat half is enforced *by construction*, since verification evaluates the caveats of **every** link (§18.7.3 step 4), so omitting a parent's caveat does not drop it. A token granting anything its parent did not is invalid (`ERR_CAPABILITY_DELEGATION_INVALID`, `0x0508`). |
 | | `nbf`/`exp` | 5/6 | `u64` | MUST | Validity window; `exp` is REQUIRED (no eternal capability). Outside the window ⇒ `0x0508`. |
 | | `nonce` | 7 | `bytes` | MUST | Uniqueness salt so two otherwise-identical grants have distinct content addresses (needed for precise revocation). |
 | | `prnt` | 8 | `hash` | OPTIONAL | Content-address of the parent token in the delegation chain. **Absent ⇒ rooted at `iss`.** A verifier MUST validate the **whole chain** to a trusted root, checking the attenuation invariant at every link and that each link's `iss` equals its parent's `aud`. |
 | | `sig` | 9 | `sig-val` | MUST | `iss` signature over the body (§18.9.14). Invalid ⇒ `0x0508`. |
 | `Capability` | `resource` | 1 | `tstr` | MUST | The scoped object/namespace the ability applies to. |
 | | `ability` | 2 | `tstr` | MUST | The permitted verb; an invocation whose requested ability/resource is not covered is rejected (`0x0508`). |
-| | `caveats` | 3 | map | OPTIONAL | Attenuating conditions; a child MAY add caveats, never remove a parent's. |
+| | `caveats` | 3 | map | OPTIONAL | Attenuating conditions — **purely restrictive and conjunctive**. A caveat may only *narrow* what is exercisable: there is **no exemption/override caveat form**, and a verifier MUST NOT interpret any caveat as relaxing a restriction imposed anywhere else in the chain. An invocation MUST satisfy **every caveat on every link of the chain**, not merely the leaf's (§18.7.3 verification step 4) — so a child cannot drop a parent's caveat by omitting it, since the parent's is evaluated regardless. This is what makes "a child MAY add caveats, never remove a parent's" **self-enforcing by construction** rather than a rule needing a caveat comparator. A verifier that does **not recognise** a caveat key MUST **fail closed** (`ERR_CAPABILITY_DELEGATION_INVALID`, `0x0508`) — never ignore it, and never treat it as permission. |
 | `CapabilityRevocation` | `iss` | 2 | `ik-pub` | MUST | MUST be the token's own `iss` or an **ancestor** issuer in its chain — only an issuer (or someone it delegated *from*) may revoke; a stranger cannot. |
 | | `token` | 3 | `hash` | MUST | Content-address of the revoked `CapabilityToken` (revoking a chain root revokes all descendants). A verified revocation makes any invocation of that token (or descendant) fail `ERR_CAPABILITY_REVOKED` (`0x050B`). |
 | | `ts`/`sig` | 4/5 | | MUST | Revocation time and `iss` signature (§18.9.14). Revocations are **published to the transparency log / status endpoint** (§13.4, §13.5.1) and MUST be routed through the owner's/domain's KT self-monitoring path so a silent grant/revoke is owner-visible (§13.5). |
@@ -1740,8 +1740,9 @@ CapabilityRevocation = {
 **Verification (normative).** To honor an invocation a verifier MUST: (1) validate the token's
 signature and, if `prnt` present, the **entire chain** to a trusted root; (2) check the
 **attenuation invariant** at every link (each narrows its parent); (3) check `nbf ≤ now ≤ exp` at
-every link; (4) confirm the requested `(resource, ability)` is covered by the leaf `caps` and all
-caveats are satisfied; (5) confirm the invoker proves possession of the leaf `aud` key; (6) check
+every link; (4) confirm the requested `(resource, ability)` is covered by the leaf `caps` **and that
+every caveat on every link of the chain — not merely the leaf's — is satisfied**, failing closed on any
+caveat key the verifier does not recognise; (5) confirm the invoker proves possession of the leaf `aud` key; (6) check
 **no** `CapabilityRevocation` (from the token's `iss` or an ancestor) covers the token or any chain
 link. Any failure of (1)–(4) is `0x0508`; a revocation hit at (6) is `0x050B`. Verification is
 otherwise **offline** — no issuer round-trip — matching §13.5.
