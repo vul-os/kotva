@@ -59,8 +59,9 @@ problem is never hard-wired — it is a swappable **binding** or a fenced **coor
    property, not a hope: [`coordinator/CONTRACT.md`](coordinator/CONTRACT.md).
 5. **BINDINGS** — one thin mapping document per adopted standard; swap when the frontier improves:
    [`bindings/README.md`](bindings/README.md).
-6. **PROFILES** — mail, commerce, work, social, media, calling, discovery, reachability — each a thin
-   composition, no new cryptography: [`profiles/`](profiles/) + the numbered DMTAP-mail sections.
+6. **PROFILES** — mail, commerce, work, social, media, calling, discovery, reachability, managed
+   infrastructure (DEPOT) — each a thin composition, no new cryptography: [`profiles/`](profiles/) +
+   the numbered DMTAP-mail sections.
 
 ---
 
@@ -117,9 +118,9 @@ content-visibility class** (§2.4/§3), and **authorizes but never classifies** 
 (§6). `gateway` ([`§7`](07-gateway.md)) and the legacy `adapter`s ([`§26`](26-legacy-adapters.md)) are
 the first fully-worked instances; every kind inherits the four clauses unchanged.
 
-Canonical, exhaustive kind list (11 kinds, incl. `compute` and the load-bearing
-`custodial-escrow` exception): [`coordinator/CONTRACT § 5`](coordinator/CONTRACT.md) — that
-table governs; it is not reproduced here to avoid drift.
+Canonical, exhaustive kind list (12 kinds, incl. `compute`, the draft `infra-service`, and the
+load-bearing `custodial-escrow` exception): [`coordinator/CONTRACT § 5`](coordinator/CONTRACT.md) —
+that table governs; it is not reproduced here to avoid drift.
 
 `indexer` and `matcher` add **reach, never authority**, by contract — but whether a fenced,
 swappable role actually stops search, ranking, and matching from re-concentrating the way real

@@ -1813,7 +1813,7 @@ defined object below.
 **One object family for every coordinator kind, not one per kind.** CONTRACT §5 states that
 `gateway` (§7) and the legacy `adapter`s (§26) are the first, fully-worked instances of the
 contract, and that every other kind (`relay`, `media-relay`, `reachability-adapter`, `indexer`,
-`labeler`, `matcher`, `compute`, `arbiter`, `oracle`, `custodial-escrow`) inherits the same four
+`labeler`, `matcher`, `compute`, `infra-service`, `arbiter`, `oracle`, `custodial-escrow`) inherits the same four
 clauses unchanged. `CoordinatorDescriptor`/`Tariff`/`UsageReceipt` are correspondingly **one**
 object family, keyed by the `kind` field (§18.8a.1, key 2) rather than one bespoke shape per kind
 — a `gateway`'s domain/modes/attestation-selector (§7.5) and an adapter's rail/mode/initiation-
@@ -1859,7 +1859,7 @@ Tariff = {
 | Field | Key | Type | Presence | Meaning & constraints |
 |-------|----:|------|----------|-----------------------|
 | `suite` | 1 | `suite` | MUST | Signature suite of `sig`. Under a composite suite (`0x02`–`0x05`) this field is what pins the signed representative (§18.9's family form `M' = DS-tag ‖ 0x00 ‖ u8(suite) ‖ det_cbor(body)`); without it two implementations of a composite suite cannot agree on the preimage. |
-| `kind` | 2 | `tstr` | MUST | One of the CONTRACT §5 canonical kind strings (`"gateway"`, `"relay"`, `"media-relay"`, `"reachability-adapter"`, `"indexer"`, `"labeler"`, `"matcher"`, `"compute"`, `"arbiter"`, `"oracle"`, `"custodial-escrow"`). An unknown `kind` MUST be treated as an undeclared coordinator (§2.4) — a client MUST NOT rely on a descriptor whose kind it does not recognize. |
+| `kind` | 2 | `tstr` | MUST | One of the CONTRACT §5 canonical kind strings (`"gateway"`, `"relay"`, `"media-relay"`, `"reachability-adapter"`, `"indexer"`, `"labeler"`, `"matcher"`, `"compute"`, `"infra-service"`, `"arbiter"`, `"oracle"`, `"custodial-escrow"`). An unknown `kind` MUST be treated as an undeclared coordinator (§2.4) — a client MUST NOT rely on a descriptor whose kind it does not recognize. |
 | `identity` | 3 | `ik-pub` | MUST | The coordinator's attested substrate identity (CONTRACT §2.1). The descriptor is self-certifying — `sig` (key 7) is verified against this same field, never an external identity. |
 | `visibility` | 4 | `Visibility` | MUST | Exactly one declared class at one assurance level (CONTRACT §2.4, §3.1, §3.3); `class` ∈ `{"blind","blind-routing","terminating"}`, `level` ∈ `{"structural","attested","declared"}`. An unrecognized value in either sub-field MUST be rejected, not defaulted (fail-closed, mirrors §18.1.2's unknown-key rule for the enclosing choice). A `terminating` class MUST declare `level = "declared"` (there is no `"structural"` assurance level for a plaintext-terminating role; `"declared"` is the honest-trust level, CONTRACT §3.3). |
 | `policy` | 5 | `bytes` | MUST | Opaque deterministic-CBOR operator policy (region, capabilities, contact, and every kind-specific field §7.5/§26.3.1 already enumerate for `gateway`). This document does not interpret it; it exists so §2.1's "no reputation/price/stake field" rule has exactly one escape hatch (self-declared, never a ranking input) rather than a slow accretion of new top-level descriptor keys. |

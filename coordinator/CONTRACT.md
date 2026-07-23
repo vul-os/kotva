@@ -160,10 +160,10 @@ is permitted; "gate what reaches you" is not.
 ## 5. Coordinator kinds (all instances of the contract)
 
 **This table is the single canonical, authoritative list of coordinator kinds for the entire
-KOTVA family.** It names **eleven** kinds — ten fully-specified, one (`compute`) provisional —
-and no other document may enumerate a different count or add a kind not listed here; a document
-that needs to talk about "how many coordinator kinds exist" cites this table rather than
-re-deriving its own tally.
+KOTVA family.** It names **twelve** kinds — ten fully-specified, one (`compute`) provisional, and
+one (`infra-service`) draft ([profiles/cloud.md](../profiles/cloud.md)) — and no other document may
+enumerate a different count or add a kind not listed here; a document that needs to talk about "how
+many coordinator kinds exist" cites this table rather than re-deriving its own tally.
 
 | Kind | Provides | Typical visibility |
 |---|---|---|
@@ -171,6 +171,7 @@ re-deriving its own tally.
 | **relay** | Mesh reachability for NAT'd peers | `blind` / structural |
 | **media-relay** | Forwards SFrame-encrypted call/stream media (scales calls) | `blind-routing` / structural — media payload sealed by SFrame; per-frame metadata, RTP routing, size, timing, participant graph are visible to the SFU (RFC 9605) |
 | **reachability-adapter** | ngrok-style public subdomains for arbitrary box services | `blind-routing` (SNI-passthrough) preferred |
+| **infra-service** *(draft, [profiles/cloud.md](../profiles/cloud.md))* | Managed infrastructure — `box` / `bucket` / `edge-fn` / `database` / `cdn` via the DEPOT service registry (`compute` is the general provisional case; DEPOT `edge-fn` is its managed-serverless profiling) | **per service** — `bucket` `blind`/structural, public `cdn` `blind-routing`, `edge-fn`/`database`/`box` `terminating` (→ `attested` in a TEE) |
 | **indexer** | Search / discovery / global product-and-price view | corpus is public plaintext (nothing to be blind about); query-channel `terminating` unless `attested` |
 | **labeler** | Moderation labels, opt-in, subscribable | n/a (labels public objects) |
 | **matcher** | Real-time supply↔demand matching (rides, delivery) | **terminating** (default) / **attested** (TEE) |
