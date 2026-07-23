@@ -808,14 +808,15 @@ key). §2.2's "integer-keyed maps sorted by encoded key" names the common case (
 never "this author has nothing" (§7, absence is not authority); equivalently, an absent author's
 `contiguous_below` is the empty prefix, not "unknown."
 
-**`max_applied` has no wire form, deliberately (normative — §14 C-15).** A replica MAY track
-`max_applied` internally and surface it on a local status/diagnostics surface, but MUST NOT carry it in a
-`pull` request, a `GET /sync/vector` response's `vector` member, or `Snapshot.covers` (§6.1) — every one
-of those is a completeness watermark by contract, and giving `max_applied` any wire slot at all recreates
-the ambiguity this section exists to remove, because the next implementation under time pressure reaches
-for whichever per-author maximum it already has in memory. Where this document says "the version vector"
-anywhere past this point — the `pull` vector, `GET /sync/vector`'s `vector`, `Snapshot.covers` — it means
-`contiguous_below` and nothing else.
+**`max_applied` has no wire form, deliberately (normative — §14 C-15, extended to the stability cut by
+§14 C-30).** A replica MAY track `max_applied` internally and surface it on a local status/diagnostics
+surface, but MUST NOT carry it in a `pull` request, a `GET /sync/vector` response's `vector` member,
+`Snapshot.covers` (§6.1), or a `StabilityMark` (§6.2) — every one of those is a completeness watermark by
+contract, and giving `max_applied` any wire slot at all recreates the ambiguity this section exists to
+remove, because the next implementation under time pressure reaches for whichever per-author maximum it
+already has in memory. Where this document says "the version vector" anywhere past this point — the
+`pull` vector, `GET /sync/vector`'s `vector`, `Snapshot.covers` — it means `contiguous_below` and nothing
+else; the same rule binds `StabilityMark.hlc` (§6.2).
 
 ### 5.2 Endpoints (baseline, grounded in flowstock)
 
@@ -1280,11 +1281,22 @@ Tombstones (OR-Set, RGA) and superseded LWW/death cells can be dropped once **ev
 advanced past them**, so no future op can depend on them:
 
 - The **stability cut** is the **minimum, across every live subscribed replica, of that replica's
-  max-applied HLC** (folding in the local max). A replica publishes its watermark as a signed
-  `StabilityMark { author, hlc }` (§5.6). A **stale** replica — not seen within the liveness window
-  (§16-class) — is **excluded** from the min, so a dead-but-unrevoked replica cannot stall compaction; a
-  live replica with *no known* watermark yields **no cut** (fail-closed: never GC on incomplete
-  knowledge).
+  `contiguous_below` completeness watermark** (§5.1; fold in the local `contiguous_below`, never the
+  local `max_applied`). A replica publishes its watermark as a signed `StabilityMark { author, hlc }`
+  (§5.6). **The carried `hlc` MUST be the publishing replica's `contiguous_below` for that author, never
+  a bare `max_applied` HLC** (normative — extends the §14 C-15 completeness-watermark rule, which already
+  governs the `pull` vector and `Snapshot.covers` (§5.1), to the stability cut; §14 C-30). As with
+  `covers`, a `max_applied`-valued mark is byte-indistinguishable from a conformant one — there is no way
+  to detect the substitution from the mark alone, which is why producing one is forbidden outright rather
+  than merely discouraged — so the only receiver-side backstop is fail-closed exclusion: a replica MUST
+  NOT fold a mark it cannot itself attest as `contiguous_below` into the cut it computes, and an author
+  with no *attestable* watermark yields **no cut** for that author, exactly as an author with no known
+  watermark already does. A producer that violates this MUST surfaces the same way an over-claimed
+  `covers` does (§5.2.1): not at receipt, but as `ERR_SYNC_SNAPSHOT_ROOT_MISMATCH` (`0x0A09`, HALT_ALERT)
+  once a verify-required peer backfills and recomputes `root` past the falsely-advanced cut. A **stale**
+  replica — not seen within the liveness window (§16-class) — is **excluded** from the min, so a
+  dead-but-unrevoked replica cannot stall compaction; a live replica with *no known* watermark yields
+  **no cut** (fail-closed: never GC on incomplete knowledge).
 - Below the cut: an OR-Set add-tag present in **both** adds and tombstones is dropped (it can never again
   affect presence, since its `{author, hlc}` is globally unique); an RGA atom that is tombstoned and below
   the cut is dropped; a superseded LWW/death cell below the cut needs no history. Compaction **never
@@ -1666,6 +1678,7 @@ and how it was found.
 | **C-25** | **Counter overflow in the HLC spills into `wall`, never wraps — a MUST for both local `Tick` and remote `Observe`.** When `counter` reaches its `u32` maximum (`0xFFFFFFFF`), the next increment MUST advance `wall` by one and reset `counter` to `0` — the same branch the ordinary `now > wall` case already takes — never land at `(wall, 0)`, which is a **wrap** that sorts *before* the op that caused it, retroactively inverting causal order. Because `Observe` folds a peer's counter forward unconditionally, this is **remotely triggerable** — any peer can send `counter = 0xFFFFFFFF` — so an engine whose counter silently wraps is non-conformant. | **NORMATIVE — fail-safe MUST, closes a remotely-triggerable ordering-inversion.** An implementation relying on its language's default integer-overflow behaviour for `counter` is non-conformant. | Specification self-audit: reading `Observe`'s unconditional forward-fold of a remote counter against §3's total order. |
 | **C-28** | **§4.2.1 states the missing rule for an unrecognized `SyncOp.kind`.** No prior text said what a replica does with a `kind` outside the §4.2 table — the same shape as C-08's unrecognized-value gap, now for the op discriminator. An unrecognized `kind` MUST be rejected as `ERR_SYNC_OP_INVALID` (`0x0A03`) at the point it would be applied — never silently ignored, applied on a best-effort guess, or relayed onward without being counted as rejected locally. Because this is still a divergence-by-rejection hazard across profiles (an older engine that does not yet recognize `kind 9` refuses what a newer one accepts), §4.2.1 adds the advisory sub-token `sync-1/kind-max-N`, governed by the same §4.1.2 rules — never a gate; a producer's one conformant use is deciding whether it is safe to mint an op of a newly-added `kind`. | **NORMATIVE — closes an unspecified-behaviour gap, plus an additive advisory sub-token.** An implementation with no rule for an unrecognized `kind` is non-conformant; the sub-token is optional and gates nothing. | Specification self-audit: `kind 9` (`counter-aggregate`, C-23) exercised exactly the unrecognized-kind case C-08 had already named for values, with no rule governing it. |
 | **C-29** | **§4.5 clarifies that `death`'s `class` token carries no semantic order among classes.** Earlier text called `class` "an ordered enum," which described only `Live < Deleted`, not an ordering *among* `redact`/`expires`/`sensitive` — no such ordering exists or is needed, since the D3 domination rule cares only whether the state is `Deleted` at all. An exact-HLC tie between two `Deleted` certificates of different classes is resolved the same way any other exact tie is: the §2.2 general tiebreak, applied to the encoded `field` bytes (where `death` carries its class). | **Editorial — clarification, no semantics change.** No class-comparison table exists or is required. | Specification self-audit: reading "ordered enum" against the D3 domination rule, which requires no such ordering. |
+| **C-30** | **§6.2's stability cut conflated `max_applied` with the completeness watermark it actually needs — the same defect class C-15 closed for the `pull` vector and `Snapshot.covers`, missed here.** §6.2 defined the cut as "the minimum, across every live subscribed replica, of that replica's max-applied HLC," directly contradicting §2.3's own recurring-defect framing (which already listed "a stability cut" among the fields needing a completeness watermark, not a maximum) and §5.1's rule that `max_applied` has no wire representation. §4.6's aggregate compaction then relies on "below the stability cut every live replica is known to hold the *complete* prefix of every author's deltas" to license discarding, at step 2, any loose delta with `hlc ≤ cut` — a claim that is false under a min-of-`max_applied` cut whenever gapped delivery (§4.6's own blessed mode) is in play. **Worked failure:** replica R1 holds `A@(W,9)` but not `A@(W,1)`; R1's `max_applied[a]` is `(W,9)` while its `contiguous_below[a]` sits below `(W,1)`. If R1's `max_applied` is network-minimal, the cut lands at `(W,9)`; R1 folds an aggregate that is missing `A@(W,1)`'s delta; when `A@(W,1)` later backfills, §4.6 step 2 discards it (`hlc ≤ (W,9)`) as "already accounted for" — it was not — and R1 converges to a total lower than every complete replica, with no signature failure and, in general, no `root` comparison ever run against a replica that would catch it. `contiguous_below` does not have this gap: by definition a replica cannot claim it below an author's first missing op, so a min-of-`contiguous_below` cut is the strongest bound every live replica has actually proven complete, and §4.6's "complete prefix" claim is sound under it. The stability cut is now specified as the minimum, across every live subscribed replica, of that replica's `contiguous_below` (§5.1); a `StabilityMark`'s `hlc` MUST be `contiguous_below`, never a bare `max_applied` HLC, mirroring §5.1's rule for `covers`; the wire shape `StabilityMark { author, hlc }` is unchanged, only the value the `hlc` field is permitted to carry. §4.6 needed no further change — its "complete prefix" premise was already stated as depending on §6.2, and correcting §6.2 makes that premise true rather than requiring new text there. | **NORMATIVE — a redefinition of the stability cut plus a new MUST, extending §14 C-15's rule to a third site.** An implementation whose `StabilityMark` carries a bare per-replica maximum (rather than a proven-complete watermark) is non-conformant and can converge to a permanently lower PN-counter total than every fully-delivered replica, under ordinary gapped delivery this document already blesses elsewhere (§4.6) — a silent lost write, not an error. An implementation that has never delivered gapped already computes `contiguous_below` whenever it computes `max_applied` (the two coincide with no gaps), so it needs no code change, only the corrected reading of the field it already publishes. | Specification self-audit: reading §6.2's stability-cut definition against §2.3's own completeness-watermark framing, §5.1's `contiguous_below`/`max_applied` split, and §4.6's step-2 discard rule together — the same §2.3 checklist C-15 introduced, applied to the one site C-15 did not reach. |
 
 **Standing rule.** A defect between this document and a conformance vector is resolved by deciding
 **which side is right on the merits** and correcting the other **in the open** (the §10 discipline: a
