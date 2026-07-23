@@ -72,7 +72,7 @@ six. See [DIRECTION.md](DIRECTION.md).
 `v0.1.0` — early and evolving. The substrate, the DMTAP mail profile, and the TRACT/WRAP
 profiles are specified; the **coordinator contract** and **bindings index** are the active
 consolidation work. Far-future cryptographic research (mixnet, VDF, PQ envelope tuning) is
-being quarantined to `research/` as **non-normative** rather than perfected on the critical
+being quarantined to `docs/research/` as **non-normative** rather than perfected on the critical
 path. See [ROADMAP.md](ROADMAP.md).
 
 ## License & governance

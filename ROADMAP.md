@@ -104,8 +104,9 @@ honest-limits node-count math. Lint is 0-error. Remaining, **paused for founder 
    `>n/2` quorum-of-a-pinned-set federation, the concrete gossip/freshness parameters, and the
    HALT/ALERT/evict incident-response.
 2. **Redundancy collapses** (verified duplicates — state once + reference): §9.10/§9.11 restate §7.11's
-   gateway anti-abuse MUSTs → collapse to a pointer; §4.4.10's mixnet parameter table duplicates §16.3 →
-   pointer; §7.9 ↔ §12.7 (usage-audit) → §12.7 canonical; §6.8 ↔ §7.8 (transport-provenance) → §7.8
+   gateway anti-abuse MUSTs → collapse to a pointer; §4.4.10's mixnet parameter table duplicates §16.3
+   (now `docs/research/mixnet.md` §4.4.10) → pointer; §7.9 ↔ §12.7 (usage-audit) → §12.7 canonical;
+   §6.8 ↔ §7.8 (transport-provenance) → §7.8
    canonical; the replay/dedup cache's three divergent figures (§16.1 ≥300 s / §16.10 20-day / §2.6
    unbounded) → reconcile to one parameter (the spec itself flags this at §2.6).
 3. **Relay-scope trim** — move relay from a *mechanism* DMTAP re-specifies to a *property* it requires:

@@ -218,7 +218,7 @@ Direction for the ongoing work, so "perfect the spec" never becomes a sprawling 
   interoperate with what we actually ship?* If not — if it polishes prose, adds a far-future
   layer, or re-litigates a settled decision — don't write it.
 - **Quarantine research.** Far-future cryptography that is unproven or unsound (mixnet,
-  VDF, PQ envelope tuning) lives in `research/` as **non-normative**. This removes it from the
+  VDF, PQ envelope tuning) lives in `docs/research/` as **non-normative**. This removes it from the
   critical path *and* stops the spec overclaiming guarantees the implementation doesn't meet.
 - **Pay wire debt before prose.** Normative MUSTs must be backed by wire definitions. Write
   the missing CDDL (e.g. `GatewayAuthz`) before writing more requirements that reference it.

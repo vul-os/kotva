@@ -107,7 +107,7 @@ media, and binds identity/reputation/payments/storage/dispute to existing standa
 ([bindings](../../bindings/README.md)). The genuinely original writing is: the **substrate
 waist**, the **coordinator contract** (safe centralization as a checkable property), and thin
 **profiles**. Far-future cryptographic research (mixnet/Sphinx, VDF, PQ envelope tuning) is
-**quarantined to `research/` as non-normative** — its assurance is not yet deployment-grade,
+**quarantined to `docs/research/` as non-normative** — its assurance is not yet deployment-grade,
 and keeping it out of the normative surface stops the spec overclaiming.
 
 ---

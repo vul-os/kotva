@@ -97,7 +97,7 @@ line refers to.
   ratify together, so "normative" stays byte-checkable rather than a claim taken on faith.
 - **Versioning.** Every ratified CONTRACT change is logged in `CHANGELOG.md` under a "Coordinator
   Contract" entry. **Adding a kind is additive**: `CoordinatorDescriptor.kind` is a free-form
-  string and an unrecognized value is already fail-open by construction — a client treats it as an
+  string and an unrecognized value is already fail-closed by construction — a client treats it as an
   undeclared coordinator (18-wire-format.md §18.8a.1) — so a new row needs no DS-tag bump and no
   flag day. A **structural** revision — redefining or removing a clause, or retiring a kind already
   relied upon — bumps the coordinator-layer DS-tag family (`DMTAP-COORD-v0/…` → `…v1/…`, mirroring

@@ -166,7 +166,7 @@ destination (§6.2). Honest scope, which a profile MUST state and MUST NOT overs
 hides the sender **from intermediaries**, **not** the sender's IP, and is a metadata *reduction*, not
 elimination — timing/receipt side channels statistically erode it. **Strong metadata privacy against
 a global passive adversary** (mixnet / onion routing / cover traffic) is **research-tier and
-non-normative** in the KOTVA family: it is quarantined to `research/` because its assurance is not
+non-normative** in the KOTVA family: it is quarantined to `docs/research/` because its assurance is not
 deployment-grade ([DIRECTION §9](DIRECTION.md), [`docs/research/README.md §5`](docs/research/README.md)).
 A profile MUST NOT claim graph/timing privacy it does not implement, and MUST declare the
 `blind-routing` metadata a buffer/relay/ingress sees ([CONTRACT §3.1](coordinator/CONTRACT.md)).
