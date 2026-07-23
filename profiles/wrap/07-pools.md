@@ -9,7 +9,9 @@ it so. Every system that claims otherwise has merely hidden the infrastructure
 — BitTorrent has bootstrap nodes and trackers, Nostr has relays, Matrix has
 homeservers, ActivityPub has instances, IPFS has bootstrap peers.
 
-WRAP therefore does not pursue "no nodes". It pursues **no privileged nodes**:
+WRAP therefore does not pursue "no nodes". It pursues **no privileged nodes** —
+which is precisely the substrate's Infrastructure-Roles stance
+([`ROLES.md`](https://github.com/vul-os/dmtap/blob/main/substrate/ROLES.md) §1, "roles, not node types"):
 
 - anyone MAY run one, with no permission and no registration;
 - they are interchangeable — no special keys, no protocol authority;
@@ -18,7 +20,12 @@ WRAP therefore does not pursue "no nodes". It pursues **no privileged nodes**:
 
 This is a weaker claim than "fully decentralized" and it is the honest one. It
 is also the property that actually protects participants, because it is what
-makes an operator replaceable when they start behaving badly.
+makes an operator replaceable when they start behaving badly. A WRAP **pool is a
+user of substrate roles**, not a new kind of infrastructure: it is discovered
+through the substrate's key-addressed announce/resolve (ROLES §2) and it MAY lean
+on a substrate mailbox (ROLES §5) to hold offers for an offline performer and a
+cache/pin (ROLES §6) to serve work orders and attestation feeds. WRAP invents no
+transport of its own for any of this.
 
 ## 8.2. Three paths
 
@@ -31,12 +38,18 @@ the large majority of real working relationships.
 **Pool (the open market).** A pool is a Principal that accepts offers and
 distributes them to a membership. A co-op, a union local, a trade association,
 a neighbourhood group, a municipality, or a business running a dispatch desk
-may each operate one. A performer MAY belong to many.
+may each operate one. A performer MAY belong to many. A pool announces its
+location under its key through the substrate's announce/resolve
+([`ROLES.md`](https://github.com/vul-os/dmtap/blob/main/substrate/ROLES.md) §2), so a performer resolves a pool by
+its `IK`, never through a WRAP-specific directory.
 
-**DHT (optional, future).** Nothing in this document precludes a distributed
-hash table for pool discovery. It is not specified in v0 because it is not
-needed for the deployments that exist, and specifying an unused mechanism is
-how documents drift from implementations.
+**Key-addressed discovery is the substrate's, not a future WRAP mechanism.** An
+earlier draft reserved a "DHT, optional, future" for pool discovery; that is
+removed. The substrate already defines exactly that — key-addressed
+announce/resolve over a Kademlia DHT (ROLES §2), degrading to an HTTPS
+announce/resolve where no mesh is present. WRAP discovers pools through it and
+specifies no discovery mechanism of its own, which is the rule-2 way to avoid a
+spec drifting from an unused invention.
 
 ## 8.3. What a pool does and does not do
 
@@ -72,8 +85,11 @@ decides, it cannot use that position to seize a worker's identity or history.
 
 An `Offer` carries a work order to a pool, and work orders contain customer
 addresses and commercial terms. A pool operator therefore sees the work it
-distributes. Implementations MUST make this visible to users and MUST NOT
-describe pool distribution as private.
+distributes. This is the one place a WRAP role is **not** content-blind: a
+substrate mailbox or circuit relay (ROLES §4, §5) forwards ciphertext it cannot
+read, but a pool matches work to performers and so reads the offer by definition.
+Implementations MUST make this visible to users and MUST NOT describe pool
+distribution as private.
 
 Two mitigations are available and both are RECOMMENDED where the deployment
 allows:

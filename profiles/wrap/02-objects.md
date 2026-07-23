@@ -4,8 +4,9 @@
 
 WRAP defines six object kinds. Every object is signed by its author,
 content-addressed, and immutable once created. State changes are expressed by
-*adding objects*, never by mutating them — which is what makes merge trivial
-and history non-repudiable.
+*adding objects*, never by mutating them — which is what lets WRAP carry its
+state as substrate Sync ops and Feed entries (§7) rather than inventing a merge
+algebra of its own.
 
 ```mermaid
 flowchart LR
@@ -18,14 +19,14 @@ flowchart LR
   WO --> OF --> BD --> AS --> PR --> AT
 ```
 
-| Kind | Value | Author | Merge (§7) |
+| Kind | Value | Author | Substrate primitive (§7.2) |
 |---|---|---|---|
-| `WorkOrder` | `0x01` | Issuer | Immutable; amendments are new objects |
-| `Offer` | `0x02` | Issuer | Add-only set |
-| `Bid` | `0x03` | Performer | Add-only set, withdrawable |
-| `Assignment` | `0x04` | Issuer **only** | Last-writer-wins, single writer |
-| `Progress` | `0x05` | Assigned performer | Add-only log |
-| `Attestation` | `0x06` | Any party | Add-only set |
+| `WorkOrder` | `0x01` | Issuer | Immutable content object (SYNC §4.9; FEEDS §3) |
+| `Offer` | `0x02` | Issuer | OR-Set add (SYNC §4.3) |
+| `Bid` | `0x03` | Performer | OR-Set, add-wins observed-remove (SYNC §4.3) |
+| `Assignment` | `0x04` | Issuer **only** | LWW register (SYNC §4.4) |
+| `Progress` | `0x05` | Assigned performer | OR-Set / append (SYNC §4.3) |
+| `Attestation` | `0x06` | Any party | Author-feed entry (FEEDS §4) |
 
 Kinds `0x40`–`0x7f` are reserved for profile-specific objects (§12). Kinds
 `0x80` and above are reserved for future core use. An implementation
@@ -40,12 +41,14 @@ Every object carries the same first five fields.
 | 0 | — | — | **FORBIDDEN.** See §4.5. |
 | 1 | `v` | uint | Format version. `0` for this document. |
 | 2 | `kind` | uint | Object kind from §3.1. |
-| 3 | `id` | bstr | `0x1e ‖ BLAKE3-256(canonical body)` (§4.3). |
-| 4 | `author` | bstr(32) | Ed25519 public key of the signer. |
-| 5 | `ts` | tstr | Hybrid logical clock stamp (§7.2). |
+| 3 | `id` | bstr | Substrate content address `0x1e ‖ BLAKE3-256(canonical body)` (§4.3; FEEDS §3.2). |
+| 4 | `author` | bstr(32) | Ed25519 `IK` public key of the signer (IDENTITY §2). |
+| 5 | `ts` | Hlc | Substrate hybrid logical clock (SYNC §3). |
 
-`id` is computed over the canonical encoding of the object *excluding* keys 3
-and the signature, so it is stable and self-verifying.
+`id` is computed over the canonical encoding of the object *excluding* key 3 and
+the signature, so it is stable and self-verifying. `author` and `ts` are the same
+identity key and HLC the substrate carries in every `SyncOp` and `FeedEntry`; WRAP
+adds no clock or identity type of its own (§7.1).
 
 ## 3.3. WorkOrder (`0x01`)
 
@@ -100,12 +103,13 @@ A performer's response. Optional in direct mode.
 | 8 | `quote` | map | MAY | `Compensation` (§3.11) if the performer names terms |
 | 9 | `eta` | uint | MAY | Unix seconds, performer's estimate |
 | 10 | `note` | tstr | MAY | Free text |
-| 11 | `withdrawn` | bool | MAY | `true` retracts an earlier bid by the same author |
 
-Bids are an **add-only set**. Concurrent bids from performers who cannot see
-each other all survive the merge; a bid is never lost because two people bid at
-the same moment. Withdrawal is a new `Bid` object with `withdrawn = true` and
-the same `order` and `author`; the pair is resolved at read time by `ts`.
+Bids are a substrate **OR-Set** (§7.2; SYNC §4.3). Concurrent bids from
+performers who cannot see each other all survive the merge; a bid is never lost
+because two people bid at the same moment. **Withdrawal is the OR-Set's
+observed-remove** — a remove op citing the add-tags of the bid it retracts (SYNC
+§4.3) — not a second `Bid` object carrying a flag. A performer's withdraw races
+only its own add, never another performer's bid.
 
 ## 3.6. Assignment (`0x04`)
 
@@ -120,9 +124,11 @@ The issuer's decision. **The issuer is the only valid author.** An
 | 8 | `terms` | map | MAY | Agreed `Compensation`; defaults to the accepted bid's quote |
 | 9 | `revoked` | bool | MAY | `true` unassigns (performer no-show, cancellation) |
 
-Because there is exactly one legitimate writer, `Assignment` merges by
-last-writer-wins on `ts` with no ambiguity. This is the entire reason WRAP
-needs no consensus: the contended decision has a single authorized author, so
+`Assignment` is a substrate **LWW register** (§7.2; SYNC §4.4): the current
+assignment is the highest-HLC op among *admissible* ones. Because admission
+(§5.5) has already reduced the register's writers to one — the issuer — the
+last-writer-wins resolution is unambiguous. This is the entire reason WRAP needs
+no consensus: the contended decision has a single authorized author, so
 "concurrent conflicting assignments" is not a state the protocol can reach
 between honest participants.
 

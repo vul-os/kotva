@@ -49,6 +49,20 @@ from the protocol. What's left is a set of signed objects that merge
 deterministically — exchangeable over any transport, in any order, with
 arbitrary delay, and they still converge.
 
+## Built on the DMTAP substrate
+
+WRAP is not a new stack. It adopts [DMTAP](https://github.com/vul-os/dmtap)'s five
+substrate capabilities — Identity, Feeds & Blobs, Sync, Infrastructure Roles,
+Wake — under that directory's à-la-carte rule, and adds only the work-coordination
+spine: six object kinds and the *issuer-assigns* rule. **No new cryptography, no
+new hash construction, no new signature framing, no new CRDT.** A `WorkOrder` is a
+substrate content object; `Offer`/`Bid`/`Assignment`/`Progress` are substrate Sync
+ops; an `Attestation` is a substrate author-feed entry — so a worker's identity and
+history are the same bytes every other DMTAP product speaks. Its sibling
+[TRACT](https://github.com/vul-os/tract) is the *commerce* spec on the same
+substrate; TRACT references WRAP for the delivery/dispatch leg of an order rather
+than re-specifying work coordination.
+
 ## Properties
 
 - **Offline-first.** A courier in a tunnel, a plumber in a basement, a café
@@ -63,8 +77,9 @@ arbitrary delay, and they still converge.
 - **Domain-neutral.** Delivery and skilled trades ship as profiles in v0.
   Field service, mutual aid, municipal reporting, medical courier and remote
   freelance work are all expressible — geography is an optional field.
-- **Implementable in an afternoon.** Ed25519, CBOR, HTTP. Nothing else is
-  required.
+- **Implementable in an afternoon.** WRAP rides the substrate (Ed25519,
+  deterministic CBOR, three Sync endpoints, the Feeds HTTP surface) and adds only
+  six object kinds and one assignment rule on top.
 
 ## What it deliberately isn't
 
@@ -79,6 +94,10 @@ arbitrary delay, and they still converge.
   metadata privacy.
 - **Not a governance framework.** How a pool decides who belongs is for the
   people affected, not for a protocol author.
+- **Not a substrate, and not commerce.** WRAP defines no identity, encoding,
+  merge, or transport of its own — it adopts DMTAP's substrate for those — and it
+  coordinates *work*, not catalogues, carts, or orders. Commerce is
+  [TRACT](https://github.com/vul-os/tract)'s job.
 
 ## The spec
 
@@ -87,14 +106,14 @@ arbitrary delay, and they still converge.
 | 1 | [Overview](00-overview.md) | The idea, scope, constraints |
 | 2 | [Identity](01-identity.md) | Keypairs, roles, key names |
 | 3 | [Objects](02-objects.md) | WorkOrder, Offer, Bid, Assignment, Progress, Attestation |
-| 4 | [Wire format](03-wire-format.md) | CBOR, versioning, forbidden keys |
-| 5 | [Signing](04-signing.md) | Sign the object, not the frame |
+| 4 | [Wire format](03-wire-format.md) | Substrate primitives + WRAP field registry |
+| 5 | [Signing](04-signing.md) | Sign the object, not the frame (substrate COSE + DS-tag) |
 | 6 | [Lifecycle](05-lifecycle.md) | States, transitions, computed expiry |
-| 7 | [Merge](06-merge.md) | CRDT algebra, HLC, the tie-break |
-| 8 | [Pools](07-pools.md) | Discovery without privileged nodes |
+| 7 | [Merge](06-merge.md) | Object → substrate CRDT-primitive mapping |
+| 8 | [Pools](07-pools.md) | Discovery via substrate roles, no privileged nodes |
 | 9 | [Trust](08-trust.md) | Sybils, curated pools, inverted reputation |
 | 10 | [Fulfilment](09-fulfilment.md) | Handoff codes and honest weak proofs |
-| 11 | [Transport](10-transport.md) | HTTP binding, DMTAP binding, USB sticks |
+| 11 | [Transport](10-transport.md) | Rides the substrate Sync + Feeds wire |
 | 12 | [Profiles](11-profiles.md) | Delivery, trades, and other domains |
 | 13 | [Errors](12-errors.md) | Codes, and what is deliberately not an error |
 | 14 | [Security](13-security.md) | Including what it does *not* protect |

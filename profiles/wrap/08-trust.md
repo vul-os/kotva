@@ -72,21 +72,21 @@ counterparties — cancelling after a courier has driven across town, disputing
 completed work, setting impossible windows. A protocol that lets only one side
 rate the other reproduces the power asymmetry it was meant to remove.
 
-## 9.5. Append-only publication
+## 9.5. Append-only publication — the substrate's author feed
 
-Where attestations are published as a feed, that feed SHOULD be append-only and
-hash-chained: each entry carries a sequence number and the hash of its
-predecessor, so an omission or reordering is detectable by any reader who has
-seen an earlier head.
+Attestations **are** substrate author-feed entries (§7.2;
+[`FEEDS.md`](https://github.com/vul-os/dmtap/blob/main/substrate/FEEDS.md) §4), so
+the append-only, hash-chained, anti-rollback structure this section used to
+recommend is inherited, not re-specified. Each entry carries the monotonic `seq`
+and `prev` hash of a `FeedEntry`; a reader detects an omission or a reordering by
+walking the chain, and detects a publisher serving two histories by the substrate's
+anti-rollback / equivocation rule (FEEDS §4.3) — retain the highest `seq` seen per
+publisher and reject a later head with a lower one.
 
-Readers SHOULD retain the highest sequence number seen per publisher and reject
-a later head with a lower sequence, which detects rollback. Without this, a
-publisher can serve different histories to different readers.
-
-This is the one place WRAP recommends a specific external mechanism: the
-structure is that of an RFC 6962 style log, and the DMTAP-PUB feed object
-(§11.2) is a conformant instance of it that requires no mesh and runs over
-plain HTTPS. Implementations MAY use any equivalent construction.
+This is not a WRAP-specific mechanism and not an external one WRAP merely
+recommends: it is the Feeds capability WRAP adopts, servable over plain HTTPS with
+no mesh (FEEDS §5), which is exactly what makes a worker's reputation portable and
+verifiable by a party who trusts the publisher for nothing.
 
 ## 9.6. Disputes
 

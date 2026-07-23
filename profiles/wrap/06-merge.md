@@ -1,116 +1,104 @@
 # 7. Merge
 
-## 7.1. The algebra
+## 7.1. WRAP does not define a merge algebra — it adopts the substrate's
 
-WRAP state is a set of signed objects. Merging two replicas is **set union**,
-followed by the read-time fold of §6.3.
+WRAP holds no CRDT of its own. Every convergent, multi-author part of a work
+order's state is expressed as **substrate Sync operations**
+([`SYNC.md`](https://github.com/vul-os/dmtap/blob/main/substrate/SYNC.md)), and every immutable part as a
+**substrate Feeds/Blob object** ([`FEEDS.md`](https://github.com/vul-os/dmtap/blob/main/substrate/FEEDS.md)).
+This is the substrate's load-bearing adoption rule
+([`substrate/README.md`](https://github.com/vul-os/dmtap/blob/main/substrate/README.md) §3, rule 2): a product
+that merges structured state across replicas **MUST** use the Sync op algebra
+and **MUST NOT** invent a parallel one and call it its own.
 
-Union is commutative, associative and idempotent, so merge is too. Replicas
-converge regardless of the order, direction, or number of times objects are
-exchanged, and a duplicate delivery is free rather than harmful. There is no
-merge *function* to get wrong, because objects are immutable and nothing is
-ever overwritten.
+An earlier draft of WRAP defined its own set-union algebra, its own hybrid
+logical clock, its own tie-break, and its own state root. All four were the
+substrate's, re-derived by hand — the exact "parallel CRDT format" rule 2
+forbids. They are removed. What remains WRAP's own is the *mapping* — which
+object is which CRDT primitive — and the two rules that follow from what the
+work *is* rather than from how it merges: **retention** (§7.3) and **partition**
+(§7.4).
 
-Where a single current value is needed — the assignment, the current state —
-it is *derived* by the fold, not stored. Only three merge behaviours exist:
+## 7.2. The object → primitive mapping (normative)
 
-| Behaviour | Applies to | Rule |
-|---|---|---|
-| **Add-only set** | `Offer`, `Bid`, `Progress`, `Attestation` | Union. Nothing is ever removed. |
-| **Single-writer LWW** | `Assignment` | Highest `ts` among objects by the authorized author. |
-| **Immutable** | `WorkOrder` | First-writer-wins by `id`; identical `id` means identical bytes. |
+Each work order is one Sync **namespace**, `ns = "wrap:" ‖ WorkOrder.id` (§3.2),
+so a participant **MAY** sparse-sync exactly the jobs it cares about
+([`SYNC.md`](https://github.com/vul-os/dmtap/blob/main/substrate/SYNC.md) §7) and dropping interest in a job
+costs nothing but reachability to it. Within that namespace, every object maps
+to one substrate primitive:
 
-Note that last-writer-wins appears exactly once, and only where the protocol
-has already guaranteed a single legitimate writer (§3.6). WRAP never resolves a
-conflict between two parties by picking a timestamp winner, because a timestamp
-winner is arbitrary and someone's work would be discarded.
+| WRAP object | Substrate primitive | Address ([`SYNC.md`](https://github.com/vul-os/dmtap/blob/main/substrate/SYNC.md) §4.1) | Resolves by |
+|---|---|---|---|
+| `WorkOrder` | Immutable content object (SYNC §4.9; FEEDS §3) | the namespace anchor; `id` per §3.2 | never changes |
+| `Offer` | OR-Set add (SYNC §4.3) | `target = "offers"` | union |
+| `Bid` | OR-Set, add-wins observed-remove (SYNC §4.3) | `target = "bids"` | union; withdraw = observed-remove |
+| `Assignment` | LWW register (SYNC §4.4) | `target = "assignment"`, `field = ""` | highest HLC among *authorized* ops |
+| `Progress` | OR-Set add / append (SYNC §4.3) | `target = "progress"` | union; current state folded at read (§6.3) |
+| `Attestation` | Author-feed entry (FEEDS §4) | the subject's feed | append-only, anti-rollback (FEEDS §4.3) |
 
-## 7.2. Hybrid logical clock
+Three consequences are worth stating, because each **replaces** something the
+old draft hand-rolled with the substrate primitive that already existed for it:
 
-`ts` (key 5) is a hybrid logical clock stamp, encoded as a lexically sortable
-string:
+- **Bid withdrawal is the substrate's observed-remove, not a second object.** A
+  withdrawal is an OR-Set *remove* op citing the add-tags it cancels
+  ([`SYNC.md`](https://github.com/vul-os/dmtap/blob/main/substrate/SYNC.md) §4.3) — not a new `Bid` with a
+  `withdrawn = true` flag resolved at read time. Concurrent bids from performers
+  who cannot see each other all survive; a withdraw races only its own add,
+  never another performer's. (§3.5 no longer carries a `withdrawn` field.)
 
-```
-{unix_ms:013d} "-" {counter:04x} "-" {author_hex}
-```
+- **Assignment is the substrate LWW register**, resolved by the substrate HLC's
+  `(wall, counter, author)` total order ([`SYNC.md`](https://github.com/vul-os/dmtap/blob/main/substrate/SYNC.md)
+  §3). WRAP adds only the admission constraint that the sole authorized author
+  is the issuer (§5.5) — enforced as a Sync *admission* rule (SYNC §9), never as
+  a merge tie-break. Last-writer-wins is safe here **only because** the protocol
+  has already guaranteed one legitimate writer (§3.6); WRAP never resolves a
+  two-party conflict by picking a timestamp winner.
 
-- `unix_ms` — 13 zero-padded decimal digits of wall-clock milliseconds.
-- `counter` — 4 lowercase hex digits, incremented when minting more than one
-  stamp within the same millisecond.
-- `author_hex` — the full 64-character lowercase hex of the author's Ed25519
-  public key.
+- **Attestations are a substrate author feed.** That is what makes a worker's
+  reputation portable and self-verifying, servable over plain HTTPS with no mesh
+  ([`FEEDS.md`](https://github.com/vul-os/dmtap/blob/main/substrate/FEEDS.md) §5) and anti-rollback / equivocation
+  protected (FEEDS §4.3) — the same properties WRAP's old text asked for by hand,
+  now inherited rather than re-specified.
 
-Because the encoding is lexically sortable, ordinary string comparison is the
-total order. No parsing is required to sort.
+Time (the HLC), the total order and its tie-break, convergence, the state root,
+and snapshots/compaction are **all the substrate's**
+([`SYNC.md`](https://github.com/vul-os/dmtap/blob/main/substrate/SYNC.md) §3, §5.1, §6) and are not restated here.
+WRAP's earlier remark that its tie-break "is the substrate's rule" is now true by
+construction rather than by coincidence: there is one rule, defined in one place,
+and WRAP moves state into and out of the substrate engine without reordering it.
 
-**Minting.** On each mint, take `max(now_ms, last_ms)`. If it equals `last_ms`,
-increment `counter`; otherwise reset `counter` to zero. A node MUST seed
-`last_ms` from the highest stamp it has already issued or observed, so a
-backwards wall-clock step cannot mint a stamp that sorts below existing state.
+## 7.3. Retention — attestations are never pruned (WRAP-specific)
 
-**Observing.** On receiving a remote stamp, advance the local clock to
-`max(local, remote)` before the next mint. This is what makes causally later
-events sort later even across nodes with skewed clocks.
+The substrate permits an implementation to compact superseded ops behind a
+stability cut ([`SYNC.md`](https://github.com/vul-os/dmtap/blob/main/substrate/SYNC.md) §6.2). WRAP adds one rule
+the substrate cannot know to make: **an `Attestation` MUST NOT be compacted,
+snapshotted away, or discarded on the basis of age.** It is the portable record
+of a worker's history (§9.4) and the one object in WRAP whose value *increases*
+with time. A participant that prunes attestations is destroying somebody's
+employment record.
 
-## 7.3. Tie-break
-
-Two stamps with equal `unix_ms` and equal `counter` are broken by **byte
-comparison of `author_hex`**, ascending.
-
-This choice is normative and deliberate. The obvious alternative — breaking
-ties on a per-node identifier — produces a total order that depends on *which
-node* wrote an object rather than *who authored* it. Those differ whenever an
-object is relayed, and two implementations that disagree on the rule converge
-to different orders while both believing they are correct. Tying on the author
-public key keeps the order a property of the object itself, so it survives
-relaying, re-encoding, and storage in a different engine.
-
-An implementation MUST NOT introduce a node identifier into the ordering.
-
-## 7.4. Convergence
-
-Two replicas that have exchanged all objects for a work order MUST compute an
-identical state. Conformance vectors (§15) fix this, including the tie-break
-case, which is the one most likely to be implemented differently and the least
-likely to be noticed in testing.
-
-Implementations SHOULD expose a **state root** — a content address over the
-sorted `id` set of all objects for a work order:
-
-```
-root = 0x1e ‖ BLAKE3-256( id₁ ‖ id₂ ‖ … ‖ idₙ )   ids sorted ascending
-```
-
-Two parties comparing roots can prove they hold byte-identical state rather
-than merely agreeing on what is currently displayed. This turns "it looks
-right" into a checkable claim, and it is the cheapest possible sync diagnostic.
-
-## 7.5. Compaction
-
-An implementation MAY discard objects for work orders that reached a terminal
-state (§6.1) longer ago than a local retention period, provided it retains:
+An implementation compacting a work order that reached a terminal state (§6.1)
+longer ago than its local retention period **MAY** discard superseded `Offer`,
+`Bid`, and `Progress` ops, provided it retains:
 
 - the `WorkOrder`;
-- the final `Assignment`;
-- all `Attestation`s.
+- the winning `Assignment` register value;
+- every `Attestation` feed entry.
 
-Attestations MUST NOT be discarded on the basis of age. They are the portable
-record of a worker's history (§9.4) and are the one thing in WRAP whose value
-increases with time. A participant who prunes attestations is destroying
-somebody's employment record.
+## 7.4. Partition — the one thing that cannot be made safe, and why WRAP is
 
-## 7.6. Partition behaviour
+The substrate converges under arbitrary partition, reordering, duplication, and
+delay ([`SYNC.md`](https://github.com/vul-os/dmtap/blob/main/substrate/SYNC.md) §2.2). WRAP inherits that for
+free. The one operation that no CRDT can make safe is **assignment of a work
+order whose issuer is unreachable** — and WRAP resolves it by *construction*
+rather than by protocol: only the issuer may author an `Assignment` (§3.6, §5.5),
+so a partitioned performer simply has no assignment to make. When the partition
+heals, the union includes whatever the issuer decided, and the performer's bids
+are still there.
 
-While partitioned, a participant continues to issue, bid, assign, progress and
-attest on the objects it holds. Nothing blocks.
-
-The one operation that cannot be made safe under partition is **assignment of a
-work order whose issuer is unreachable**, and WRAP resolves this by construction
-rather than by protocol: only the issuer may assign, so a partitioned performer
-simply has no assignment to make. When the partition heals, the union includes
-whatever the issuer decided, and the performer's bids are still there.
-
-The failure mode this avoids is worth naming, because it is the one that makes
-naive decentralized dispatch unusable: two partitioned dispatchers both
-assigning the same job to different couriers, both couriers driving to the same
-restaurant, and no principled way to decide which one was wrong.
+The failure mode this avoids is the one that makes naive decentralized dispatch
+unusable: two partitioned dispatchers both assigning the same job to different
+couriers, both couriers driving to the same restaurant, and no principled way to
+decide which was wrong. A general CRDT would "resolve" that by timestamp and
+silently discard one courier's trip. WRAP cannot reach the state at all, because
+the contended decision has exactly one authorized author.

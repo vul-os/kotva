@@ -27,24 +27,42 @@ locking from the protocol. What remains is a set of signed objects that merge
 deterministically, which any two participants can exchange over any transport,
 in any order, with arbitrary delay, and still converge.
 
-## 1.2. What WRAP is
+## 1.2. WRAP adopts the DMTAP substrate
 
-WRAP defines:
+WRAP is **not a new stack.** Identity, signed content-addressed objects,
+deterministic encoding, the CRDT merge algebra, key-addressed discovery, offline
+transport — none of these are about *work*, and WRAP invents none of them. It
+adopts the [DMTAP substrate](https://github.com/vul-os/dmtap)'s five capabilities
+à la carte, under that directory's adoption rules
+([`substrate/README.md`](https://github.com/vul-os/dmtap/blob/main/substrate/README.md)
+§3): a product that implements a capability's function **MUST** speak that
+capability's bytes, never a parallel format. Concretely WRAP adopts:
 
-- an **identity** model — an Ed25519 keypair, held by the participant, not by a
-  platform (§2);
-- an **object model** — `WorkOrder`, `Offer`, `Bid`, `Assignment`, `Progress`,
-  `Attestation` (§3);
-- a **canonical encoding** and signing rule, so a signed object is valid on any
-  transport (§4, §5);
-- a **lifecycle** state machine (§6);
-- **merge semantics** — a small CRDT algebra with a total order, so replicas
-  converge without coordination (§7);
-- **pools** — how work reaches performers without a privileged node (§8);
-- a **trust** model that is honest about Sybil resistance (§9);
-- **fulfilment** — how completion is proven to a party who was not present
-  (§10);
-- two **transport bindings**, neither required (§11);
+- **Identity** (①) — a Principal *is* a substrate `IK`, with the substrate's
+  `DeviceCert`, key-name, rotation, and recovery (§2);
+- **Sync** (③) — coordination state (`Offer`/`Bid`/`Assignment`/`Progress`) is
+  substrate Sync ops, merged by the substrate's CRDT algebra and HLC (§7);
+- **Feeds & Blobs** (②) — a `WorkOrder` is an immutable content object and an
+  `Attestation` is an author-feed entry, so reputation is portable and
+  HTTPS-servable (§7, §9);
+- **Infrastructure Roles** (④) — pools are discovered and work distributed
+  through the substrate's announce/resolve, relay, and mailbox (§8).
+
+An earlier draft of WRAP defined its own encoding, its own signing envelope, its
+own CRDT, and its own transport bindings. Every one of those was the substrate's,
+re-derived — the "parallel format" rule 2 forbids — and all four are removed. What
+is **genuinely WRAP**, and all this document now specifies, is the work spine on
+top:
+
+- the **object model** — `WorkOrder`, `Offer`, `Bid`, `Assignment`, `Progress`,
+  `Attestation` (§3) — and the field registry over it (§4);
+- the **issuer-assigns** rule and the authorship/admission constraints that make
+  the assignment register single-writer (§5);
+- the **lifecycle** state machine (§6) and the object → substrate-primitive
+  mapping (§7);
+- the **pool authority model** — a pool distributes but never assigns (§8);
+- the **trust** model, honest about Sybil resistance (§9);
+- **fulfilment** — how completion is proven to a party who was not present (§10);
 - **profiles** — delivery, trades, and how to define others (§12).
 
 ## 1.3. What WRAP is not
@@ -56,6 +74,14 @@ WRAP defines:
   customer addresses and commercial volumes to strangers, invite spam, and
   scale badly for something whose scope is usually a few kilometres. WRAP is
   point-to-point plus pools (§8).
+- **Not a substrate.** WRAP does not define identity, encoding, merge, discovery,
+  or transport — it adopts the DMTAP substrate for all of them (§1.2). This
+  document is only the work-coordination spine on top.
+- **Not a commerce protocol.** WRAP coordinates *work* (request → bid → assign);
+  it does not model catalogues, carts, or orders. Its sibling
+  [TRACT](https://github.com/vul-os/tract) is the commerce spec on the same
+  substrate, and it references WRAP for the delivery/dispatch leg of an order
+  rather than re-specifying work coordination.
 - **Not trustless.** Open participation without a gatekeeper admits Sybils.
   WRAP does not claim to have solved this; it makes the trust source explicit
   and replaceable (§9).
@@ -75,15 +101,18 @@ These constraints produced the design and explain most of its choices.
 **It must work offline.** A courier goes through a tunnel; a plumber works in a
 basement; a café's connection fails during the dinner rush. Participants MUST
 be able to make progress while partitioned and converge afterwards without
-losing work. This forces CRDT merge and forbids any synchronous coordination.
+losing work. The substrate's Sync algebra provides exactly this (§7); WRAP adds
+no synchronous coordination of its own.
 
 **It must run on modest hardware.** The reference deployment is a low-cost
 Android tablet and a phone. This forbids heavyweight consensus and rules out
 requiring a always-on server per participant.
 
 **It must be implementable in an afternoon.** A protocol that requires adopting
-a novel messaging stack acquires zero independent implementations. WRAP
-requires Ed25519, CBOR and an ordinary HTTP client. Nothing else.
+a novel messaging stack acquires zero independent implementations. WRAP rides the
+substrate, which is itself a narrow waist of Ed25519, deterministic CBOR, and an
+ordinary HTTP client (SYNC's three endpoints, the Feeds HTTP surface). WRAP adds
+only six object kinds and one assignment rule on top.
 
 **The worker's history must be portable.** If reputation lives in a platform's
 database, the platform owns the worker. WRAP makes attestations signed objects

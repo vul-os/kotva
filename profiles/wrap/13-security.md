@@ -61,9 +61,11 @@ SHOULD rate-limit per authenticated peer key.
 Object replay is harmless by construction: objects are immutable and merge is
 idempotent, so a re-delivered object changes nothing.
 
-Transport replay is prevented by the timestamp-and-nonce rule of §11.1.2. Both
-halves are REQUIRED; a freshness window alone permits replay inside it, which
-is the mistake this rule exists to prevent.
+Transport replay is prevented by the substrate wire's authentication (§11.2;
+[`SYNC.md`](https://github.com/vul-os/dmtap/blob/main/substrate/SYNC.md) §5.4), not
+by a rule of WRAP's own. Object replay being harmless (above) is what lets WRAP
+delegate transport freshness entirely to the substrate rather than carry a second
+nonce cache.
 
 ## 14.5. Denial of service
 

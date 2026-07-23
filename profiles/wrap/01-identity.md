@@ -14,10 +14,12 @@ a presentation concern and MUST NOT be used for routing, authorization, or
 identity comparison. Two Principals are equal if and only if their public keys
 are byte-equal.
 
-> **Note.** This makes WRAP identities compatible by construction with any
-> system whose root identity is also an Ed25519 key — including DMTAP, whose
-> identity key `IK` is Ed25519. A DMTAP participant is already a valid WRAP
-> Principal. WRAP does not depend on DMTAP for this to be true (§11.2).
+A WRAP Principal **is** a substrate Identity `IK`
+([`IDENTITY.md`](https://github.com/vul-os/dmtap/blob/main/substrate/IDENTITY.md) §2): WRAP adopts the substrate's
+Identity capability (①) unchanged rather than defining a keypair scheme of its
+own. A DMTAP mail participant, a flowstock node, or any other substrate identity
+is already a valid WRAP Principal, and the same key that receives someone's mail
+can issue and perform their work.
 
 ## 2.2. Roles
 
@@ -39,39 +41,49 @@ replaceable.
 
 ## 2.3. Key names
 
-Raw public keys are unusable by humans. Implementations SHOULD render a
-Principal as an **8-word key name** derived from its public key:
+Raw public keys are unusable by humans. WRAP renders a Principal as the
+substrate's **8-word key-name** ([`IDENTITY.md`](https://github.com/vul-os/dmtap/blob/main/substrate/IDENTITY.md)
+§5) — `BLAKE3-256(0x01 ‖ 0x1e ‖ ik_pub)` over the curated ~1024-word list with a
+folded checksum, 80 bits — **not** a scheme of its own. An earlier draft defined a
+bespoke `words(BLAKE3-256(pubkey))`; that produced a *different name for the same
+key* (no algorithm-commit prefix, no checksum), which is exactly the naming
+divergence the substrate's rule 6 forbids. WRAP uses the substrate's bytes so a
+worker's key-name is the same handle every product shows.
 
-```
-words(BLAKE3-256(pubkey))  over a 1024-word list, 8 words
-```
+Two substrate rules WRAP inherits and MUST honour:
 
-Each word contributes 10 bits, for 80 bits of the digest — enough that two
-participants reading words aloud can confirm they hold the same key.
+- **A key-name is a display hint, never a key.** It MUST NOT be accepted as a
+  substitute for a public key on the wire, and — because the 8-word form carries
+  only 80 bits (≈2⁴⁰ chosen-collision margin) — MUST NOT be used as an allowlist
+  entry, a dedup or database key for identities, or the sole basis for a trust
+  decision. Attestation aggregation (§9.3) keys on the full `IK`, never the
+  key-name. Where a key-name is the *only* verification or is printed/engraved, the
+  substrate's 12-word form is REQUIRED (IDENTITY §5).
+- A local **petname** MAY additionally be shown — a nickname the user assigns on
+  their own device, never transmitted and never authoritative.
 
-Key names are a **display and verification** convention, not a namespace. They
-are not looked up, not registered, and not resolved. An implementation MUST NOT
-accept a key name as a substitute for a public key on the wire.
+## 2.4. Key rotation, recovery, and revocation — the substrate's, not WRAP's
 
-Implementations MAY additionally show a local **petname** — a nickname the user
-assigns to a key on their own device. Petnames are local, never transmitted,
-and never authoritative.
+An earlier draft declared key rotation and revocation "out of scope for v0" and a
+known gap. Adopting the substrate closes it: WRAP inherits the substrate's
+identity lifecycle whole ([`IDENTITY.md`](https://github.com/vul-os/dmtap/blob/main/substrate/IDENTITY.md) §2.2,
+§2.3, §5.1), and defines none of its own.
 
-## 2.4. What WRAP does not define
-
-**Key rotation and revocation are out of scope for v0.** This is a known gap
-and it is stated plainly rather than hidden: a participant who loses their key
-loses their identity and their accumulated attestations, and there is currently
-no in-protocol recovery.
-
-Deployments that need rotation SHOULD layer an existing mechanism — a device
-certificate chain, a key transparency log, or an out-of-band re-enrollment
-through their pool — beneath WRAP. A future version MAY define one. It is not
-defined here because a rotation scheme without a matching revocation-checking
-rule fails open, and a fail-open identity mechanism is worse than an absent one.
-
-Until then, the practical mitigation is that attestations (§10) are held by
-*both* parties and by the pool. A worker who must re-key can present their old
-attestations, signed by counterparties who still exist, and ask a pool to vouch
-for the continuity. That is a social recovery path, not a cryptographic one,
-and implementations SHOULD NOT describe it as more than that.
+- **Operational keys rotate under `IK` without changing identity.** A performer
+  signs work under a `DeviceCert` subkey (IDENTITY §2.2); losing or rotating that
+  device key does not lose the identity or its attestations, because existing
+  contacts follow the pinned `IK` through the signed certificate chain.
+- **Recovery precedence and revocation are defined.** A stolen signing key that
+  rotates to an attacker is beaten by the owner's recovery key, resolved by the
+  substrate's contest-window finality even at the zero-DNS/zero-KT key-name floor
+  (IDENTITY §5.1). Verification MUST honour `DeviceCert` revocation (IDENTITY §2.3)
+  — a chain check that skips revocation is a fail-open, which is why WRAP's verify
+  step (§5.4 step 5) defers to the substrate's rule rather than restating it.
+- **Honest residual (disclosed).** The one event that *does* change a worker's
+  key-name is an `IK` rotation itself — the rare migration case, not the common
+  device-key case. Existing counterparties follow by pinned key; only a brand-new
+  contact who knew *only* the old key-name is affected. Here WRAP's portable
+  attestations help socially: a re-keyed worker presents old attestations signed by
+  counterparties who still exist and asks a pool to vouch for continuity. That is a
+  social bridge over a disclosed cryptographic residual, not a recovery mechanism,
+  and implementations SHOULD NOT describe it as more.

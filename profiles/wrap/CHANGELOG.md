@@ -10,6 +10,62 @@ track **this document and its conformance vectors** — not the wire-level
 
 ---
 
+## [0.2.0] - 2026-07-23
+
+**Rebased WRAP onto the DMTAP substrate.** WRAP had independently re-derived
+identity, deterministic encoding, signing, a CRDT merge algebra, key-name
+generation, and two transport bindings — every one of which the
+[DMTAP substrate](https://github.com/vul-os/dmtap/tree/main/substrate) already
+standardizes. Carrying a parallel copy of a substrate capability is exactly what
+the substrate's adoption rule 2 forbids, and the duplicates would drift. This
+release deletes them and adopts the substrate, keeping only the work-coordination
+spine (six object kinds and the *issuer-assigns* rule) as genuinely WRAP's. The
+change also *simplifies* the protocol and fixes latent divergences.
+
+### Changed
+
+- **Merge (§7) is now the substrate's, not WRAP's.** Removed WRAP's own set-union
+  algebra, hybrid logical clock, tie-break, and state root — all were the
+  substrate's, re-derived. Each object now maps to a substrate primitive:
+  `WorkOrder` → immutable content object (SYNC §4.9 / FEEDS §3); `Offer` → OR-Set
+  add; `Bid` → OR-Set **observed-remove**; `Assignment` → LWW register;
+  `Progress` → OR-Set/append; `Attestation` → author-feed entry.
+- **Identity (§2)** adopts the substrate `IK`/`DeviceCert`/key-name unchanged. The
+  bespoke `words(BLAKE3-256(pubkey))` key-name — which produced a *different name
+  for the same key* than the substrate's — is replaced by the substrate's key-name
+  (IDENTITY §5). Key rotation/recovery/revocation, previously declared "out of
+  scope, a known gap," are now inherited from the substrate (IDENTITY §2.2, §5.1).
+- **Signing (§5)** is the substrate's `COSE_Sign1` + DS-tag; the bespoke
+  `[bytes, sig]` array (previously REQUIRED, COSE OPTIONAL) is removed. WRAP keeps
+  only its domain-separation tag `"WRAP-v0/object"` and its authorship/admission
+  table.
+- **Wire format (§4)** references the substrate's deterministic-CBOR and
+  `0x1e ‖ BLAKE3-256` primitives instead of restating RFC 8949; keeps only WRAP's
+  field registry.
+- **Transport (§11)** collapsed: WRAP defines no transport. Coordination rides the
+  substrate Sync wire (`/sync/*`); attestations ride the Feeds HTTP surface
+  (`/.well-known/dmtap-pub/*`). The bespoke `/wrap/v0/*` endpoints,
+  `Wrap-Key/Ts/Nonce/Sig` request auth, and TOFU pairing are removed in favour of
+  the substrate wire (SYNC §5.4).
+- **Pools (§8)** discovered via the substrate's key-addressed announce/resolve
+  (ROLES §2); the reserved "future DHT" is removed as already-provided.
+- **Errors (§13)** dropped the `0x04xx` transport codes (now the substrate wire's).
+
+### Fixed
+
+- **Bid withdrawal** is the OR-Set observed-remove (SYNC §4.3) instead of a second
+  `Bid` with a `withdrawn` flag — a withdraw now races only its own add, never a
+  concurrent bidder's.
+
+### Debt
+
+- `conformance/wrap_vectors.json` predates this rebase and still encodes the
+  retired signing envelope and string-HLC. It must be regenerated against the
+  substrate byte formats before a conformance claim (§15.5); until then the prose
+  governs.
+
+---
+
 ## [Unreleased]
 
 No unreleased changes.
