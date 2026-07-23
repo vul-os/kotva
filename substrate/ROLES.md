@@ -91,6 +91,22 @@ LocationRecord {
 - **Transport agility.** `substrate` (§21.24) tags the transport a record's `addrs` speak; the protocol
   is not permanently wedded to libp2p (§4.1). A resolver dials a record only on a substrate it implements;
   a record on an unimplemented substrate is simply unreachable to it (`0x0303`), never a parse failure.
+- **Multi-homing / provider diversity (RECOMMENDED).** A `LocationRecord`'s reachability hints — its
+  `addrs` (direct, relay circuits, mix addrs), rendezvous points (§3), and mailbox holders (§5) — SHOULD
+  span **at least two independently-operated** relay/rendezvous/mailbox providers. This is the same
+  single-provider clustering failure this document already warns against at the routing layer (§4.2's DHT
+  caution) applied to the operator layer: a box that depends on one provider loses reach — silently — the
+  moment that provider goes down or is coerced, with nothing surfacing the dependency to the user. Homing
+  a second, independently-operated provider only **adds reach, never authority** — consistent with this
+  document's role model (§1, no privileged node type): a second provider is a second path to the same
+  key-addressed identity, not a second root of trust. Where a box relies on a single
+  provider — a valid, conformant configuration, never a hard requirement to hold two — a client MUST
+  surface that single-provider reliance to the user, applying the same visibility-surfacing discipline
+  [CONTRACT §2.4, §3.2](../coordinator/CONTRACT.md) requires for trust-boundary crossings (there: the user
+  sees which trust boundary a path crosses; here: the user sees when they depend on a single provider).
+  **Honest residual:** multi-homing mitigates the single-provider-clustering failure via plurality — it
+  does **not** eliminate the underlying scarce-reachability dependency (§10 item 7): a coordinated
+  compromise or simultaneous outage of every homed provider still removes reach.
 
 ---
 
@@ -331,6 +347,12 @@ independent implementation MUST be buildable from this document and the core (§
 6. **Roles are permissionless — abuse is bounded by caps and opt-in, not identity** (§4, §7). Relay caps,
    mailbox TTLs, per-holder serve policy, and wake budgets are the bounds; none relies on a trusted node
    type, because there is none.
+7. **Single-provider reliance is a silent-failure risk, mitigated by plurality, not eliminated** (§2
+   multi-homing). A box homed on one relay/rendezvous/mailbox provider loses reach — without warning — to
+   that provider's outage or coercion; multi-homing across **≥2 independently-operated** providers is
+   RECOMMENDED and a client MUST surface single-provider reliance to the user, but even a fully multi-homed
+   box still depends on *some* provider being reachable — plurality reduces, it does not remove, the
+   scarce-reachability dependency.
 
 ---
 
