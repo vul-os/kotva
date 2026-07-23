@@ -40,7 +40,7 @@ DEPOT is composition, not new machinery. It reuses:
 | **`infra-service`** coordinator kind | provides one managed service, fenced by the four clauses; declares `{service, visibility, metering-unit}`. The one load-bearing new binding. | [CONTRACT §5](../coordinator/CONTRACT.md) |
 | **`CoordinatorDescriptor` / `Tariff` / `UsageReceipt`** | the signed offer, the operator's own price, and the metered receipt — the accountable, self-asserted, discovery-only seam. | [§18.8a](../18-wire-format.md) |
 | **Economics seam** (CONTRACT §6) | settlement over an existing asset, **no token, no published price-rank**; the *numbers* are operator policy. | [CONTRACT §6](../coordinator/CONTRACT.md) |
-| **PUB** (feeds & blobs) + **ATTEST** + the **indexer/labeler** role | distributed reputation — signed `ServiceMeasurement` feeds anyone may publish and anyone may aggregate. | [§22](../22-public-objects.md), [primitives/ATTEST.md](../primitives/ATTEST.md) |
+| **PUB** (feeds & blobs) + **ATTEST** + the **indexer/labeler** role | distributed reputation — signed measurement **claims** (ATTEST attestations, §5) anyone may publish and anyone may aggregate; DEPOT mints no reputation object of its own. | [§22](../22-public-objects.md), [primitives/ATTEST.md](../primitives/ATTEST.md) |
 | **Identity** + **`RecoveryPolicy`** | non-custody (the root `IK` never leaves the user's device) + guardian recovery — **not** key escrow. | [§1](../01-identity.md), [§1.4](../01-identity.md) |
 | **IK-authenticated Noise transport** | the box↔service control/data channel is a libp2p-Noise `XX` stream keyed to the user's `IK` (as REACH-2), not a bearer token. | [profiles/reachability.md REACH-2](reachability.md) |
 
@@ -77,7 +77,7 @@ Only **`bucket`** (and public-object **`cdn`**) are structurally private. **`edg
   `CoordinatorDescriptor` (§18.8a) carrying `{service` (from §3), `visibility, metering-unit}` and MUST
   speak that service's **adopted native protocol** (§2) over an **`IK`-authenticated, Noise-secured**
   channel (REACH-2 shape — the user's `IK` is the libp2p identity key; **no bearer token**). It mints
-  no new runtime, wire object (except `ServiceMeasurement`, §5), or error code.
+  no new runtime, wire object, DS-tag, or error code — reputation reuses the ATTEST claim primitive (§5).
 - **DEPOT-2 — honest visibility is load-bearing (the cliff).** Each service MUST declare **exactly**
   the visibility its data model permits (§3): `bucket` `blind`/`structural`; public `cdn`
   `blind-routing`; `edge-fn`/`database`/`box` `terminating`/`declared`. **Advertising a `terminating`
@@ -121,10 +121,10 @@ Only **`bucket`** (and public-object **`cdn`**) are structurally private. **`edg
   silent best-effort, a partial charge, or a content-based drop.
 - **DEPOT-9 — distributed reputation, no authority.** Service quality is a **market of signed
   measurements**, never a single authoritative score — reputation is measured locally by each client
-  ([CONTRACT §3.1](../coordinator/CONTRACT.md)). A **`ServiceMeasurement`** (§5) is a signed,
+  ([CONTRACT §3.1](../coordinator/CONTRACT.md)). A measurement is an **ATTEST claim** (§5) — a signed,
   timestamped observation about a `(coordinator, service)` — uptime, a conformance-vector pass, an
-  honest-visibility audit, latency — published as a **PUB feed** (append-only, signed,
-  content-addressed, [§22](../22-public-objects.md)). A **status page is a REPRODUCIBLE aggregation** of
+  honest-visibility audit, latency — published via the ATTEST **public** carrier on a **PUB feed**
+  (append-only, signed, content-addressed, [§22](../22-public-objects.md)). A **status page is a REPRODUCIBLE aggregation** of
   such feeds; a client chooses which raters to weight. Automated measurements **SHOULD be reproducible**
   (anyone re-runs the probe or vector), so trust rests on re-checkable evidence, not the rater's word —
   **reproducibility over reputation**. A measurement is **attributed to its signing rater**; a
@@ -141,35 +141,31 @@ Only **`bucket`** (and public-object **`cdn`**) are structurally private. **`edg
 
 ---
 
-## 5. `ServiceMeasurement` — the one new wire object (thin, PUB-carried)
+## 5. Measurements are ATTEST claims — no new wire object
 
-A signed observation that rides a PUB feed (§22); it defines **no new error code** — a malformed or
-unverifiable measurement is simply **ignored by aggregators** (never a fail-closed event). Like every
-PUB object, it carries **no numeric discriminator key** — it is discriminated by its **DS-tag**
-(`DMTAP-DEPOT-v0/measurement`, §22.2.1's DS-tag-as-discriminator convention), not a `0 => N` field.
+Reputation reuses the substrate's generic **signed-claim** primitive: a service measurement is an
+**ATTEST** public `Attestation` ([primitives/ATTEST.md](../primitives/ATTEST.md) — whose §1 names "a
+rating" as one of its shapes), **not** a bespoke DEPOT object. DEPOT mints **no new wire object, DS-tag,
+or signature** for reputation — it defines only a **claim schema** carried inside ATTEST:
 
-```cddl
-ServiceMeasurement = {
-  1 => suite,           ; suite     signature suite (§18.1.4)
-  2 => {                ; subject   the rated (coordinator, service)
-        1 => ik-pub,    ;             coordinator IK
-        2 => tstr,      ;             service (§3 registry value)
-      },
-  3 => tstr,            ; metric    e.g. "uptime" / "conformance" / "visibility-audit" / "latency-ms"
-  4 => ext-value,       ; value     metric-specific (number, pass/fail, bucket)
-  5 => tstr,            ; method    "probe" / "conformance-vector" / "audit" / "self-report"
-  6 => ts,              ; observed_at
-  ? 7 => bytes,         ; evidence  OPTIONAL reproducible recipe / vector-id / signed transcript
-  8 => ik-pub,          ; rater     the signing rater's IK (== subject.coordinator ⇒ self-measurement)
-  9 => sig-val,         ; sig       §18.9 composite preimage
-}
-```
+- **Carrier** — the ATTEST **public** carrier: `det_cbor(Attestation)` embedded in a PUB feed / manifest
+  ([§22](../22-public-objects.md)), so anyone may publish and anyone may aggregate; the carrier's own
+  signature authenticates it (ATTEST §2).
+- **`issuer`** — the rater's `IK`. A **self-measurement** is exactly `issuer == subject`, surfaced by
+  ATTEST and weighted accordingly by consumers.
+- **`subject`** — the rated coordinator's `IK`.
+- **`schema`** — the DEPOT measurement schema `kotva-depot/measurement/v0` (an EAS schema UID or VC type
+  URI), whose `claim` body is `{ service` (§3 registry value)`, metric` ("uptime" / "conformance" /
+  "visibility-audit" / "latency-ms")`, value, method` ("probe" / "conformance-vector" / "audit" /
+  "self-report")`, observed_at, ? evidence` (a reproducible recipe / vector-id / signed transcript)` }`.
 
-Signing preimage is the standard §18.9 composite form (this object carries a `suite`, key 1):
-`M' = "DMTAP-DEPOT-v0/measurement" ‖ 0x00 ‖ u8(suite) ‖ det_cbor(body ∖ {9})`. A consumer MUST verify
-`sig` against `rater`, MUST treat `rater == subject.coordinator` as a self-measurement, and SHOULD
-re-run any `method` = `probe`/`conformance-vector` whose `evidence` supplies a reproducible recipe
-rather than trusting the reported `value`.
+A consumer verifies the ATTEST carrier signature against `issuer`, treats `issuer == subject` as a
+self-measurement, applies ATTEST supersession/revocation (ATTEST §4.3) so a newer measurement from the
+same rater replaces its older one, and SHOULD **re-run** any `method` = `probe`/`conformance-vector`
+whose `evidence` supplies a reproducible recipe rather than trusting the reported `value`. A malformed
+or unverifiable measurement is simply **ignored by aggregators** — never a fail-closed event, and **no
+new error code**. New metrics or methods are **new schema versions**, not spec changes — future-proof by
+schema, not by wire.
 
 ---
 

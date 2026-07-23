@@ -72,7 +72,7 @@ never classifies.
 > resources several rows above depend on (rows 5, 11, 22, …) are specified as managed services by the
 > **DEPOT** profile ([`profiles/cloud.md`](../../profiles/cloud.md)) under one `infra-service`
 > coordinator kind — a decentralised-cloud market with operator-defined economics and distributed
-> `ServiceMeasurement` ratings. Honest visibility per service: `bucket`/public-`cdn` `blind`/structural;
+> ratings (ATTEST signed claims — no bespoke object). Honest visibility per service: `bucket`/public-`cdn` `blind`/structural;
 > `database`/`edge-fn`/`box` `terminating`/`declared` (→ `attested` in a TEE). It underlies the product
 > shapes rather than adding one, so the count of 22 product shapes is unchanged.
 
