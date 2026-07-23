@@ -159,10 +159,15 @@ or signature** for reputation — it defines only a **claim schema** carried ins
   "visibility-audit" / "latency-ms")`, value, method` ("probe" / "conformance-vector" / "audit" /
   "self-report")`, observed_at, ? evidence` (a reproducible recipe / vector-id / signed transcript)` }`.
 
-A consumer verifies the ATTEST carrier signature against `issuer`, treats `issuer == subject` as a
-self-measurement, applies ATTEST supersession/revocation (ATTEST §4.3) so a newer measurement from the
-same rater replaces its older one, and SHOULD **re-run** any `method` = `probe`/`conformance-vector`
-whose `evidence` supplies a reproducible recipe rather than trusting the reported `value`. A malformed
+A consumer verifies the ATTEST carrier signature against `issuer` and treats `issuer == subject` as a
+self-measurement. Measurements are an **append-only time-series** on the rater's feed (§22.4.2): a newer
+observation does **NOT** supersede an older one — the history is exactly what reputation aggregates over
+(uptime across a window, a latency distribution), so raw observations MUST NOT be collapsed to a
+latest-only value. A rater MAY **revoke** a measurement it retracts (ATTEST `Revoke`, §2.2), and an
+issuer that signs two contradictory claims at one feed position is **detectably equivocating** (ATTEST
+§4.3), surfaced for dispute, never merged away. A consumer SHOULD **re-run** any `method` =
+`probe`/`conformance-vector` whose `evidence` supplies a reproducible recipe rather than trusting the
+reported `value`. A malformed
 or unverifiable measurement is simply **ignored by aggregators** — never a fail-closed event, and **no
 new error code**. New metrics or methods are **new schema versions**, not spec changes — future-proof by
 schema, not by wire.
