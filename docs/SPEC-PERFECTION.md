@@ -108,18 +108,22 @@ After F1+F2 land → **critique round 3** (different lens mix); two consecutive 
 implementer-interop · rfc-layout/bcp14 · cross-family) — NOT clean: 8 confirmed** (7 by the workflow + 1
 HIGH I hand-verified after its verify-agent died on an API stall — the "1 refuted" was that miscount, not
 a real refutation). Fix-agents (file-disjoint):
-- [~] **X** {18-wire-format, 13-identity-auth}: (MED) §18.9.8 `auth_hash` bare digest → `0x1e ‖ …`
-  multihash form (violated §18.1.6; cross-hash-forgery under suite-0x05) + §13.3 step 5; (MED) §18.3.3
-  PostageStamp/Vouch preimage tuples → reference §18.9.7 whole-object rule; (HIGH) §18.3.2 pin the
-  BlindedTag KDF. **agent X in flight.**
-- [~] **Y** {20-state-machines}: (MED) §20.1 RETRY totality gap — pre-seal RETRY had no re-resolve edge,
-  a DNS/KT-lagged MOTE was condemned to EXPIRED even on recovery. **agent Y in flight.**
-- [~] **Z** {00-overview, SPEC, STYLE, wrap/00-overview, wrap/15-references, coverage-matrix, ADOPTION}:
-  (MED) §0.8 BCP-14 keyword set completed to full RFC 8174; (MED) WRAP "five"→"four of six" + canonical
-  circled numbers; (MED) coverage-matrix SFU media-relay `blind`→`blind-routing`; (LOW) ADOPTION §1
-  heading. **agent Z in flight.**
-- [ ] **W** {02-mote, 06-privacy}: BlindedTag prose (§2.2a/§6.4) → reference X's pinned §18.3.2
-  construction. QUEUED behind X.
+- [x] **X** {18-wire-format, 13-identity-auth} `8f322d0`: §18.9.8 `auth_hash` → `0x1e ‖ BLAKE3-256(…)`
+  multihash form (+ §13.3 step 5); §18.3.3 PostageStamp/Vouch → reference §18.9.7 whole-object rule;
+  §18.3.2 BlindedTag KDF pinned. Verified clean. **Conformance follow-up done:** DMTAP-AUTH-01 in
+  SUITE.md/suite.json aligned to the multihash preimage `1984175` (auth vectors are construction-todo —
+  no frozen bytes to regenerate).
+- [x] **Y** {20-state-machines} `17390d6`: §20.1 RETRY totality gap closed — pre-seal RETRY now
+  re-resolves (was condemning DNS/KT-lagged MOTEs to EXPIRED). Verified: pre-seal edge in table+diagram.
+- [x] **Z** {00-overview, SPEC, STYLE, wrap/*, coverage-matrix, ADOPTION} `f7b0008`: §0.8 (+SPEC+STYLE)
+  BCP-14 full set; WRAP four-of-six + canonical numbers; coverage-matrix SFU=`blind-routing`; ADOPTION §1.
+- [x] **W** {02-mote, 06-privacy} `bef2927`: BlindedTag prose (§2.2a/§6.4) → reference X's §18.3.2 pin;
+  honest limits preserved.
+
+**Round 3 CLOSED 8/8.** → **critique round 4** (workflow — re-covers REACH + rounds-2/3 fixes; fresh lens
+mix: security-downgrade/composition · conformance-testability · xref-integrity · honesty-overclaim ·
+reader-coherence). Two consecutive fully-clean passes from DIFFERENT lens-sets → PERFECTED (then delete this
+file, CronDelete the loop, report DONE with the commit range).
 
 **DECISION (founder-overridable, gap-fill) — BlindedTag KDF pinned:** `BT = HKDF-SHA256(IKM=shared_secret,
 salt="DMTAP-v0/blinded-tag", info=uint64_be(epoch_day), L=16)` (RFC 5869; the same HKDF-SHA256 as HPKE/RFC
