@@ -123,6 +123,7 @@ The issuer's decision. **The issuer is the only valid author.** An
 | 7 | `performer` | bstr(32) | MUST | Assigned Principal |
 | 8 | `terms` | map | MAY | Agreed `Compensation`; defaults to the accepted bid's quote |
 | 9 | `revoked` | bool | MAY | `true` unassigns (performer no-show, cancellation) |
+| 10 | `commit` | bstr | MAY | Handoff-code commitment, `BLAKE3-256(code ‖ order_id)` (§10.2) |
 
 `Assignment` is a substrate **LWW register** (§7.2; SYNC §4.4): the current
 assignment is the highest-HLC op among *admissible* ones. Because admission

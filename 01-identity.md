@@ -53,55 +53,26 @@ history.
 
 **Primitive-family diversity, not merely primitive agility (normative).** Agility that can only
 move *within* one mathematical family is not agility. Suites `0x02`, `0x03` and `0x05` share
-**ML-DSA** (lattice) signatures and **ML-KEM** (lattice) key establishment, so a structural break in the
-lattice assumptions underlying both — a single family, however well-studied — would be
-network-wide on the same day, exactly the failure mode the AEAD-diversity rule below exists to
-prevent. Suite `0x04` is therefore reserved in advance as a standing **signature-diverse**
-target: **SLH-DSA** (SPHINCS+, §15) is **hash-based** and rests on no algebraic structure at all,
-so it survives any lattice break by construction. Its signatures are large (~7.9 KB at the `128s`
-parameter set), which is precisely why it is reserved for the **anchor** layer (§1.2, where
-signing events are rare) rather than proposed as a general message suite. Reserving the code
-point now, rather than allocating one under incident pressure, is what turns a signature-family
-break into a routine capability negotiation (§10.2) — the same discipline, and for the same
-reason, as suite `0x03` below.
+**ML-DSA** (lattice) signatures and **ML-KEM** (lattice) key establishment, so a structural break
+in the lattice assumptions underlying both — a single family, however well-studied — would be
+network-wide on the same day. Suites `0x03`–`0x05` are therefore each **reserved in advance**,
+diversifying one algorithm family away from `0x02`'s: reserving the code point now, rather than
+allocating one under incident pressure, is what turns a family break into a routine capability
+negotiation (§10.2) instead of an emergency protocol revision.
 
-Allocation of further `suite` code points: §21.15 — `0x01`–`0x1F` Standards Action,
-`0x20`–`0xDF` Specification Required, `0xE0`–`0xFE` Private Use, `0x00`/`0xFF` Reserved.
+| Suite | Diversifies | Distinct why |
+|-------|-------------|--------------|
+| `0x03` | AEAD → **AES-256-GCM** | `0x02` and legacy `0x01` share **ChaCha20-Poly1305**; a break of ChaCha20 or Poly1305 would be network-wide the same day. `0x03` keeps `0x02`'s PQ-hybrid signature and KEM, so a network can migrate off the ChaCha/Poly monoculture through the ordinary multi-suite mechanism (§1.3) — advertise `0x03`, let senders pick up the intersection, retire the broken suite (§12.8.5) — **without a flag day**. A global kill-switch is deliberately *not* provided (the honest limit of §12.8.5). |
+| `0x04` | Signature → **SLH-DSA-128s** | **SLH-DSA** (SPHINCS+, §15) is **hash-based** and rests on no algebraic structure at all, so it survives any lattice break by construction. Its signatures are large (~7.9 KB), which is precisely why it is reserved for the **anchor** layer (§1.2, where signing events are rare) rather than proposed as a general message suite. |
+| `0x05` | Hash → **SHA3-256** | Suites `0x01`–`0x04` all carry **BLAKE3-256** — the primitive the rest of the protocol rests on most heavily (every content address §18.9.4, Merkle root §18.9.5, `prev` link, key-transparency leaf §3.5, and pre-hashed signing preimage §18.1.6 is a BLAKE3-256 digest) — which inherits its compression function from BLAKE2, whose round function derives from **ChaCha**: one ARX lineage, shared with the AEAD of three of those four suites, and the largest monoculture in the document. `0x05` keeps `0x02`'s signature, KEM and AEAD unchanged and moves **only** the hash, to a Keccak **sponge** construction sharing no design lineage with the BLAKE line. The §18.1.5 multihash registry already reserves the prefix (`0x16`) such a digest would travel under; `0x05` is what makes it *selectable* rather than merely *expressible*. What reservation **cannot** buy is migrating content that already exists — a new suite re-anchors nothing already published (§11.3). |
 
 **AEAD agility is whole-suite-granular (normative).** A `suite` names its AEAD **together with**
 its signature, KEM, and hash — there is no independent AEAD selector, and no way to swap only the
-AEAD of an in-use suite. The originating suite (`0x02`) and the legacy suite (`0x01`) share
-**ChaCha20-Poly1305**, so a break of ChaCha20 or Poly1305 would be network-wide the same day.
-Suite `0x03` is therefore
-**reserved in advance** as a standing emergency target: an AEAD-diverse (**AES-256-GCM**) suite
-that keeps suite `0x02`'s PQ-hybrid signature and KEM, so a network can migrate off the
-ChaCha/Poly monoculture through the ordinary multi-suite mechanism (§1.3) — advertise `0x03`, let
-senders pick up the intersection, retire the broken suite (§12.8.5) — **without a flag day**.
-Reserving the code point now, rather than allocating one under incident pressure, is what turns an
-AEAD-break response into a routine capability negotiation (§10.2) instead of an emergency
-protocol revision. Suite `0x03` is registered RESERVED in §21.15; a global kill-switch is
-deliberately *not* provided (the honest limit of §12.8.5).
+AEAD of an in-use suite; `0x03` above is the AEAD-diverse target reachable only through that
+whole-suite mechanism.
 
-**Hash agility needs a family-diverse target too (normative).** Suites `0x01`–`0x04` all carry
-**BLAKE3-256**, and the hash is the primitive the rest of the protocol rests on most heavily:
-every content address (§18.9.4), every Merkle root (§18.9.5), every `prev` link, every
-key-transparency leaf (§3.5) and every pre-hashed signing preimage (§18.1.6) is a BLAKE3-256
-digest. BLAKE3 inherits its compression function from BLAKE2, which derives its round function
-from **ChaCha** — one ARX design lineage, shared with the AEAD of three of those four suites.
-By the rule stated above, that is a monoculture, and the largest one in the document. Suite
-`0x05` is therefore **reserved in advance** as a standing **hash-diverse** target: it keeps
-`0x02`'s signature, KEM and AEAD unchanged and moves **only** the hash, to **SHA3-256** — a
-Keccak **sponge** construction with a different permutation, a different mode and a different
-provenance, sharing no design lineage with the BLAKE line, so a structural break in that lineage
-does not carry over. The §18.1.5 multihash registry already reserves the prefix (`0x16`) such a
-digest would travel under; suite `0x05` is what makes it *selectable* rather than merely
-*expressible*, which is the distinction §18.1.5 alone cannot make. Reserving the code point now,
-rather than allocating one under incident pressure, is what turns a hash break into a routine
-capability negotiation (§10.2) instead of an emergency protocol revision — the same discipline,
-and for the same reason, as suites `0x03` and `0x04`. Suite `0x05` is registered RESERVED in
-§21.15. What the reservation **cannot** buy is the migration of content that already exists: a
-new suite re-anchors nothing already published, and that limit is stated plainly, as a limit, in
-§11.3.
+Allocation of further `suite` code points: §21.15 — `0x01`–`0x1F` Standards Action,
+`0x20`–`0xDF` Specification Required, `0xE0`–`0xFE` Private Use, `0x00`/`0xFF` Reserved.
 
 ## 1.2 Keys and the identity hierarchy
 
@@ -456,12 +427,29 @@ Rules:
    permitted, because "≥" permits it and because rule 3 independently requires a quorum for any
    *weakening* change, so an equal threshold cannot be used to erode recovery unilaterally.
 
-   **Honest limit, stated rather than papered over:** cross-kind pairs are left unconstrained
-   because there is no principled way to rank "a recovery phrase" against "two guardians" — any
-   ordering imposed on them would be invented, and inventing one would reject legitimate policies
-   such as `recover = {Phrase}`, `rotate = {Ik, Guardians(2)}`, which is safe under this rule's own
-   rationale (the phrase-holder recovers but cannot rotate). A deployment wanting cross-kind
-   guarantees must express them by choosing kinds deliberately, not by relying on this check.
+   **Closing the cross-kind gap: no single weak factor may rotate (normative).** Leaving cross-kind
+   pairs unconstrained has a dangerous direction the same-kind check above does not catch: a
+   `rotate_threshold` containing a single-count, non-`Ik` predicate is satisfied by **one**
+   compromised factor no matter how strong `recover_threshold` is. `recover_threshold =
+   {Guardians(3)}`, `rotate_threshold = {Phrase}` passes the same-kind check (different kinds,
+   unconstrained), yet one stolen phrase can now rewrite the policy that three guardians are
+   required merely to *recover* — the exact single-compromised-factor takeover this rule's
+   headline forbids. Therefore: **`rotate_threshold` MUST NOT be satisfiable by a single non-`Ik`
+   factor unless that same factor, alone, also satisfies `recover_threshold`.** `Ik` is exempted
+   from this specific check — not because it is weak, but because rule 3 already forbids `IK`
+   alone from executing a *weakening* change regardless of what `rotate_threshold` contains, so
+   the exemption does not reopen the takeover this check exists to close.
+
+   **Honest limit, stated rather than papered over:** cross-kind pairs beyond the single-factor
+   case just closed remain unconstrained, because there is no principled way to rank "a recovery
+   phrase" against "two guardians" — any further ordering imposed on them would be invented, and
+   a naive one (e.g. requiring every `rotate_threshold` predicate to also appear in
+   `recover_threshold`) would reject legitimate policies such as `recover = {Phrase}`, `rotate =
+   {Ik, Guardians(2)}`, which is safe under this rule's own rationale (the phrase-holder recovers
+   but cannot rotate). What is left open is only multi-factor cross-kind comparisons, e.g.
+   `recover = {Devices(2)}`, `rotate = {Guardians(2)}`, where no single factor suffices either way
+   and no principled ranking exists. A deployment wanting stricter cross-kind guarantees must
+   express them by choosing kinds deliberately, not by relying on this check.
 3. **Weakening changes need the quorum, not `IK` alone (compromise defense).** A policy change
    that **removes or weakens any recovery factor** (drops a method, lowers a threshold, evicts a
    guardian/device) MUST satisfy `rotate_threshold` **even when signed by `IK`** — `IK` alone MUST

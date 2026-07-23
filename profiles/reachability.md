@@ -112,18 +112,26 @@ and cannot be squatted.
 - **REACH-1a — cert ownership determines assurance level (normative).** The `structural` assurance
   level ([CONTRACT §3.3](../coordinator/CONTRACT.md)) for `blind-routing` holds only when the box's
   public name resolves under a zone the adapter does not control — an **own-domain** name
-  ([§7.10.6](../07-gateway.md) tier 1), where a CAA record (RFC 8659) can bar the adapter from
-  ever completing domain-control validation. For a **bare adapter-zone vanity** (REACH-3) the
-  adapter is the zone's sole writer (REACH-7) and can complete DNS-01, HTTP-01, or TLS-ALPN-01
-  validation for that name itself at any time, terminate TLS, and re-encrypt to the box — nothing
-  in this profile structurally prevents it. An adapter serving a bare vanity name MUST declare
+  ([§7.10.6](../07-gateway.md) tier 1) — **and** that zone publishes an **RFC 8657**
+  `accounturi`-bound CAA record naming the box's own ACME account (SHOULD also pin
+  `validationmethods` to exclude `tls-alpn-01`, REACH-2a's default and the in-path-hijackable
+  method). A bare **RFC 8659** CAA record restricts only which *CA* may issue, not the validation
+  *method* or *account*: because REACH-2a's default TLS-ALPN-01 challenge is forwarded over the
+  same passthrough path the adapter routes, an in-path adapter can complete that challenge itself —
+  under the same CAA-permitted CA, using its own ACME account — and mint a MITM certificate a bare
+  CAA record never excludes. An own-domain box using an adapter MUST publish an RFC 8657
+  `accounturi`-bound CAA record for the `structural` claim to hold; a bare RFC 8659 CAA alone is
+  insufficient. For a **bare adapter-zone vanity** (REACH-3) the adapter is the zone's sole writer
+  (REACH-7) and can complete DNS-01, HTTP-01, or TLS-ALPN-01 validation for that name itself at
+  any time, terminate TLS, and re-encrypt to the box — no CAA record helps there, since the adapter
+  itself writes the zone. An adapter serving a bare vanity name MUST declare
   `blind-routing` at `declared`, not `structural`, and this MUST be surfaced to the user alongside
   the REACH-4 non-portability label (§7, §8). A KOTVA-aware client SHOULD pin the box's TLS
   certificate to its `IK` via a DANE/TLSA-style hash carried in the signed `LocationRecord`
   ([ROLES §2](../substrate/ROLES.md)), so a substituted adapter-issued certificate is detectable
-  even for a vanity name, and a box SHOULD monitor Certificate Transparency logs for its served
-  names to detect covert issuance. These detect a `declared`-level breach; they do not make it
-  `structural`.
+  even for a vanity name or an own-domain name lacking an RFC 8657 binding, and a box SHOULD
+  monitor Certificate Transparency logs for its served names to detect covert issuance. These
+  detect a `declared`-level breach; they do not make it `structural`.
 - **REACH-2 — the tunnel is key-authenticated; the adapter authorizes, never classifies.** The
   box↔adapter tunnel MUST be mutually authenticated to the box `IK` (DMTAP-Auth, [§13](../13-identity-auth.md)).
   The adapter gates on **identity + rate only** ([CONTRACT §4](../coordinator/CONTRACT.md)); it MUST
@@ -258,12 +266,15 @@ Inheriting [THREAT-MODEL.md](../THREAT-MODEL.md) (SEC-1…SEC-9); the REACH-spec
 - **Declared visibility: `blind-routing`, assurance scoped by cert ownership** (SEC-4,
   [CONTRACT §3](../coordinator/CONTRACT.md)). The adapter sees the SNI hostname, connection
   addresses, byte sizes, and timing; it does **not** see payload, because the box holds the TLS key
-  (REACH-1). For an **own-domain** name the box controls the zone (a CAA record can bar the adapter
-  from issuing), so blindness is *structural* — provable from key placement. For a **bare
-  adapter-zone vanity** the adapter is the zone's sole writer (REACH-7) and can mint its own
-  certificate for the name, so blindness there is `declared`, not `structural` (REACH-1a) — a real,
-  disclosed trust residual (§8), mitigated by `LocationRecord` TLS-key pinning for KOTVA-aware
-  clients and CT monitoring, never structurally excluded for a plain client's connection.
+  (REACH-1). For an **own-domain** name the box controls the zone **and publishes an RFC 8657
+  `accounturi`-bound CAA record** (REACH-1a) — a bare RFC 8659 CAA names only a permitted CA and
+  does not bar an in-path adapter forwarding REACH-2a's default TLS-ALPN-01 challenge from
+  completing issuance itself — so with that binding blindness is *structural*, provable from key
+  placement and account binding. For a **bare adapter-zone vanity** the adapter is the zone's sole
+  writer (REACH-7) and can mint its own certificate for the name, so blindness there is `declared`,
+  not `structural` (REACH-1a) — a real, disclosed trust residual (§8), mitigated by
+  `LocationRecord` TLS-key pinning for KOTVA-aware clients and CT monitoring, never structurally
+  excluded for a plain client's connection.
 - **Cleartext SNI is a correctness dependency, not only a privacy limit.** Blind routing demuxes on
   the TLS ClientHello's SNI (REACH-1); an ECH-encrypted inner SNI gives a `blind-routing` adapter no
   name to route on, so a blind adapter simply **cannot serve** an ECH client — only a `terminating`
@@ -275,8 +286,12 @@ Inheriting [THREAT-MODEL.md](../THREAT-MODEL.md) (SEC-1…SEC-9); the REACH-spec
   best-effort.
 - **SEC-2 intrinsic authenticity.** The box authenticates to its `IK` (DMTAP-Auth); the client
   authenticates the *service* by its TLS certificate, which the box — not the adapter — presents.
-  For an **own-domain** name this is intrinsic: the adapter cannot mint a competing cert for a zone
-  it does not write. For a **bare adapter-zone vanity**, the adapter *is* the zone's writer and can
+  For an **own-domain** name publishing an RFC 8657 `accounturi`-bound CAA record (REACH-1a), this
+  is intrinsic: the adapter cannot mint a competing cert for a zone it does not write, and the CAA
+  binding excludes it from completing issuance itself over the passthrough path. Without that
+  binding, a bare RFC 8659 CAA does not exclude an in-path adapter from completing REACH-2a's
+  default TLS-ALPN-01 challenge under a permitted CA using its own account — the same residual as
+  a bare vanity. For a **bare adapter-zone vanity**, the adapter *is* the zone's writer and can
   mint its own certificate and MITM a plain client that does not pin the box's key (REACH-1a) — a
   declared, disclosed residual (§8), not structurally excluded; closed only for a KOTVA-aware client
   that verifies the `LocationRecord` TLS pin.
@@ -286,11 +301,14 @@ Inheriting [THREAT-MODEL.md](../THREAT-MODEL.md) (SEC-1…SEC-9); the REACH-spec
 - **SEC-7 abuse priced-and-localized.** Anti-abuse is authorization — authenticated tunnels,
   rate-limit tokens, optional postage for cold registration — never content classification. A poisoned
   adapter is one adapter, swappable; there is no network-wide reachability authority to poison.
-- **SEC-8 replay-inert / downgrade-impossible for own-domain names.** `LocationRecord` monotonic
-  `seq`; DMTAP-Auth challenge-response on the tunnel; TLS with no downgrade into `terminating`
-  (REACH-1, REACH-10) is cryptographically enforced when the box owns its zone. For a bare vanity,
-  the adapter is the sole zone writer, and a covert downgrade (mint a cert and terminate, while
-  still declaring `blind-routing`) is a conformance violation the protocol can detect — via
+- **SEC-8 replay-inert / downgrade-resistant for own-domain names with an RFC 8657 binding.**
+  `LocationRecord` monotonic `seq`; DMTAP-Auth challenge-response on the tunnel; TLS with no
+  downgrade into `terminating` (REACH-1, REACH-10) is cryptographically enforced when the box owns
+  its zone **and** publishes the REACH-1a `accounturi`-bound CAA record — a bare RFC 8659 CAA alone
+  does not enforce this, since it does not bind the validation method or account an in-path adapter
+  could use. For a bare vanity, or an own-domain zone without that binding, the adapter (or, for a
+  vanity, the sole zone writer) can covertly downgrade — mint a cert and terminate, while still
+  declaring `blind-routing` — a conformance violation the protocol can detect — via
   `LocationRecord` TLS-key pinning and CT monitoring (REACH-1a) — but cannot structurally prevent; a
   disclosed gap (§8), not a guarantee.
 
@@ -305,16 +323,20 @@ Inheriting [THREAT-MODEL.md](../THREAT-MODEL.md) (SEC-1…SEC-9); the REACH-spec
   connection graph to a box's services. This is declared, not hidden, and traces to the
   **metadata** ceiling — strong graph privacy against a global passive adversary is research-tier and
   non-normative ([THREAT-MODEL SEC-9](../THREAT-MODEL.md), [research/README §5](../docs/research/README.md)).
-- **A bare adapter-zone vanity is `declared`, not `structural`, blind — a real MITM residual.** The
-  adapter is the sole writer of its own zone (REACH-7), so it can complete domain-control validation
-  (DNS-01, HTTP-01, or TLS-ALPN-01) and mint a browser-trusted certificate for the vanity name at
-  any time — terminating TLS itself instead of passing it through, and re-encrypting to the box. A
-  plain client (browser, `git`, an S3 SDK) doing ordinary WebPKI validation does not pin the box's
-  key and cannot detect this substitution; it sees no warning. This does **not** apply to an
-  own-domain name, where CAA in a zone the adapter cannot write excludes adapter issuance
-  (REACH-1a). `LocationRecord` TLS-key pinning (KOTVA-aware clients only) and CT-log monitoring
-  *detect* a rogue or legally-compelled adapter; neither *prevents* it. The specification discloses
-  this as a real trust boundary rather than presenting bare-vanity blindness as structural.
+- **A bare adapter-zone vanity is `declared`, not `structural`, blind — a real MITM residual; an
+  own-domain name without an RFC 8657 binding shares it.** The adapter is the sole writer of its
+  own zone (REACH-7), so it can complete domain-control validation (DNS-01, HTTP-01, or
+  TLS-ALPN-01) and mint a browser-trusted certificate for the vanity name at any time — terminating
+  TLS itself instead of passing it through, and re-encrypting to the box. A plain client (browser,
+  `git`, an S3 SDK) doing ordinary WebPKI validation does not pin the box's key and cannot detect
+  this substitution; it sees no warning. An own-domain name excludes this only when its zone
+  publishes an RFC 8657 `accounturi`-bound CAA record (REACH-1a): a **bare RFC 8659 CAA restricts
+  only the issuing CA, not the validation method or account**, so without the RFC 8657 binding an
+  in-path adapter forwarding REACH-2a's default TLS-ALPN-01 challenge can complete issuance itself
+  under the same permitted CA and MITM the box exactly as for a bare vanity. `LocationRecord`
+  TLS-key pinning (KOTVA-aware clients only) and CT-log monitoring *detect* a rogue or
+  legally-compelled adapter, own-domain or vanity; neither *prevents* it. The specification
+  discloses this as a real trust boundary rather than presenting bare-CAA blindness as structural.
 - **A public IP is genuinely scarce; a NAT'd box cannot fully self-serve.** REACH-9's backstop is real
   only for a box that already has a public path; the box that most needs an adapter is the one that
   cannot be its own. The scarcity is confined to this one coordinator kind (like port-25) but does not

@@ -35,7 +35,7 @@ Moving an item between two places, immediately.
   `completed` (handed over).
 - Live location is conveyed as `Progress` objects carrying `at`. These are
   append-only and high-volume; implementations SHOULD rate-limit them and
-  SHOULD compact them aggressively after completion (§7.5).
+  SHOULD compact them aggressively after completion (§7.3).
 
 Vocabulary here is deliberately aligned with prior art in the community-owned
 delivery space (§16) so that a bridge to those systems is a mapping rather than
@@ -69,31 +69,21 @@ profile been deferred.
 
 ## 12.4. Other applicable domains
 
-Non-normative. These are recorded to show which parts of the core are load-
-bearing, and where a future profile would need to extend it.
+Non-normative. Two observations, drawn from surveying adjacent domains
+(field service, home care, mutual aid, municipal reporting, agricultural
+contracting, roadside assistance, medical courier, inspection, remote
+freelance work, event crew calls), shaped the core.
 
-| Domain | What it exercises |
-|---|---|
-| **Field service** — ATMs, vending, telecoms towers, lifts | Scheduled windows, licences, parts inventory, assets that are themselves the "place" |
-| **Home & community care** — nursing visits, community health workers | Recurring visits, strict privacy on `detail`, `kind = 4` proof (a visit often has no artefact) |
-| **Mutual aid & disaster response** | Zero-compensation work orders, surge volume, pools that form and dissolve within days |
-| **Municipal & citizen reporting** — potholes, streetlights, waste | The *citizen* is the issuer; a municipality is the performer. Inverts the usual power direction and is a good test that the model is not merchant-centric |
-| **Agricultural contracting** — harvest crews, tractor hire | Seasonal pools, crew-sized assignment (one assignment, many humans), weather-driven cancellation |
-| **Roadside assistance & towing** | Immediate dispatch with geographic urgency; overlaps `delivery/v0` closely |
-| **Medical courier** — lab samples, pharmacy | Chain-of-custody: every handoff needs proof, not only the last one |
-| **Inspection & assessment** — building, insurance, safety | The deliverable is a *document*, so fulfilment is a content reference rather than a handoff |
-| **Remote/freelance work** — translation, design, code | **No `Place` at all.** A useful test that geography is optional in the core, which it is: `places` is a MAY field |
-| **Event & film crew calls** | Many performers per work order, call times, role-specific requirements |
+**Geography is optional.** `places` is a MAY field precisely because remote
+work — translation, design, code, with no `Place` at all — is a legitimate
+domain. An implementation that requires coordinates has narrowed the
+protocol for no reason.
 
-Two observations from this list shaped the core.
-
-**Geography is optional.** `places` is a MAY field precisely because remote work
-is a legitimate domain. An implementation that requires coordinates has
-narrowed the protocol for no reason.
-
-**The issuer is not necessarily a business.** A resident reporting a pothole is
-an issuer; a municipality is the performer. Nothing in WRAP privileges
-commercial issuers, and any profile that assumes one has made an error.
+**The issuer is not necessarily a business.** A resident reporting a
+pothole is an issuer; a municipality is the performer — municipal and
+citizen reporting inverts the usual power direction. Nothing in WRAP
+privileges commercial issuers, and any profile that assumes one has made an
+error.
 
 ## 12.5. Registering a profile
 

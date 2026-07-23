@@ -174,8 +174,8 @@ recipient back. A sleeping node does **not** serve its catalogue while asleep �
 is not slow, they are **invisible**, and nobody else is obliged to serve their listings in their
 absence. Documentation MUST NOT present an intermittently-online seller as fully functional (§21.9).
 
-The closest deployed relative of this design measured a ~22-day median listing lifetime and whole
-catalogues disappearing when a merchant node departed (§21.3). Third-party caching or pinning of
+The closest deployed relative of this design measured a bounded listing lifetime (§21.3) and whole
+catalogues disappearing when a merchant node departed. Third-party caching or pinning of
 public objects therefore moves from a convenience to a **practical requirement** for any seller who
 is not always on — and unpaid replication is exactly what that system failed to attract (§21.5).
 Whether pinning needs an incentive, and whether that incentive creates another operator, stays open

@@ -110,7 +110,7 @@ is normative, the code is normative with it.
 | Code | Name | Operation | Meaning | Retryable | Action |
 |---|---|---|---|:---:|---|
 | `0x0101` | `ERR_TRACT_TYPE_CONFUSION` | decode of any object (§16.4) | a sealed object is presented under a public-object schema, or a public object under a sealed one | No | fail-closed-block |
-| `0x0102` | `ERR_TRACT_PERSONAL_DATA_PUBLIC` | decode or publish of `ProductRecord`, `Offer`, `RateCard`, `CapacityRecord`, or a storefront render bundle (§0.5.1, §16.4) | a public-quadrant object carries a field that identifies, or is linkable to, a natural person | No | fail-closed-block |
+| `0x0102` | `ERR_TRACT_PERSONAL_DATA_PUBLIC` | decode or publish of any public-family object (§22.3's canonical list, §16.4) | a public-quadrant object carries a field that identifies, or is linkable to, a natural person | No | fail-closed-block |
 | `0x0201` | `ERR_TRACT_OFFER_AXIS_MISSING` | `Offer` decode (§2.3, §16.5.2) | one or more of the four axes — Item, Availability, Fulfilment, Consideration — is absent | No | fail-closed-block |
 | `0x0401` | `ERR_TRACT_CURRENCY_MISMATCH` | consideration or route-total arithmetic (§5.3, §16.7) | two `money` values of different currencies are combined without an explicit, disclosed conversion | Conditional — a disclosed conversion supplies a single currency | fail-closed-block |
 | `0x0501` | `ERR_TRACT_OVERSELL_PREVENTED` | cart checkout against partitioned inventory (§6.2, §6.4) | a sale would exceed the combined quota remaining across a seller's replicas | No | fail-closed-block |

@@ -13,16 +13,11 @@ to rate-limit and block abusers. The resolution is **anonymous but accountable**
 3. **Cost for cold contact.** Reaching a stranger costs something (a token, proof-of-work, or
    a paid stamp), so bulk unsolicited sending is uneconomic. Known contacts are free.
 4. **Anonymity preserved — with one disclosed, structural exception.** Abuse control MUST NOT
-   deanonymize the sender or link a sender across recipients. **The vouch (§9.7) is the sole
-   exception, and it is exempted by construction, not by oversight:** a `Vouch` (§18.3.3) names
-   the voucher, the subject (the cold sender being introduced), and the recipient as identity
-   keys, and §9.2a requires the whole `ChallengeResponse` — vouch included — to ride the
-   **cleartext** envelope so the gate can check it before decryption (§2.7 step 6). Every exit
-   mix and any on-path observer of that hop therefore reads all three identities on any
-   first-contact MOTE that presents a vouch. This principle binds ARC (§9.3), PoW (§9.4), and
-   postage (§9.5) without exception; it does **not** bind the vouch, and no implementation or
-   operator MAY describe vouch-based introduction as anonymity-preserving (§6.9 SP-11, SP-5;
-   §9.7's own honest-limit clause states the exposure in full).
+   deanonymize the sender or link a sender across recipients. The vouch (§9.7) is the sole,
+   structural exception — see §9.7 for its full disclosure. This principle binds ARC (§9.3), PoW
+   (§9.4), and postage (§9.5) without exception; it does **not** bind the vouch, and no
+   implementation or operator MAY describe vouch-based introduction as anonymity-preserving
+   (§6.9 SP-11, SP-5).
 
 ## 9.2 Recipient policy
 
@@ -67,9 +62,7 @@ signs — both `sender_sig` and the stolen proof then verify). To close this, **
   would break sealed sender (§6.2). It is therefore bound to the **subject it names** instead:
   §2.7 step 8(b2) requires `Payload.from == VouchToken.subject`, and a mismatch is discarded
   without an `ack` (`ERR_VOUCH_SUBJECT_MISMATCH`, `0x0126`).
-  **Correcting an earlier claim in this section.** This bullet previously stated that a stolen
-  vouch "still fails identity authentication inside `ciphertext` at §2.7 step 8, so it is
-  discarded. No additional binding is required." That was **wrong**. Step 8(a) verifies
+  A stolen vouch is not caught by identity authentication alone: step 8(a) verifies
   `Payload.sig` under `Payload.from`, a field the thief chooses and signs with their own key, so
   it succeeds. Since a vouch travels in the cleartext envelope (this section's own premise), any
   on-path observer could lift one and present it as their own — acquiring, at zero cost, the tier
@@ -207,7 +200,7 @@ reasons:
 - **It bounds the *aggregate-parallelism* advantage.** Repeated squaring is believed not to
   parallelize, so 100 000 rented cores compute one puzzle no faster than one core does: a botnet's
   breadth buys it essentially nothing *per puzzle*. **This is not the same as flattening the
-  hardware spread, and this specification previously said it was.** What survives untouched is the
+  hardware spread.** What survives untouched is the
   **per-gate latency constant factor** — faster silicon, a tighter multiplier, an ASIC — which the
   VDF literature itself budgets as a routine design parameter (a ≈ 10× faster-evaluator allowance)
   and separately reasons about at ASIC scale (≈ 100×). The honest claim is therefore: a VDF turns
@@ -260,8 +253,7 @@ construction, not a maturity opinion:
    squarings into a **single reduced exponentiation**, destroying exactly the sequentiality the
    anti-abuse use depends on. **No simple post-quantum VDF exists to substitute.** Pinning a
    PQ-hybrid suite as the REQUIRED default (§1.1, justified by harvest-now-decrypt-later) while
-   *recommending* an RSA-group or class-group VDF would be internally inconsistent, and this
-   section previously was.
+   *recommending* an RSA-group or class-group VDF would be internally inconsistent.
 
    **Why that inconsistency is tolerable rather than fatal — stated plainly rather than hidden.**
    The two exposures are not the same kind of thing. A quantum break of the KEM is
@@ -422,11 +414,11 @@ nothing but a keypair and a few seconds of work — memory-hard by default, sequ
 recipient also offers it — **can always reach the requests area**,
 and can therefore be found, replied to, and promoted to a contact by a human decision.
 
-**Why the floor is a policy constraint and NOT a per-sender count (normative).** An earlier
-revision expressed this as "at least `N_floor` cold MOTEs **per sender-key** per day". That
-bounded nothing. §2.2 defines `sender_key` as an **ephemeral, fresh-per-message** key whose entire
-purpose is unlinkability, and §9.2a notes an attacker mints them at will — so a per-sender-key
-quota is a quota *per message*, which is no quota at all. Nor could it be otherwise: the recipient
+**Why the floor is a policy constraint and NOT a per-sender count (normative).** A per-sender-key
+quota — "at least `N_floor` cold MOTEs **per sender-key** per day" — bounds nothing. §2.2 defines
+`sender_key` as an **ephemeral, fresh-per-message** key whose entire purpose is unlinkability, and
+§9.2a notes an attacker mints them at will — so a per-sender-key quota is a quota *per message*,
+which is no quota at all. Nor could it be otherwise: the recipient
 has **no stable subject to meter against at gate time by design**, because identity is not
 revealed until §2.7 step 8, after decryption. §9.2's `RateLimit` and §16.4's per-sender spool cap
 inherit exactly the same vacuity on the cold path and MUST be read as aggregate limits there.
@@ -463,10 +455,14 @@ collective-action problem, and the only place to solve it is in the conformance 
 ## 9.8 Mixnet abuse
 
 Mix nodes are content-blind and cannot filter content — and, crucially, an entry mix **cannot**
-verify the recipient-facing anti-abuse proof (ARC token / postage / PoW) either, because that
-proof is **sealed inside the encrypted `ciphertext`** (§2.2b, §6.2) and bound to the *recipient*,
-not to the mix. Mixnet flood-abuse is therefore bounded by mechanisms a **content-blind** node can
-actually apply:
+verify the recipient-facing anti-abuse proof (ARC token / postage / PoW) either. The proof rides
+the **cleartext envelope**, not the payload (§2.2b) — but Sphinx onion-layering (§4.4) hides that
+envelope from every mix except the one peeling the final layer: each mix peels exactly one layer
+and forwards on its own hop's routing info alone, never seeing the recipient-scoped envelope
+underneath. Only the **exit mix** peels that last layer and sees `challenge`; an entry mix has
+nothing to check because the proof has not yet been revealed to it, not because it is sealed
+inside encrypted payload. Mixnet flood-abuse is therefore bounded by mechanisms a
+**content-blind** node can actually apply:
 
 - **Per-connection / per-guard-operator rate limiting (MUST).** An entry mix admits Sphinx cells
   under a **per-connection and per-operator rate budget** — it limits how fast any one source (and
@@ -480,7 +476,7 @@ actually apply:
   attested-operator and ASN-diversity requirements of §4.4.8, make sustained flooding costly and
   attributable without requiring any adjudicator to seize a bond (§9.6).
 
-The recipient's sealed token/postage/PoW (§9.3–§9.5) still gates whether the message is *accepted
+The recipient's token/postage/PoW proof (§9.3–§9.5) still gates whether the message is *accepted
 into the recipient's inbox* — but it is enforced at the **recipient**, after mix delivery, never
 mistaken for something an entry mix verifies. Cover traffic is itself **rate-bounded per node**
 (§4.4.7) so cover cannot be turned into the flood.
@@ -570,21 +566,10 @@ exact. The thing legacy filters exist to solve — unlimited unattributable inje
 problem, and it should leave when legacy does (§7.1c).
 
 **Why this is structural: measured evidence that anti-abuse is how mail re-centralizes.** Mail
-centralization is usually told as a story about mailbox providers. The measurements say there is a
-**second, independently growing centralized tier** made of anti-abuse:
-
-- Liu, Fass, Hong *et al.*, **"Who's Got Your Mail? Characterizing Mail Service Provider Usage"**
-  (ACM IMC 2021, §15.5) found that **third-party email-security vendors — ProofPoint, Mimecast,
-  Barracuda — rank among the top five providers by MX-record share**, despite **not being mailbox
-  providers at all**, and that their share **grew over 2017–2021** while mailbox-provider
-  concentration was already high. Crucially, organizations that had gone to the trouble of running
-  **their own mail infrastructure still outsourced inbound filtering** to those vendors: the
-  function that defeated self-hosting was not storage or transport, it was *deciding what is spam*.
-- The same shape appears in a completely unrelated system. In BitTorrent, DHT and PEX displaced
-  tracker-based **peer discovery** within a few years — yet private trackers persisted for two
-  decades, because the function that survived was never discovery: it was **reputation and access
-  control**. Decentralize a lookup and it stays decentralized; decentralize a judgement and the
-  judgement re-aggregates wherever the largest corpus is.
+centralization is usually told as a story about mailbox providers. Measured evidence says there is
+a **second, independently growing centralized tier** made of anti-abuse — why this prohibition is
+structural, not a preference — reported in `research/` (IMC 2021 mail-provider study; BitTorrent
+tracker persistence).
 
 Both point at the same conclusion: **the classifier is the durable centralizer**, because
 classification improves with corpus size, never terminates, and makes everyone's mail depend on a

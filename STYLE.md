@@ -2,7 +2,8 @@
 
 The whole family must read as **one professionally-written document**, not twenty voices.
 Every spec doc — substrate, primitive, profile, cross-cutting — follows this guide. It is the
-standard the perfection pass enforces.
+standard the perfection pass targets across the family (§7 below is target-state, not yet
+followed anywhere in the tree — see its note).
 
 ---
 
@@ -72,10 +73,15 @@ an Honest residual / disclosed-limits section.
 
 ## 7. Profile naming
 
-- Canonical profile IDs are **descriptive and uniform**: `kotva-mail`, `kotva-commerce`,
-  `kotva-work`, `kotva-social`, `kotva-rtc`, `kotva-media`, `kotva-search`, `kotva-reach`.
-- Legacy brand names are **aliases where equity exists**: *KOTVA-Mail (a.k.a. DMTAP)*,
-  *KOTVA-Commerce (TRACT)*, *KOTVA-Work (WRAP)*. Do **not** mint a new acronym for a new profile.
+- **Actual convention (what the tree does today):** the brand/uppercase name is primary and
+  canonical — DMTAP-mail, TRACT, WRAP, SOCIAL, REACH, SEARCH, MEDIA, RTC. Every profile H1,
+  cross-reference, and SPEC.md entry leads with this form. Do **not** mint a new acronym for a
+  new profile.
+- **Target-state (not yet used anywhere in the tree):** a uniform `kotva-*` identifier
+  (`kotva-mail`, `kotva-commerce`, `kotva-work`, `kotva-social`, `kotva-rtc`, `kotva-media`,
+  `kotva-search`, `kotva-reach`) is reserved as a future optional alias for config/URL surfaces
+  that need a machine-stable ID. It is aspirational, not an enforced or present convention —
+  do not present it as canonical until it is adopted somewhere.
 
 ## 8. The honesty rules (non-negotiable)
 

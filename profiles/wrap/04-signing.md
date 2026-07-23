@@ -78,10 +78,16 @@ not as a merge-time judgement:
 |---|---|
 | `WorkOrder` | Any Principal |
 | `Offer` | The `WorkOrder`'s author |
-| `Bid` | Any Principal the offer's pool admits (§8.4) |
+| `Bid` | Any Principal |
 | `Assignment` | **The `WorkOrder`'s author only** |
 | `Progress` | The assigned performer, or the issuer |
 | `Attestation` | Any Principal — but see §9.3 on weighting |
+
+Pool admission (§8.4) constrains who *receives* an `Offer` and so who is
+positioned to `Bid`, but v0 defines no membership mechanism a verifier can
+check — it is an out-of-band distribution and social matter, not a
+verify-step authorship check. `ERR_NOT_AUTHORIZED` therefore never applies
+to a `Bid` in v0.
 
 An object that is cryptographically valid but violates its authorship rule MUST be
 rejected, not down-ranked. In particular an `Assignment` signed by anyone other

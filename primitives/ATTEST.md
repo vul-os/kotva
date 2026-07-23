@@ -74,9 +74,13 @@ Attestation = {
   6 => Claim,         ; claim     the EAS attestation / W3C VC body (bound, NOT invented — §bindings)
   7 => u64,           ; ts        issuance time (ms epoch), display/ordering only
   ? 8 => Revoke,      ; revoke    revocation binding (§2.2); absent ⇒ no status-list/expiry
-                      ;           revocation is declared — supersession (key 9, §4.3) remains
-                      ;           available for feed-carried (public) attestations
-  ? 9 => hash,        ; supersedes  content-address of a prior Attestation by the SAME issuer (§4.3)
+                      ;           revocation declared for this attestation — supersession for
+                      ;           public attestations is via PubAnnounce.supersedes (§4.3), not
+                      ;           an Attestation field
+  ; key 9 (supersedes) is retired: it duplicated PubAnnounce.supersedes (§22.3.4, same-pub,
+  ; ERR_PUB_SUPERSEDE_INVALID) on the public carrier and was inoperative on the sealed carrier
+  ; (no feed to detect it on, §9). Public attestations supersede via PubAnnounce (§4.3); the
+  ; sealed carrier has no supersession detection at all.
   ; key 10 (sig) is retired: the Attestation carries no signature of its own (§2, above); the
   ; carrier's sig authenticates it.
 }
@@ -93,12 +97,15 @@ BlindedSubject = {
 SchemaRef = tstr           ; EAS schema UID (0x-hex) or a VC @type URI
 
 Revoke = {
-  1 => u8,                 ; mode   0 = status-list, 1 = supersede-only, 2 = expiry-only
+  ; key 1 (mode) is retired: the mechanism is self-describing by field presence, no discriminator
+  ; needed — {list,index} => status-list; {nbf,exp} => expiry; both pairs MAY coexist on one
+  ; Revoke (mode used to force them mutually exclusive). Attestation key 8 absent, above, is
+  ; already the supersede-only case.
   ? 2 => tstr,             ; list   status-list locator (W3C Bitstring Status List / EAS registry)
-  ? 3 => u64,              ; index  bit index within the status list
-  ? 4 => u64,              ; nbf    not-before bound (ms epoch); mode = expiry
-  ? 5 => u64,              ; exp    expiry bound (ms epoch); mode = expiry — at least one of
-                           ;        nbf/exp REQUIRED when mode = 2
+  ? 3 => u64,              ; index  bit index within the status list; present iff list present
+  ? 4 => u64,              ; nbf    not-before bound (ms epoch)
+  ? 5 => u64,              ; exp    expiry bound (ms epoch) — at least one of nbf/exp REQUIRED
+                           ;        when either is present
 }
 ```
 
@@ -139,9 +146,8 @@ fields; it MUST NOT invent a parallel attestation object (the waist adoption rul
 - **R-ATT-2 (offline-verifiable).** Verification **MUST** succeed offline, zero-DNS, from the
   object alone: reject unknown `v`/`suite`; verify the **carrier's** `sig` (`PubAnnounce.sig` /
   `Payload.sig`, §2) under `signer`; verify `signer`'s authority chains to `issuer`, and that
-  `issuer` equals the carrier's authenticated identity (`PubAnnounce.pub` / `Payload.from`); if
-  `supersedes` is present, require the predecessor's `issuer` to match (§4.3). A name is needed
-  only to *display* who `issuer` is, never to verify (§3.13).
+  `issuer` equals the carrier's authenticated identity (`PubAnnounce.pub` / `Payload.from`). A name
+  is needed only to *display* who `issuer` is, never to verify (§3.13).
 - **R-ATT-3 (self-issuance is legal and worthless).** An issuer MAY attest about any subject,
   including itself. The substrate does not forbid self-dealing; it makes it **visible** — a
   self-issued or fresh-key attestation is a genuine signature that a discounting verifier
@@ -165,7 +171,7 @@ fields; it MUST NOT invent a parallel attestation object (the waist adoption rul
 - **R-ATT-7 (personhood is a binding, not our biometrics).** A proof-of-personhood attestation
   **MUST** bind to World ID / Human Passport ([bindings](../bindings/README.md)); the substrate
   defines no biometric of its own. It is the anti-Sybil anchor other primitives consume, and it is
-  **imperfect by disclosure** (§10).
+  **imperfect by disclosure** (§9).
 
 ---
 
@@ -189,15 +195,21 @@ fields; it MUST NOT invent a parallel attestation object (the waist adoption rul
   what lets a keypair stand in for "a distinct human" at global scale without the substrate
   minting an identity registry.
 
-### 4.3 Supersession & equivocation
+### 4.3 Supersession & equivocation (public carrier only)
 
-Supersession is a within-issuer edit: a new `Attestation` whose `supersedes` names the prior one,
-by the **same** issuer. Because both live on the issuer's append-only author feed (§22.4.2), the
-feed's `prev` hash-chain makes an issuer that signs **two contradictory claims at one feed
-position** *detectably* equivocating (`ERR_PUB_FEED_CHAIN_BROKEN`, HALT_ALERT — FEEDS §4.3). An
-issuer cannot honestly present two histories; a verifier that sees both holds transferable
-evidence. Equivocation is **surfaced for dispute, never merged away** (the SYNC / OFFLINE
-invariant, [substrate/OFFLINE.md](../substrate/OFFLINE.md) R-SYNC-1).
+Supersession for a public attestation rides `PubAnnounce.supersedes` (§22.3.4, same-`pub`,
+`ERR_PUB_SUPERSEDE_INVALID`) — a within-issuer edit at the carrier level, not an `Attestation`
+field (§2). Because successive announcements live on the issuer's append-only author feed
+(§22.4.2), the feed's `prev` hash-chain makes an issuer that signs **two contradictory claims at
+one feed position** *detectably* equivocating (`ERR_PUB_FEED_CHAIN_BROKEN`, HALT_ALERT — FEEDS
+§4.3). An issuer cannot honestly present two histories; a verifier that sees both holds
+transferable evidence. Equivocation is **surfaced for dispute, never merged away** (the SYNC /
+OFFLINE invariant, [substrate/OFFLINE.md](../substrate/OFFLINE.md) R-SYNC-1).
+
+The **private sealed carrier has no supersession or equivocation detection**: a sealed content
+MOTE (§2) is on no feed, so there is no `prev` chain and no `PubAnnounce.supersedes` to check. A
+malicious issuer can hand two recipients contradictory sealed claims and no single verifier ever
+holds both to detect it (§9).
 
 ---
 
@@ -209,7 +221,7 @@ Per [`bindings/README.md`](../bindings/README.md), ATTEST binds and does not rei
 |---|---|---|
 | Claim / credential shape | **EAS** + **W3C Verifiable Credentials** | the `claim` body (key 6); mature plumbing, nascent portable-reputation layer |
 | Revocation status | **W3C Bitstring Status List** / EAS revocation registry | the `Revoke.list` locator (Revoke key 2, carried under Attestation key 8) |
-| Proof-of-personhood | **World ID** / **Human Passport** | the anti-Sybil anchor; imperfect (§10) |
+| Proof-of-personhood | **World ID** / **Human Passport** | the anti-Sybil anchor; imperfect (§9) |
 | Selective disclosure | VC selective-disclosure / BBS-class, when the binding matures | a `Claim` profile, not a substrate change |
 | Reputation compute | **OpenRank** (EigenTrust, TEE-verified) | consumes the graph; produces no stored score |
 
@@ -233,7 +245,7 @@ The object is identical at every scale; only the **issuer's standing** slides
 Remove connectivity and every attestation still **verifies** and still **means** what its issuer
 said; only the reach of *discovering* new issuers and *fetching* live revocation status is lost.
 The web-of-trust form is genuinely weaker in coverage than a global attester — disclosed, not
-hidden (§10).
+hidden (§9).
 
 ---
 
@@ -252,7 +264,9 @@ Per the degradation grades of [`substrate/OFFLINE.md`](../substrate/OFFLINE.md):
 - **R-ATT-OFF-1 (fail-closed revocation).** An attestation whose revocation status **cannot** be
   checked (status list unreachable, feed not yet caught up) **MUST** be surfaced as
   *revocation-unverified*, never silently treated as valid (OFFLINE R-GRADE-1/2). A safety-critical
-  verifier (KYC gate, licence check) **SHOULD** fail closed until status is confirmed.
+  verifier (KYC gate, licence check) **SHOULD** fail closed until status is confirmed, and — where
+  it needs *hard* revocation — **MUST** re-fetch live status at decision time (S-ATT-2) rather than
+  trust a cached copy; offline, it **MUST** disclose it is trusting stale status.
 - **Reconcile on reconnect** is ordinary feed catch-up (§22.4) plus a status-list refresh: pull the
   issuer's `FeedHead`, walk new entries, re-evaluate `supersedes` and status bits. It is
   idempotent and order-independent; a discovered supersession or a flipped status bit simply lowers
@@ -274,8 +288,8 @@ Inheriting [`THREAT-MODEL.md`](../THREAT-MODEL.md):
   mark unverified**, never accept-by-default.
 - **S-ATT-3 (replay-inert, downgrade-impossible — SEC-8).** The carrier's DS-tagged signing
   preimage (`DMTAP-PUB-v0/announce` / `DMTAP-v0/payload`, §2) covers the entire embedded
-  `Attestation` map and so binds `issuer`, `subject`, `schema`, `ts`, and any `supersedes`; a
-  captured attestation cannot be re-bound to a different subject, issuer, or schema. An attestation
+  `Attestation` map and so binds `issuer`, `subject`, `schema`, and `ts`; a captured attestation
+  cannot be re-bound to a different subject, issuer, or schema. An attestation
   carries no bare re-usable bearer token.
 - **S-ATT-4 (issuer-key compromise — SEC-5).** Issuer keys use account-abstraction recovery /
   `DeviceCert` rotation (§1); a compromised operational subkey is revoked via `DeviceCert`
@@ -292,19 +306,7 @@ Inheriting [`THREAT-MODEL.md`](../THREAT-MODEL.md):
 
 ---
 
-## 9. Revocation, honestly
-
-Revocation is **cooperative, not enforced**. The protocol can (a) let an issuer *publish* a
-supersession or a status flip and (b) *require conformant verifiers to honour* what they can reach.
-It cannot make bytes un-exist: a verifier that already cached and acted on an attestation, or a
-`terminating` party that copied it, is outside protocol reach — the same residual as review
-retraction and erasure (TRACT §10.2d, §22.6). A KYC/licence gate that needs *hard* revocation
-**MUST** re-fetch live status at decision time (S-ATT-2, R-ATT-OFF-1) rather than trust a cached
-copy; offline, it **MUST** disclose it is trusting stale status.
-
----
-
-## 10. Honest residual
+## 9. Honest residual
 
 Every residual here traces to the root ceilings of [DIRECTION §8](../DIRECTION.md); none is
 hidden.
@@ -320,7 +322,10 @@ hidden.
   operator, or passport-zk that excludes the undocumented. World ID / Human Passport raise the
   Sybil floor; they do not close it. Local scale substitutes web-of-trust, which is weaker in
   coverage and stronger in context.
-- **Revocation is cooperative** (§9) — no hard clawback of a claim already relied upon.
+- **Revocation is cooperative** (R-ATT-4, R-ATT-OFF-1) — no hard clawback of a claim already
+  relied upon; a verifier that already cached and acted on an attestation, or a `terminating`
+  party that copied it, is outside protocol reach — the same residual as review retraction and
+  erasure (TRACT §10.2d, §22.6).
 - **The sealed (private) carrier has no cross-recipient equivocation detection.** §4.3's
   equivocation-surfacing property holds only for the **public** feed carrier, because it depends on
   the issuer's append-only author feed (§22.4.2). A private attestation delivered as a sealed

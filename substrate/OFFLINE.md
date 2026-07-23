@@ -64,10 +64,12 @@ Two rules bind the vocabulary (both inherited from [`README`](README.md)'s §3 f
 
 ---
 
-## 3. Per-primitive degradation rules (the six waist capabilities)
+## 3. Per-primitive degradation rules (five of the six waist capabilities)
 
-Each waist capability ([`DIRECTION § 1`](../DIRECTION.md)) MUST degrade as follows. The grade in each
-heading is the **best** grade the capability reaches offline; specific actions may be lower.
+Each of the five waist capabilities below ([`DIRECTION § 1`](../DIRECTION.md)) MUST degrade as follows.
+The grade in each heading is the **best** grade the capability reaches offline; specific actions may be
+lower. **Transport** has no subsection of its own: its offline behaviour is *MOTE delivery* (§3.2,
+`deferred` store-and-forward) carried by the roles in §3.5.
 
 ### 3.1 Identity — `full`
 A keypair is the identity; verifying a `DeviceCert` chain to an `IK` needs no network

@@ -115,7 +115,9 @@ Coordinator kinds are all instances of the same contract: **gateway** (legacy br
 **relay** (content-blind forwarding) / **media-relay** (`blind-routing` — SFrame-sealed
 payload, but routing metadata visible, RFC 9605), **reachability-adapter** (ngrok-style
 subdomains), **indexer** (search / discovery), **labeler** (moderation), **matcher**
-(real-time matching), **arbiter** (dispute), **oracle** (physical-world attestation).
+(real-time matching), **compute** (rented blind inference, provisional), **arbiter** (dispute),
+**oracle** (physical-world attestation). Canonical, exhaustive list:
+[`coordinator/CONTRACT § 5`](coordinator/CONTRACT.md).
 
 ---
 

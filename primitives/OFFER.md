@@ -65,8 +65,6 @@ Offer = {
   availability  : Availability,   ; WHEN / HOW MUCH — a published SIGNAL, not a hold (§3, RESERVE owns holds)
   fulfilment    : Fulfilment,     ; HOW it reaches the buyer (ship / pickup / digital / perform)
   consideration : Consideration,  ; WHAT is asked in return — priced in an existing asset, never a token
-  sell_to       : [* territory],  ; where the seller will supply
-  published     : ts,             ; publish time (self-asserted; feed seq is authoritative order, §22.4)
 }
 ```
 

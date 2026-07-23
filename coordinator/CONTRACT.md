@@ -35,7 +35,8 @@ than hidden (see primitives/ESCROW.md).
 Every coordinator MUST satisfy all four.
 
 ### 2.1 Accountable
-A coordinator MUST have an **attested identity** (a substrate keypair, §Identity) and MUST
+A coordinator MUST have an **attested identity** (a substrate keypair,
+[substrate/IDENTITY.md](substrate/IDENTITY.md)) and MUST
 publish a **signed descriptor** carrying its kind, its policy, and — where it charges — a
 signed tariff. The descriptor is **discovery-only and self-asserted**: it carries no global
 reputation score, no price ranking, and no stake field. Reputation is **locally measured** by
@@ -58,9 +59,7 @@ reachability class**, with two members: a reputable IP + unblocked port 25 for l
 egress (the `gateway`), and a public reachable ingress for the `reachability-adapter`. Both
 members are a network resource a third party (ISP/host) allocates, not something a user can
 always self-provision. The contract confines the scarcity to this one reachability class instead
-of letting it spread to custody, naming, or moderation. (THREAT-MODEL.md R-6 names this same
-class and its residual; its text is a member short and should be updated to name both members
-consistently with this section.)
+of letting it spread to custody, naming, or moderation.
 
 ### 2.4 Content-visibility declared
 Every coordinator MUST declare, in its descriptor, exactly one **visibility class** at one

@@ -67,11 +67,15 @@ free-publishing common case:
 **Coordinators** — every one obeys [`coordinator/CONTRACT.md`](../coordinator/CONTRACT.md): hired,
 swappable, self-hostable, never load-bearing, visibility declared:
 
-- **`indexer`** — search, category, "trending," recommendation. `blind` / `attested` (TEE)
-  preferred. Derived, rebuildable, never authoritative (§6).
+- **`indexer`** — search, category, "trending," recommendation over a corpus that is public
+  plaintext — nothing to be blind about. Its query channel is `terminating` unless `attested`
+  (TEE), so a reader's search terms are a disclosed metadata leak, not a payload-visibility one.
+  Derived, rebuildable, never authoritative (§6).
 - **`media-relay`** — forwards SFrame-encrypted **gated/members-only live** media, MLS-keyed to the
-  entitled group, so the streamer's uplink is not the audience-size limit. `blind` / `structural`
-  for that case (§5). Public live has no SFrame keying and does not ride this coordinator (§4 MED-4).
+  entitled group, so the streamer's uplink is not the audience-size limit. `blind-routing` /
+  `structural` for that case (§5) — SFrame seals the media payload, but the SFU reads routing
+  metadata (participant graph, speaker timing, stream sizes) to forward frames (CONTRACT §3.1).
+  Public live has no SFrame keying and does not ride this coordinator (§4 MED-4).
 - **`relay`** — mesh reachability so a box behind CGNAT can still serve its feed. `blind` /
   `structural`.
 - **`reachability-adapter`** — a public subdomain for a box's PUB HTTP surface (§22.5.1).
@@ -155,10 +159,11 @@ real-time must not be forced through MOTE delivery.
 - **MED-4 — Gated live is a media-relay plane; public live is plaintext segment serving; both keep a
   verifiable durable shadow.** A **gated/members-only** low-latency stream rides the WebRTC + SFrame
   plane, keyed to the bounded MLS group, through a pool of `media-relay` coordinators
-  (`blind`/`structural`, because SFrame E2E-encrypts the media to that group — the relay holds no
-  key), coordinated by a distributed SFU so the host's uplink is not the size limit
+  (`blind-routing`/`structural`, because SFrame E2E-encrypts the media payload to that group — the
+  relay holds no key but reads routing metadata: participant graph, speaker timing, stream sizes),
+  coordinated by a distributed SFU so the host's uplink is not the size limit
   ([DIRECTION §7](../DIRECTION.md)). §27 defines no anonymous-audience SFrame keying, so a **public**,
-  open-audience stream MUST NOT be presented as riding this blind plane: it is instead §24.10 rolling
+  open-audience stream MUST NOT be presented as riding this blind-routing plane: it is instead §24.10 rolling
   `LiveManifest` segments served as ordinary public plaintext (§24.13 — a holder serves plaintext it
   can read), fronted by the same CDN/mirror tier as VOD (MED-3), never a `media-relay`. In both cases
   the streamer MUST publish the §24.10 rolling `LiveManifest` chain on its feed, so the stream has the
@@ -196,10 +201,14 @@ real-time must not be forced through MOTE delivery.
   each MUST declare exactly one class at one assurance level, surfaced to the user: a **public-blob
   CDN/mirror** is **not blind** — the cache/pin role ([ROLES.md §6](../substrate/ROLES.md)) that
   holds and serves plaintext a holder can read; payload confidentiality is n/a because the content is
-  public by design ([§22.1](../22-public-objects.md)). `blind-routing` is reserved for a party that
-  genuinely cannot read the payload: a `reachability-adapter` (SNI-passthrough). A **sealed-media CDN**
-  and a gated-stream **`media-relay`** are `blind`/`structural`; an **`indexer`** is `blind`/`attested`
-  where TEE-run, else `declared`. No silent downgrade to `terminating`.
+  public by design ([§22.1](../22-public-objects.md)). A **sealed-media CDN** and a gated-stream
+  **`media-relay`** are `blind-routing`/`structural` (CONTRACT §3.1): neither holds a key, but each
+  sees routing metadata — which reader fetched which sealed object (SEC-9), or the SFU's per-frame
+  participant graph, speaker timing, and stream sizes. An **`indexer`**'s corpus is public plaintext,
+  nothing to be `blind` about ([CONTRACT §5](../coordinator/CONTRACT.md)); its query channel is
+  `terminating` unless `attested` (TEE), so a reader's search terms are a disclosed metadata leak. No
+  coordinator here may silently downgrade from a class it can run `blind` or `blind-routing` at
+  (CONTRACT §3.2).
 
 - **MED-10 — Moderation is edge-selected and opt-in.** A viewer's client decides what it renders,
   against `labeler` subscriptions it chose (§24.13); a labeler is itself a coordinator under the
@@ -273,7 +282,8 @@ Inherits [`THREAT-MODEL.md`](../THREAT-MODEL.md) whole; the profile-specific pos
   alter a work.
 - **SEC-3 (confidentiality, where bought).** Public media has none by design (§22.1). A gated work's
   payload is MLS-sealed end-to-end (§7); the sealing coordinator/CDN holds no key and is
-  `blind`/`structural`.
+  `blind-routing`/`structural` — it cannot read the payload, but it sees which reader fetched which
+  sealed object (SEC-9).
 - **SEC-4 (declared visibility).** Every intermediary declares one class (MED-9); a client surfaces
   the trust boundary a path crosses ([CONTRACT §3](../coordinator/CONTRACT.md)).
 - **SEC-7 (abuse priced, not filtered).** View/reaction inflation is Sybil-bounded, handled as
@@ -320,7 +330,9 @@ traces to a root ceiling in [DIRECTION §8](../DIRECTION.md).
   is less personalized than an ad-funded platform's — the one thing genuinely surrendered by not
   being a company that owns you ([research §3](../docs/research/README.md)), and surrendered on
   purpose.
-- **`declared`-level blindness is a promise.** A CDN or indexer that declares `blind` at the
-  `declared` level is trusted, not proven; only `structural` (E2E-sealed media) and `attested` (TEE)
-  are verifiable ([CONTRACT §3.4](../coordinator/CONTRACT.md)). A client MUST NOT present a
-  `declared` claim as verified.
+- **A non-attested indexer's query privacy is a promise, not a proof.** Per
+  [CONTRACT §3.4](../coordinator/CONTRACT.md), only `structural` and `attested` levels are
+  verifiable. An indexer's query channel is `terminating` unless it runs a TEE (`attested`, MED-9);
+  absent that, the operator's promise not to log or correlate a reader's search queries is
+  `declared`-level trust, not proof. A client MUST NOT present a non-attested indexer's query
+  handling as verified.

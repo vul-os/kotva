@@ -47,7 +47,7 @@ SOCIAL adds a spine on top of substrate machinery it does not modify.
 |---|---|---|
 | ① | **Identity** ([`IDENTITY.md`](../substrate/IDENTITY.md), §1) | The account **is** the keypair `IK`. No platform account; portable across every client, indexer and labeler. Names (DNS / key-name floor) are swappable display pointers, never the identity. |
 | ② | **Feeds & Blobs** ([`FEEDS.md`](../substrate/FEEDS.md), §22) | The carrier for **every** public object: posts, follows, likes, reposts, profile cards, and labels are all `PubAnnounce`s in append-only signed feeds; media are `PubManifest` blobs. |
-| ③ | **REPUTATION** ([`REPUTATION.md`](../primitives/REPUTATION.md)) | Anti-Sybil discovery weighting and reply/mention gating: the public follow-and-interaction graph is trust-edge input an indexer computes over (EigenTrust), and a reader's web-of-trust is the cold-contact filter (SOC-9). No published score (REP-3). |
+| ③ | **REPUTATION** ([`REPUTATION.md`](../primitives/REPUTATION.md)) | Anti-Sybil discovery weighting and reply/mention notification filtering: the public follow-and-interaction graph is trust-edge input an indexer computes over (EigenTrust), and a reader's web-of-trust is the cold-contact filter (SOC-9). No published score (REP-3). |
 | ④ | **MOTE** ([`02-mote.md`](../02-mote.md), §2) | Only for what is genuinely private: DMs ride `chat` (`0x01`); the account's identity/key-rotation announcement is `identity` (`0x09`). SOCIAL allocates no new kind. |
 
 **Coordinators** (each an instance of [`CONTRACT`](../coordinator/CONTRACT.md), all non-load-bearing):
@@ -55,7 +55,7 @@ SOCIAL adds a spine on top of substrate machinery it does not modify.
 | Kind | Job in SOCIAL | Visibility (§4) |
 |---|---|---|
 | **`labeler`** | Publishes moderation labels over public posts/accounts; **opt-in and subscribable** — the reader applies only labelers it trusts, client-side (SOC-3, CONTRACT §4). | n/a — labels public objects; sees only what is already public. |
-| **`indexer`** | Search, trending, "who replied," follower graphs — **derived and never authoritative** (REP-4, §22.4.3). TEE-preferred so a global-view compute holds no advantage it can forge. | `attested` (TEE) preferred; sees reader **queries** — a metadata leak, declared (§6). |
+| **`indexer`** | Search, trending, "who replied," follower graphs — **derived and never authoritative** (REP-4, §22.4.3). TEE-preferred so a global-view compute holds no advantage it can forge. | `attested` (TEE) preferred; sees reader **queries** — a metadata leak, declared (§7). |
 
 **Bindings** ([`bindings/README.md`](../bindings/README.md), swapped as version bumps, never rebuilt):
 
@@ -246,11 +246,11 @@ SOCIAL inherits [`THREAT-MODEL.md`](../THREAT-MODEL.md) unchanged; the invariant
   post (that needs the author's key) nor **hide** a published one without a reader noticing a gap.
 - **SEC-4 (declared content-visibility).** Every intermediary declares what it sees:
 
-| Intermediary | Class (CONTRACT §3.1) | What it sees |
+| Intermediary | Class (CONTRACT §5) | What it sees |
 |---|---|---|
-| PUB serving node / CDN | serves **public** objects | the object (public by design) **and which reader fetched it** — no read privacy (§22.9 item 6) |
-| `indexer` | reads public objects | the public graph **and the reader's queries** — a metadata leak, declared; TEE (`attested`) preferred so it cannot forge results |
-| `labeler` | reads public objects | only already-public content; it publishes labels, gates nothing |
+| PUB serving node / CDN | `n/a` (public) | the object (public by design) **and which reader fetched it** — no read privacy (§22.9 item 7) |
+| `indexer` | `terminating` (query channel; `attested` preferred) | the public graph **and the reader's queries** — a metadata leak, declared; TEE (`attested`) preferred so it cannot forge results |
+| `labeler` | `n/a` (public) | only already-public content; it publishes labels, gates nothing |
 | DM carrier (sealed MOTE `0x01`) | **`blind`** / structural | ciphertext only — a DM is E2E-encrypted; the carrier reads nothing (SEC-3) |
 
 - **SEC-6 (authorize, never classify).** The `indexer` ranks and the `labeler` labels only as
@@ -272,12 +272,9 @@ SOCIAL inherits [`THREAT-MODEL.md`](../THREAT-MODEL.md) unchanged; the invariant
 Each is disclosed rather than solved; every one traces to a root ceiling
 ([`DIRECTION § 8`](../DIRECTION.md)).
 
-- **Timeline ordering is forgeable via self-asserted `ts`.** Feed `seq` only orders within one
-  author's feed, so the cross-author merge (SOC-2) necessarily keys on `PubAnnounce.ts`, which is
-  self-asserted and offline-unverifiable (§22.3.3): a malicious author who future-dates `ts` pins a
-  post atop every follower's timeline. The client-side future-skew clamp (SOC-2) bounds this — a
-  forged post cannot outrun the reader's own clock — but does not eliminate a moderately-skewed
-  forgery sorting ahead of genuinely recent posts. Disclosed, not solved.
+- **Timeline ordering is forgeable via self-asserted `ts`.** The SOC-2 future-skew clamp bounds
+  but does not eliminate a moderately-skewed forgery sorting ahead of genuinely recent posts.
+  Disclosed, not solved.
 - **The algorithm is genuinely better UX, and we ship reverse-chron by default.** A tuned engagement
   feed reads better than a chronological one; refusing a surveillance ranking authority costs real
   usability. The fix — a TEE `indexer` you hired — converges toward centralized-grade discovery

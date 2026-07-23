@@ -23,7 +23,7 @@ hold. This collapses the hardest distributed-systems problem in booking — *two
 get the last seat* — into a non-problem: a contended write with a **single authorized author** is
 not a consensus question (the WRAP [`§ 3.6`](../profiles/wrap/02-objects.md) argument, restated for
 holds). Double-booking is therefore **structurally impossible under honest single-writer operation**
-(§8 bounds "impossible" precisely). A reservation resolves on the owner's `placed → accepted /
+(§9 bounds "impossible" precisely). A reservation resolves on the owner's `placed → accepted /
 declined` step, exactly as an offer's availability resolves on the seller's placement
 ([`tract § 3.9`](../profiles/tract/03-availability.md)); RESERVE is that step made a first-class,
 signed, self-authenticating object. RESERVE has, uniquely among the primitives, **no coordinator**
@@ -51,7 +51,6 @@ Reservable = {
   7  => tstr,        ; schedule  RFC 5545 VFREEBUSY / RRULE + RFC 7953 VAVAILABILITY (profiled, not re-specified)
   ? 8 => uint,       ; slotlen   minutes per slot            (grain 0 only)
   ? 9 => uint,       ; cap       units available per interval (grain 1 only; the bounded-counter bound, §3.2)
-  10 => bstr(32),    ; owner     the sole authorized writer of holds/receipts for this Reservable (§3.1)
   11 => uint,        ; expires   unix seconds; no request valid after
   ? 12 => map,       ; policy    hold TTL default, cancellation window, lead time — owner policy, never protocol
 }
@@ -61,12 +60,10 @@ Reservable = {
 slot is claimed whole by one hold; a capacity interval is shared by many holds up to `cap`. A
 `Reservable` MUST carry exactly one grain.
 
-`owner` (key 10) MUST equal the common-header `author` (key 4) of this `Reservable`. RESERVE has no
-delegated-authoring mode: the same key that lists the resource is the only key ever authorized to
-write a `Receipt` against it (§3.1); a `Reservable` whose `owner` differs from its `author` MUST be
-rejected. `owner` is carried as an explicit field, not left implicit in the header, so that a
-`ReservationRequest` or `Receipt` verifier can state and check the authority binding directly against
-this field without re-deriving it from the `Reservable`'s signature every time.
+`Reservable` carries no separate owner field: the sole authorized writer of holds/receipts against it
+is its own common-header `author` (key 4). A `Receipt`'s `author` MUST equal that same key (§3.1);
+RESERVE has no delegated-authoring mode — the same key that lists the resource is the only key ever
+authorized to write a `Receipt` against it.
 
 ### 2.2 `ReservationRequest` — the intent (requester-authored)
 
@@ -89,12 +86,12 @@ ReservationRequest = {
 The owner's authoritative, single-writer decision on one request. It **is** the reservation: a
 `Receipt` in state `accepted` is the signed proof the requester holds the slot. Realized as a
 substrate **LWW register** (SYNC [`§ 4.4`](../substrate/SYNC.md)) keyed by `(reservable, slot,
-request)`; because the register's only admissible author is `Reservable.owner` (§3.1), last-writer-
-wins is unambiguous — the WRAP [`§ 3.6`](../profiles/wrap/02-objects.md) `Assignment` argument.
+request)`; because the register's only admissible author is the `Reservable`'s own common-header
+`author` (§3.1), last-writer-wins is unambiguous — the WRAP [`§ 3.6`](../profiles/wrap/02-objects.md) `Assignment` argument.
 
 ```cddl
 Receipt = {
-  ; ... common header (keys 1-5) — author MUST equal Reservable.owner (§3.1) ...
+  ; ... common header (keys 1-5) — author MUST equal the Reservable's common-header author (key 4, §3.1) ...
   6  => bstr,        ; request      ReservationRequest.id it answers
   7  => bstr,        ; reservable   Reservable.id
   8  => tstr,        ; slot         the slot/interval held
@@ -113,8 +110,9 @@ greater `ts`.
 ## 3. Normative rules
 
 ### 3.1 Single writer
-A `Receipt` whose `author` is **not** `Reservable.owner` MUST be rejected (`ERR_NOT_OWNER`-class,
-FAIL_CLOSED). No party but the owner may author a hold, an acceptance, a decline, or a release.
+A `Receipt` whose `author` is **not** the `Reservable`'s common-header `author` (key 4) MUST be
+rejected (`ERR_NOT_OWNER`-class, FAIL_CLOSED). No party but the owner may author a hold, an
+acceptance, a decline, or a release.
 A requester MUST NOT self-issue any object in state `accepted`. This is the whole primitive: the
 contended write has one authorized author, so *"two conflicting accepted holds on one unit"* is not a
 state the protocol can reach **between honest participants** (§8).
@@ -249,18 +247,13 @@ order-independent, R-REC-1). Two of the owner's devices that *both* accepted whi
 one interesting case: the bounded counter **prevents** joint over-acceptance up to `cap` (safety, but
 see the reclamation residual, §3.2), so reconcile finds no oversell to fix; a device that ran out of
 local rights merely **stranded quota** — declining requests it could have served — which surfaces as
-spurious "sold out," never as an oversell (§8). A genuinely over-committed *dishonest* owner is **not
-automatically surfaced by reconcile or the merge.** A `Receipt` is a private point-to-point object,
-not a feed entry: §2.3 keys it `(reservable, slot, request)`, so each victim's `accepted` `Receipt`
-lives on a *different* register and is delivered as a sealed MOTE to that one requester (SEC-R5) — no
-replica ever compares two victims' receipts, so R-REC-1's dedup-by-content-address sees no conflict to
-fork. For grain 0, the two signed `accepted` receipts become dispute evidence only if the victims
-combine them out-of-band (typically because they physically collide at the same slot); for grain 1 two
-receipts alone prove nothing — establishing oversell needs summing granted `qty` across *every*
-`accepted` receipt for the interval against `cap`, a computation no third party, and no single victim,
-can perform. The receipts remain signed and permanent evidence — **not swallowed by the merge** in
-that narrow sense — but that is a claim about the durability of evidence, not about its automatic
-detection or routing (§9).
+spurious "sold out," never as an oversell (§8). A `Receipt` is a private point-to-point object, not a
+feed entry: §2.3 keys it `(reservable, slot, request)`, so each victim's `accepted` `Receipt` lives on
+a *different* register and is delivered as a sealed MOTE to that one requester (SEC-R5) — no replica
+ever compares two victims' receipts, so R-REC-1's dedup-by-content-address sees no conflict to fork;
+the receipts remain signed and durable evidence regardless. Whether a genuinely over-committed
+*dishonest* owner's evidence is then detected — and how that differs by grain — is the honest scoping
+§9 owns, not a reconcile property.
 
 ---
 
@@ -268,8 +261,9 @@ detection or routing (§9).
 
 Inherits the family posture of [`THREAT-MODEL.md`](../THREAT-MODEL.md); each MUST names its residual.
 
-- **SEC-R1 — Owner-only authority (fail-closed).** A `Receipt` not authored by `Reservable.owner`
-  MUST be rejected (§3.1); an unverifiable or missing `Receipt` is **not a hold** (SEC-1 fail-closed).
+- **SEC-R1 — Owner-only authority (fail-closed).** A `Receipt` not authored by the `Reservable`'s
+  common-header `author` (key 4) MUST be rejected (§3.1); an unverifiable or missing `Receipt` is
+  **not a hold** (SEC-1 fail-closed).
 - **SEC-R2 — Intrinsic authenticity.** `Reservable`, `ReservationRequest`, and `Receipt` are
   COSE-signed and content-addressed; verification is offline and carrier-independent (SEC-2). A hold
   is exactly a valid signed `accepted` `Receipt` — no server assertion counts.
@@ -300,10 +294,9 @@ Inherits the family posture of [`THREAT-MODEL.md`](../THREAT-MODEL.md); each MUS
   counter's guarantee is **safety-only, paid entirely in liveness, so long as no stranded rights are
   reclaimed** ([`tract § 6.2a`](../profiles/tract/06-cart.md),
   [`tract § 3.9`](../profiles/tract/03-availability.md)): a partitioned device **strands the quota it
-  holds** and returns **spurious "sold out"** rather than ever overselling. If an owner reclaims a
-  presumed-dead device's stranded rights and the liveness call was wrong, that safety guarantee itself
-  breaks (double-issue, §3.2) — reclamation is an explicit, fallible, disclosed decision, never a
-  background sweep. It shields an owner from its own concurrency; it makes **no** promise to a buyer
+  holds** and returns **spurious "sold out"** rather than ever overselling. The reclamation rule and
+  its double-issue failure mode are normative in §3.2; violating it is what breaks this guarantee. It
+  shields an owner from its own concurrency; it makes **no** promise to a buyer
   about a dishonest owner. Documentation MUST NOT present it as trust between the parties.
 - **The hold does not prove the resource is honored.** Whether the reserved table, room, or slot is
   actually delivered reduces to confirm-plus-dispute — the physical-event oracle ceiling

@@ -77,9 +77,9 @@ The mechanism is real and shipped: the escrow/demarcation family (O'Neil 1986 �
 Garcia-Molina 1994 → Balegas et al., SRDS 2015), in production as AntidoteDB's
 `antidote_crdt_counter_b` (§20, §21.10.1). Safety holds under arbitrary message loss, delay, reorder
 and partition, because the locally computed right count is conservative — it can under-count but
-never over-count. For contrast, a plain read-check-decrement counter measurably *does* oversell:
-about 200 excess decrements at ~200 concurrent clients in the published experiment (§21.10.1). The
-guarantee is **safety-only and is paid for entirely in liveness** (§6.4).
+never over-count. For contrast, a plain read-check-decrement counter measurably *does* oversell, at
+production-relevant concurrency, in the published experiment (§21.10.1). The guarantee is
+**safety-only and is paid for entirely in liveness** (§6.4).
 
 What §21.10.2 surfaced is that **four operator-shaped roles hide inside the counter**. This section
 accepts each explicitly rather than letting "no coordinator" read as "no coordination anywhere."

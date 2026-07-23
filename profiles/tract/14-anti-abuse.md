@@ -145,12 +145,12 @@ declared standard, not a defect in the review. An index that requires attestatio
 treat its presence as proof the counterparty was independent; attestation is admission control on
 *who may credibly claim to have transacted*, not a guarantee that the transaction was arm's-length.
 
-This edge is not hypothetical: the closest deployed relative of this design measured it. OpenBazaar's
-reputation system was self-published, unweighted reviews with no banning authority, and **one vendor
-faked 60% of measured sales value** (§21.3, §21.6). Purchase attestation is strictly stronger — it
-binds a review to a signed transaction record — but two of OpenBazaar's failure conditions are
-**measured outcomes** (§21.6), not hypotheticals, and survive unchanged in this design as currently
-written:
+This edge is not hypothetical: the closest deployed relative of this design measured it.
+OpenBazaar's reputation system was self-published, unweighted reviews with no banning authority,
+and **vendor-scale ballot-stuffing of measured sales value** (§21.3, §21.6). Purchase attestation
+is strictly stronger — it binds a review to a signed transaction record — but two of OpenBazaar's
+failure conditions are **measured outcomes** (§21.6), not hypotheticals, and survive unchanged in
+this design as currently written:
 
 1. **Self-dealing produces genuine attestations.** A seller transacting with a key it also controls
    generates a real, verifiable proof of purchase. Attestation raises the cost of faking a review and

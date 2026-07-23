@@ -110,9 +110,7 @@ MatchFields = { * tstr => any }   ; e.g. {"lat":…, "lon":…, "bid":…, "caps
 `Σ weights[k]·fields[k]` over declared keys. All three are **total deterministic functions of the
 candidate set and the rule** — given the same canonicalized inputs (§3.4), every honest evaluator
 returns the bit-identical winner. That determinism is the entire reason a local order book equals
-a matcher (§6). `highest-bid` is naturally integer/ordinal and needs no canonicalization; `nearest`
-and `best-fit` read real-valued fields and MUST be canonicalized per §3.4 or the claim does not
-hold — floating-point arithmetic is not bit-identical across implementations.
+a matcher (§6).
 
 ---
 

@@ -218,8 +218,8 @@ rest of this document protects.
 **The liveness caveat, stated where the table is rather than late (§21.5).** Durability at the
 edges covers *orders* — a sender's node retries, and an offline seller's orders wait. It does not
 cover *catalogues*. A seller whose node is offline is not slow; they are **invisible**. The one
-deployed system closest to this design measured a ~22-day median listing lifetime and whole
-catalogues disappearing when a merchant node departed. Any deployment therefore depends on
+deployed system closest to this design measured a bounded listing lifetime and whole
+catalogues disappearing when a merchant node departed (§21.5). Any deployment therefore depends on
 third-party caching or pinning of public objects for sellers who are not always on — and unpaid
 replication is precisely what that system did not get. Whether pinning needs an incentive, and
 whether that incentive creates another operator, is open (§21.8).

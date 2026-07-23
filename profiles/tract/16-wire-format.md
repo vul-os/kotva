@@ -151,12 +151,10 @@ PriceTier = { 1 => uint, 2 => money }          ; min_qty, unit_price
 ```
 
 **The load-bearing detail.** `Fulfilment` is not merely logistics: it is the only object that knows
-where a supply happens, and §11.2 derives the tax anchor from it. Ship → destination;
-collect / perform-at-place / return-required → the stated place; perform-remote and digital-grant →
-buyer residence; access-grant → whichever, depending on whether it names a place. An implementation MUST derive it from this
-object and MUST NOT accept it as a separate argument that could disagree; one resolving place of
-supply from the parties' countries instead will be plausibly and consistently wrong about every
-event held abroad.
+where a supply happens. §4 derives the tax anchor from this object ([§4.3](04-fulfilment.md)); an
+implementation MUST derive it from this object and MUST NOT accept it as a separate argument that
+could disagree — one resolving place of supply from the parties' countries instead will be
+plausibly and consistently wrong about every event held abroad.
 
 ### 16.5.3 `RateCard` and `CapacityRecord` — published, so routing is computed not quoted
 
@@ -305,6 +303,12 @@ PaymentAttestation = {
 **One order per seller is a grammar-level property, not a client convention.** `Order` names a
 single seller and MUST carry only that seller's lines, so a cross-seller order is not expressible.
 The whole-cart view exists on the buyer's device and nowhere else (§6.1).
+
+`OrderLine.seller` (key 2) MUST equal `Order.seller` (key 2) for every line; the field names the
+line's seller for local convenience, not a second seller the order could bind to. A decoder MUST
+reject, failing closed, an `Order` containing any `OrderLine` whose `seller` differs from
+`Order.seller` — this MUST is what keeps a cross-seller order not expressible, since the field
+alone does not forbid one at the grammar level.
 
 `PaymentAttestation` MUST carry a *reference* only — never funds, and never card data. The protocol conveys
 that a payment happened; it does not move money (§9.2).

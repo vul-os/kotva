@@ -41,12 +41,14 @@ problem is never hard-wired — it is a swappable **binding** or a fenced **coor
         ├──────────────────────────────────────────────────────────────────┤
         │  ② SUBSTRATE (the narrow waist)   ID · MOTE · TRANS · PUB · SYNC …  │  6 capabilities
         ├──────────────────────────────────────────────────────────────────┤
-        │  ① ADOPT   Ed25519 · HPKE · MLS · libp2p · WebRTC · SFrame · CBOR  │  proven, not reinvented
+        │  ① ADOPT   Ed25519 · HPKE · CBOR                                    │  proven, not reinvented
         └──────────────────────────────────────────────────────────────────┘
 ```
 
-1. **ADOPT** — proven standards KOTVA profiles rather than re-derives ([`DIRECTION § 3`](DIRECTION.md)).
-   The whole layer is a pointer index: [`bindings/README.md`](bindings/README.md).
+1. **ADOPT** — the foundational wire primitives everything above rides on, proven rather than
+   re-derived ([`DIRECTION § 3`](DIRECTION.md)): Ed25519, HPKE, CBOR. (MLS, libp2p, WebRTC,
+   SFrame are the higher-level, swappable **bindings** — see layer ⑤, indexed at
+   [`bindings/README.md`](bindings/README.md).)
 2. **SUBSTRATE** — the six-capability waist; SYNC and MATCH's assignment vocabulary are the only
    genuinely new normative ground: [`substrate/README.md`](substrate/README.md).
 3. **PRIMITIVES** — the small set every service rearranges: [`primitives/`](primitives/), design
@@ -111,40 +113,24 @@ Every coordinator is one instance of [`coordinator/CONTRACT.md`](coordinator/CON
 **accountable** (§2.1), **swappable** (§2.2), **self-hostable** (§2.3), **declares one
 content-visibility class** (§2.4/§3), and **authorizes but never classifies** (§4). It mints no token
 (§6). `gateway` ([`§7`](07-gateway.md)) and the legacy `adapter`s ([`§26`](26-legacy-adapters.md)) are
-the first fully-worked instances; every kind below inherits the four clauses unchanged.
+the first fully-worked instances; every kind inherits the four clauses unchanged.
 
-| Kind | Provides | Typical visibility |
-|---|---|---|
-| **gateway** | Legacy-mail bridge (MX, DKIM egress, legacy client surfaces) | `terminating` |
-| **relay** | Mesh reachability for NAT'd peers | `blind` / structural |
-| **media-relay** | Forwards SFrame-encrypted call/stream media (scales calls) | `blind` / structural |
-| **reachability-adapter** | ngrok-style public subdomains for any box service | `blind-routing` (SNI-passthrough) |
-| **indexer** | Search / discovery / global product-and-price view | `blind` / attested (TEE) |
-| **labeler** | Moderation labels, opt-in, subscribable | labels public objects |
-| **matcher** | Real-time supply↔demand matching (rides, delivery) | **terminating** (default) / **attested** |
-| **arbiter** | Dispute resolution (staked jury) | `terminating`, disclosed |
-| **oracle** | Physical-world / real-fact attestation | `terminating`, disclosed |
-| **compute** | Rented blind inference (provisional kind, [`coordinator/CONTRACT § 5`](coordinator/CONTRACT.md); [`coverage-matrix § G2`](docs/research/coverage-matrix.md)) | `terminating` / `attested` |
+Canonical, exhaustive kind list (11 kinds, incl. `compute` and the load-bearing
+`custodial-escrow` exception): [`coordinator/CONTRACT § 5`](coordinator/CONTRACT.md) — that
+table governs; it is not reproduced here to avoid drift.
 
 ---
 
 ## ⑤ Bindings — what KOTVA adopts instead of reinventing
 
-Each row is a **slot**; swap the filling as the frontier improves, and the substrate and profiles
-never change. Full index with maturity notes and 2026 sources: [`bindings/README.md`](bindings/README.md).
+Each need below is a **slot**; swap the filling as the frontier improves, and the substrate and
+profiles never change. Canonical list, with maturity notes and 2026 sources:
+[`bindings/README.md`](bindings/README.md) — that document governs; this is a summary, not a copy.
 
-| Need | Adopt | Not |
-|---|---|---|
-| Identity recovery | Account abstraction (ERC-4337 / EIP-7702), passkeys, MPC | a bespoke recovery scheme |
-| Attestation | EAS / W3C Verifiable Credentials | a new credential format |
-| Reputation | OpenRank (EigenTrust, TEE) | a global score we compute |
-| Personhood | World ID / Human Passport | our own biometrics |
-| Payments | x402 + stablecoins | **a protocol token (none exists; none will)** |
-| Storage | Walrus (hot) / Arweave (permanent) / Filecoin | a bespoke durability market |
-| Dispute | Kleros-class arbitration | our own court |
-| Media transport | WebRTC + SFrame (RFC 9605) + TURN | a new media stack |
-| Mesh / messaging crypto | libp2p + MLS (RFC 9420) | a new transport or ratchet |
-| Verifiable coordination | TEEs (SGX / SEV) → the `attested` level | a trustless global optimizer |
+Identity recovery · Attestation (**ATTEST is KOTVA's own primitive; only its claim body binds
+EAS / W3C Verifiable Credentials** — no new credential format, [`primitives/ATTEST.md`](primitives/ATTEST.md))
+· Reputation · Personhood · Payments (no protocol token — none exists, none will) · Storage ·
+Dispute · Media transport · Mesh / messaging crypto · Verifiable coordination.
 
 What KOTVA never binds: a protocol token, a global reputation *score*, a search-ranking token,
 surveillance advertising ([`bindings/README.md`](bindings/README.md), [`DIRECTION § 5`](DIRECTION.md)).

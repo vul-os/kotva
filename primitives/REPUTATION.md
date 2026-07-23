@@ -54,12 +54,14 @@ are public author-feed objects under §22 / [`FEEDS.md`](../substrate/FEEDS.md):
 (TRACT §16.5.5 is the reference freeze). Both inherit §22's map conventions and its origination floor
 (§22.3.3 step 1a).
 
-### 2.1 `TrustEdge` — the web-of-trust primitive (an ATTEST specialization)
+### 2.1 `TrustEdge` — the web-of-trust primitive (plays the ATTEST role)
 
 A directed, signed vouch from a **truster** to a **subject**, in a **context**. It is
 trust-matrix input to the adopted EigenTrust/OpenRank compute (§5) — with the transitivity and
-polarity caveats disclosed in §9 — and it is a specialization of the ATTEST primitive
-([`ATTEST.md`](ATTEST.md)) — *"IK asserts this claim about subject"* — narrowed to trust polarity.
+polarity caveats disclosed in §9. `TrustEdge` is a **sibling REPUTATION object that plays the
+ATTEST role** ([`ATTEST.md`](ATTEST.md)) — *"IK asserts this claim about subject," narrowed to
+trust polarity — but it is a distinct feed object in its own right, not an instance of the
+`Attestation` map (§4).
 
 ```cddl
 TrustEdge = {
@@ -162,9 +164,11 @@ Reputation is a **consumer**, not a foundation — it reads what the other primi
 - **IDENTITY** — the subject key and the author subkey are ordinary substrate identities
   ([`substrate/IDENTITY.md`](../substrate/IDENTITY.md), §1). Portability (REP-1) and pseudonymous
   authorship (REP-2) are IDENTITY properties, not new ones.
-- **ATTEST** ([`ATTEST.md`](ATTEST.md)) — `TrustEdge` *is* a trust-polarity ATTEST; the personhood
-  and stake anchors (§5) are ATTEST objects; the `proof` binding a `Feedback` to a real interaction
-  is an ATTEST / `PurchaseAttestation`. Reputation is largely ATTEST rearranged around a subject.
+- **ATTEST** ([`ATTEST.md`](ATTEST.md)) — `TrustEdge` is a sibling REPUTATION object that plays the
+  ATTEST role (an issuer-signed directed claim about a subject, narrowed to trust polarity) but is
+  a distinct feed object, not an Attestation-map instance (§2.1); the personhood and stake anchors
+  (§5) are ATTEST objects; the `proof` binding a `Feedback` to a real interaction is an ATTEST /
+  `PurchaseAttestation`. Reputation is largely ATTEST rearranged around a subject.
 - **OFFER** ([`OFFER.md`](OFFER.md)) — a product/listing content-address is a valid `Feedback`
   subject; "how good is this offer/seller" is reputation computed over OFFER subjects.
 - **ESCROW / DISPUTE** — an escrow-issued `PurchaseAttestation` is the strongest `Feedback.proof`

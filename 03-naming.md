@@ -1,11 +1,17 @@
 # 3. Naming & Directory (name → key)
 
-Your **key is your identity and the only root of trust**; a **`name@domain`** is the everyday,
-human-facing pointer to it; the mesh finds you by key. This section covers the **stable**
+Your **key is your identity and the only root of trust** (01-identity.md §1); a
+**`name@domain`** is the everyday, human-facing pointer to it, and the mesh finds you by key.
+**A conformant implementation MUST NOT treat a name as the identity** (the `identity ≠ name`
+invariant, 01-identity.md §1) — DNS is *one* way to discover the pointer, never the identity and
+never the proof; §3.12 generalizes this to a **pluggable set of resolvers** of which DNS is only
+the default. Because the key is the identity, native **delivery and verification require zero
+DNS and zero name-chain** (§3.13): a name is an optional discovery convenience layered *over* an
+identity that already exists and is already reachable by key. This section covers the **stable**
 binding: how `abc@def.com` resolves to an identity key, how that binding is made
 tamper-evident, and how it degrades safely.
 
-**The layering (read this first).** Three layers, never conflated:
+**The layering (read this first).** Four layers, never conflated:
 
 - **The key is identity and proof.** Authenticity is *always* the key (`IK`, §1.2) — nothing
   else. A name is only a pointer to it.
@@ -17,15 +23,6 @@ tamper-evident, and how it degrades safely.
 - **Pinning (TOFU) makes discovery a one-time event.** After first contact you route by the
   pinned key via the mesh (§4); DNS is not consulted again unless the signed identity chain says
   to. A later DNS/registrar compromise cannot redirect an existing relationship.
-
-**The `identity ≠ name` invariant, restated for naming (normative).** An identity is the key
-(§1.2), plus its derived key-name (§3.9.6); a `name@domain` — or any other name — is only a
-**resolver-provided, replaceable pointer** to it. **A conformant implementation MUST NOT treat a
-name as the identity.** DNS is *one* way to discover the pointer, never the identity and never
-the proof; §3.12 generalizes this to a **pluggable set of resolvers** of which DNS is only the
-default. Because the key is the identity, native **delivery and verification require zero DNS
-and zero name-chain** (§3.13): a name is an optional discovery convenience layered *over* an
-identity that already exists and is already reachable by key.
 
 **Stable anchor, rotatable keys (the real future-proofing).** The human name binds to a
 **stable identity anchor — the root identity key `IK` (§1.2)** — *not* to a rotatable
@@ -39,13 +36,10 @@ common case.
 
 ## 3.1 Roles (who holds what)
 
-- **The key (`IK`)** is the identity and the sole trust root. Everything below only *points* to
-  it; nothing below can prove authenticity on its own.
+- **The key (`IK`)** is the identity and the sole trust root (§1.2, above).
 - **DNS** (we do not run it — registrars/operators do) holds the stable `name → key` *pointer*.
-  It is discovery: static and cacheable. It MUST NOT hold location (that is the mesh, §4), and it
-  is **never** the proof — KT + pinning are.
-- **Key transparency (KT)** makes the pointer *auditable* — since DNS is a trusted third party
-  the owner does not control, KT lets a silent key swap be *detected* (§3.5).
+  It is discovery: static and cacheable. It MUST NOT hold location (that is the mesh, §4).
+- **Key transparency (KT)** makes the pointer *auditable* (§3.5).
 - **The mesh DHT** holds the dynamic `key → location` record (§4).
 
 ## 3.2 DNS records
@@ -53,7 +47,7 @@ common case.
 For `abc@def.com`, the resolver queries:
 
 ```
-abc._dmtap.def.com.  IN  TXT  "v=dmtap1; suite=1; ik=<base64url IK>; id=<hash of Identity §1.3>;
+abc._dmtap.def.com.  IN  TXT  "v=dmtap1; suite=2; ik=<base64url IK>; id=<hash of Identity §1.3>;
                                 kt=<KT log URL>; keypkgs=<KeyPackage bundle locator §5.3>"
 _dmtap.def.com.      IN  SVCB 1 . ( ... )     ; optional service params, KT anchors
 def.com.             IN  MX   ...             ; only if a legacy gateway serves the domain (§7)
@@ -420,11 +414,10 @@ unchanged.
 ### 3.9.2 `@handle` — a registered resolver type, NOT part of the naming ladder (opt-in)
 
 **Status (normative).** The flat, global `@handle` registry is **not a rung of the naming ladder**
-(§3.13.2) and is **not part of any conformance level**. DMTAP's identity substrate is **DNS +
-cryptographic names only**: the ladder is key-name → chain name → DNS domain, and the `directory`
-resolver type sits outside it as a registered-but-unendorsed option (§3.12.4, §21.18). It is
-described here so that a deployment which wants one has a specified shape to implement, and so that
-the reasons it is not endorsed are on the record.
+(§3.13.2) and is **not part of any conformance level**: the `directory` resolver type sits outside
+the ladder as a registered-but-unendorsed option, for the reason given at the ladder definition
+(§3.13.2, §3.12.4, §21.18). It is described here so that a deployment which wants one has a
+specified shape to implement, and so that the reasons it is not endorsed are on the record.
 
 **Why it is out of the ladder.** A flat global handle needs an **arbitrating authority** — an
 entity that decides who gets `@alice` — and DMTAP's whole naming argument is that authority over a
@@ -432,26 +425,23 @@ namespace should be either **federated** (per-domain, so nobody arbitrates globa
 **consensus-based and already-existing** (a name-chain DMTAP merely reads, §3.12.5), or absent
 entirely (the key-name, §3.9.6). A DMTAP-specific handle registry would be a **new** authority
 created by this protocol, which is exactly the kind of thing the rest of the design refuses to
-create. That it could be made auditable does not make it unnecessary.
-
-The resolver-type registry stays **open and extensible** (§3.12.2) — including for `directory` —
-because a naming system DMTAP does not endorse is still a naming system DMTAP should be able to
-resolve without changing anything else. Registration is not endorsement.
+create. That it could be made auditable does not make it unnecessary. Registration in the
+resolver-type registry is not endorsement (§3.12.2) — a naming system DMTAP does not endorse is
+still one it can resolve without changing anything else.
 
 A conforming client MAY offer an opt-in `@handle` directory. Because a *chosen, globally-unique*
-name requires arbitration (Zooko), such a directory is a thin authority that:
+name requires arbitration (Zooko), such a directory MUST: assign each handle once
+(first-come-first-served) with an **anti-squat cost** (a small fee or proof-of-work, since
+assignment gives uniqueness but not scarcity); publish `handle → key` to a **key-transparency
+log** (§3.5), so it is *auditable, not trusted* — it cannot silently repoint a handle without
+detection; and be unable to **hijack existing relationships** — contacts route by the pinned key
+(§1.6), so the handle is only an introduction.
 
-- assigns each handle once (first-come-first-served) with an **anti-squat cost** (a small fee or
-  proof-of-work, since assignment gives uniqueness but not scarcity);
-- publishes `handle → key` to a **key-transparency log** (§3.5), so it is *auditable, not
-  trusted* — it cannot silently repoint a handle without detection;
-- **cannot hijack existing relationships** — contacts route by the pinned key (§1.6), so the
-  handle is only an introduction.
-
-Handles are normalized (NFC, lowercase, collapse consecutive dots; dots allowed as cosmetic
-separators, e.g. `@this.is.my.name`) and confusables/homoglyphs are reserved. The directory
-SHOULD be a **federated consortium running BFT consensus** (no single owner of the namespace, no
-chain) rather than a single operator; a name-chain (§3.6) is a further option.
+**Normalization & consortium recommendation (non-normative detail).** A directory that exists
+SHOULD normalize handles (NFC, lowercase, collapse consecutive dots; dots allowed as cosmetic
+separators, e.g. `@this.is.my.name`) and reserve confusables/homoglyphs, and SHOULD run as a
+**federated consortium under BFT consensus** (no single owner of the namespace, no chain) rather
+than a single operator; a name-chain (§3.6) is a further option.
 
 **Honest limit (why it is not merely un-default but un-laddered):** a single global namespace
 **reintroduces exactly the global squatting and impersonation that domain-federation avoids** —
@@ -511,8 +501,9 @@ to the same key — and support subaddressing:
   key** (a client SHOULD coalesce them, and pinning is per-key, §3.4). A binding an owner has
   **revoked** — present in a stale cache but retired in the current signed `Identity` / KT — MUST
   NOT be used to address the identity (`ERR_ALIAS_REVOKED`, `0x011D`, REJECT_NOTIFY); the sender is
-  told to use a live alias or the key-name (§3.9.6), and the identity's *other* aliases are
-  unaffected.
+  told to use a live alias, or the identity key itself if obtained out-of-band (QR / contact card
+  / introduction, §3.13.5) — **not** the key-name, which cannot address anyone (§3.9.6) — and the
+  identity's *other* aliases are unaffected.
 
 ### 3.9.5 `Profile` — human display data (self-asserted, signed)
 
@@ -1017,12 +1008,10 @@ domain** — not a new namespace protocol, just the provider-tier machinery of �
 and `petname` are the two **zero-authority** types (no `@`, no lookup, no registration); they are
 always available and are the reason identity and delivery need no naming system at all (§3.13).
 
-**`directory` is registered but out of the ladder** (§3.9.2): DMTAP's identity substrate is DNS +
-cryptographic names only, and a DMTAP-created global handle authority is not something this
-protocol will bring into existence. Its presence in the registry is what extensibility means —
-**registration is not endorsement** (§3.12.2) — and an implementation that does not support it
-simply treats such a name as undiscovered (`ERR_RESOLVER_TYPE_UNSUPPORTED`, `0x011F`), never
-invalid.
+**`directory` is registered but out of the ladder** (§3.9.2, §3.13.2): its presence in the
+registry is what extensibility means — **registration is not endorsement** (§3.12.2) — and an
+implementation that does not support it simply treats such a name as undiscovered
+(`ERR_RESOLVER_TYPE_UNSUPPORTED`, `0x011F`), never invalid.
 
 ### 3.12.5 The `name-chain` resolver type — OPTIONAL, with four guardrails (normative)
 
@@ -1151,16 +1140,16 @@ guaranteed without an authority: you are always **nameable** (key-name), always 
 **deliverable-to** (§9.7a) — with no domain, no chain, no provider, and no money.
 
 **The qualifier on "reachable" is load-bearing and was previously missing.** Reachability is a
-function of the **key**, not of the key-name: the key-name is a one-way digest and cannot be
-turned back into a key (§3.9.6). A correspondent who already has your key reaches you by the
+function of the **key**, not the key-name — a one-way digest that cannot be turned back into a
+key (§3.9.6); a stranger holding only the key-name has a checksum, not an address, and must
+obtain the key out of band (§3.13.5). A correspondent who already has your key reaches you by the
 §4.2.1 ladder — piggybacked location, cache, rendezvous set — and never needs an authority, which
-is the guarantee. But a **stranger holding only your key-name has a checksum, not an address**,
-and must obtain the key out of band (§3.13.5). The only mechanism that could close that gap for a
-key-name-only identity is a DHT lookup keyed on `hash(ik)` — which this specification deliberately
-relegates to **opportunistic use only** and says no relationship should depend on (§4.2.1), for
-the reasons §4.2's own CAUTION gives. Claiming unqualified reachability while the mechanism
-providing it is the one the document elsewhere tells you not to rely on would be exactly the kind
-of overclaim §6.6 exists to prevent. See §6.6 item 16.
+is the guarantee. The only mechanism that could close the stranger's gap for a key-name-only
+identity is a DHT lookup keyed on `hash(ik)` — which this specification deliberately relegates to
+**opportunistic use only** and says no relationship should depend on (§4.2.1), for the reasons
+§4.2's own CAUTION gives. Claiming unqualified reachability while the mechanism providing it is
+the one the document elsewhere tells you not to rely on would be exactly the kind of overclaim
+§6.6 exists to prevent. See §6.6 item 16.
 
 It does **not** guarantee that you have a short,
 memorable, human-shareable string that nobody can take from you, because **Zooko's triangle says

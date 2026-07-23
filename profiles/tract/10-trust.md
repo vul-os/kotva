@@ -193,9 +193,10 @@ central place to make it.
 §21.9 obliges this section to state the measured outcome rather than the hypothetical one.
 
 OpenBazaar's reputation failure was self-published, unweighted reviews with no banning authority,
-and **one vendor faked 60% of measured sales value**. A purchase attestation is strictly stronger
-than what OpenBazaar had — it binds a review to a real transaction, so ballot-stuffing costs actual
-trades. Two of the failure conditions nonetheless survive unchanged:
+and **measured, vendor-scale ballot-stuffing of sales value** (§21.3, §21.6). A purchase
+attestation is strictly stronger than what OpenBazaar had — it binds a review to a real
+transaction, so ballot-stuffing costs actual trades. Two of the failure conditions nonetheless
+survive unchanged:
 
 1. **Self-dealing produces genuine attestations.** A seller transacting with itself generates real
    proofs. Attestation raises the cost and leaves a public trail; it does not establish that the

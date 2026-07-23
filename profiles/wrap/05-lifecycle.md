@@ -59,14 +59,17 @@ bids remain valid unless withdrawn.
 
 Given the verified object set for one work order, the state is:
 
-1. If any `Progress` reports a **terminal** state (`completed`, `failed`,
-   `cancelled`), the state is the terminal one with the highest `ts`.
-2. Otherwise, if a valid non-revoked `Assignment` exists, the state is the
+1. If a valid `Attestation` naming a party on this order has `outcome = 3`,
+   the state is `disputed`.
+2. Otherwise, if any `Progress` reports a **terminal** state (`completed`,
+   `failed`, `cancelled`), the state is the terminal one with the highest
+   `ts`.
+3. Otherwise, if a valid non-revoked `Assignment` exists, the state is the
    highest-`ts` `Progress` state reachable from `assigned`, defaulting to
    `assigned`.
-3. Otherwise, if `now >= expires`, the state is `expired`.
-4. Otherwise, if any `Offer` exists, the state is `offered`.
-5. Otherwise, `issued`.
+4. Otherwise, if `now >= expires`, the state is `expired`.
+5. Otherwise, if any `Offer` exists, the state is `offered`.
+6. Otherwise, `issued`.
 
 The fold is a **pure function of the object set** and therefore order-
 independent: two replicas holding the same objects compute the same state

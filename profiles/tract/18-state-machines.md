@@ -66,8 +66,9 @@ never automatic.
 
 **A withdrawn or superseded offer is bounded by publisher liveness.** A seller whose node is offline
 cannot serve the successor object that announces the withdrawal, so a buyer relying on a cached copy
-may act on stale terms until they can reach the feed (§21.5, measured on OpenBazaar's ~22-day median
-listing lifetime). This is a real limit of the offer machine, not an edge case, and is why the
+may act on stale terms until they can reach the feed — availability is bounded by publisher
+liveness, as measured on OpenBazaar's median listing lifetime (§21.5). This is a real limit of
+the offer machine, not an edge case, and is why the
 binding moment is the seller's acceptance in §18.3 rather than the buyer's reading of the offer.
 
 ## 18.3 Order

@@ -66,7 +66,7 @@ Every intermediary RTC can place in a path is a coordinator under
 
 | Coordinator kind | Role in a call | Visibility (declared) |
 |---|---|---|
-| **media-relay** (the SFU) | Forwards SFrame ciphertext so the host is not the size limit (§27.7.2) | `blind` / `structural` — holds no epoch key, cannot read media |
+| **media-relay** (the SFU) | Forwards SFrame ciphertext so the host is not the size limit (§27.7.2) | `blind-routing` / `structural` — holds no epoch key, cannot read media; sees routing metadata (participant graph, speaker timing, stream sizes) |
 | **relay** (TURN) | Relayed ICE candidate when direct/STUN fails (§27.11 item 3) | `blind` / `structural` — carries SFrame ciphertext |
 | **reachability-adapter** | Optional public ingress to reach a self-hosted SFU box | `blind-routing` (SNI-passthrough) preferred |
 
@@ -121,7 +121,7 @@ them — it states the rules a profile reader must not miss.
   unprotected media on a call that negotiated SFrame, and MUST NOT accept a renegotiation that
   removes it — protection **ratchets up only** (`ERR_RTC_SFRAME_REQUIRED`, §27.5.2). An operator MAY
   instead publish `sframe_required=false`, declaring it will forward unprotected media if offered;
-  that operator is a `terminating` coordinator, not `blind`, and a client MUST disclose it as such
+  that operator is a `terminating` coordinator, not `blind-routing`, and a client MUST disclose it as such
   before joining (§27.7.4, R-RTC-3) rather than treat content-blindness as unconditional.
 - **R-RTC-2 (membership is the authorization).** An `rtc_signal` MUST be accepted only from a
   **current member** of the group under whose epoch the MOTE decrypted, evaluated against the
@@ -211,16 +211,17 @@ per-item statements are §27.11. The load-bearing claims:
 
 - **Content-blind media where the operator commits to it (SEC-3).** SFrame keyed from the MLS
   exporter means an SFU/relay that publishes `sframe_required=true` forwards ciphertext it *cannot*
-  read — `blind` at `structural` assurance, the strongest level (no key, provable), not a promise.
-  This is **materially stronger than the legacy mail gateway** (§7), which handles plaintext by
-  construction; where the operator has made that commitment, the difference is structural, not
-  operator discipline (§27.11 item 1). An operator that instead publishes `sframe_required=false`
-  makes no such commitment and is `terminating`, not `blind` — see the table below.
+  read — `blind-routing` at `structural` assurance, the strongest level (no key, provable, though
+  routing metadata stays visible), not a promise. This is **materially stronger than the legacy mail
+  gateway** (§7), which handles plaintext by construction; where the operator has made that
+  commitment, the difference is structural, not operator discipline (§27.11 item 1). An operator that
+  instead publishes `sframe_required=false` makes no such commitment and is `terminating`, not
+  `blind-routing` — see the table below.
 - **Every intermediary's visibility is declared (SEC-4, [CONTRACT §3](../coordinator/CONTRACT.md)).**
 
   | Party | Class | Sees |
   |---|---|---|
-  | SFU / media-relay (`sframe_required=true`) | `blind` / structural | ciphertext + routing metadata (participants, timing, IPs, packet sizes) |
+  | SFU / media-relay (`sframe_required=true`) | `blind-routing` / structural | ciphertext + routing metadata (participants, timing, IPs, packet sizes) |
   | SFU / media-relay (`sframe_required=false`) | `terminating` | plaintext, if the client offers unprotected media — disclosed to the client before joining (R-RTC-3, §27.7.4) |
   | TURN relay | `blind` / structural | ciphertext + the two hops' addresses |
   | mesh peer | *endpoint*, not intermediary | plaintext (it is a participant) |
@@ -268,7 +269,7 @@ Each is an inherent consequence of the design, disclosed rather than solved (§2
    metadata of item 1. RTC discloses both and lets the user choose; it does not pretend a costless
    option exists (§27.11 item 3).
 8. **An operator MAY decline content-blindness altogether.** `sframe_required=false` is a
-   conformant `RtcCapacity` value (§27.7.4): that SFU is `terminating`, not `blind`, and will
+   conformant `RtcCapacity` value (§27.7.4): that SFU is `terminating`, not `blind-routing`, and will
    forward — and can read — unprotected media if the client offers it. Content-blindness is
    therefore an operator commitment a client must check (R-RTC-1, R-RTC-3), not a structural
    property of every SFU.

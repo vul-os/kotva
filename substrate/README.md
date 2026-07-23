@@ -172,7 +172,7 @@ test (see [`SYNC.md`](SYNC.md)).
 > binding, never *the* binding.
 
 This is already true for Feeds: **kerf-pub** (the reference implementation at
-`/Users/pc/code/exo/kerf/packages/kerf-pub`) serves the §22 `/.well-known/dmtap-pub/…` surface as static
+`/Users/pc/code/vulos/kerf/packages/kerf-pub`) serves the §22 `/.well-known/dmtap-pub/…` surface as static
 files behind an ordinary web server and **proves §22 works over plain HTTPS with no mesh** — a fetcher
 validates the signed `FeedHead`, walks the `prev` chain, and checks each content address, trusting the
 server for *nothing* (§22.5.1). Identity resolves over DNS + KT with no mesh (§3.3). Sync's wire protocol
@@ -213,7 +213,7 @@ standard or required to speak it. These are named only as existence proofs that 
 
 | Capability | Reference implementation | Proves |
 |------------|--------------------------|--------|
-| Feeds & Blobs | **kerf-pub** (`/Users/pc/code/exo/kerf/packages/kerf-pub`) | §22 served over plain HTTPS, no mesh (the HTTP test) |
+| Feeds & Blobs | **kerf-pub** (`/Users/pc/code/vulos/kerf/packages/kerf-pub`) | §22 served over plain HTTPS, no mesh (the HTTP test) |
 | Sync | **flowstock** stateless sync (`/Users/pc/code/vulos/flowstock`); **dmtap-clustersync** CRDTs (`/Users/pc/code/vulos/envoir`) | the op algebra + `/sync/vector`·`/sync/pull`·`/sync/ops` wire (the flowstock test) |
 | Infrastructure Roles + Wake | **vulos-relayd** (intended) | key-addressed relay / mailbox / wake origin |
 

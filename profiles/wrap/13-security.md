@@ -26,8 +26,14 @@ marketing.
   and MUST NOT be described as one.
 - **Location integrity.** Device geolocation is trivially falsified. It is
   operational data, never proof (§10.4).
-- **Key loss.** There is no rotation or recovery in v0 (§2.4). A lost key is a
-  lost identity and a lost work history.
+- **Key loss.** Rotation and recovery are inherited from the substrate
+  (§2.4), not defined by WRAP: an operational device-key loss does not lose
+  identity or attestations, because existing counterparties follow the
+  pinned `IK` through the signed certificate chain, and a stolen key is
+  beaten by the owner's recovery key. The disclosed residual is narrower —
+  an `IK` rotation changes the key-name, so only a brand-new contact who
+  knew *only* the old key-name is affected; existing counterparties are
+  unaffected.
 - **Sybil resistance.** Not solved; made explicit and delegated to pool
   curation (§9.1).
 - **Availability.** A pool can refuse to distribute a participant's work. WRAP
@@ -85,6 +91,6 @@ consented to a protocol.
 
 Implementations SHOULD publish coarse offers and disclose exact addresses only
 in the `Assignment`, which reaches one performer (§8.5). Implementations SHOULD
-compact location trails after completion (§7.5). Implementations MUST NOT
+compact location trails after completion (§7.3). Implementations MUST NOT
 publish beneficiary addresses in attestation feeds, which are long-lived,
 widely replicated, and designed never to be deleted.

@@ -98,11 +98,9 @@ malformed decode). The construction rules over `Anchors` are:
 - `Anchors.delivery_destination` MUST be present when, and only when, a shipping leg moves goods to a
   destination (§8); it MUST be absent when nothing moves. Its presence is not a proxy for
   place-of-supply — the two answer different questions and can differ (§11.2).
-- `place_of_supply` MUST be **derived from the order's `Fulfilment` variant** exactly as §16.5.2 and
-  §4 prescribe (ship → destination; collect / perform-at-place / return-required → the stated place;
-  perform-remote and digital-grant → buyer residence; access-grant → per whether it names a place).
-  An implementation MUST NOT accept `place_of_supply` as an independent argument that could disagree
-  with the Fulfilment object.
+- `place_of_supply` MUST be **derived from the order's `Fulfilment` variant**, exactly as
+  [§4.3](04-fulfilment.md) prescribes. An implementation MUST NOT accept `place_of_supply` as an
+  independent argument that could disagree with the Fulfilment object.
 - Where the Fulfilment variant does not yet resolve to a single place — most often a multi-variant
   offer whose buyer choice is unrecorded — order construction MUST fail closed with
   `ERR_TRACT_PLACE_OF_SUPPLY_UNRESOLVED` (§17, `0x0A01`) until the buyer's choice is recorded.
@@ -173,10 +171,8 @@ not be frozen into bytes. What is normative is the *construction discipline* onc
   the fail-closed rule above governs the case where policy says one is required, which the grammar
   alone cannot express.
 
-> **§17 registry gap.** There is today no dedicated jurisdiction error code for "a required in-region
-> responsible person is absent" (§17 lists only `0x0A01`). The behaviour above is normative as a
-> `fail-closed-block`; a distinct code (proposed `ERR_TRACT_RESPONSIBLE_ROLE_MISSING` under family
-> `0x0A`) is recorded for §17 below. This does not touch §16 bytes.
+> The fail-closed-block above raises `ERR_TRACT_RESPONSIBLE_ROLE_MISSING` (`0x0A02`, [§17.4](17-errors-iana.md)),
+> assigned against this subsection. This does not touch §16 bytes.
 
 ### 11.3.5 Tax treatment category — the field is committed, its bytes are not
 
@@ -217,12 +213,12 @@ Published objects are irrevocable; an erasure right cannot be satisfied against 
 The resolution is structural — keep the data out of the irrevocable family in the first place — and
 it is enforced by the §16 grammar, not by reviewer discipline (§16.4):
 
-- **No personal data enters the public quadrant.** A public-family object (`ProductRecord`, `Offer`,
-  `RateCard`, `CapacityRecord`, or a storefront render bundle) MUST NOT carry a name, street address,
-  contact detail, or any field that identifies or is linkable to a natural person (§0.5.1, §16.4). A
-  decode or publish that violates this MUST fail closed with `ERR_TRACT_PERSONAL_DATA_PUBLIC` (§17,
-  `0x0102`). Public objects reference places as a country plus a coarse locality only (`PlaceRef`,
-  §16.5.2); there is **no street-address production in the public family at all**.
+- **No personal data enters the public quadrant.** No public-family object — the canonical list is
+  [§22.3](22-erasure.md) — MUST carry a name, street address, contact detail, or any field that
+  identifies or is linkable to a natural person (§0.5.1, §16.4). A decode or publish that violates
+  this MUST fail closed with `ERR_TRACT_PERSONAL_DATA_PUBLIC` (§17, `0x0102`). Public objects
+  reference places as a country plus a coarse locality only (`PlaceRef`, §16.5.2); there is **no
+  street-address production in the public family at all**.
 - **Personal data lives sealed and deletable.** Orders and everything identifying a person — buyer
   name, delivery address, contact details — are carried in the sealed family (`Order`, §16.6), held
   at the two endpoints, where deletion is meaningful. A sealed object presented under a public schema,

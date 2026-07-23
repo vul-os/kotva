@@ -12,29 +12,46 @@ without requiring the beneficiary to run software.
 
 ## 10.2. Handoff codes
 
-The RECOMMENDED mechanism is a **handoff code**: a short secret known to the
-issuer and the beneficiary, presented at the moment of handoff and included in
-the completing attestation.
+The RECOMMENDED mechanism is a **handoff code**: a secret known to the issuer
+and the beneficiary, presented at the moment of handoff and included in the
+completing attestation.
 
-1. On assignment, the issuer generates a code — 4 to 6 digits is sufficient —
-   and delivers it to the beneficiary out of band (printed on the receipt,
-   sent by message, read aloud on the phone).
+The commitment below is published *before* the handoff, on the wire, in an
+object the assigned performer holds — so the code itself MUST carry at least
+128 bits of entropy. A 4-6 digit code is not sufficient: its whole space is
+exhaustively searchable offline against the published commitment in
+microseconds, which is precisely what the performer is not supposed to be
+able to do. Choosing a longer digit string does not fix this; choosing a
+high-entropy code does.
+
+1. On assignment, the issuer generates a code — a randomly generated token
+   of at least 128 bits, rendered as e.g. a QR code or a short link — and
+   delivers it to the beneficiary out of band (printed on the receipt, sent
+   by message, scanned from a QR code).
 2. The issuer includes `commit = BLAKE3-256(code ‖ order_id)` in the
-   `Assignment` (§3.6, `terms`), so the commitment is published *before* the
+   `Assignment` (§3.6, `commit`), so the commitment is published *before* the
    handoff and cannot be constructed afterwards to match whatever was typed.
-3. At handoff, the beneficiary tells the performer the code.
+3. At handoff, the beneficiary shows or reads the code to the performer.
 4. The performer includes the code in the `proof` map of their completing
    `Attestation` (§3.8).
 5. Any party recomputes the hash and checks it against the commitment.
 
-The performer cannot fabricate a completion, because they never learn the code
-except from the beneficiary. The issuer cannot deny a completion that happened,
-because they published the commitment beforehand and the code verifies against
-it.
+The performer cannot recover the code by brute force, because 128 bits of
+entropy makes offline exhaustive search infeasible; they learn it only from
+the beneficiary at handoff. The issuer cannot deny a completion that
+happened, because they published the commitment beforehand and the code
+verifies against it. A short, spoken digit code protects only against issuer
+denial — it does **not** protect against performer fabrication, because the
+performer already holds the published commitment and can search a
+four-to-six-digit space offline; implementations MUST NOT describe a
+low-entropy code as resisting fabrication.
 
-This is deliberately the mechanism couriers already use. It requires no app, no
-key, and no literacy beyond reading four digits, and it degrades to a phone
-call when everything else fails.
+This requires no app and no key from the beneficiary, but it does need a
+channel that can carry more than a few spoken digits — a QR code, a link, or
+a printed string. A phone-only handoff with no such channel MAY fall back to
+a short spoken code, but implementations MUST disclose that the fallback is
+a courtesy to the beneficiary only and does not defeat a performer willing to
+brute-force the published commitment offline.
 
 ## 10.3. Proof map
 

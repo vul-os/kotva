@@ -36,29 +36,15 @@ to one substrate primitive:
 | `Progress` | OR-Set add / append (SYNC §4.3) | `target = "progress"` | union; current state folded at read (§6.3) |
 | `Attestation` | Author-feed entry (FEEDS §4) | the subject's feed | append-only, anti-rollback (FEEDS §4.3) |
 
-Three consequences are worth stating, because each **replaces** something the
-old draft hand-rolled with the substrate primitive that already existed for it:
+Each row **replaces** something the old draft hand-rolled with the substrate
+primitive that already existed for it:
 
-- **Bid withdrawal is the substrate's observed-remove, not a second object.** A
-  withdrawal is an OR-Set *remove* op citing the add-tags it cancels
-  ([`SYNC.md`](https://github.com/vul-os/dmtap/blob/main/substrate/SYNC.md) §4.3) — not a new `Bid` with a
-  `withdrawn = true` flag resolved at read time. Concurrent bids from performers
-  who cannot see each other all survive; a withdraw races only its own add,
-  never another performer's. (§3.5 no longer carries a `withdrawn` field.)
-
-- **Assignment is the substrate LWW register**, resolved by the substrate HLC's
-  `(wall, counter, author)` total order ([`SYNC.md`](https://github.com/vul-os/dmtap/blob/main/substrate/SYNC.md)
-  §3). WRAP adds only the admission constraint that the sole authorized author
-  is the issuer (§5.5) — enforced as a Sync *admission* rule (SYNC §9), never as
-  a merge tie-break. Last-writer-wins is safe here **only because** the protocol
-  has already guaranteed one legitimate writer (§3.6); WRAP never resolves a
-  two-party conflict by picking a timestamp winner.
-
-- **Attestations are a substrate author feed.** That is what makes a worker's
-  reputation portable and self-verifying, servable over plain HTTPS with no mesh
-  ([`FEEDS.md`](https://github.com/vul-os/dmtap/blob/main/substrate/FEEDS.md) §5) and anti-rollback / equivocation
-  protected (FEEDS §4.3) — the same properties WRAP's old text asked for by hand,
-  now inherited rather than re-specified.
+- **Bid withdrawal** — the substrate's observed-remove, not a second object
+  (§3.5).
+- **Assignment** — the substrate LWW register; admission, not a merge
+  tie-break (§3.6, §5.5).
+- **Attestations** — a substrate author feed; portable, self-verifying
+  reputation (§9.5).
 
 Time (the HLC), the total order and its tie-break, convergence, the state root,
 and snapshots/compaction are **all the substrate's**

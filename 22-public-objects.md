@@ -134,26 +134,12 @@ sealed `h_i = prefix ‖ BLAKE3-256(AEAD(key, plaintext_i))` of §18.9.5). Becau
 into **every** leaf and node, a public root and a sealed root over the *same* chunk-hash list are
 different values — the type is bound into the address, not asserted by a boolean flag (§22.2.3).
 
-**The prefix is not a free per-object choice, and it is not an interoperability seam (normative,
-corrected).** An earlier draft of this paragraph read the §18.1.5 prefix as hash-agility in the
-loose sense — "an implementation may migrate the digest (e.g. to SHA2-256 for FIPS compliance)
-without changing the address format, and the same prefix is the interoperability seam with external
-content-addressed stores (a Git-LFS / sha256 pointer maps onto `0x12 ‖ SHA2-256(plaintext)`)." That
-is false, and §18.1.5's own precedence rule says why: where the containing object carries a `suite`
-(§18.1.4) — and `PubManifest` does, key 6 — every `hash` inside it MUST carry that suite's hash
-prefix, and a verifier MUST **reject** the object on disagreement (`ERR_HASH_ALG_MISMATCH`,
-`0x0127`, §18.1.5), never honor the prefix in the suite's place and never "try both." No v0 suite
-selects SHA2-256 (`0x12` is RESERVED — no suite selects it in v0, §18.1.5's own table), and this
-section's `leaf()`/`node()` are defined only for BLAKE3. A `PubManifest` built by pointing `chunks`
-at existing SHA-256 digests — for instance reusing a Git-LFS store's own pointers verbatim, the case
-the withdrawn sentence held out as an interop seam — is therefore **rejected by every conformant
-peer**, not merely one that happens to implement only BLAKE3: it is a rejected object, not a bridge
-to an external store. Migrating the digest a future suite selects (`0x05`'s SHA3-256, §18.1.4)
-remains possible *as a suite migration*, which is the sense in which the prefix genuinely preserves
-hash-agility (§18.1.5) — it is migration-without-reformatting, not a standing bridge to stores keyed
-by an algorithm no suite selects. §24's Appendix B (kerf mapping) already states this correctly for the profile
-built on this section; this paragraph is the normative twin that read the other way and is now
-brought into agreement with it.
+**The prefix is not a free per-object choice.** Because `PubManifest` carries a `suite` (§18.1.4,
+key 6), every `hash` inside it MUST carry that suite's §18.1.5 prefix, and a verifier MUST
+**reject** the object on disagreement (`ERR_HASH_ALG_MISMATCH`, `0x0127`). No v0 suite selects
+SHA2-256 (`0x12` is RESERVED), so a `chunks` list of external SHA-256 digests — e.g. reused
+Git-LFS pointers — is rejected by every conformant peer, not bridged. See §24 Appendix B (kerf
+mapping) for the profile-level statement of this rule.
 
 ### 22.2.3 Type-incompatibility with sealed manifests (fail closed)
 
@@ -265,30 +251,16 @@ DS-tagged `sig` already covers** (§22.3.1's `sig` row), **not** from the comple
 announce_id = 0x1e ‖ BLAKE3-256( det_cbor(PubAnnounce ∖ {9}) )   ; key 9 (sig) EXCLUDED
 ```
 
-**Why: §1.3 forbids deriving an identifier from a signature.** An earlier draft of this formula
-hashed the *complete, signed* object, `sig` included. §1.3 states the general rule plainly: "no
-identifier, dedup key, or replay-cache key in this protocol is derived from a signature… An
-implementation MUST NOT introduce a construction that depends on signature uniqueness or
-non-malleability" — and §18.1.6 already concedes hybrid signatures are EUF-CMA, not SUF-CMA
-(malleable). Hashing `sig` into `announce_id` did exactly what §1.3 forbids: two byte-distinct but
-both-valid signatures over the same `PubAnnounce ∖ {9}` body (a re-signing, or a malleated hybrid
-component) would produce two different `announce_id`s for what is semantically **one**
-announcement — defeating the "one canonical id" property that `supersedes` (§22.3.4), feed entries
-(§22.4) and the fetch-address bind (step 2 below) all depend on. Excluding `sig` closes this: the
-id is now a pure function of the signed content, exactly as the signature already treats it. This
-is a **restoration of §1.3's invariant, not an exception carved out of it**: §1.3 already forbade a
-signature-derived identifier before `announce_id` existed, and the sig-included formula was the
-violation, not a case §1.3 declined to reach. The correction brings `announce_id` into the rule
-§1.3 always stated, rather than amending §1.3 to tolerate it.
+**Why: §1.3 forbids deriving an identifier from a signature.** §1.3 states the general rule
+plainly: "no identifier, dedup key, or replay-cache key in this protocol is derived from a
+signature… An implementation MUST NOT introduce a construction that depends on signature
+uniqueness or non-malleability" — and §18.1.6 already concedes hybrid signatures are EUF-CMA, not
+SUF-CMA (malleable). Excluding `sig` keeps `announce_id` a pure function of the signed content,
+exactly as the signature already treats it.
 
-**Consequence, stated rather than left implicit: the id is now stable across re-signing.** Because
-`sig` is excluded, re-signing the identical `PubAnnounce ∖ {9}` body — under the same key, a
-second device key, or after a suite's signature is refreshed with no content change — yields the
-**same** `announce_id` with a *different* valid `sig`. This is benign and intentional: it means one
-`announce_id` may legitimately carry two (or more) valid signatures over its lifetime, and a
-verifier accepting **any one** valid `sig`/`signer` chain over the pinned body is conformant. It is
-recorded here because it is a real behavior change from the prior (flawed) formula, not a
-side-effect to discover by surprise.
+Because `sig` is excluded, re-signing the identical `PubAnnounce ∖ {9}` body yields the same
+`announce_id` with a different valid `sig`; a verifier accepting any one valid `sig`/`signer` chain
+over the pinned body is conformant.
 
 The `0x1e ‖ BLAKE3-256` here is the instantiation of `PubAnnounce.suite`'s content-hash, not an
 independent choice: as everywhere else, the suite selects both the hash and the §18.1.5 prefix it
@@ -298,16 +270,11 @@ literals are written out.
 
 `announce_id` is what a feed entry (§22.4) and a `supersedes` reference (§22.3.4) point at, and what
 a fetcher recomputes and checks on receipt (`ERR_PUB_ANNOUNCE_ID_MISMATCH`, `0x0905`) before trusting
-the bytes. *(Rejected alternative: a self-referential `id` field — circular and impossible to
-compute; the derived-anchor rule of §18.9.4 is used instead, for consistency with `Identity`, which
-receives the identical sig-exclusion correction, §18.9.4.)*
+the bytes.
 
-**Conformance-vector impact (flagged prominently).** The committed `pub_announce_id` vector in
-`conformance/vectors/pub_vectors.json`, and every vector derived from it —
-`pub_announce_supersede_same_author_valid`/`_wrong_pub` and any `FeedEntry`/`FeedHint` fixture that
-embeds this `announce_id` — were generated under the withdrawn **sig-included** formula and are
-**wrong** under this correction. They need regeneration from the signature-excluded body. This
-document does not edit `conformance/**`; see the report accompanying this change.
+Committed `pub_announce_id` conformance vectors (`conformance/vectors/pub_vectors.json`) and their
+derivatives were generated under the withdrawn sig-included formula and need regeneration; see the
+change report accompanying this correction.
 
 ### 22.3.2 Why signed plaintext, not a sealed MOTE
 
@@ -468,8 +435,7 @@ content address that names it — the value carried in a successor's `prev` and 
 is derived from the complete object by the generic §18.9.4 anchor rule:
 `entry_id = 0x1e ‖ BLAKE3-256( det_cbor(FeedEntry) )`, with **no** DS-tag fold (contrast the
 signed objects above, whose DS-tags separate *signing preimages*; an unsigned entry's authenticity
-flows solely from the signed head's transitive `tip` commitment, §22.4.1). *(Made explicit here
-because conformance-vector work showed it was previously only inferable.)*
+flows solely from the signed head's transitive `tip` commitment, §22.4.1).
 
 ### 22.4.2 Anti-rollback (the standard monotonic-`seq` rule)
 
@@ -520,7 +486,7 @@ data any node can rebuild."
 
 ### 22.4.4 Head retrieval and range fetch (transport-independent)
 
-The feed is manipulated through four **abstract operations**, defined here independently of any
+The feed is manipulated through five **abstract operations**, defined here independently of any
 transport (§22.5 gives concrete bindings):
 
 - `feed_head(pub) → FeedHead` — the current signed tip for author `pub`. The **only** mutable
@@ -532,8 +498,9 @@ transport (§22.5 gives concrete bindings):
 - `blob(id) → PubManifest` and `chunk(h) → bytes` — content-addressed fetches of a public manifest
   and a plaintext chunk, self-verifying by `id` / by `h_i` (§22.2).
 
-All five are **read-only, content-addressed, and (for the content-addressed four) immutable**, which
-is what makes the HTTP and mesh bindings below cache-friendly and trustless.
+All five are **read-only**; the four content-addressed operations (`feed_range`, `announce`,
+`blob`, `chunk`) are **immutable**, while `feed_head` is the one **mutable**, pub-addressed
+operation. This is what makes the HTTP and mesh bindings below cache-friendly and trustless.
 
 ### 22.4.5 Origination floor (`FeedHead.suite`)
 

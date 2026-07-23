@@ -63,10 +63,11 @@ Envelope {
   spam/abuse gating at the recipient (§9); it does not reveal identity. The matching
   **public** key travels in `sender_key` so the recipient can verify `sender_sig`
   *before decrypting* (§2.7 step 3) — there is no persistent key to look up, and a fresh
-  keypair per message means `sender_key` is itself unlinkable. The `challenge` proof
-  (§9) MUST be bound to `sender_key` (an ARC token is issued to it; a PoW/stamp commits to
-  it — §9.4) so that a captured proof cannot be re-signed onto another envelope with a
-  different ephemeral key.
+  keypair per message means `sender_key` is itself unlinkable. Every `challenge` type
+  **except a vouch** MUST be bound to `sender_key` (§9) — an ARC token is issued to it; a
+  PoW/stamp commits to it (§9.4) — so that a captured proof cannot be re-signed onto another
+  envelope with a different ephemeral key. A vouch cannot be sender_key-bound and is instead
+  **subject**-bound, checked post-decryption at §2.7 step 8(b2) (§9.2a).
 - **`epoch`** ties a message to an MLS group epoch so the recipient selects the right key.
 
 ### 2.2a Delivery tag (`to`) and recipient blinding
@@ -163,20 +164,16 @@ Only the recipient (or group members) can decrypt `Payload`, so **all sender ide
 subject, recipients, threading, and content are hidden from the network** — this is what
 sealed sender + payload encryption buys.
 
-**`fs_ratchet` is removed (was: `?bytes`, "forward-secrecy ratchet material," §5.2).** An
-adversarial audit found the field OPTIONAL, opaque, and — searched across the whole
-specification — never given a preimage, a derivation, a verifier obligation, or any interpreter
-at all. An undefined field that gestures at "forward secrecy" is worse than no field: it invites
-an implementer to believe FS is handled somewhere they have not looked, for exactly the messages
-(HPKE-sealed 1:1/first-contact MOTEs) that the honest disclosure now added at §5.2 and §6.9 SP-6
-says carry none. Rather than retrofit real ratchet semantics onto a field that would either (a)
-duplicate the already-specified MLS epoch mechanism (§5.1) for an established group, where it
-would be redundant, or (b) reintroduce, for the bootstrap HPKE-to-KeyPackage-key message, exactly
-the second per-message ratchet protocol DMTAP deliberately declined to build outside the optional
-deniable mode (§5.2.1) — the field is deleted and the gap it papered over is disclosed as a gap
-instead (§5.2, §6.9 SP-6). **§18.3.5's `Payload` CDDL carries the corresponding key (8,
-`fs_ratchet`) and needs the matching removal (or an explicit `Reserved — do not assign` marking
-if the key number must not be reused); reported to the §18 owner.**
+**`fs_ratchet` is removed (was: `?bytes`, "forward-secrecy ratchet material," §5.2).** The field
+was OPTIONAL and opaque, and never given a preimage, derivation, or verifier anywhere in the
+specification; retrofitting real semantics onto it would either duplicate the MLS epoch mechanism
+(§5.1) for an established group or reintroduce a second per-message ratchet protocol outside the
+optional deniable mode (§5.2.1), so it is deleted rather than left as an undefined field that
+invites an implementer to assume FS is handled elsewhere. The resulting gap — HPKE-sealed
+1:1/first-contact MOTEs carry no pre-session forward secrecy — is disclosed, not papered over
+(§5.2, §6.9 SP-6). **§18.3.5's `Payload` CDDL carries the corresponding key (8, `fs_ratchet`) and
+needs the matching removal (or an explicit `Reserved — do not assign` marking if the key number
+must not be reused); reported to the §18 owner.**
 
 ## 2.5 Attachments and files
 
@@ -191,11 +188,11 @@ Attachment {
   mime:     tstr,
   size:     u64,
   inline:   ?bytes,         // present iff small
-  manifest: ?ManifestRef,   // present iff large (§5.5)
+  manifest: ?ManifestRef,   // present iff large (§5.5); wire shape is §18.3.7, the sole
+                            //   authority (id/size/chunks + durability, MUST for
+                            //   Referenced tier; advisory holder_hint) — not repeated here
   key:      bytes,          // per-file content key (recipient decrypts chunks)
 }
-
-ManifestRef { id: bytes, size: u64, chunks: u32 }   // BLAKE3 Merkle-DAG root (§5.5)
 ```
 
 The manifest lists chunk hashes (a BLAKE3 Merkle DAG). Chunks are fixed-size, individually
@@ -211,7 +208,7 @@ orthogonal axis. A file is handled by one of three paths, by size:
 
 | Tier | Size | Path | Metadata privacy |
 |------|------|------|------------------|
-| **inline** | ≤ v0 **48 KiB** of content — the padded MOTE then rides the top bucket rung, 64 KiB = 32 Sphinx cells (§4.4.1/§16.3); the ≈ 12 kB difference is the PQ envelope | in `Attachment.inline`, inside the MOTE | full (rides the message's tier) |
+| **inline** | ≤ v0 **48 KiB** of content — the padded MOTE then rides the top bucket rung, 64 KiB = 32 Sphinx cells (§4.4.1/§16.3); the 16 KiB gap is ≈12 kB PQ envelope plus ≈4.4 kB header/framing headroom (§5.5.1) | in `Attachment.inline`, inside the MOTE | full (rides the message's tier) |
 | **normal** | > inline, ≤ 4 chunks (v0: ≤ 4 MiB) | manifest in MOTE; **chunks also routed via the mixnet** | full (like messages, §6.5) |
 | **large** | > normal | manifest in MOTE; **chunks via the fast/onion bulk path** (§4.5) | weaker — Tor-class (§6.5) |
 
@@ -220,12 +217,11 @@ the three-tier model is normative. This removes the earlier binary small/large a
 **Note on "inline" and the mixnet cell:** an inline payload is **not** a single mix packet — the
 Sphinx cell is 2 KiB (§16.3), so a padded inline MOTE is a **whole number of 2 KiB cells** on the
 **bucket ladder** {16, 64} KiB (§4.4.1) — i.e. 8 or 32 cells. The inline tier's ceiling is the
-**top rung** (64 KiB, 32 cells), not one packet, and the ≤ 48 KiB content cap is that rung less
-the envelope; only ladder sizes appear on the wire, so size still leaks nothing.
-Note there is **no 2 KiB and no 8 KiB rung**: a conformant PQ envelope (suite `0x02`, §1.1)
-carries *two* signatures and *two* public keys plus a KEM ciphertext, and so exceeds **11.9 kB**
-before any body at all. §4.4.1 states that arithmetic in bytes; the floor is whatever it forces,
-and is 16 KiB in v0.
+**top rung** (64 KiB, 32 cells), not one packet; the byte-level derivation of the 48 KiB cap from
+that rung is §5.5.1's (11.9 kB PQ envelope + 4.4 kB headroom). Only ladder sizes appear on the
+wire, so size still leaks nothing — the metadata-privacy point §5.5.1 does not itself make.
+There is also **no 2 KiB and no 8 KiB rung**: a conformant PQ envelope (suite `0x02`, §1.1)
+already exceeds 11.9 kB before any body at all, so the floor the arithmetic forces is 16 KiB in v0.
 
 ## 2.6 Delivery semantics
 
@@ -274,9 +270,10 @@ in order:
    **`sender_key`** — the ephemeral per-message public key carried in the same envelope (cheap;
    no decryption). Drop on failure.
    `sender_key` is trusted only as the abuse-gate key for *this* envelope; it asserts no identity
-   (identity is authenticated later, inside `ciphertext`, at step 8). The `challenge` at step 6
-   MUST be bound to `sender_key` (§9.4), so this step also fixes which ephemeral key the abuse
-   proof was minted for.
+   (identity is authenticated later, inside `ciphertext`, at step 8). The `challenge` at step 6 —
+   **every type except a vouch** — MUST be bound to `sender_key` (§9.4), so this step also fixes
+   which ephemeral key the abuse proof was minted for; a vouch is subject-bound instead, at step
+   8(b2) (§9.2a).
 3a. **Freshness (replay bound, normative).** Reject a MOTE whose `ts` (§2.2) is more than the
    **clock-skew tolerance** (§16.1, ±120 s) ahead of the receiver's clock, **or** more than the
    **durable seen-id horizon** (§16.10) in the past. Drop on failure — same disposition as step 3

@@ -58,7 +58,7 @@ Mechanism = &(
   multisig:       0,   ; k-of-n signatures over the settlement transaction
   htlc:           1,   ; hashlock + timelock on the rail
   smart-contract: 2,   ; on-rail programmatic escrow
-  custodial:      3,   ; a licensed operator holds the float and can rule (the only one that breaks a true deadlock, §9)
+  custodial:      3,   ; a licensed operator holds the float and can rule (the only one that breaks a true deadlock, §10)
 )
 
 ReleaseCondition = {          ; what must be true for `held` → `released`
@@ -180,13 +180,13 @@ ESCROW **binds**, it does not build ([`bindings/README.md`](../bindings/README.m
   **stablecoin** settlement (bindings: *Payments / settlement* → x402 + stablecoins on the rail).
   These are the non-custodial mechanisms; their assurance is `structural` (the chain enforces the
   lock). An arbiter-cosigned multisig (§4) resolves a genuine dispute without a custodian; only a
-  **true deadlock** — no signer, including the ruling's beneficiary, will act — has no move (§9).
+  **true deadlock** — no signer, including the ruling's beneficiary, will act — has no move (§10).
 - **The dispute** — **Kleros-class** staked arbitration (bindings: *Dispute / arbitration*), the
   DISPUTE coordinator of §4.
 - **The physical confirmation** — the `oracle` coordinator (CONTRACT §5), itself resting on the
   physical-event ceiling.
 - **The custodial alternative** — a licensed escrow **operator** (TRACT §0.4.2, §9.5): the only
-  `Mechanism` that can *break* a true deadlock, at the cost of being structurally permanent (§9).
+  `Mechanism` that can *break* a true deadlock, at the cost of being structurally permanent (§10).
 
 When the frontier improves (better on-chain dispute primitives, TEE-attested oracles), the filling
 swaps and this primitive does not change ([`DIRECTION § 9`](../DIRECTION.md)). ESCROW owns the

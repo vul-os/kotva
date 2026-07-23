@@ -105,9 +105,7 @@ node that serializes handshake messages into an append-only, hash-chained per-gr
   **self-suspend** — stop ordering new Commits and hold pending Proposals — so a partitioned
   minority committer stops manufacturing a branch to reconcile. The **majority** partition proceeds
   via the deterministic takeover (above), whose successor also needs `> n/2`; only one partition can
-  ever hold that quorum, so at most one branch is ever confirmed. (For **n = 2** the confirmation
-  quorum is both peers; a partition simply leaves each peer's Commits unconfirmed until the pair
-  reconnects, resolved by §5.1.1's rank tie-break — no fork.)
+  ever hold that quorum, so at most one branch is ever confirmed.
 - **Censorship is misbehavior — including *selective* censorship:** a committer can *stall* but
   cannot *forge* (every handshake is member-signed). Crucially, a committer that stays live yet
   **withholds ordering of one specific pending, member-signed proposal** (e.g. never orders a
@@ -460,22 +458,9 @@ MLS; DMTAP chooses MLS everywhere, so it is not used.)
 ## 5.4 Message kinds in context
 
 - `mail` / `chat` — the same MOTE; differ by default tier (§4.6) and client rendering.
-- `reaction` / `edit` / `redact` — reference a prior MOTE by `id` via `refs`. **`edit`
-  (`0x03`) and `redact` (`0x04`) are same-author-only (normative, §2.7 step 9).** A recipient
-  applies either only if the incoming MOTE's `Payload.from` equals the `Payload.from` of
-  **every** `refs`-named MOTE **as the recipient itself stored it**; a cross-author edit/redact
-  is rejected fail-closed (`ERR_EDIT_REDACT_AUTHOR_MISMATCH`, §21) and is never surfaced as
-  the referenced author's own retraction or revision. This closes a gap an adversarial audit
-  found here: as written, `edit`/`redact` carried no authorization rule at all, so — combined
-  with the durable, cluster-wide, unresurrectable remove-wins semantics of §5.6.4 — any
-  correspondent, in a 1:1 or a group, could permanently delete or silently rewrite another
-  party's message in the *recipient's own view* with a validly signed MOTE of their own,
-  defeating SP-2 (§6.9) at the display layer even though each object's own signature still
-  verified. Group moderation removal is a **distinct kind**, rendered to members as an
-  operator/moderator action and never as a relaxed `edit`/`redact`; `reaction` makes no
-  authorship claim about the message it reacts to and is exempt from this gate. This brings the
-  messaging path to parity with the public-profile lineage rule (§24.7), which already held
-  `supersedes` to "strictly *same-identity* history."
+- `reaction` / `edit` / `redact` — reference a prior MOTE by `id` via `refs`. `edit` (`0x03`) and
+  `redact` (`0x04`) are **same-author-only**; `reaction` is exempt. The gate is authoritative at
+  §2.7 step 9 (cross-author → fail-closed, `ERR_EDIT_REDACT_AUTHOR_MISMATCH`, §21).
 - `group_event` — MLS handshake messages (add/remove/update/commit).
 - `receipt` / `presence` — opt-in, ephemeral, off by default (metadata-sensitive, §6).
 
@@ -762,18 +747,9 @@ converge **byte-identically**:
   certificate. A "deleted" object is thus one whose `deleted` flag is set (durable path) or whose
   add-tags are all tombstoned (benign path), and the two never race to the object's advantage.
 
-  **Durability is not authorization (normative cross-reference).** Everything above governs
-  **merge order** once a `redact`/`expires`/`sensitive` removal has already been accepted — it
-  says nothing about who was allowed to originate that removal. A `redact` (and an `edit`'s
-  supersede) reaches this CRDT layer at all only if it first passes the **same-author gate**
-  of §2.7 step 9 (§5.4): a recipient applies it only when the incoming MOTE's `Payload.from`
-  equals the `Payload.from` of the object it targets, **as this device stored it**; otherwise it
-  is rejected fail-closed before any `deleted` flag is ever set. Composing this section's
-  durable, cluster-wide, unresurrectable remove-wins guarantee with **no** check on who could
-  trigger it was exactly the hole an adversarial audit found — any correspondent's own
-  validly-signed MOTE could permanently delete or rewrite another party's message in the
-  recipient's own view. The death-certificate mechanism above is unchanged and still necessary
-  for correctness once a removal is legitimate; the fix is **upstream** of it, at admission.
+  **Durability is not authorization (normative cross-reference).** A `redact`/`edit` reaches this
+  CRDT layer only after passing the same-author gate of §2.7 step 9; everything above governs
+  **merge order**, not admission.
 
 All ops ride **inside the MLS cluster channel** (encrypted + authenticated to the cluster); each op
 names its origin `device_id`, and a receiver MUST confirm that device is a **non-revoked member**

@@ -20,16 +20,13 @@ uses one — and it is **transitional by construction** (§7.1c). It is also the
 something not everyone can get (§7.1a), which is precisely why the specification works so hard to
 keep everything else off it.
 
-**Four different "relays," kept distinct** (defined in the §0 glossary). The spec uses "relay"
-in four senses: (1) the **native mesh relay** — Circuit Relay v2 / DCUtR (§4.1, §4.3),
-content-blind node↔node reachability that lives on the node; (2) the **legacy-client
-reachability ingress** (§7.15.2) — the *gateway* surface that accepts a raw legacy connection
-and terminates TLS for clients that cannot speak the mesh; (3) the **relay role** (§14.1)
-— any public-address node performing sense (1); and (4) the **relay-mailbox** (§14.3) — the
-content-blind, `n`-of-`m`-held queue a mobile-only user drains (§14.3a). Only sense (2) is a
-legacy edge surface.
-Native nodes reach each other peer-to-peer over the mesh with no gateway in the path (§7.7); the
-gateway ingress exists **only** for legacy clients.
+**"Relay" names several things in this family; only one distinction is load-bearing here** (the
+full four-sense disambiguation lives in the §0 glossary). §7's reader must not confuse the
+**legacy-client reachability ingress** (§7.15.2) — a *gateway* surface that terminates TLS for a
+legacy client that cannot speak the mesh — with the content-blind **native mesh relay** (Circuit
+Relay v2 / DCUtR, §4.3), which carries node↔node traffic with no gateway involved. Native nodes
+reach each other peer-to-peer over the mesh with no gateway in the path (§7.7); the gateway
+ingress exists **only** for legacy clients.
 
 ## 7.1 Responsibilities — and the much longer list of non-responsibilities
 
@@ -108,10 +105,16 @@ for the worst memory-safety exposure in the system sitting next to `IK`. Therefo
   user, and where the platform provides it a distinct container/jail/namespace) from the node's
   identity and store processes. "One binary" is a distribution and configuration property, never
   an isolation property.
-- The gateway process **MUST NOT have access to identity key material** — not `IK`, not device
-  private keys, not recovery material — and **MUST NOT have read access to the local MOTE store**.
-  Its DKIM signing key is its own (§7.3), which is exactly why delegated selectors exist: the
-  gateway signs *as the domain* without ever holding the user's key.
+- The untrusted SMTP/IMAP/POP3/MIME **parser process MUST NOT have access to any identity key
+  material** — not the user's/mailbox-node's `IK`, not device private keys, not recovery material
+  — and **MUST NOT have read access to the local MOTE store**. This prohibition is about the
+  *user's* keys, not the gateway's own: the gateway node's own attestation `IK` (§7.2a), and any
+  IK-authorized gateway device key used to sign an injected MOTE (§7.2 step 4), live in a
+  **separate trusted signer process** that the parser process may request a signature from but
+  never reads the key material out of — the same process boundary this section requires
+  elsewhere, not an exception to it. Its DKIM signing key is its own (§7.3), which is exactly why
+  delegated selectors exist: the gateway signs *as the domain* without ever holding the user's
+  key.
 - Legacy protocol parsers (SMTP, IMAP, POP3, MIME, iCalendar/vCard) **SHOULD** be sandboxed
   further — a seccomp/pledge-class syscall filter, a separate parsing process per connection, or a
   memory-safe parser — and MUST be treated as untrusted input paths in the threat model (§6).
@@ -154,9 +157,7 @@ crosses the bridge (§8.6, §7.8) — rather than presenting it as a standing fe
    domain-anchored attestation key** (§7.2a), so the recipient can verify it arrived through a
    gateway genuinely authorized for the recipient's domain. A gateway-injected MOTE with no
    `Payload`, or one whose `from` is anything other than the gateway's own `IK`, is
-   non-conformant: §18.3.5's `from`/`sig` are MUST for every MOTE, legacy-origin included, and a
-   worked example that omits `Payload` entirely (§19.7.1) is a defect in that example, not a
-   second conformant shape.
+   non-conformant: §18.3.5's `from`/`sig` are MUST for every MOTE, legacy-origin included.
 5. Deliver into the mesh to K (§4). If K's node is unreachable, return SMTP 4xx so the
    SENDING server retries (durability punted to the legacy sender). Store nothing.
 ```
@@ -212,17 +213,19 @@ untrusted attestation key (`ERR_GATEWAY_ATTESTATION_KEY_UNTRUSTED`, `0x0602`), b
 attestation key to the gateway's `IK` makes the two comparisons one comparison: whatever wrapped
 the message is not the domain's authorized gateway, whatever `provenance` claims.
 
-**Algorithm identifier (normative).** The record's `suite=` parameter names the §1.1 algorithm
-suite `k=` is published under, using the same registry every other signed object in the protocol
-uses. A record with no `suite=`, or with a `k=` that does not match the named suite's key length,
-MUST be treated as **untrusted** (`ERR_GATEWAY_ATTESTATION_KEY_UNTRUSTED`, `0x0602`) — a verifier
-MUST NOT infer the algorithm from key length, which is exactly the ambiguity the §1.1 suite
-registry exists to remove. Because the key doubles as the gateway's `IK` (above), `suite=` MUST
-name a suite that `IK` legitimately holds, so a gateway attestation carries the same PQ-hybrid
-floor (§1.1) as every other signed object rather than a silent, unstated exception to it.
-(`GatewayAttestation`'s wire form has, until now, deliberately carried no `suite` field, inferring
-the algorithm from the published DNS key alone; it needs a matching field — a §18.3.11 change
-reported separately, alongside the `_dmtap-gw` registry entry in §21.21.)
+**Algorithm identifier (normative for the DNS record).** The record's `suite=` parameter names
+the §1.1 algorithm suite `k=` is published under, using the same registry every other signed
+object in the protocol uses. A record with no `suite=`, or with a `k=` that does not match the
+named suite's key length, MUST be treated as **untrusted**
+(`ERR_GATEWAY_ATTESTATION_KEY_UNTRUSTED`, `0x0602`) — a verifier MUST NOT infer the algorithm from
+key length, which is exactly the ambiguity the §1.1 suite registry exists to remove. Because the
+key doubles as the gateway's `IK` (above), `suite=` SHOULD name a suite that `IK` legitimately
+holds, so a gateway attestation carries the same PQ-hybrid floor (§1.1) as every other signed
+object rather than a silent, unstated exception to it — this is a SHOULD, not yet a MUST, because
+verification today relies on the DNS record alone: `GatewayAttestation`'s own wire form
+deliberately carries no `suite` field. It becomes a MUST once that field lands — a §18.3.11 change
+reported separately, alongside the `_dmtap-gw` registry entry in §21.21 (planned, not present on
+the wire today).
 
 Recipient nodes **MUST** verify an inbound MOTE's attestation signature against a key published
 under the recipient's own domain (or an explicitly trusted gateway set), **MUST** reject
@@ -277,12 +280,13 @@ attacker-supplied `Authentication-Results` (or `ARC-*`) header free to ride the 
 the way into `msg_digest`, where the gateway's own signature then vouches for a verdict it never
 computed.
 
-- **Convey the verdict.** The SPF/DKIM/DMARC/AR-Chain result the gateway computes at §7.11.1
-  step 1 MUST be carried inside the signed `GatewayAttestation` (§18.3.11) as an `AuthResults`
-  map — not merely acted on locally and dropped. Because it rides inside the signed attestation
-  body, a recipient can distinguish the gateway's own attested verdict from anything that arrived
-  inside the message. (`GatewayAttestation` gains a matching field for this; a §18.3.11 change
-  reported separately, since no such field exists there today.)
+- **Convey the verdict (SHOULD; planned).** The SPF/DKIM/DMARC/AR-Chain result the gateway
+  computes at §7.11.1 step 1 SHOULD be carried inside the signed `GatewayAttestation` (§18.3.11)
+  as an `AuthResults` map, rather than merely acted on locally and dropped: riding inside the
+  signed attestation body would let a recipient distinguish the gateway's own attested verdict
+  from anything that arrived inside the message. This is a SHOULD, not yet a MUST:
+  `GatewayAttestation` carries no such field today. It becomes a MUST once a §18.3.11 change
+  (reported separately) adds one.
 - **Strip before you sign.** Before computing `msg_digest` (§18.9.11) over the wrapped RFC 5322
   bytes, a gateway MUST remove every `Authentication-Results` header field (RFC 8601) and every
   `ARC-Seal` / `ARC-Message-Signature` / `ARC-Authentication-Results` header field (RFC 8617 —
@@ -447,8 +451,10 @@ So DMTAP does not attempt it. Fairness is achieved by the four mechanisms below 
    — abuse is priced and per-token-bannable, not a reputation-destroying free-for-all.
 4. **An optional commons gateway.** A non-profit or protocol-funded operator MAY commit to
    universal, non-discriminatory service (a "public option"), funded by postage/donations, as
-   **one operator among many** — not a mandate on all. Reputation ratings (§7.5) reward open
-   operators and down-rank discriminatory ones, applying soft, market-driven fairness pressure.
+   **one operator among many** — not a mandate on all. It benefits from mechanism 2 like any other
+   operator: a node whose own traffic it refuses or degrades switches away unilaterally, on that
+   node's own local measurement (§7.5) — there is no network-wide rating that down-ranks a
+   discriminatory operator on anyone else's behalf.
 
 The result is stronger than a mandate could enforce: because you can always route around,
 self-serve, or switch — and because accountability makes genuinely-open gateways survivable —
@@ -548,13 +554,9 @@ pricing model.
   trust. Conversely, a message the client shows as **pure-mesh** MUST NOT appear on any operator's
   usage claim, because no operator was there to observe it. This is the user's evidence against a
   third-party operator, not the operator's accounting mechanism (§12.7). **This audit is
-  one-directional, and disclosed as such (§7.10.4 integrity residual).** It lets a user confirm
-  that a claimed operation corresponds to a real, attested message; it does **not**, and cannot,
-  let a user *disconfirm* a message the gateway itself fabricated — a gateway that authors and
-  attests its own inbound legacy mail produces a `ProvenanceRecord` indistinguishable from a
-  genuine one, because attestation proves origin-through-this-gateway, never non-fabrication. A
-  user's audit is evidence against a claim of usage the gateway never performed; it is not
-  evidence of the gateway's honesty about content.
+  one-directional:** it confirms a claimed operation matches a real, attested message, but cannot
+  disconfirm a message the gateway itself fabricated — full statement at the §7.10.4 integrity
+  residual.
 
 ## 7.10 Native ↔ legacy address mapping (a swappable gateway alias, normative)
 
@@ -814,11 +816,8 @@ strangers' inboxes. Therefore anti-abuse enforcement is a **MUST in both directi
 Before it injects anything into the mesh (§7.2), a gateway MUST:
 
 1. Apply **legacy sender authentication** — **SPF, DKIM, and DMARC**, evaluating **AR-Chain**
-   (RFC 8617's Authenticated Received Chain — this document writes "AR-Chain" throughout §7,
-   reserving **ARC** for the unrelated anti-abuse Anonymous Rate-limited Credential of §9.3; the
-   acronym collision between SMTP's RFC 8617 and DMTAP's own token has caused real implementer
-   confusion and is disambiguated here rather than left implicit) **before** applying the
-   hard-fail rule below. A message that fails SPF/DKIM/DMARC at this hop but carries a valid
+   (RFC 8617's Authenticated Received Chain; see §7.2c for the AR-Chain-vs-ARC disambiguation)
+   **before** applying the hard-fail rule below. A message that fails SPF/DKIM/DMARC at this hop but carries a valid
    AR-Chain (`arc=pass`) — the ordinary signature of a mailing-list or forwarding intermediary
    that legitimately rewrote the envelope or footer — MUST NOT be hard-rejected on that basis
    alone: record `arc=pass` in the attestation's `AuthResults` (§7.2c) and continue to step 2
@@ -836,12 +835,12 @@ Before it injects anything into the mesh (§7.2), a gateway MUST:
    MOTE carries the **gateway's own** `IK` as `Payload.from` (§7.2a), so gating on `Payload.from`
    alone would let one accepted legacy correspondent silently extend established-contact standing
    to every other stranger routed through the *same* gateway. The recipient's per-sender policy
-   (§9.2) MUST therefore also be evaluated against the DMARC-aligned `legacy_from` identifier, in
-   addition to `Payload.from` — a per-legacy-sender key that §9.2's `Policy`/`ContactRef` model
-   does not yet accept alongside `IK` (a §9.2 change reported separately). The gateway MUST NOT
-   inject legacy mail with the standing of an established contact, and MUST NOT strip or forge the
-   recipient-facing challenge state; mail it cannot qualify defers to the requests area (§9.2),
-   never the inbox.
+   (§9.2) SHOULD therefore also be evaluated against the DMARC-aligned `legacy_from` identifier,
+   in addition to `Payload.from` — this is a SHOULD, not yet a MUST: §9.2's `Policy`/`ContactRef`
+   model does not today accept a per-legacy-sender key alongside `IK` (a §9.2 change reported
+   separately), and becomes a MUST once it does. The gateway MUST NOT inject legacy mail with the
+   standing of an established contact, and MUST NOT strip or forge the recipient-facing challenge
+   state; mail it cannot qualify defers to the requests area (§9.2), never the inbox.
 
 A gateway MUST NOT emit an inbound MOTE that bypasses either check. This is what stops it from
 laundering legacy spam into the accountable mesh.
@@ -867,12 +866,14 @@ Before it relays a mesh MOTE to a legacy address (§7.3), a gateway MUST:
      `IK`** — the ordinary case, where the sender already holds the `name@domain` binding it is
      sending as; or
    - an explicit **per-address grant** naming that address for that `IK`, recorded in the
-     operator's `GatewayAuthz` (§12.2 — a new grant type there; out of scope for this document to
-     define further, see the report accompanying this change).
+     operator's `GatewayAuthz` (§12.2 — **planned**: a new grant type there, not yet defined on
+     the wire; out of scope for this document to define further, see the report accompanying this
+     change). Until that grant type exists, the first bullet is the only usable authorization
+     path.
 
    A submitter that clears step 1 (authenticated to *this gateway*) but clears neither bullet for
    *this address* MUST be refused, fail-closed, with `ERR_GATEWAY_SENDER_ADDRESS_UNAUTHORIZED`
-   (proposed `0x060A`, pending §21 registration). **A delegated DKIM selector (§7.3) authorizes the
+   (`0x060A`, §21.8). **A delegated DKIM selector (§7.3) authorizes the
    *gateway* to sign for a domain; it never authorizes any *submitter* to claim any address within
    that domain.** These are different facts about different parties: a check that the gateway
    itself holds a delegation for the domain (§7.3, §19.7.2 precondition 2) tests only the first,
@@ -1131,20 +1132,10 @@ adoption (§10).
 
 ## 7.16 Beyond SMTP: the legacy-adapter pattern generalizes (normative pointer)
 
-Everything above is specific to legacy **mail** — it is what the gateway role (§0.2.3) is, and
-that stays exactly true: unqualified "gateway" names the SMTP/mail adapter role and nothing else
-(§0's glossary), the scarce-resource requirement of §7.1a remains the **only** thing in DMTAP
-gating an operator class, and no line above is altered by what follows.
-
-A DMTAP user's correspondents are not only on legacy email, though: some are reachable only by
-SMS, WhatsApp, Telegram, a Discord guild, or a Slack workspace. **[`26-legacy-adapters.md`](26-legacy-adapters.md)**
-specifies how the *pattern* this section establishes for mail — a pluggable, optional bridge to a
-network DMTAP does not control, with an honest accounting of who can be reached, who sees the
-plaintext, who pays what, and what survives if the bridge disappears — generalizes to those other
-rails. It introduces **adapter** as the general term for any such bridge (of which the SMTP/mail
-bridge specified above is one, the in-tree and mandatory-pattern-setting one, §26.1), reuses
-**node mode** / **gateway mode** as deployment-mode labels by analogy to this section's own
-self-host/third-party-operator split (§7.1a, §7.15.4, §12.1) without creating a second sense of the
-word "gateway," and is entirely **additive**: every other legacy rail it specifies is optional,
-out-of-tree, and off by default, so a node with only a mail gateway (or no gateway at all) is
-unaffected by its existence.
+Everything above is mail-specific. **[`26-legacy-adapters.md`](26-legacy-adapters.md)** generalizes
+the same pattern — a pluggable, optional, honestly-accounted bridge to a network DMTAP does not
+control — to the other rails a user's correspondents may be reachable only on (SMS, WhatsApp,
+Telegram, Discord, Slack), naming the SMTP/mail bridge specified above as the in-tree,
+pattern-setting instance (§26.1). Unqualified "gateway" continues to name only the mail adapter
+(STYLE §6); §26 is additive and off by default, so a node with only a mail gateway, or none, is
+unaffected.

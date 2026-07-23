@@ -6,7 +6,7 @@ separate services.
 
 ## 4.1 Substrate: libp2p
 
-DMTAP builds on **libp2p** rather than reinventing P2P:
+KOTVA builds on **libp2p** rather than reinventing P2P:
 
 - **Kademlia DHT** — peer routing and the `key → location` record store (see §4.2 for its
   security limits — it is the weakest link).
@@ -18,7 +18,7 @@ DMTAP builds on **libp2p** rather than reinventing P2P:
 
 A node dials **outbound** and holds connections, so CGNAT/dynamic-IP nodes are reachable.
 
-**Substrate seam — libp2p is v0, not a flag day (normative).** libp2p is DMTAP's **v0 substrate**,
+**Substrate seam — libp2p is v0, not a flag day (normative).** libp2p is KOTVA's **v0 substrate**,
 but the protocol MUST NOT be *permanently* wedded to it: the `LocationRecord` (§4.2, §18.5.1)
 carries an explicit **`substrate` discriminator** — a tag from the **Transport Substrates
 registry** (§21.24) — and its `peer_id` / `addrs` are interpreted **relative to that substrate**.
@@ -60,19 +60,8 @@ same node at *T + Δ* by the identifier alone. This is cheap — a per-epoch key
 same cadence the record is already republished — and it is what bounds the **harvest-now,
 decrypt-later** exposure of the mixnet's routing layer.
 
-The reasoning is spelled out in §4.4.12 and is worth restating here because this field is where
-the defense actually lands: v0 Sphinx uses X25519 for the header group element, so an adversary
-recording `private`-tier traffic today and holding a cryptographically-relevant quantum computer
-later could recover **per-hop routing** across its whole recorded corpus — retroactive
-social-graph deanonymization, precisely the graph the mixnet exists to hide. A standardized
-PQ mix-packet format does not exist yet and DMTAP does not invent one (§4.4.12). But the *harm*
-is not the route; it is that the route names a **durable identity**. Making `peer_id` ephemeral
-by construction means a route recovered in 2040 resolves to an identifier that expired in 2026 —
-the harvested graph is a graph of expired pseudonyms. The residual (an adversary that also
-recorded the DHT record binding `ik → peer_id` for that epoch can still re-link) is bounded by
-the same epoch window and by routing that record through the private lookup path of §3.7. Cheap,
-available today, and it converts the worst harvest-now exposure in the protocol into a
-time-bounded one while the packet format catches up.
+The full harvest-now, decrypt-later rationale is in §4.4.12; this field is where that defense
+actually lands.
 
 The record follows the **IPNS pattern**: a self-certifying **value record** (DHT key =
 hash(ik)), signed, with a **monotonic sequence number + EOL/TTL** to defeat rollback/replay,
@@ -86,7 +75,7 @@ Signing authenticates record *content*, not *routing*. Because a libp2p PeerId i
 fill honest routing tables, and control all lookups for that key — returning nothing or an
 *old, still-valid signed* record (censorship / rollback) **without forging anything**. This is
 a Sybil/eclipse attack at the routing layer, and it is the single most attackable part of
-DMTAP. Mitigations DMTAP REQUIRES/RECOMMENDS:
+KOTVA. Mitigations KOTVA REQUIRES/RECOMMENDS:
 
 - **S/Kademlia disjoint-path lookups** (parallel, node-disjoint) and **IP-diversity caps** per
   k-bucket.
@@ -108,7 +97,7 @@ mix path selection (§4.4.8), and for the same reason: the scarce resource is ne
 ### 4.2.1 Resolution order — the DHT is an accelerator, never a dependency (normative)
 
 Because the DHT is the protocol's most attackable surface and an adversary with rented capacity
-can attack it cheaply, DMTAP structures `key → location` resolution so that **no established
+can attack it cheaply, KOTVA structures `key → location` resolution so that **no established
 relationship ever depends on it.** A resolver MUST try, in order:
 
 1. **Piggybacked location (the primary path).** Every MOTE carries its sender's current signed
@@ -144,7 +133,7 @@ A node with no peers, no cache, and no contacts must reach the network somehow, 
 answers that question is the most centralizing component in any P2P system** — it is consulted by
 every node exactly when the node can verify nothing. Leaving it unspecified does not avoid the
 centralization; it guarantees it, because every implementation then hardcodes its own vendor's
-addresses and those addresses become load-bearing infrastructure nobody chose. DMTAP therefore
+addresses and those addresses become load-bearing infrastructure nobody chose. KOTVA therefore
 specifies bootstrap explicitly, in priority order:
 
 1. **Contacts are the bootstrap set (primary).** A node that has *ever* pinned a contact (§3.4)
@@ -194,7 +183,7 @@ sender-retry (§2.6) and optional **peer buffering** (buddy nodes hold ciphertex
 outage) — no central buffer required.
 
 > **This ladder is the node's NATIVE, node↔node reachability** — it carries ciphertext-only,
-> content-blind mesh traffic between DMTAP nodes and never speaks a legacy protocol. It is
+> content-blind mesh traffic between KOTVA nodes and never speaks a legacy protocol. It is
 > **distinct** from the **legacy-client reachability ingress** on the **gateway** (§7.15,
 > §8.2), which accepts a raw legacy connection (e.g. an iPhone Mail app over IMAP/TLS) and
 > **terminates** it. The Circuit Relay v2 role here (rung 3) is the NATIVE mesh relay and stays
@@ -206,7 +195,7 @@ outage) — no central buffer required.
 The `private` tier (the production default for all mail and every control MOTE, §4.6, §10.3) is a
 **mixnet**: MOTEs travel as **Sphinx-format**, constant-length, onion-wrapped packets through a
 sequence of **mix nodes**, mixed with Poisson delays and cover traffic in the **Loopix/Nym**
-operational style. This section specifies it **normatively and by reference** — DMTAP does **not**
+operational style. This section specifies it **normatively and by reference** — KOTVA does **not**
 invent a mix format. It **profiles** two finalized designs and pins their parameters to §16.3:
 
 - the **Sphinx** packet format (Danezis & Goldberg, *"Sphinx: A Compact and Provably Secure Mix
@@ -215,7 +204,7 @@ invent a mix format. It **profiles** two finalized designs and pins their parame
   descendant **Nym** for the operational design — stratified topology, Poisson mixing, loop/drop
   cover, and continuous-time mixing (§4.4.3, §4.4.5).
 
-DMTAP's own contribution is confined to the **binding**: how mixes are discovered and keyed
+KOTVA's own contribution is confined to the **binding**: how mixes are discovered and keyed
 against the existing DNS/KT trust (§4.4.2), how the tiers compose (§4.6, §10.3), and an honest
 low-adoption model (§4.4.11), and the **anti-active-adversary hardening of §4.4.6–§4.4.10**
 (replay caches, tagging resistance, Poisson mixing, loop-cover attack detection, entry guards +
@@ -252,7 +241,7 @@ sender and recipient. Loop and drop cover traffic hide when real messages flow.*
 
 ### 4.4.1 Sphinx packet format (profiled; parameters pinned)
 
-DMTAP uses the **Sphinx packet format** unchanged; this subsection states the profile a
+KOTVA uses the **Sphinx packet format** unchanged; this subsection states the profile a
 conformant implementation MUST follow and pins every free parameter. A Sphinx packet is a
 **fixed-length** structure `(α, β, γ, δ)`:
 
@@ -301,84 +290,19 @@ fragment it into exactly `bucket / 2 KiB` Sphinx cells, all sent over independen
 **8 or 32 cells**. A MOTE that would exceed the top inline rung is a `normal`/`large` file (§2.5)
 and its bulk travels per §4.5, not as inline cells.
 
-**Why two rungs, and why the floor is 16 KiB (normative rationale).** Both values follow from
-decisions made elsewhere and are stated here because this is where they bite. The floor is stated
-as an **explicit byte count derived from the suite lengths §18.2 already pins**, not as a round
-number with a hand-wave, so that a later change to a suite length or to the envelope shape cannot
-silently invalidate it:
-
-- **The floor is set by the PQ envelope, not by the cell — and the envelope carries the suite's
-  lengths more than once.** Under the required originating suite `0x02` (§1.1), §18.2 fixes
-  `sig-val` = **3 373 B** (Ed25519 64 ‖ ML-DSA-65 **3 309**, FIPS 204 Table 2),
-  `ik-pub`/`sig-pub` = **1 984 B** (32 ‖ ML-DSA-65 public key **1 952**), and the HPKE
-  encapsulated key = **1 120 B** (X-Wing: X25519 32 ‖ ML-KEM-768 ciphertext **1 088**, FIPS 203
-  Table 3). A minimal MOTE carries **two** signatures (`Envelope.sender_sig` **and** the sealed
-  `Payload.sig`, §18.3.1/§18.3.5), **two** public keys (the ephemeral `sender_key` **and**
-  `Payload.from`) and **one** encapsulation:
-
-  ```text
-  2 × 3 373   sender_sig, Payload.sig                    =  6 746 B
-  2 × 1 984   sender_key, Payload.from                   =  3 968 B
-  1 × 1 120   X-Wing encapsulated key                    =  1 120 B
-                                                  crypto = 11 834 B
-  + CBOR framing, id (33 B), to (32 B blinded tag), ts,
-    kind, v, suite, AEAD tag                             =    133 B
-  ────────────────────────────────────────────────────────────────
-  minimum conformant MOTE, empty headers and empty body  = 11 967 B
-  ```
-
-  An **8 KiB rung (8 192 B) therefore cannot hold a conformant MOTE at all** — it is short by
-  **3 775 B** before a single header byte. The arithmetic that produced it counted **one**
-  signature and **one** public key where the object carries **two of each** plus the KEM
-  ciphertext; the 2 KiB rung it replaced was wrong for the same reason, one order worse. **16 KiB
-  (16 384 B, 8 cells)** is the smallest rung that holds the minimum envelope with real headroom:
-  **4 417 B**, ≈ 27% of the rung, for headers, body and inline attachments. If `to` carries a full
-  identity key rather than a blinded delivery tag (§2.2a) the minimum rises to **13 919 B** and the
-  headroom falls to **2 465 B** — still positive, which is the property a floor has to have under
-  *every* legal shape of the object, not the most favourable one.
-
-- **Anchor-signed objects do ride this ladder, and they land on the top rung.** The anchor suite
-  (§1.2.0) signs rarely but signs **large**: an `Identity` version, `DeviceCert`, `RecoveryPolicy`,
-  `KeyRotation` or `MoveRecord` is announced to correspondents as a `kind = 0x09 identity` MOTE
-  (§2.3, §1.6 "push to contacts"), so it is inline traffic like any other message and the ladder
-  must hold it. Under the intended anchor profile `0x04` (SLH-DSA-128s, §1.1) a `sig-val` is
-  **7 920 B** (Ed25519 64 ‖ SLH-DSA-128s **7 856**, FIPS 205 Table 2) and an `ik-pub` is **64 B**
-  (32 ‖ 32) — the signature alone is **95.9% of an 8 KiB rung**, which is the second, independent
-  reason that rung was unsound. A worst-case announcement — operational envelope (5 457 B) + X-Wing
-  encapsulation + `Payload.from`/`Payload.sig` under the anchor (7 984 B) + the announced object
-  carrying its own anchor signature and one operational signature (≈ 11.7 kB) — is **≈ 26 kB**,
-  comfortably inside the **64 KiB** top rung with ≈ 38 KiB of slack. Anchor objects are therefore
-  **not** excluded from the inline ladder: they are ordinary top-rung MOTEs, and the generic rule
-  above (a MOTE exceeding the top rung is `normal`/`large` and its bulk travels per §4.5) is the
-  only escape hatch needed. Excluding them normatively was considered and rejected — it would add
-  a special case, and a second delivery path for the objects that establish identity, to solve a
-  problem that raising the floor already solves by arithmetic.
-
-- **Fewer rungs leak less, and rungs are observable.** §4.4.8 discloses that a pinned entry guard
-  necessarily learns which rung each message occupies and when it was sent. Padding hides the
-  *true* length; it does not hide the *rung*. Over a long observation window a many-valued rung
-  sequence is a far richer behavioral fingerprint than a two-valued one — and against an adversary
-  whose advantage is patience and storage, reducing the alphabet of the observable signal is worth
-  more than the bandwidth it costs. Two rungs means an observer learns at most **one bit** per
-  message about its size. A **third rung was considered and rejected on this ground**: interposing
-  32 KiB would save 16 cells on messages between 16 and 32 KiB, but it takes the per-message size
-  channel from 1 bit to log₂3 ≈ **1.58 bits** — a ≈ 58% richer signal, permanently, for a
-  bandwidth saving confined to one size band. Being fingerprinted by size class over ten years
-  costs more than the padding does.
-
-- **What the raised floor costs, stated rather than buried.** The floor is what every small
-  message pads up to, so 16 KiB is real bandwidth on every chat message, ack and receipt: **8
-  Sphinx cells instead of 4**, doubling both the wire cost and the number of independently-pathed
-  cells the mixnet carries and the recipient must reassemble (fragment reliability, below). That is
-  the price of a PQ-by-default envelope, and it is charged per *message*, not per byte of content.
-  It is nonetheless the cheaper of the two available answers: an 8 KiB floor that no conformant
-  MOTE can occupy is not a cheap floor, it is a floor that **does not exist** — every message would
-  fall through to the 64 KiB rung at 32 cells, **four times** the cost of the rung pinned here.
+**Why two rungs, and why the floor is 16 KiB (normative rationale).** Both values are pinned in
+§16.3, not arbitrary: the 16 KiB floor holds the minimum conformant PQ envelope under the required
+suite `0x02` — two signatures, two public keys, and one X-Wing KEM encapsulation (§18.2) — with
+real headroom (an 8 KiB floor cannot hold that envelope at all, and a third rung was rejected
+because it would widen the observable size-channel the entry guard sees, §4.4.8, from 1 bit to
+~1.58 bits per message). Anchor-signed objects (`Identity`, `DeviceCert`, `KeyRotation`,
+`MoveRecord`, §1.2.0) ride the same ladder and land comfortably inside the 64 KiB top rung; they
+need no special-case handling.
 
 **Fragment reliability for multi-cell MOTEs (normative).** A MOTE padded to a top-of-ladder bucket
 fragments into as many as **32 independently-pathed cells**, each with its own loss probability; a
 naive all-or-nothing scheme would deliver a 32-cell MOTE with probability only `(1−p)^32` and force
-a **full** re-onion-wrap (§20.1) on any single lost cell. DMTAP therefore REQUIRES **per-cell
+a **full** re-onion-wrap (§20.1) on any single lost cell. KOTVA therefore REQUIRES **per-cell
 reliability** so a multi-cell MOTE tolerates partial loss:
 
 - The recipient maintains a **bounded partial-reassembly cache**, keyed by the cell's **`msg_id`**
@@ -433,10 +357,10 @@ recipient-side loop cover (§4.4.5) and the per-cell SURB-ARQ retransmit above.
 ### 4.4.2 Mix directory (discovery + keys, bound to DNS/KT)
 
 Senders need the mix fleet's **identities, addresses, Sphinx public keys, and layers** to build
-paths — DMTAP distributes them by **reusing DNS + key transparency**, not a new PKI:
+paths — KOTVA distributes them by **reusing DNS + key transparency**, not a new PKI:
 
 - **`MixNodeDescriptor`** (§18.5.2) — each mix publishes a signed descriptor: its identity key
-  `node_ik` (an ordinary DMTAP identity, so operators are accountable and KT-auditable), its
+  `node_ik` (an ordinary KOTVA identity, so operators are accountable and KT-auditable), its
   reachability, its **Sphinx mix public key(s) per epoch** (§4.4.4), and its **stratified layer**
   (§4.4.3).
 - **`MixDirectory`** (§18.5.3) — **a derived view, not an authority-signed artifact (normative).**
@@ -461,7 +385,7 @@ paths — DMTAP distributes them by **reusing DNS + key transparency**, not a ne
   split-view beyond the KT logs, whose equivocation is already detected, attributed, and responded
   to by §3.5.2(d). This is the same discipline the specification already applies to author feeds
   in §22 — *indexes are derived, rebuildable, never authoritative* — applied to the one remaining
-  place where DMTAP still had a network-wide authority.
+  place where KOTVA still had a network-wide authority.
 
   **Consequences elsewhere.** The freeze-attack defense below still applies, but its subject
   becomes **KT freshness** (§3.5.2(a)) rather than directory freshness — one mechanism instead of
@@ -516,7 +440,7 @@ fail (`ERR_MIX_PATH_UNBUILDABLE`, `0x030D`).
 
 ### 4.4.2a The mix role is default-on for always-on public nodes (normative)
 
-A mixnet with no mixes protects nobody, and DMTAP has no launching operator whose fleet the network
+A mixnet with no mixes protects nobody, and KOTVA has no launching operator whose fleet the network
 could borrow (§0.2, §12.4). Left as an opt-in, the mix role would face the standard collective-action
 failure: everyone wants the anonymity set, nobody is individually obliged to enlarge it, and the
 `private` tier — which §10.3 makes the production default for all mail — would be unbuildable at
@@ -678,7 +602,7 @@ profiled from Sphinx/Loopix, made mandatory here.
   carries no malleable, correlatable structure to mark. The header MAC alone does **not** protect
   `δ`; the wide-block PRP is what makes **payload** tagging fail. Together an active adversary
   **cannot mark ("tag") a packet at the entry and recognise the mark at the exit** on either part
-  — Sphinx's provable integrity guarantee, and the reason DMTAP uses Sphinx (with a wide-block
+  — Sphinx's provable integrity guarantee, and the reason KOTVA uses Sphinx (with a wide-block
   payload) rather than a plain stream-cipher/AEAD layered-encryption onion.
 - **Bitwise unlinkability (inherent).** `α` is re-randomised and `β`/`δ` fully re-encrypted at
   every hop (§4.4.1), so a mix's input and output packets share **no correlatable bits**. An
@@ -767,16 +691,15 @@ disclosed.
   permanently offline, or when the owner explicitly re-samples (a disclosed exposure event).
   Long-run exposure is then bounded by the **initial sample** — a single draw — exactly as the
   `(1−f)^G` analysis claims, rather than growing without limit in the number of rotations.
-  **Why G = 2 (not Tor's single primary guard).** Tor pins **one** primary guard (with sampled
-  backups) to *minimise* the chance of ever touching an adversarial guard; DMTAP pins **two**
-  because a mail node's entry mix is also its **cover-loop origin** and reachability anchor, and a
-  single guard is a single availability/rotation point whose outage would either stall the node or
-  force an unplanned re-draw (itself an exposure event). G = 2 trades a marginally higher
-  one-time draw probability (`1−(1−f)²` vs `1−(1−f)¹` of touching *an* adversarial entry) for
-  resilience and steadier cover, while still bounding the *long-term* intersection to that
-  one-time draw. A deployment MAY instead follow the Tor **1-primary + sampled-backup** shape
-  under the same guard-rotation period; both are conformant, the invariant being *persistent* (not
-  per-packet-fresh) entry selection. The value is a §16.3 profile parameter.
+  **Why G = 2 (not Tor's single primary guard) — pinned (normative).** Tor pins **one** primary
+  guard (with sampled backups) to *minimise* the chance of ever touching an adversarial guard;
+  KOTVA pins **two** because a mail node's entry mix is also its **cover-loop origin** and
+  reachability anchor, and a single guard is a single availability/rotation point whose outage
+  would either stall the node or force an unplanned re-draw (itself an exposure event). G = 2
+  trades a marginally higher one-time draw probability (`1−(1−f)²` vs `1−(1−f)¹` of touching *an*
+  adversarial entry) for resilience and steadier cover, while still bounding the *long-term*
+  intersection to that one-time draw. `G = 2`, sample 20 (§16.3) is the conformant guard scheme;
+  the invariant is *persistent* (not per-packet-fresh) entry selection.
   **Disclosed guard observation (NIT).** A pinned entry guard, if adversarial, **necessarily sees**
   each of the sender's packets it carries — including the **bucket size** (which of the {16, 64}
   KiB rungs, i.e. the exact **cell count**, §4.4.1, §16.3) and the **send time**. This is inherent to
@@ -803,7 +726,7 @@ disclosed.
   operators join.)
 - **Mix Sybil resistance — attested identity, NO anonymous token (MUST).** Mix admission MUST NOT
   use an anonymous token (that would let one party mint unlimited Sybil mixes). A mix's `node_ik`
-  is a **KT-auditable DMTAP identity** (§4.4.2), and its **operator control MUST be attested by a
+  is a **KT-auditable KOTVA identity** (§4.4.2), and its **operator control MUST be attested by a
   DNS/KT record under the operator's domain** — a `_dmtap-mix` attestation directly analogous to
   the gateway attestation `_dmtap-gw` (§7.2a) — so every mix is bound to an **accountable,
   rate-limited real-world operator**. Admission is **not** granted by any authority: because the
@@ -836,14 +759,14 @@ disclosed.
 
   **On stake and slashing (normative — deliberately NOT specified).** Earlier drafts of this
   section, and §9.6, proposed that operators post a bond that is **slashed** on proven
-  misbehavior. DMTAP **does not specify** such a mechanism, and an implementation MUST NOT present
+  misbehavior. KOTVA **does not specify** such a mechanism, and an implementation MUST NOT present
   one as a protocol guarantee. The reason is that a slashing scheme requires an escrow that holds
   the bond and an **adjudicator** empowered to seize it — and any party with that power is a
   central authority with more leverage over the network than anything else in this document,
   reintroduced at exactly the layer the design works hardest to keep authority-free. There is no
   neutral, decentralized adjudicator available that does not itself become the thing to capture.
   An *unspecified* stake requirement is strictly worse than none, because it advertises a
-  deterrent that does not exist. DMTAP therefore relies on the three mechanisms that need no
+  deterrent that does not exist. KOTVA therefore relies on the three mechanisms that need no
   adjudicator: **attested operator identity** (accountability), **ASN/jurisdiction diversity**
   (structural independence), and **measured reputation** (a misbehaving mix loses path share
   automatically under any conforming weighting, §9.8). Deployments that additionally want a bond
@@ -859,7 +782,7 @@ disclosed.
 ### 4.4.9 Fail-closed: minimum viable path, no silent downgrade (normative)
 
 A global active adversary can **DoS mixes specifically to force `private → fast`** — collapsing a
-metadata-private message onto a correlatable tier. DMTAP treats this as an attack and **refuses**.
+metadata-private message onto a correlatable tier. KOTVA treats this as an attack and **refuses**.
 
 - **The in-force profile's bar IS the fail-closed floor (MUST).** The minimum-viable-path bar is
   **the bar of the profile actually in force for this message**, not a fixed 3-hop base. Under the
@@ -897,14 +820,14 @@ metadata-private message onto a correlatable tier. DMTAP treats this as an attac
 ### 4.4.10 High-security profile (normative, user-selectable)
 
 The Anonymity Trilemma (§6.6, Das et al. 2018) proves strong anonymity **must** cost latency
-and/or bandwidth; DMTAP therefore exposes that tradeoff as a **selectable profile**, not a fixed
+and/or bandwidth; KOTVA therefore exposes that tradeoff as a **selectable profile**, not a fixed
 point — the concrete lever a high-risk user pulls. Three profiles are normative (parameters §16.3):
 
 | Profile | Hops | Per-hop delay | Cover / loop rate | Entry guards | Operator diversity | Intended use |
 |---------|:----:|---------------|-------------------|:------------:|--------------------|--------------|
 | **Bootstrap** (§4.4.10a) | 3 | exp, mean 5 s | Poisson, mean 30 s; λ_loop mean 30 s | guard sample = **as many as exist, floor 3** | **best-effort ≥ 2** | a network too small to support Standard — **no anonymity claim** |
-| **Standard** (default) | 3 | exp, mean 5 s | Poisson, mean 30 s; λ_loop mean 30 s | 2 guards / 30 d, sample 20 | 3 disjoint (all hops) | all mail by default |
-| **High-security** | **5** | exp, **mean 30 s** | **constant-rate** (Poisson) mean **5 s**; λ_loop mean **5 s** | **3 guards / 7 d** | **5 disjoint** (all hops) | high-risk users / messages |
+| **Standard** (default) | 3 | exp, mean 5 s | constant-rate (always-on nodes); Poisson, mean 30 s (intermittent/battery class, §4.4.5); λ_loop mean 30 s | 2 guards / 30 d, sample 20 | 3 disjoint (all hops) | all mail by default |
+| **High-security** | **5** | exp, **mean 30 s** | **constant-rate**, mean **5 s**; λ_loop mean **5 s** | **3 guards / 7 d** | **5 disjoint** (all hops) | high-risk users / messages |
 
 The high-security profile trades minutes → tens-of-minutes latency and higher bandwidth for a
 larger effective anonymity set, **constant-rate cover** (a flat, activity-independent traffic
@@ -918,7 +841,7 @@ un-jittered per-arrival wake would reopen at the push relay the very recipient-a
 channel this profile's constant-rate cover is spent to close.
 
 **What more hops do — and do not — buy (honest scope).** Raising the hop count (5 vs 3) and the
-per-hop delay hardens DMTAP against **timing correlation by a network observer**: more independent
+per-hop delay hardens KOTVA against **timing correlation by a network observer**: more independent
 memoryless hops (§4.4.6) mean an observer watching the links must defeat more layers of Poisson
 reordering to link a mix's input to its output, so the passive-correlation advantage falls toward
 the chance floor as hops and cover grow (measured, §6.10). It does **not**, however, reduce the
@@ -1037,9 +960,9 @@ one-way.
 
 ### 4.4.11 Honest low-adoption model (disclosed, §6.6 style)
 
-A mixnet's privacy **is** its anonymity set, and DMTAP does **not** overclaim a day-one one:
+A mixnet's privacy **is** its anonymity set, and KOTVA does **not** overclaim a day-one one:
 
-- **Early network = a small, self-provisioned fleet.** DMTAP has no launching operator whose fleet
+- **Early network = a small, self-provisioned fleet.** KOTVA has no launching operator whose fleet
   the network starts with (§0.2, §12.4): the mix layers are staffed by whichever always-on public
   nodes have the role on by default (§4.4.2a), so at the start there are **few mixes, under few
   distinct operators, in few ASNs**. With a fleet that small the guarantee is closer to
@@ -1075,7 +998,7 @@ recorded today, which is precisely the graph the mixnet exists to hide. The expo
 the *routing layer* (content stays sealed) but is a serious, disclosed harvest-now risk, not a
 cosmetic one. This is an **openly tracked frontier**: standardized PQ mix-packet
 formats (lattice-based / hybrid Sphinx constructions) are **active research, not yet finalized**
-(§11.3), and DMTAP does **not** invent one.
+(§11.3), and KOTVA does **not** invent one.
 
 The **agility seam** is already in place, mirroring the crypto-suite mechanism (§1.1): the
 `MixNodeDescriptor` and each `MixKeyEntry` carry a **`suite`** (§18.5.2), and the **Mix Parameters
@@ -1143,20 +1066,20 @@ deliverable under packet loss at all. Formalized in §20.1.
 
 ## 4.8 Local, isolated, and delay-tolerant networks
 
-DMTAP works in **remote environments with their own networks** — often *more easily than
-email*, because email needs an SMTP/IMAP server + MX + DNS, whereas two DMTAP nodes on the same
+KOTVA works in **remote environments with their own networks** — often *more easily than
+email*, because email needs an SMTP/IMAP server + MX + DNS, whereas two KOTVA nodes on the same
 network need no infrastructure at all.
 
 - **Local discovery (mDNS).** Nodes on the same LAN discover each other via libp2p **mDNS**
   (`_p2p._udp.local`) with **zero configuration, no internet, and no central server**. A ship,
-  a remote site, an air-gapped office, or a home LAN can run a fully functional local DMTAP
+  a remote site, an air-gapped office, or a home LAN can run a fully functional local KOTVA
   mesh with nothing but the nodes. Private networks use a fingerprinted service name so they
   do not cross-discover.
 - **Scope of the "easier than email" claim.** True specifically for the **local / same-network
-  / isolated** case. Across the open internet, DMTAP still depends on the DHT/relays (§4.2–4.3),
+  / isolated** case. Across the open internet, KOTVA still depends on the DHT/relays (§4.2–4.3),
   which have their own fragility.
-- **Delay-tolerant store-and-forward is a DMTAP layer, not a libp2p feature.** libp2p is
-  connection-oriented and provides no bundle/epidemic DTN routing. DMTAP REQUIRES its own
+- **Delay-tolerant store-and-forward is a KOTVA layer, not a libp2p feature.** libp2p is
+  connection-oriented and provides no bundle/epidemic DTN routing. KOTVA REQUIRES its own
   store-and-forward: the sender-side retry queue (§4.7), **peer buffering**, and
   **sync-on-reconnect** of the device-cluster CRDT (§5.6). This is what lets an intermittently
   connected site queue locally and reconcile with the wider mesh when connectivity returns.
@@ -1167,11 +1090,11 @@ network need no infrastructure at all.
 
 ## 4.9 Push wake-signaling (optional)
 
-A mobile device sleeps its radios and its DMTAP process to save battery; while asleep it cannot
+A mobile device sleeps its radios and its KOTVA process to save battery; while asleep it cannot
 hold the mesh connection that §4.3 delivery assumes. Today the only way to wake such a device is
 the platform's push service — Apple **APNs** or Google **FCM** — which sees, for every message,
 **which device was woken and when**. That is a centralized metadata choke point squarely against
-DMTAP's goals (§6). DMTAP therefore defines an **optional**, open wake-signaling layer that
+KOTVA's goals (§6). KOTVA therefore defines an **optional**, open wake-signaling layer that
 (a) prefers self-hostable, decentralized push transports, (b) carries **no** content and **no**
 sender identity in the wake signal, and (c) is originated by the **user's own node**, so no third
 party ever sees the social graph. It **reuses existing standards** rather than inventing a push
