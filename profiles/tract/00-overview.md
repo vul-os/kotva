@@ -262,9 +262,9 @@ interpreted as described in BCP 14 (RFC 2119, RFC 8174) when, and only when, in 
   sells it or for how much. Shared across sellers by construction (§2.2).
 - **offer** — a signed announcement by **one** seller that it will supply a product record's
   subject on stated terms. An offer is always one seller's claim; a product record is nobody's
-  (§2.4).
+  (§2.2).
 - **the four axes** — every offer declares **Item**, **Availability**, **Fulfilment**, and
-  **Consideration** (§2.4.3). Together they express goods, services, rentals, subscriptions and
+  **Consideration** (§2.3). Together they express goods, services, rentals, subscriptions and
   bookings without category-specific machinery.
 - **index** — derived, rebuildable aggregation over public feeds. **Never authoritative**;
   a disagreement with a feed resolves in favour of the feed (§2.6). The term *marketplace* is
