@@ -237,7 +237,7 @@ gateway operator mode (§7.15.4) and the private DHT (§4.2). These tiers are th
 | Tier | Path | Latency | Metadata privacy | Status | Default for |
 |------|------|---------|------------------|--------|-------------|
 | `fast` | direct / low-hop mesh | sub-second | sealed sender vs. intermediaries; graph/timing observable to a global observer (§6.1) | **normative, default** | all mail, all control messages, live chat, bulk chunks |
-| `private` | mixnet + cover traffic | minutes | additionally hides the graph/timing from a global *passive* observer, subject to §4.4.11's honest low-adoption model | **research-tier, OPT-IN** — see [docs/research/mixnet.md](docs/research/mixnet.md) | nothing by default; a deliberate, user-surfaced choice |
+| `private` | mixnet + cover traffic | minutes | additionally hides the graph/timing from a global *passive* observer, subject to [docs/research/mixnet.md §4.4.11](docs/research/mixnet.md)'s honest low-adoption model | **research-tier, OPT-IN** — see [docs/research/mixnet.md](docs/research/mixnet.md) | nothing by default; a deliberate, user-surfaced choice |
 
 **Default is `fast`.** `private` is opt-in per conversation/message, for implementations that
 choose to offer the research-tier mixnet (§4.4). Choosing `private` is itself metadata; a client

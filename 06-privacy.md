@@ -149,7 +149,7 @@ retrieval ceremony that would remove it — this is the priced-in cost of not pa
 | Tier | Path | Latency | Graph privacy | Status | Default for |
 |------|------|---------|---------------|--------|-------------|
 | `fast` | direct / few-hop | sub-second | sealed sender vs. intermediaries; graph observable to a network/global adversary (§6.1) | **normative, default** | mail, all control MOTEs, live chat, **normal-size files**, **large-file bulk** |
-| `private` | full mixnet + cover | minutes | additionally hides the graph from a global passive adversary, subject to §4.4.11's honest low-adoption model | **research-tier, OPT-IN** — [docs/research/mixnet.md](docs/research/mixnet.md) | nothing by default; a deliberate, user-surfaced choice |
+| `private` | full mixnet + cover | minutes | additionally hides the graph from a global passive adversary, subject to [docs/research/mixnet.md §4.4.11](docs/research/mixnet.md)'s honest low-adoption model | **research-tier, OPT-IN** — [docs/research/mixnet.md](docs/research/mixnet.md) | nothing by default; a deliberate, user-surfaced choice |
 
 - **Default is `fast`.** `private` is opt-in, for implementations that choose to offer the
   research-tier mixnet. Because *choosing* `private` is itself a signal, a client that offers it
@@ -158,14 +158,13 @@ retrieval ceremony that would remove it — this is the priced-in cost of not pa
   control MOTE (§4.6). **Normal-size files route through whichever tier the message itself
   uses** — the default `fast` tier's guarantee, or the opt-in mixnet's private-tier metadata
   privacy if a sender has selected it (the §6.6 residuals apply either way). **Large-file bulk**
-  uses `fast` — but MUST
-  be **onion-routed (a few hops, Tor-style) + size-padded to buckets + swarmed from multiple
-  holders**, accepting bandwidth cost. **This bulk tier is explicitly weaker:** like Tor, it
-  provides relationship anonymity against *local/partial* adversaries but is **vulnerable to
-  end-to-end traffic correlation** by an adversary observing both endpoints (Murdoch–Danezis,
-  2005). Swarming and padding raise cost; they do not guarantee anonymity. The strong
-  guarantee is the *messaging* tier; moving large sensitive files inherits Tor's correlation
-  exposure. See §5.5, §4.5.
+  MUST NOT traverse the mixnet at all (impractical bandwidth/latency, §4.5): chunks transfer
+  **direct** (`fast` tier), content-encrypted, and **swarmed from multiple holders**
+  (BitTorrent-style). **This bulk path is explicitly weaker than the messaging tier:** swarming
+  spreads load but does not hide the fact or approximate size of a transfer between endpoints,
+  and this holds **regardless of tier** because large blobs never ride the opt-in mixnet. The
+  strong metadata-privacy guarantee is the *messaging* tier; moving large files inherits this
+  residual. See §5.5, §4.5.
 
 ## 6.6 Honest boundaries (what we do NOT claim)
 
@@ -210,9 +209,9 @@ retrieval ceremony that would remove it — this is the priced-in cost of not pa
    [docs/research/mixnet.md §4.4.8, §4.4.10](docs/research/mixnet.md)) — and neither substitutes
    for the other. The measured basis is reported informatively, as a research-tier mechanism-model
    simulation, in §6.10.
-2. **Large-file bulk metadata.** Onion-routing + padding + swarming makes it *strong*, not
-   *free* and not *perfect* — the fact and approximate volume of a large transfer may remain
-   partially observable at high adversary capability.
+2. **Large-file bulk metadata.** Swarming does not make it *strong*, *free*, or *perfect* — large
+   blobs MUST NOT traverse the mixnet at all (§4.5), so the fact and approximate volume of a
+   large transfer remain observable to a network/global adversary regardless of tier.
 3. **Endpoint compromise — the irreducible residual *after* the mechanisms.** DMTAP does not
    treat endpoint compromise as an unaddressed limit; it specifies concrete, normative defenses
    that shrink the blast radius to a single floor:
