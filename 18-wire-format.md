@@ -428,9 +428,17 @@ against the **1:1 MLS group** the two parties established at first contact (§5)
 discipline §27.5.1 uses to derive media keys, not a bespoke per-contact derivation. Deriving it by any
 other path is **non-conformant**: two such implementations do not interoperate, and neither can prove
 which is wrong (§27's RTC-7 rule, applied here). Because an MLS exporter is **epoch-scoped**, a sender
-MUST derive under its current group epoch and a recipient MUST accept a tag derived under **any group
-epoch it still retains** for that contact (§16 retention), recomputing its candidate set on each epoch
-change.
+MUST derive under its **current** group epoch, and a recipient MUST accept a tag derived under the
+**current or the immediately preceding** group epoch — a bounded **two-epoch** window, the same
+discipline §27.5.2 applies to SFrame media keys — recomputing its candidate set on each epoch change.
+A recipient MUST NOT be required to retain exporter output beyond that window.
+
+**Why bounded (honest cost).** MLS deletes past-epoch key material precisely to obtain forward secrecy
+(§5), so an unbounded "try every epoch still retained" rule would trade FS away to buy recognition.
+Outside the two-epoch window recognition simply **fails**, and the sender falls back to the
+first-contact `KeyTag` form (§2.2a): delivery still succeeds and only that message's unlinkability is
+lost. Recognition degrades gracefully; it never becomes a delivery failure, and it never asks an
+implementation to keep key material MLS wants destroyed.
 
 **`epoch_day` (pinned).** `epoch_day = floor(t_ms / 86 400 000)`, where `t_ms` is milliseconds since
 the Unix epoch (1970-01-01T00:00:00Z) — **whole UTC days, floored, never local time** — encoded as the
