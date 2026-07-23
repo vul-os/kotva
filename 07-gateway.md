@@ -375,6 +375,14 @@ proposed all three, and each has been removed for a distinct reason (stake, per 
 needs an adjudicator empowered to seize funds; price is operator policy, §7.13; reputation is the
 subject of the rule below).
 
+**Wire form (§18.8a.1, formerly informal).** `gateway` is one of the CONTRACT §5 canonical
+coordinator kinds, and this descriptor is the general `CoordinatorDescriptor` (§18.8a.1) with
+`kind = "gateway"`, `identity = gateway_ik`, and `domain`/`modes`/`operator_mode`/`region`/
+`attestation selector` carried in the opaque `policy` field (key 4) — the same relationship §26.3.1
+draws for the generalized adapter descriptor. A published tariff (below, §7.9, §7.13) is the
+descriptor's OPTIONAL `tariff` field (a `Tariff`, §18.8a.1), and a usage receipt (§7.9) is a
+`UsageReceipt` (§18.8a.2).
+
 **Reputation MUST be locally measured, and MUST NOT be a globally published score.** Each sending
 node derives its own view of a gateway from its **own deliverability results** — accept/defer/
 reject rates, bounce and complaint feedback, per-destination success — exactly as §9.6 already
@@ -865,11 +873,10 @@ Before it relays a mesh MOTE to a legacy address (§7.3), a gateway MUST:
    - resolving the `From:`/`MAIL FROM` domain per §3.3 to an `IK` **equal to the submitter's own
      `IK`** — the ordinary case, where the sender already holds the `name@domain` binding it is
      sending as; or
-   - an explicit **per-address grant** naming that address for that `IK`, recorded in the
-     operator's `GatewayAuthz` (§12.2 — **planned**: a new grant type there, not yet defined on
-     the wire; out of scope for this document to define further, see the report accompanying this
-     change). Until that grant type exists, the first bullet is the only usable authorization
-     path.
+   - an explicit **per-address grant**: a `CapabilityToken` (§18.7.3) with
+     `Capability.resource = "gw-addr:"+address` and `Capability.ability = "send-as"`, issued to
+     that `IK` and referenced from the operator's `GatewayAuthz.grants` (§12.2, §18.8a.3) for that
+     address.
 
    A submitter that clears step 1 (authenticated to *this gateway*) but clears neither bullet for
    *this address* MUST be refused, fail-closed, with `ERR_GATEWAY_SENDER_ADDRESS_UNAUTHORIZED`

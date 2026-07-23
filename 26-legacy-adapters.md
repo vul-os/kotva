@@ -81,10 +81,12 @@ represented as providing less:
    per-address claim check that closed GW-7's open-relay gap for mail) to any rail: an operator
    running an adapter in gateway mode MUST know, for every outbound message it relays, which of its
    served identities is authorized to present as which remote-facing number/handle/account, and
-   MUST refuse an unauthorized claim exactly as §7.11.2 requires for mail. The mechanism (an
-   extended `GatewayAuthz`, §12.2, carrying a per-rail scope alongside the existing per-address
-   one) is a §12/§18 wire concern, reported separately (§26.11); the requirement that it exist and
-   fail closed is normative here and now.
+   MUST refuse an unauthorized claim exactly as §7.11.2 requires for mail. The mechanism is
+   `GatewayAuthz` (§12.2, §18.8a.3): a per-rail grant is a `CapabilityToken` (§18.7.3) with
+   `Capability.resource = "gw-rail:"+rail+":"+remote_id` and `Capability.ability = "send-as"`,
+   referenced from the served identity's `GatewayAuthz.grants` — the same construction §7.11.2
+   step 2's per-address grant uses for mail, generalized by the resource string alone. Refusing an
+   unauthorized claim fails closed with `ERR_ADAPTER_CREDENTIAL_UNAUTHORIZED` (`0x0B03`, §21.11a).
 2. **A signed published tariff** (§26.10) — what this adapter charges, if anything, signed by the
    operator's own key, so a client can compare operators before routing through one.
 3. **Signed usage receipts** (§26.10) — so a claimed charge is auditable by the paying user, not
@@ -154,6 +156,16 @@ locally measured, never globally published, §7.5, §9.6) apply without modifica
 adapter's descriptor. §7.5's discovery/reputation model — locally measured, swappable, no
 global score — governs adapter descriptors exactly as it governs the mail gateway descriptor; this
 section adds no exception to it.
+
+**Wire form (§18.8a, formerly informal).** An adapter is a `gateway`-kind coordinator (CONTRACT §5:
+"the legacy `adapter`s (§26)... are the first, fully-worked instances" of the contract, alongside
+§7). `AdapterDescriptor` is therefore not a bespoke object but the general `CoordinatorDescriptor`
+(§18.8a.1) with `kind = "gateway"`, `identity = adapter_ik`, and `rail`/`mode`/`initiation_class`/
+`inbound_transport_class`/`price_shape`/`exposure`/`credential_model`/`region` carried in the
+opaque `policy` field (key 4) — the same relationship §7.5's own `{ gateway_ik, domain, modes,
+operator_mode, region, attestation selector }` bears to it. `tariff_ref` becomes the descriptor's
+OPTIONAL `tariff` field (key 5, a `Tariff`, §18.8a.1). Nothing in this subsection's field list or
+disclosure rules changes; §18.8a states the byte layout the fields above now have.
 
 Publication transport is intentionally unspecified, exactly as it is for §7.5's gateway descriptor
 today: an operator's own domain, a directory, or — since the descriptor is a small, plaintext, self-
@@ -369,18 +381,21 @@ those exceptions — it is not a general billing layer bolted onto rails that do
 
 **Gateways publish a signed tariff and a signed capability set.** A gateway-mode operator
 publishes, under its own key (the same `AdapterDescriptor` mechanism of §26.3.1, or a `tariff_ref`
-it points to), a **`SignedTariff`**: the price shape and, where metered, the actual per-message or
-per-conversation price, for each rail it bridges. A client holding several gateway relationships
-can therefore route a given legacy contact to whichever gateway's published tariff and capability
-set actually covers that contact's rail, at a price the client can compare **before** sending — the
-same comparison-at-a-glance goal the four-field declaration serves (§26.3), applied specifically to
-price.
+it points to), a signed **`Tariff`** (§18.8a.1): the price shape and, where metered, the actual
+per-message or per-conversation price, for each rail it bridges. A client holding several gateway
+relationships can therefore route a given legacy contact to whichever gateway's published tariff
+and capability set actually covers that contact's rail, at a price the client can compare
+**before** sending — the same comparison-at-a-glance goal the four-field declaration serves
+(§26.3), applied specifically to price. A `Tariff` that fails to verify, or is presented past its
+validity window, fails closed with `ERR_ADAPTER_TARIFF_INVALID` (`0x0B01`, §21.11a).
 
 **Signed usage receipts make billing auditable, not asserted.** A gateway-mode operator that meters
-usage MUST issue the paying identity a signed receipt for each billable operation, delivered
-directly to that identity (a `system` MOTE, `kind = 0x0A`, carrying the receipt — the same
-transport already used for a correlated bounce/DSN, §7.10.3a — never a publicly discoverable
-object, since a receipt is evidence between two parties, not a public claim). This generalizes to
+usage MUST issue the paying identity a signed `UsageReceipt` (§18.8a.2) for each billable
+operation, delivered directly to that identity (a `system` MOTE, `kind = 0x0A`, carrying the
+receipt — the same transport already used for a correlated bounce/DSN, §7.10.3a — never a publicly
+discoverable object, since a receipt is evidence between two parties, not a public claim). A
+`UsageReceipt` that fails to verify fails closed with `ERR_ADAPTER_RECEIPT_INVALID` (`0x0B02`,
+§21.11a). This generalizes to
 every metered adapter the audit model §7.9 already gives mail: "this operation happened because
 *this* message used the adapter" becomes checkable against a receipt the user actually holds,
 rather than trusted on the operator's invoice alone. The one-directional limit §7.9 already
@@ -407,42 +422,42 @@ similarly specifies no advertising mechanism and no payment-split or payout-fair
 operators, aggregators, or platforms: these are absent by decision, not by oversight, and adding
 any of them is out of scope for this document.
 
-## 26.11 Wire-shape notes and proposed extension registration (informative)
+## 26.11 Wire-shape notes and extension registration (informative)
 
-This section records what a full wire-format specification of §26's objects would need, for the
-owners of §16/§18/§21 to act on; nothing in this section is itself normative on the wire, and
-everything normative above holds regardless of when or whether these registrations land.
+This section records the wire-format status of §26's objects; nothing in this section is itself
+normative on the wire (§18/§21 are), and everything normative above holds regardless.
 
-- **`AuthResults` platform-asserted entry** (§26.5.1) — a field addition to `GatewayAttestation`
-  (§18.3.11), alongside the `AuthResults` map GW-2 already requires reported separately for that
-  section. Needs: a structurally distinct key (not a value inside the existing email-verdict
-  shape) and a §21.24a-style discriminator if more than one non-cryptographic rail needs its own
-  sub-shape.
-- **`GatewayAuthz` per-rail authorization scope** (§26.2.1 item 1) — a grant-type addition to
-  `GatewayAuthz` (§12.2), the same kind of addition GW-7 already requested there for mail's
-  per-address claim grant, generalized to name a rail and a remote-facing identifier rather than
-  only an email address.
-- **`AdapterDescriptor` and `SignedTariff`** (§26.3.1, §26.10) — MAY remain permanently informal,
-  exactly as §7.5's gateway descriptor is today, or MAY be formalized as CDDL objects if an
-  implementation wants byte-exact interop; if formalized, `SignedTariff` needs its own DS-tag
-  (§18.9 convention) and a signature preimage in the shape of §18.9.11's.
-- **Usage receipt body** (§26.10) — a `system`-kind (`kind = 0x0A`, §21.16) message body carrying a
-  signed `UsageReceipt`; needs a body-type discriminator within the existing `system` kind, not a
-  new message kind.
+- **Resolved — `GatewayAuthz` per-rail authorization scope** (§26.2.1 item 1). No longer a grant-
+  type addition awaiting definition: `GatewayAuthz` (§12.2, §18.8a.3) is defined, and a per-rail
+  grant is a `CapabilityToken` (§18.7.3) with `Capability.resource = "gw-rail:"+rail+":"+remote_id`
+  — the same construction used for mail's per-address grant (`"gw-addr:"+address`), differing only
+  in the resource string.
+- **Resolved — `AdapterDescriptor` and `Tariff`** (§26.3.1, §26.10). Formally defined as the
+  general `CoordinatorDescriptor`/`Tariff` objects (§18.8a.1, DS-tags `DMTAP-COORD-v0/descriptor`/
+  `DMTAP-COORD-v0/tariff`, §21.24h) with `kind = "gateway"`, not a bespoke adapter-only shape; §26.3.1
+  records the field mapping. The earlier, permanently-informal option is superseded.
+- **Resolved — Usage receipt object.** `UsageReceipt` (§18.8a.2, DS-tag
+  `DMTAP-COORD-v0/usage-receipt`) is formally defined and self-certifying.
+- **Still open — `AuthResults` platform-asserted entry** (§26.5.1) — a field addition to
+  `GatewayAttestation` (§18.3.11), alongside the `AuthResults` map GW-2 already requires, reported
+  separately for that section. Needs: a structurally distinct key (not a value inside the existing
+  email-verdict shape) and a §21.24a-style discriminator if more than one non-cryptographic rail
+  needs its own sub-shape. Out of scope for this pass: it extends `GatewayAttestation` itself, not
+  the descriptor/tariff/receipt/authz family this section formalizes.
+- **Still open — usage-receipt body-type discriminator.** `UsageReceipt` (above) rides the existing
+  `system` kind (`kind = 0x0A`, §21.16), delivered directly to the payer; if a future `system`-kind
+  use needs to share the kind with `UsageReceipt`, the two need a body-type discriminator to tell
+  them apart. No such second `system`-kind use exists in this specification today, so no
+  discriminator is allocated; not a dangling reference (`0x0B02`'s verification does not depend on
+  one), flagged here as a forward-compatibility note only.
 - **Registered.** §21.24g reserves subsystem byte `0x0B` for this appendix, and §21 defines
   `ERR_ADAPTER_TARIFF_INVALID` (`0x0B01`), `ERR_ADAPTER_RECEIPT_INVALID` (`0x0B02`) and
   `ERR_ADAPTER_CREDENTIAL_UNAUTHORIZED` (`0x0B03`); §21 is authoritative for their codes and
-  fail-classes.
-- **§12.3.1 cross-check (important, flagged for the §12 owner).** §12.3.1 currently closes with
-  "that is the entire chargeable surface of DMTAP, and it is exactly co-extensive with the one
-  operator class the architecture admits" — true of the SMTP/mail gateway alone. §26.10 adds a
-  second, smaller, **credential-gated rather than resource-gated** category of legitimate charge
-  (SMS's genuine marginal cost in particular), which does not create a new operator class under
-  §0.2.3's scarce-resource definition (BYO credentials on every rail here are self-provisionable at
-  zero cost, unlike mail's IP reputation) but does mean §12.3.1's closing sentence is no longer a
-  complete enumeration of what may ever be charged for. §12.3.1 needs a forward reference to this
-  document or a rephrase scoping the claim to "the in-tree SMTP/mail gateway"; not made here since
-  this document does not own §12.
+  fail-classes. §21.24h separately registers the `DMTAP-COORD-v0/…` DS-tags the objects above use.
+- **Resolved — §12.3.1 cross-check.** §12.3.1 now scopes its closing sentence to "the entire
+  chargeable surface of **the in-tree SMTP/mail gateway**" and forward-references this document's
+  §26.10 for the second, smaller, credential-gated category of legitimate charge §26 adds; the
+  scoping fix flagged here in an earlier pass has landed.
 
 ## 26.12 Honest limits (normative disclosure, disclosed rather than implied)
 

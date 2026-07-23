@@ -42,7 +42,11 @@ signed tariff. The descriptor is **discovery-only and self-asserted**: it carrie
 reputation score, no price ranking, and no stake field. Reputation is **locally measured** by
 each client from its own results, never a globally published number (DMTAP §7.5, generalized).
 Stake is kept out of the descriptor for the same reason price-ranking is — see §6 for where and
-how a relying party verifies it instead.
+how a relying party verifies it instead. **Wire form:** the signed descriptor is
+`CoordinatorDescriptor`, the signed tariff is `Tariff`, and a metered coordinator's usage receipt
+(§6) is `UsageReceipt` — deterministic-CBOR CDDL, a DS-tag, and a signing preimage for each, at
+18-wire-format.md §18.8a. This clause was, for several revisions, checkable only by reading prose;
+it is now byte-checkable by two independent implementations.
 
 ### 2.2 Swappable
 Leaving a coordinator MUST be a **configuration change with zero data migration and zero
@@ -53,13 +57,28 @@ violation, not a business model.
 
 ### 2.3 Self-hostable
 For every coordinator kind there MUST exist a **self-host backstop**: a user who can meet the
-kind's requirement can always run it for themselves and depend on no third party. Exactly one
-honest exception **class** is disclosed rather than papered over — a **scarce network-
-reachability class**, with two members: a reputable IP + unblocked port 25 for legacy SMTP
-egress (the `gateway`), and a public reachable ingress for the `reachability-adapter`. Both
-members are a network resource a third party (ISP/host) allocates, not something a user can
-always self-provision. The contract confines the scarcity to this one reachability class instead
-of letting it spread to custody, naming, or moderation.
+kind's requirement can always run it for themselves and depend on no third party. **Two** honest
+exception **classes** are disclosed rather than papered over, each a distinct kind of scarcity
+controlled by a third party, never the user:
+
+1. **A scarce network-reachability class**, with two members: a reputable IP + unblocked port 25
+   for legacy SMTP egress (the `gateway`), and a public reachable ingress for the
+   `reachability-adapter`. Both members are a network resource a third party (ISP/host) allocates,
+   not something a user can always self-provision.
+2. **A regulatory-licensing class**, with one member: `custodial-escrow` (§5, §6;
+   [primitives/ESCROW.md](primitives/ESCROW.md) SEC-6a). Holding a stranger's money for a trade
+   window is, in most jurisdictions, a licensed and bonded activity — a wall an unlicensed
+   individual cannot self-provision **at any technical skill level**, unlike every other kind's
+   requirement, which a sufficiently motivated user can always meet with hardware, bandwidth, or
+   software alone. Disclosed here rather than hidden: an ordinary user cannot self-host custodial
+   escrow, so the self-host backstop's honest limit for this one kind is a **competitive market of
+   licensed operators**, never a solo option. This is a distinct fact from §1's disclosure that
+   `custodial-escrow` is also the family's one structurally load-bearing exception (§2.2's
+   swappability, not this clause's self-hostability) — related, but not the same MUST.
+
+The contract confines the scarcity to these two disclosed classes instead of letting either spread
+to custody, naming, or moderation. Every other coordinator kind, including every non-custodial
+member of `arbiter`/`oracle`, clears the ordinary self-host bar.
 
 ### 2.4 Content-visibility declared
 Every coordinator MUST declare, in its descriptor, exactly one **visibility class** at one
@@ -140,6 +159,12 @@ is permitted; "gate what reaches you" is not.
 
 ## 5. Coordinator kinds (all instances of the contract)
 
+**This table is the single canonical, authoritative list of coordinator kinds for the entire
+KOTVA family.** It names **eleven** kinds — ten fully-specified, one (`compute`) provisional —
+and no other document may enumerate a different count or add a kind not listed here; a document
+that needs to talk about "how many coordinator kinds exist" cites this table rather than
+re-deriving its own tally.
+
 | Kind | Provides | Typical visibility |
 |---|---|---|
 | **gateway** | Legacy-mail bridge (MX, DKIM egress, legacy client surfaces) | `terminating` (legacy leg is plaintext) |
@@ -166,23 +191,43 @@ exception").
 
 - **In scope:** the authorization *mechanism*, the visibility declaration, the descriptor and
   signed tariff, and — where a coordinator meters — **signed usage receipts** delivered
-  directly to the paying party (auditable, never merely asserted).
+  directly to the paying party (auditable, never merely asserted). Wire form: `CoordinatorDescriptor`,
+  `Tariff`, and `UsageReceipt` — deterministic-CBOR CDDL, a DS-tag, and a signing preimage for each
+  (18-wire-format.md §18.8a).
 - **Out of scope (operator policy):** the *numbers* — quotas, rate limits, prices — and the
   settlement rail (an existing stablecoin or fiat; KOTVA brokers none and takes no cut).
+- **Charge for service, never for deliverability or classification.** A signed tariff and a signed
+  usage receipt price the *work a coordinator actually does* — relaying, indexing, computing,
+  arbitrating, holding a float. §4's authorize-never-classify rule already forbids gating,
+  dropping, or re-ranking on a content basis; §6 closes the economic half of the same rule: a
+  coordinator MUST NOT price whether a message is delivered, or how it is classified, only the
+  service performed. A tariff that varies by content rather than by service is non-conformant
+  under §4, not merely a pricing choice.
 - **Stake verification (where a kind requires stake).** §2.1 excludes a stake field from the
   descriptor so stake cannot become a ranking signal. Where a kind carries skin-in-the-game
-  (`arbiter`, `oracle` — DIRECTION §5, "sized to the value at risk"), the stake MUST instead be
-  verifiable **on the settlement/staking rail itself** — e.g. an on-chain stake balance or lock a
-  client can query directly (Kleros-class staked arbitration, OpenRank-class staked attestation,
-  DIRECTION §3) — never merely asserted in the descriptor or taken on faith. A client relying on a
-  staked coordinator MUST verify the on-rail stake meets the value at risk before relying on it;
-  an unverifiable stake claim MUST be treated as no stake (SEC-1, fail closed).
+  (`arbiter`, `oracle` — DIRECTION §5, "sized to the value at risk" — and, where bonded per
+  [primitives/ESCROW.md](primitives/ESCROW.md) SEC-6a, `custodial-escrow`'s float bond), the stake
+  MUST instead be verifiable **on the settlement/staking rail itself** — e.g. an on-chain stake
+  balance or lock a client can query directly (Kleros-class staked arbitration, OpenRank-class
+  staked attestation, DIRECTION §3) — never merely asserted in the descriptor or taken on faith. A
+  client relying on a staked coordinator MUST verify the on-rail stake meets the value at risk
+  before relying on it; an unverifiable stake claim MUST be treated as no stake (SEC-1, fail
+  closed). This bar is uniform across every staked kind, `custodial-escrow` included: §2.3's
+  disclosed licensing exception excuses the *self-host* requirement, never the *verify-before-
+  relying* one — a licensed custodial operator is held to the same fail-closed stake check as an
+  `arbiter`/`oracle`, not a lighter one.
 - **Never:** a protocol token, an advertising mechanism, or a payout-fairness scheme. Absent
   by decision.
 
 A user's audit is **one-directional** (DMTAP §7.9, generalized): a signed receipt lets a user
 confirm a claimed operation was real; it cannot disconfirm an operation the coordinator
 fabricated. Disclosed, not hidden.
+
+**Honest residual: whether this funds anyone.** Charge-for-service is the mechanism this contract
+makes normative; whether it is *sufficient* — whether a coordinator can sustain itself charging
+only for service, at a price a user will pay, without ever charging for deliverability or
+classification — is an open question this specification does not resolve and disclosed as such,
+not assumed away.
 
 ---
 
@@ -192,9 +237,11 @@ fabricated. Disclosed, not hidden.
 |---|---|---|
 | COORD-1 | publishes a signed, discovery-only descriptor with no global score/price-rank/stake | §2.1 |
 | COORD-2 | imposes zero lock-in — switching is config-only, identity unchanged | §2.2 |
-| COORD-3 | has a self-host backstop (or discloses the one scarce-reachability exception class) | §2.3 |
+| COORD-3 | has a self-host backstop (or discloses one of the two exception classes: scarce reachability, or — `custodial-escrow` only — regulatory licensing) | §2.3 |
 | COORD-4 | declares exactly one visibility class + assurance level, and clients surface it | §2.4, §3 |
 | COORD-5 | never silently downgrades from blind to terminating | §3.2 |
 | COORD-6 | authorizes from identity + rate on any delivery/authoritative path; classifies only within opt-in derived views | §4 |
 | COORD-7 | if metered, issues signed usage receipts directly to the payer | §6 |
 | COORD-8 | mints no token; stakes/settles only in existing assets | §6, DIRECTION §5 |
+| COORD-9 | prices service performed only, never deliverability or classification | §4, §6 |
+| COORD-10 | where staked, the stake is verified on-rail before relying on it (an unverifiable stake = no stake) — applies uniformly, `custodial-escrow` included | §6 |

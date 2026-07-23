@@ -40,7 +40,9 @@ two are load-bearing, two are optional conveniences that default to nothing (ref
 
 - **GatewayAuthz** — authorize legacy egress with per-identity-token accountability (§9),
   preserving sealed sender. This is a **security** control, not a commercial one: it is what stops
-  the gateway role becoming an open relay (§7.11.2), and it **MUST NOT fail open** (below).
+  the gateway role becoming an open relay (§7.11.2), and it **MUST NOT fail open** (below). Its
+  wire form — the gateway-local authorization record, and the `CapabilityToken`-based per-address/
+  per-rail grant extension — is defined at §18.8a.3.
 - **Policy** — per-deployment limits on *operations* (storage caps, send caps, domain counts, rate
   limits). It exists because a box has finite resources, not because someone is selling them; the
   self-host default is unlimited.

@@ -1753,6 +1753,163 @@ ProvenanceRecord = {
 
 ---
 
+## 18.8a Coordinator-layer objects (coordinator/CONTRACT.md §2.1, §2.4, §6; §12.2)
+
+CONTRACT §2.1 requires every coordinator to "publish a **signed descriptor** carrying its kind,
+its policy, and — where it charges — a signed tariff," and CONTRACT §6 requires that a metered
+coordinator "issue... signed usage receipts delivered directly to the paying party." Both MUSTs,
+and the operator seam's `GatewayAuthz` (§12.2), were cited normatively for several revisions with
+no wire form: an implementation had a security requirement it could not byte-exactly interop on.
+This subsection is that wire form — the CONTRACT-level counterpart to §18.3.11/§18.3.12 for the
+gateway kind specifically. `ERR_GATEWAY_SENDER_UNAUTHENTICATED` (`0x0607`),
+`ERR_GATEWAY_SENDER_ADDRESS_UNAUTHORIZED` (`0x060A`), `ERR_GATEWAYAUTHZ_DENIED` (`0x070E`),
+`ERR_ADAPTER_TARIFF_INVALID` (`0x0B01`), `ERR_ADAPTER_RECEIPT_INVALID` (`0x0B02`), and
+`ERR_ADAPTER_CREDENTIAL_UNAUTHORIZED` (`0x0B03`, §21.8, §21.10, §21.11a) now each resolve to a
+defined object below.
+
+**One object family for every coordinator kind, not one per kind.** CONTRACT §5 states that
+`gateway` (§7) and the legacy `adapter`s (§26) are the first, fully-worked instances of the
+contract, and that every other kind (`relay`, `media-relay`, `reachability-adapter`, `indexer`,
+`labeler`, `matcher`, `compute`, `arbiter`, `oracle`, `custodial-escrow`) inherits the same four
+clauses unchanged. `CoordinatorDescriptor`/`Tariff`/`UsageReceipt` are correspondingly **one**
+object family, keyed by the `kind` field (§18.8a.1, key 1) rather than one bespoke shape per kind
+— a `gateway`'s domain/modes/attestation-selector (§7.5) and an adapter's rail/mode/initiation-
+class (§26.3.1) are kind-specific facts and live in the opaque `policy` field (key 4) exactly as
+they do informally today; nothing about §7.5's or §26.3.1's own field list changes. §26's
+previously-**reserved-but-undefined** `DMTAP-ADAPT-v0/…` DS-tags (§21.24g) are **retired, unused**
+in favor of the tags below (§21.24h) — an adapter, being a `gateway`-kind coordinator (CONTRACT
+§5), signs the same object a mail gateway would, never a second parallel scheme.
+
+### 18.8a.1 `CoordinatorDescriptor`, `Visibility`, `Tariff` (CONTRACT §2.1, §2.4, §6)
+
+The **discovery-only, self-asserted** descriptor CONTRACT §2.1 requires. By construction it has no
+field for a global score, a price rank, or a stake amount (§2.1) — a decoder MUST reject an
+unknown key (§18.1.2) exactly so a future field cannot smuggle one back in without a version bump
+a verifier would notice.
+
+```cddl
+CoordinatorDescriptor = {
+  1 => tstr,             ; kind        coordinator kind string (CONTRACT §5 canonical table)
+  2 => ik-pub,           ; identity    the coordinator's attested substrate identity (§1, CONTRACT §2.1)
+  3 => Visibility,        ; visibility  exactly one declared class + assurance level (CONTRACT §2.4, §3)
+  4 => bytes,            ; policy      opaque det_cbor operator policy — self-asserted, kind-specific
+  ? 5 => Tariff,          ; tariff      OPTIONAL; present iff this coordinator charges (CONTRACT §6)
+  6 => sig-val,           ; sig         signature over fields 1-5 (DS-tag DMTAP-COORD-v0/descriptor, §18.9)
+}
+Visibility = {
+  1 => tstr,             ; class       "blind" / "blind-routing" / "terminating" (CONTRACT §3.1)
+  2 => tstr,             ; level       "structural" / "attested" / "declared" (CONTRACT §3.3)
+}
+Tariff = {
+  1 => ik-pub,           ; identity    the signing coordinator's OWN identity (self-certifying, below)
+  2 => bytes,            ; schedule    opaque det_cbor price schedule; the numbers are operator policy (CONTRACT §6)
+  3 => sig-val,           ; sig         signature over fields 1-2 (DS-tag DMTAP-COORD-v0/tariff, §18.9)
+}
+```
+
+| Field | Key | Type | Presence | Meaning & constraints |
+|-------|----:|------|----------|-----------------------|
+| `kind` | 1 | `tstr` | MUST | One of the CONTRACT §5 canonical kind strings (`"gateway"`, `"relay"`, `"media-relay"`, `"reachability-adapter"`, `"indexer"`, `"labeler"`, `"matcher"`, `"compute"`, `"arbiter"`, `"oracle"`, `"custodial-escrow"`). An unknown `kind` MUST be treated as an undeclared coordinator (§2.4) — a client MUST NOT rely on a descriptor whose kind it does not recognize. |
+| `identity` | 2 | `ik-pub` | MUST | The coordinator's attested substrate identity (CONTRACT §2.1). The descriptor is self-certifying — `sig` (key 6) is verified against this same field, never an external identity. |
+| `visibility` | 3 | `Visibility` | MUST | Exactly one declared class at one assurance level (CONTRACT §2.4, §3.1, §3.3); `class` ∈ `{"blind","blind-routing","terminating"}`, `level` ∈ `{"structural","attested","declared"}`. An unrecognized value in either sub-field MUST be rejected, not defaulted (fail-closed, mirrors §18.1.2's unknown-key rule for the enclosing choice). |
+| `policy` | 4 | `bytes` | MUST | Opaque deterministic-CBOR operator policy (region, capabilities, contact, and every kind-specific field §7.5/§26.3.1 already enumerate for `gateway`). This document does not interpret it; it exists so §2.1's "no reputation/price/stake field" rule has exactly one escape hatch (self-declared, never a ranking input) rather than a slow accretion of new top-level descriptor keys. |
+| `tariff` | 5 | `Tariff` | OPTIONAL | Present **iff** this coordinator charges (CONTRACT §6); absent ⇒ free. |
+| `sig` | 6 | `sig-val` | MUST | Signature by `identity` over `det_cbor(CoordinatorDescriptor ∖ {6})` under DS-tag `DMTAP-COORD-v0/descriptor` (§18.9). |
+| `Tariff.identity` | 1 | `ik-pub` | MUST | The **signing** coordinator's own identity. `Tariff` is self-certifying (carries its own signer) rather than relying on the enclosing descriptor's, so a client that already holds a `Tariff` (e.g. handed one directly by an operator, or cached from an earlier descriptor) can verify it standalone; it MAY, but need not, equal the enclosing `CoordinatorDescriptor.identity`. |
+| `Tariff.schedule` | 2 | `bytes` | MUST | Opaque deterministic-CBOR price shape/schedule. The **numbers** are operator policy and out of scope for this specification (CONTRACT §6); only the mechanism — a signed, verifiable, comparable object — is normative. |
+| `Tariff.sig` | 3 | `sig-val` | MUST | Signature by `Tariff.identity` over `det_cbor(Tariff ∖ {3})` under DS-tag `DMTAP-COORD-v0/tariff` (§18.9). Fails ⇒ `ERR_ADAPTER_TARIFF_INVALID` (`0x0B01`, §21.11a) where the tariff is presented in an adapter context, or the kind-appropriate equivalent elsewhere. |
+
+**Publication transport is intentionally unspecified**, exactly as §7.5/§26.3.1 already leave it
+for the gateway/adapter descriptor today: an operator's own domain, a directory, or a
+`pub_announce` (§22.3.1) under the operator's own author feed are all conformant; this object
+specifies the **bytes**, not the channel.
+
+### 18.8a.2 `UsageReceipt` (CONTRACT §6)
+
+The signed usage receipt CONTRACT §6 requires a metering coordinator to deliver **directly to the
+paying party**. Like `Tariff`, it is **independently self-certifying**: it carries its own signer
+`identity` rather than depending on an enclosing descriptor, because — CONTRACT §6's own framing —
+"a signed receipt lets a user confirm a claimed operation was real," and that check must hold up
+standalone, at whatever later point the payer re-examines it, without a live descriptor fetch.
+
+```cddl
+UsageReceipt = {
+  1 => ik-pub,           ; identity    the issuing coordinator's own identity (self-certifying)
+  2 => bytes,            ; operation   opaque det_cbor metered operation this receipt attests to
+  3 => sig-val,           ; sig         signature over fields 1-2 (DS-tag DMTAP-COORD-v0/usage-receipt, §18.9)
+}
+```
+
+| Field | Key | Type | Presence | Meaning & constraints |
+|-------|----:|------|----------|-----------------------|
+| `identity` | 1 | `ik-pub` | MUST | The issuing coordinator's own identity; verified against `sig`, never an enclosing descriptor's. |
+| `operation` | 2 | `bytes` | MUST | Opaque deterministic-CBOR description of the metered operation the receipt attests to (kind-specific — e.g. a legacy-adapter send, §26.10). |
+| `sig` | 3 | `sig-val` | MUST | Signature by `identity` over `det_cbor(UsageReceipt ∖ {3})` under DS-tag `DMTAP-COORD-v0/usage-receipt` (§18.9). Fails to verify ⇒ `ERR_ADAPTER_RECEIPT_INVALID` (`0x0B02`, §21.11a) in an adapter context, or the kind-appropriate equivalent elsewhere. |
+
+**Transport is the existing `system` MOTE** (`kind = 0x0A`, §21.16), delivered directly to the
+paying identity, never published — the same carriage §26.10/§26.11 already specified informally.
+No new message kind is allocated.
+
+**Honest residual, restated from CONTRACT §6 (normative disclosure).** A verified `UsageReceipt`
+proves the coordinator signed a claim about one real operation; it is **one-directional** — it
+cannot disconfirm an operation the coordinator fabricated or silently omitted, and a client MUST
+NOT present the absence of a disputed receipt as proof the operation never happened. Disclosed, not
+hidden (CONTRACT §6, DMTAP §7.9 generalized).
+
+### 18.8a.3 `GatewayAuthz` (§12.2, §7.11.2, §7.12, §26.2.1)
+
+The operator-side record of a legacy-egress authorization (§12.2): who a gateway (or, generalized,
+a gateway-mode adapter, §26.2.1 item 1) will relay outbound for, and — where granted — which
+address(es) or rail identifier(s) that identity may claim. §7.11.2 step 2 and §26.2.1 item 1 each
+cited a "planned... not yet defined on wire" per-address/per-rail grant type; this closes both from
+the same object rather than minting two.
+
+`GatewayAuthz` is **gateway-local state**, in the same sense `GatewayAliasMap` is (§18.3.12): it is
+**not mesh-transmitted** and carries **no signature of its own**. Its authenticity is not a
+property of its own bytes but of how it was **populated** — one of:
+
+1. **key-registered admission** (§7.12.2): the record exists because the gateway verified a §13.3
+   `Assertion` (§18.7.2, DS-tag `DMTAP-v0/auth-assertion`, §18.9.8) from `identity`, and the
+   `Assertion`'s own signature is the authenticity evidence, retained or re-derivable by the
+   operator, not re-signed into this record;
+2. **an explicit per-address/per-rail grant**: a `CapabilityToken` (§18.7.3, DS-tag
+   `DMTAP-v0/cap-token`) issued by the domain authority (mail) or the adapter operator (a rail) to
+   `identity`, with `Capability.resource` = `"gw-addr:" ++ address` (the RFC 5322 address `identity`
+   may claim, §7.11.2 step 2) or `"gw-rail:" ++ rail ++ ":" ++ remote_id` (the rail + remote-facing
+   number/handle/account `identity` may claim, §26.2.1 item 1) and `Capability.ability` =
+   `"send-as"`. This reuses the existing, fully-specified delegation/attenuation/revocation
+   machinery (§18.7.3) instead of inventing a second one: the grant is offline-verifiable, narrows
+   under the usual attenuation invariant, and revokes through the existing `CapabilityRevocation`
+   path — no new DS-tag, no new signature scheme, no new revocation channel.
+
+```cddl
+GatewayAuthz = {
+  1 => ik-pub,            ; identity     the (would-be) authorized sender's IK
+  2 => u8,                ; mode         1 = open (operator-chosen admission, e.g. postage-only), 2 = key-registered (§7.12.1)
+  3 => ts,                ; granted_at
+  ? 4 => [* hash],        ; grants       content-addresses (§18.9.4) of CapabilityToken per-address/per-rail grants naming this identity
+  ? 5 => ts,               ; expires
+  ? 6 => bool,             ; revoked
+}
+```
+
+| Field | Key | Type | Presence | Meaning & constraints |
+|-------|----:|------|----------|-----------------------|
+| `identity` | 1 | `ik-pub` | MUST | The authorized sender's `IK`. Absence of a live, unexpired, unrevoked record for a given `identity` is exactly the condition behind `ERR_GATEWAY_SENDER_UNAUTHENTICATED` (`0x0607`) / `ERR_ADAPTER_CREDENTIAL_UNAUTHORIZED` (`0x0B03`). |
+| `mode` | 2 | `u8` | MUST | `1` open (§7.12.1: the operator's own admission means, e.g. postage-only), `2` key-registered (§7.12.2, verified via a retained `Assertion`). |
+| `granted_at` | 3 | `ts` | MUST | When this record was created. |
+| `grants` | 4 | `[* hash]` | OPTIONAL | Content-addresses of the `CapabilityToken`(s) (§18.7.3, §18.9.4 content-address formula) that authorize `identity` for a **specific** address or rail identifier. Absence ⇒ `identity` is authenticated for egress (§7.11.2 step 1 / `0x0607`) but has **no** per-address/per-rail grant — the ordinary case, where the submitter's own `IK` already resolves to the address it claims (§7.11.2 step 2, first bullet), so no separate grant is needed. Where an outbound message claims an address/rail-identity the ordinary resolution does not cover, the gateway MUST find a covering, valid, unrevoked `CapabilityToken` referenced here or refuse with `ERR_GATEWAY_SENDER_ADDRESS_UNAUTHORIZED` (`0x060A`) / `ERR_ADAPTER_CREDENTIAL_UNAUTHORIZED` (`0x0B03`). |
+| `expires` | 5 | `ts` | OPTIONAL | Absent ⇒ no expiry. A lookup after `expires` MUST be treated as no authorization. |
+| `revoked` | 6 | `bool` | OPTIONAL | `true` retires the record (operator-initiated); retained rather than deleted so a repeat attempt is distinguishable from one that was never authorized, for audit purposes only — it confers nothing. |
+
+**Operator-unreachable fail-safe (`ERR_GATEWAYAUTHZ_DENIED`, `0x070E`, §12.2).** This object is
+consulted, not transmitted, when the operator behind the seam is unreachable: §12.2's safe default
+(permit only already-established contacts + operator-independent PoW, deny cold/unproven egress)
+is a **local policy fallback**, not a wire condition — there is nothing about `GatewayAuthz`'s own
+bytes that changes during an outage, only which records the gateway can still consult.
+
+---
+
 ## 18.9 Canonical signing & hashing preimages (normative)
 
 Two independent implementations MUST produce **identical** signatures and content addresses. This
@@ -1822,6 +1979,10 @@ to it.
 | `DeniableInit`/`DeniableMessage`/`DeniablePayload` | — (none) | — | **no signature** — authenticated by the Double-Ratchet AEAD MAC (§18.9.10) |
 | `ClusterSyncFrame` / `ClusterOp` / `RangeFingerprint` / `JournalEntry` / `StabilityMark` | — (none) | — | **no DMTAP sig** — carried inside the encrypted, membership-authenticated **MLS cluster group** (§5.6.1, §18.6.3); the origin `device_id`'s non-revoked `DeviceCert` authenticates the sender (`0x0410`) and a `RangeFingerprint` is self-verifying by recomputation (§5.6.3(a)). Referenced objects (MOTEs/manifests) remain self-signed/content-addressed. |
 | `GatewayAliasMap` | — (none) | — | **no DMTAP sig** — gateway-local state, not mesh-transmitted (§18.3.12, §7.10) |
+| `CoordinatorDescriptor` | `sig` (k6) | `DMTAP-COORD-v0/descriptor` | `det_cbor(CoordinatorDescriptor ∖ {6})` (§18.8a.1) |
+| `Tariff` | `sig` (k3) | `DMTAP-COORD-v0/tariff` | `det_cbor(Tariff ∖ {3})` (§18.8a.1); self-certifying — signed by `Tariff.identity`, not the enclosing descriptor's |
+| `UsageReceipt` | `sig` (k3) | `DMTAP-COORD-v0/usage-receipt` | `det_cbor(UsageReceipt ∖ {3})` (§18.8a.2); self-certifying — signed by `UsageReceipt.identity` |
+| `GatewayAuthz` | — (none) | — | **no DMTAP sig** — gateway-local state, not mesh-transmitted; authenticity derives from the verified `Assertion` or `CapabilityToken`(s) that populated it (§18.8a.3) |
 
 For `Identity` (`sig` is a **list**, one entry per suite): the **same** preimage
 `DS-tag ‖ det_cbor(Identity ∖ {10})` is signed once per suite in `suites`, and the results are
@@ -2322,7 +2483,7 @@ digest that feeds them.
 
 The following is the complete, self-contained CDDL for every DMTAP wire object. An implementer
 MAY copy this single block into a CDDL tool (RFC 8610) as the normative schema. It is internally
-consistent and consistent with §1, §2, §5, §13.
+consistent and consistent with §1, §2, §5, §13, coordinator/CONTRACT.md.
 
 ```cddl
 ; ═══════════════════════════════════════════════════════════════════
@@ -2582,6 +2743,25 @@ CapabilityToken = {
 }
 Capability = { 1 => tstr, 2 => tstr, ? 3 => { * tstr => ext-value } }   ; resource, ability, caveats
 CapabilityRevocation = { 1 => suite, 2 => ik-pub, 3 => hash, 4 => ts, 5 => sig-val }  ; 3=revoked token addr
+
+; ── coordinator layer (coordinator/CONTRACT.md §2.1, §2.4, §6; §12.2) ──
+; One object family for every coordinator kind (CONTRACT §5), keyed by `kind`; a gateway's/
+; adapter's kind-specific fields (§7.5, §26.3.1) live inside the opaque `policy` blob.
+CoordinatorDescriptor = {
+  1 => tstr, 2 => ik-pub, 3 => Visibility, 4 => bytes, ? 5 => Tariff, 6 => sig-val,
+}
+Visibility = { 1 => tstr, 2 => tstr }                        ; class, level
+Tariff     = { 1 => ik-pub, 2 => bytes, 3 => sig-val }        ; self-certifying: own identity, not the descriptor's
+UsageReceipt = { 1 => ik-pub, 2 => bytes, 3 => sig-val }      ; self-certifying, delivered directly to the payer
+
+; GatewayAuthz is gateway-LOCAL state (like GatewayAliasMap): NOT mesh-transmitted, NO signature
+; of its own — authenticity derives from the Assertion/CapabilityToken(s) that populated it.
+; `grants` entries reuse the existing CapabilityToken (§13.5/§18.7.3) with
+; Capability.resource = "gw-addr:"+address or "gw-rail:"+rail+":"+remote_id, ability = "send-as".
+GatewayAuthz = {
+  1 => ik-pub, 2 => u8, 3 => ts, ? 4 => [* hash], ? 5 => ts, ? 6 => bool,
+  ; 1=identity 2=mode(1 open/2 key-registered) 3=granted_at 4=grants 5=expires 6=revoked
+}
 
 ; ── client-facing provenance (§7.8, §8.6, §19.9) ───────────────────
 ; NODE-LOCAL: assembled by the recipient node, served only to the owner's own devices; NOT
