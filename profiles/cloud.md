@@ -64,9 +64,24 @@ profile enforces. v0 registry:
 | `edge-fn` | WASI / OCI | **`terminating`** (runs your code, sees I/O) → **`attested`** in a TEE | CPU-ms + invocations | **zero-migration** (redeploy the artefact) |
 | `database` | Redis RESP / Postgres wire | **`terminating` / `declared`** — the operator sees plaintext to answer queries | GB-month + ops | **export/import** (a portable dump) |
 | `box` | OS + node (cloud-init) | **`terminating` / `declared`** — the operator has root on the host | instance-hour | **export** (keys stay with the user; data dumps out) |
+| `queue` | AMQP-class / opaque-payload FIFO | **`blind-routing` / structural** — holds **client-encrypted** payloads; sees depth, size, rate and timing, never content | message-count + GB-month retained | **zero-migration** (drain and re-enqueue elsewhere) |
 
-Only **`bucket`** (and public-object **`cdn`**) are structurally private. **`edge-fn`, `database`, and
-`box` are `terminating`** — the operator sees your data or computation. This is normal and honest
+**Completeness, not catalogue.** This set is deliberately small and is chosen to *span* what a
+centralised platform does, not to mirror a product list: run code (`edge-fn`, `box`), store blobs
+(`bucket`), store queryable state (`database`), serve at the edge (`cdn`), decouple asynchronously
+(`queue`) — composed with public reachability ([REACH](reachability.md)), identity and login (§13),
+messaging and wake (§2, §4.9), real-time (§27, §25), and the control plane of DEPOT-11. A capability
+that is merely a *product* built from these MUST be a product, not a registry row.
+
+**Triggers, not more services.** Time-based and event-based invocation are **trigger types on
+`edge-fn`**, never separate services: `http` (via REACH ingress), `cron` (a schedule), `queue` (a
+`queue` message), and `webhook` (an inbound HTTPS event routed to a box or function through REACH,
+buffered in a `queue` when the target is offline). A new trigger is an enum value; it is **not** a
+spec change and **not** a new coordinator kind.
+
+Only **`bucket`** (`blind`), **`queue`**, and public-object **`cdn`** (`blind-routing`) keep the
+payload cryptographically out of the operator's reach. **`edge-fn`, `database`, and `box` are
+`terminating`** — the operator sees your data or computation. This is normal and honest
 (Fastmail-tier trust); it is **not** cryptographic blindness, and DEPOT-2 forbids pretending otherwise.
 
 ---
@@ -138,6 +153,37 @@ Only **`bucket`** (and public-object **`cdn`**) are structurally private. **`edg
   disclosed not papered over, are the same fenced ones: a **reputable public IP / ingress** and **real
   compute, storage, and bandwidth** are resources a host or ISP allocates, not conjured — confined to
   this kind, never a protocol chokepoint (the port-25 / REACH-9 analog, generalised).
+- **DEPOT-11 — the control plane is a capability, not an API key.** Provisioning, configuring,
+  scaling, and destroying an `infra-service` — the operator's API/CLI — MUST be authorised by a
+  **`CapabilityToken`** ([§18.7.3](../18-wire-format.md)): scoped by `resource`/`ability`, attenuable,
+  delegable, offline-verifiable, and revocable. It MUST NOT be a bearer API key or an unscoped account
+  password, and DEPOT mints no control-plane token of its own. Two consequences are normative: a
+  delegated token (a deploy key, a CI credential, a teammate's grant) is **strictly narrower** than its
+  parent, because every caveat on **every** link of the chain is evaluated and an unrecognised caveat
+  fails closed (§18.7.3); and a capability that can act on the user's **mail or identity** MUST be
+  scoped separately from one that acts on infrastructure — provisioning a box MUST NOT implicitly
+  grant reading a mailbox.
+- **DEPOT-12 — secrets are sealed to the box, never held in operator plaintext.** Configuration
+  secrets an `infra-service` stores on a user's behalf (environment values, credentials, connection
+  strings) MUST be **encrypted to the box's device key** before they reach the operator; the operator
+  stores and serves **ciphertext only** and MUST NOT require plaintext to operate the service. An
+  operator holding plaintext secrets is custodial in exactly the sense DEPOT-3 forbids for identity
+  keys. Where a service genuinely needs the value in the clear at runtime (an env var inside a
+  `terminating` `edge-fn` or `box`), that exposure is bounded by, and disclosed under, that service's
+  already-declared visibility (DEPOT-2) — never presented as protected.
+- **DEPOT-13 — permissionless supply; durability comes from plurality, not from an SLA.** Any node MAY
+  offer any `infra-service`, including a single self-hosted box contributing spare capacity: the
+  open-role principle of [Roles & Wake](../substrate/ROLES.md) and the self-host clause
+  ([CONTRACT §2.3](../coordinator/CONTRACT.md)) apply to this kind unchanged. Joining is **publishing a
+  signed descriptor** (§18.8a); standing is **earned through measurement claims** (§5), never granted
+  by a gatekeeper. Because no single small provider can match a hyperscaler's availability, a client
+  obtains durability and availability by **using several independent providers**, not by trusting one —
+  and content-addressed services (`bucket`, `cdn`, and `queue` payloads) replicate freely, so plurality
+  is cheap and re-pinning is zero-migration (DEPOT-4). **Honest asymmetry:** stateful `database` and
+  `box` do **NOT** replicate freely — they carry single-writer state whose portability is an
+  export/import, so for those a client's real protections are that export plus the operator's declared
+  visibility, not replication. A profile MUST NOT present multi-provider replication as though it made
+  a stateful service as durable as a content-addressed one.
 
 ---
 
