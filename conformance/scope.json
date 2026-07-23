@@ -1020,6 +1020,14 @@
       "reason": "implementation requirement on a conformant node/client/gateway"
     },
     {
+      "section": "10.3a",
+      "file": "10-conformance.md",
+      "title": "10.3a Minimum viable implementation (the falsifiable Core boundary)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
       "section": "10.4",
       "file": "10-conformance.md",
       "title": "10.4 The spec is authoritative",

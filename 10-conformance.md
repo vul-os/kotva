@@ -177,6 +177,35 @@ capitalised MUST is **84%**. Read the number as "nothing implementable is entire
 unattended", never as a pass mark. The reference `dmtap-core` self-check test drives the vectors,
 but the spec plus these three artifacts are authoritative (§10.4), not the reference.
 
+## 10.3a Minimum viable implementation (the falsifiable Core boundary)
+
+**Core is not a prose aspiration — it has a mechanical acceptance test.** The **"Core level" case
+block of [`conformance/SUITE.md`](conformance/SUITE.md)** is that test: passing exactly the cases
+listed there is **necessary and sufficient** to claim Core conformance. That block governs; it is
+**not reproduced here**, to avoid the drift a second hand-maintained list would introduce (the same
+discipline the §5 kind table and the SPEC index use).
+
+- **Derived scope (normative).** A Core-only implementation MUST implement exactly the §18 wire
+  objects and §21 error codes that the Core case block exercises, and **MAY omit every other** §18
+  object and §21 code — including all coordinator machinery
+  ([`coordinator/CONTRACT.md` §5](coordinator/CONTRACT.md)), every non-Core profile
+  ([`profiles/`](profiles/)), the opt-in `private`/mixnet tier (§4.6), PUB and PUBSUB (§22, §25), and
+  the escrow / dispute / matching primitives. On receiving an object, kind, `suite`, or code outside
+  its implemented scope a Core node **fails closed** (§10.1) — it never guesses, and never `ack`s
+  what it cannot validate.
+- **Scale of the floor (informative, this revision).** Core is ≈ **71 of ~354** conformance cases,
+  ≈ **28 of ~166** registered error codes, and ≈ **300 of ~2 144** normative MUSTs across the
+  numbered chapters — roughly a **15–20 % slice**. These counts are informative and drift as the
+  suite grows; the Core case block, not these numbers, is the boundary.
+
+**Honest residual.** Two costs are disclosed rather than hidden. (a) **§18 and §21 are not
+tier-partitioned** — a Core implementer derives their subset from the Core case block rather than
+reading a pre-filtered chapter, so the narrow-waist framing of §0/§10.3 does not extend to the two
+reference chapters an implementer opens most. (b) **Core is the interoperability floor, not the
+minimum conceivable effort**: its naming/KT obligations (§3, fail-closed-on-unreachable) and its
+**MLS 1:1** requirement (§5) are each heavier than a two-box demo strictly needs — Core buys
+byte-exact interoperability and fail-closed safety, and charges for them.
+
 ## 10.4 The spec is authoritative
 
 Independent implementations MUST be buildable from this specification alone. The Rust reference
