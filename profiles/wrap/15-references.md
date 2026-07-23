@@ -11,7 +11,7 @@ substrate document cited.
 | Reference | Used for |
 |---|---|
 | RFC 2119 / RFC 8174 (BCP 14) | Requirements language |
-| **DMTAP substrate — [`README`](https://github.com/vul-os/dmtap/blob/main/substrate/README.md)** | Adoption rules; the five capabilities and their shared primitives (§1.2, §4, §5, §7) |
+| **DMTAP substrate — [`README`](https://github.com/vul-os/dmtap/blob/main/substrate/README.md)** | Adoption rules; the four adopted capabilities (of the substrate's six) and their shared primitives (§1.2, §4, §5, §7) |
 | **DMTAP substrate — [`IDENTITY`](https://github.com/vul-os/dmtap/blob/main/substrate/IDENTITY.md)** | Principal = `IK`, `DeviceCert`, key-name, rotation/recovery (§2) |
 | **DMTAP substrate — [`SYNC`](https://github.com/vul-os/dmtap/blob/main/substrate/SYNC.md)** | HLC, CRDT op algebra, reconciliation wire, snapshots (§7, §11) |
 | **DMTAP substrate — [`FEEDS`](https://github.com/vul-os/dmtap/blob/main/substrate/FEEDS.md)** | Content addressing, author feeds for attestations (§4.3, §7, §9) |

@@ -10,8 +10,9 @@ followed anywhere in the tree — see its note).
 ## 1. Voice
 
 - **Terse and precise.** Short declarative sentences. No filler, no hedging, no marketing.
-- **Normative language is BCP-14** (MUST / MUST NOT / SHOULD / SHOULD NOT / MAY), and *only*
-  in all-caps when normative. Never use "must" casually.
+- **Normative language is BCP-14** (MUST / MUST NOT / REQUIRED / SHALL / SHALL NOT / SHOULD /
+  SHOULD NOT / RECOMMENDED / NOT RECOMMENDED / MAY / OPTIONAL), and *only* in all-caps when
+  normative. Never use "must" casually.
 - **Intellectually honest.** State what a design does *not* do as plainly as what it does.
   Every doc ends with an **Honest residual** section; an overclaim is a defect.
 - **No hype words** ("revolutionary", "seamless", "cutting-edge"). No exclamation marks.

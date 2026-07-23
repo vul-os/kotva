@@ -32,7 +32,7 @@ in any order, with arbitrary delay, and still converge.
 WRAP is **not a new stack.** Identity, signed content-addressed objects,
 deterministic encoding, the CRDT merge algebra, key-addressed discovery, offline
 transport — none of these are about *work*, and WRAP invents none of them. It
-adopts the [DMTAP substrate](https://github.com/vul-os/dmtap)'s five capabilities
+adopts four of the [DMTAP substrate](https://github.com/vul-os/dmtap)'s six capabilities
 à la carte, under that directory's adoption rules
 ([`substrate/README.md`](https://github.com/vul-os/dmtap/blob/main/substrate/README.md)
 §3): a product that implements a capability's function **MUST** speak that
@@ -40,12 +40,12 @@ capability's bytes, never a parallel format. Concretely WRAP adopts:
 
 - **Identity** (①) — a Principal *is* a substrate `IK`, with the substrate's
   `DeviceCert`, key-name, rotation, and recovery (§2);
-- **Sync** (③) — coordination state (`Offer`/`Bid`/`Assignment`/`Progress`) is
+- **Sync** (⑤) — coordination state (`Offer`/`Bid`/`Assignment`/`Progress`) is
   substrate Sync ops, merged by the substrate's CRDT algebra and HLC (§7);
-- **Feeds & Blobs** (②) — a `WorkOrder` is an immutable content object and an
+- **Feeds & Blobs** (④) — a `WorkOrder` is an immutable content object and an
   `Attestation` is an author-feed entry, so reputation is portable and
   HTTPS-servable (§7, §9);
-- **Infrastructure Roles** (④) — pools are discovered and work distributed
+- **Infrastructure Roles** (⑥) — pools are discovered and work distributed
   through the substrate's announce/resolve, relay, and mailbox (§8).
 
 An earlier draft of WRAP defined its own encoding, its own signing envelope, its

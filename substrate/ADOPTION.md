@@ -17,7 +17,7 @@ bare keypair) but not enough of the capability to call it adopted; **n/a** = not
 particular reason it should be, given what the product is; **not built** = the capability is meaningfully
 relevant to the product but nothing exists yet.
 
-## The matrix
+## 1. The matrix
 
 | Product | Identity ① | Feeds & Blobs ② | Sync ③ | Roles ④ | Wake ⑤ |
 |---|---|---|---|---|---|

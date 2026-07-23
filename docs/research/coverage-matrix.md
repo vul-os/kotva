@@ -47,9 +47,9 @@ never classifies.
 |---|---|---|---|---|---|---|
 | 1 | **Mail** | MOTE · TRANS · WAKE | — (PAY opt: postage) | gateway (`terminating`, legacy SMTP) · relay (`blind`) · mailbox (`blind-routing`) | DMTAP §5 | ✔ |
 | 2 | **Chat / groups** | MOTE(MLS) · SYNC · TRANS | — | relay (`blind`) · mailbox (`blind-routing`) | DMTAP §5 | ✔ |
-| 3 | **Voice / video calls** | ID · MLS→SFrame · TRANS(signal) | — | media-relay + SFU (`blind`/structural) | §27 realtime-media | ✔ |
+| 3 | **Voice / video calls** | ID · MLS→SFrame · TRANS(signal) | — | media-relay + SFU (`blind-routing`/structural) | §27 realtime-media | ✔ |
 | 4 | **Social feeds** | PUB · SYNC · ID | REP | indexer (`blind`/attested) · labeler (labels-only) | §25 pubsub / §22 | ▲ editorial |
-| 5 | **Media — video / music** | PUB · storage · TRANS | PAY (subs, streaming) | indexer · media-relay (live, `blind`) · storage (Walrus/Arweave) | §24 video / §22 | ✔ |
+| 5 | **Media — video / music** | PUB · storage · TRANS | PAY (subs, streaming) | indexer · media-relay (live, `blind-routing`) · storage (Walrus/Arweave) | §24 video / §22 | ✔ |
 | 6 | **Ride-hailing** | ID · TRANS · SYNC | OFFER · MATCH(nearest) · REP · ESC · ORC · DIS · PAY | matcher (`blind`/attested) · oracle (`terminating`) · arbiter (`terminating`) | WRAP-derived *(unbuilt rides profile)* | ▲ oracle |
 | 7 | **Delivery / courier** | ID · TRANS · SYNC | OFFER · MATCH(nearest) · REP · ESC · ORC · DIS · PAY | matcher (`blind`/attested) · oracle · arbiter | WRAP §12 (delivery) + TRACT §8 | ▲ oracle |
 | 8 | **Bookings** (lodging / salon / restaurant) | PUB · SYNC · MOTE | OFFER · RESERVE · REP · ESC · PAY | none required (single-writer calendar) · gateway (escrow) opt | TRACT §3 availability | ✔ |

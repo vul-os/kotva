@@ -6,8 +6,10 @@
 > a normative document disagree, the normative document wins. The rules the whole tree is built to
 > are [`DIRECTION.md`](DIRECTION.md); the reasoning under them is [`docs/research/`](docs/research/README.md).
 
-The key words **MUST**, **MUST NOT**, **SHOULD**, **MAY** are BCP 14 (RFC 2119 / RFC 8174) wherever
-this document restates a normative rule from its home; here they are pointers, not fresh requirements.
+The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**,
+**SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and **OPTIONAL** are BCP 14
+(RFC 2119 / RFC 8174) wherever this document restates a normative rule from its home; here they
+are pointers, not fresh requirements.
 
 ---
 

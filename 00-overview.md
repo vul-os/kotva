@@ -255,8 +255,9 @@ is not claimed at any tier; see §6.
 
 ## 0.8 Conventions & normative glossary
 
-**Requirement language.** The key words MUST, MUST NOT, SHOULD, SHOULD NOT, MAY are to be
-interpreted as described in BCP 14 (RFC 2119, RFC 8174) when, and only when, in all capitals.
+**Requirement language.** The key words MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, SHOULD
+NOT, RECOMMENDED, NOT RECOMMENDED, MAY, and OPTIONAL are to be interpreted as described in BCP 14
+(RFC 2119, RFC 8174) when, and only when, in all capitals.
 
 **Glossary (normative).** The following terms are defined once here and used with these meanings
 throughout. Where a term has several senses, the qualified forms below are the canonical ones;
