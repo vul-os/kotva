@@ -61,7 +61,11 @@ default/normative or dangle refs to the moved section — reconcile to opt-in/re
 **W2 (substantive residuals — after W1 commits, watch overlaps):**
 - [x] RecoveryPolicy §1.4 formal model (01/13) — Table A/D + `is_weakening()`; D0 eviction case `1aad934`.
 - [x] HPKE-mode pinned Base (02/05/18) — `712c091`.
-- [~] SYNC split minimal-core+extension + open-namespace determinism (substrate/SYNC) — **agent S in flight**.
+- [x] SYNC split minimal-core+extension + open-namespace determinism (substrate/SYNC) — `1ea9ac8`
+  (core = OR-Set/LWW/Death-cert; ext = PN-counter/RGA/Movable-tree; vectors tiered, none changed).
+  **Round-2 follow-up flagged:** ADOPTION.md calls RGA load-bearing for an editor product while SYNC
+  now marks it optional — reconcile the language (a product MAY require an optional extension; not a
+  contradiction, but the wording should agree).
 - [x] premature-generality cuts — **RE-EVALUATED, mostly REJECTED on inspection (defect doesn't
   reproduce):** suites `0x03`-`0x05` are already `RESERVED` + honestly status-labelled and are the
   *designed crypto-agility / emergency-pivot scaffold* (§1.1 anchor rotation, §16.7, §18.2 byte
@@ -79,7 +83,14 @@ default/normative or dangle refs to the moved section — reconcile to opt-in/re
 - [x] §1.4a D0 eviction `1aad934` · [x] HPKE Base `712c091` · [x] trivial batch `e3328d0`
 - [x] §18.8a wire-object cluster (suite/valid_until/terminating→declared/mime/mail-fast) `2b86e22`
 - [x] 06/04 privacy (bulk onion-MUST vs §4.5 MUST-NOT contradiction; dangling §4.4.11) `675aad9`
-- [~] cross-doc reconcile CONTRACT/07/26/21/10 to T's layout — **agent U in flight**.
+- [x] cross-doc reconcile CONTRACT/07/26/21/10 to T's layout — `217fccc` (§26.11 false-premise fixed,
+  Tariff.identity attribution added, 2 sibling mime values assigned non-colliding; 2 false-positives
+  correctly skipped). **Critique round 1 CLOSED 8/8.**
+
+**Critique round 2 (fresh lens-set — cross-ref-integrity · wire/CDDL · distributed-systems/determinism ·
+simplicity/over-engineering · contradiction/overclaim):** running as read-only workflow → adversarial
+verify → confirmed-only. Adjudicates the deferred compute-kind + media-relay/reachability collapse and the
+ADOPTION.md/RGA wording. Needs TWO consecutive clean passes (round 3 with a different mix) to declare PERFECTED.
 
 **W3 (simplify):** compress per-doc SEC-invariant/honest-residual boilerplate to reference tables
 (THREAT-MODEL = single argued source, ~15-20% cut, zero normative loss); turn reproduced index tables into
