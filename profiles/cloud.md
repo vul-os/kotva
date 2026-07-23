@@ -73,6 +73,21 @@ centralised platform does, not to mirror a product list: run code (`edge-fn`, `b
 messaging and wake (§2, §4.9), real-time (§27, §25), and the control plane of DEPOT-11. A capability
 that is merely a *product* built from these MUST be a product, not a registry row.
 
+**Worked example — static-site / SPA hosting is a product, not a service.** A static site is already
+what PUB ([§22](../22-public-objects.md)) is: signed, content-addressed, self-verifying public objects
+servable over plain HTTPS. It composes as **PUB objects in a `bucket`, served through `cdn`, named via
+[REACH](reachability.md)** (own domain or vanity, certificates per REACH-2a) — and a deploy is simply
+publishing a new content-addressed root plus a signed announcement superseding the previous one, which
+makes the switch **atomic** and makes **rollback** a pointer back to a root that is still addressable.
+It adds **no** registry row and **no** coordinator kind. What such a site DOES need, purely to stay
+portable between providers (DEPOT-4), is one named schema — `kotva-depot/site/v0` — describing serving
+behaviour: entry/root object, SPA **fallback** path, redirect rules, and cache policy. Without it each
+operator invents its own hosting config and the site stops being swappable; with it, any `cdn` or box
+serves the same site identically. It is a **schema over a content-addressed object** — no new wire
+object, DS-tag, or error code — exactly like the measurement schema of §5. Deploy pipelines are
+authorised by scoped `CapabilityToken`s under DEPOT-11 (a CI credential is strictly narrower than its
+parent), so a leaked deploy token can publish a site and **cannot** reach mail or identity.
+
 **Triggers, not more services.** Time-based and event-based invocation are **trigger types on
 `edge-fn`**, never separate services: `http` (via REACH ingress), `cron` (a schedule), `queue` (a
 `queue` message), and `webhook` (an inbound HTTPS event routed to a box or function through REACH,
@@ -225,9 +240,10 @@ schema, not by wire.
 Inheriting [THREAT-MODEL.md](../THREAT-MODEL.md) (SEC-1…SEC-9); the DEPOT-specific posture is the
 **cliff of §4 DEPOT-2**, restated for clarity:
 
-- **Only `bucket` and public `cdn` are structurally private.** They hold client-encrypted,
-  content-addressed data (SEC-4, `blind`/`structural` / `blind-routing`) — the operator forwards or
-  serves ciphertext it holds no key to read.
+- **Only `bucket`, `queue`, and public `cdn` are structurally private.** They hold client-encrypted,
+  content-addressed data — or, for `queue`, client-encrypted payloads whose depth, rate and timing are
+  visible but whose content is not (SEC-4, `blind`/`structural` / `blind-routing`) — so the operator
+  forwards, holds, or serves ciphertext it has no key to read.
 - **`database`, `edge-fn`, and `box` are `declared`-trust.** The operator (and any cloud host or
   subcontractor beneath it, DEPOT-6) can read what it must process to serve a query, run a function, or
   host a node. This is a **real, disclosed trust boundary** (SEC-4 `declared`), **not** structurally
