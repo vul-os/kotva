@@ -67,6 +67,19 @@ index + inter-profile links), including the previously-skipped profiles/tract/* 
 conventions, stable numbering, normative/informative references, honest-residual section), modelled on
 RFC 9051 / RFC 9420.
 
-**W6 (converge):** fresh multi-lens re-critique → fix residuals → repeat W-as-needed until the critique
-reports zero contradictions, consistent SA English, RFC-grade layout, all cross-refs resolving. Then delete
-this file + report DONE.
+**W6 (converge — repeated multi-perspective critique, the hard gate):** critique is NOT a one-shot.
+- **After EACH substantive wave commits (W1, W2, W3, W4)**, run a fresh **multi-lens read-only critique**
+  over the whole spec (not just the changed files — catch regressions + cross-file contradictions the wave
+  introduced). Feed every confirmed residual back as the next fix-wave. Verify each finding adversarially
+  (a defect must reproduce; a claimed contradiction must be real) so no false-positive churns the spec.
+- **Rotate the perspectives each round** so different angles hit: cryptographer · distributed-systems ·
+  IETF-protocol/wire · simplicity/over-engineering · red-team/threat-model · adoption/pragmatist ·
+  editorial/RFC-style/spelling · cross-reference-integrity. Every round uses ≥4 lenses; vary the mix
+  round to round so the same blind spots aren't re-used.
+- **Convergence bar (strict):** declare the spec PERFECTED only after **TWO CONSECUTIVE fully-clean
+  multi-lens critique passes run from DIFFERENT lens-sets** — both reporting zero substantive
+  contradictions, consistent South-African/British English, RFC-grade layout, and all cross-refs
+  resolving. One clean pass is not enough. Then delete this file, stop the cron, report DONE with the
+  commit range.
+- If a round keeps surfacing the same residual, escalate it (it may be a genuine founder-call → COORDINATION).
+  If **three successive convergence rounds** still find substantive residuals, STOP and report to the user.
