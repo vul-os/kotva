@@ -145,7 +145,8 @@ MOTE bodies plus the client rules ([`DIRECTION § 1`](DIRECTION.md)).
 ### DMTAP-mail — the flagship profile (numbered §00–§27)
 
 The mail + messaging + gateway profile: the first and reference profile, standing on all six waist
-capabilities and adding the sealed metadata-private path and legacy bridge on top.
+capabilities and adding the sealed, metadata-reducing message path — plus an opt-in, research-tier
+mixnet privacy tier (non-normative, [`DIRECTION § 9`](DIRECTION.md)) — and the legacy bridge on top.
 *(To be relocated under `profiles/dmtap-mail/` in a later restructure.)*
 
 | § | Section | § | Section |

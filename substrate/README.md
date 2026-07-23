@@ -8,8 +8,8 @@
 > framing and the adoption rules.
 
 DMTAP began as *email reimagined from the keypair up* (see the repository [`README`](../README.md)).
-In building it, five capabilities turned out to be **general** — nothing about them is about mail. This
-directory names those five capabilities, extracts them as a **narrow waist**, and re-frames DMTAP-mail
+In building it, six capabilities turned out to be **general** — nothing about them is about mail. This
+directory names those six capabilities, extracts them as a **narrow waist**, and re-frames DMTAP-mail
 (§2, §5, §7, §8) as the **first profile** built on top of that waist rather than as the whole protocol.
 
 The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHOULD**, **SHOULD NOT**,
@@ -50,25 +50,32 @@ Everything else points at an existing spec.
 
 ---
 
-## 2. The five capabilities
+## 2. The six capabilities
 
-The waist is five capabilities. A product **MAY** adopt any subset; the capabilities are independent and
-compose without ordering constraints. Each has a normative home in the core spec and a substrate document
-that profiles it for non-mail use.
+The waist is six capabilities — the same canonical six as [`../DIRECTION.md § 1`](../DIRECTION.md) and
+[`../SPEC.md § ii`](../SPEC.md): **Identity, MOTE, Transport, PUB, SYNC, Roles & Wake.** A product **MAY**
+adopt any subset; the capabilities are independent and compose without ordering constraints. Each has a
+normative home in the core spec; most have a dedicated substrate document that profiles it for non-mail
+use — MOTE is the one exception, profiled directly by the core spec (§2, §5) since its wire format is
+already minimal and mail-agnostic.
 
 | # | Capability | What it is | Substrate doc | Normative home | Profiles (standards) |
 |---|------------|------------|---------------|----------------|----------------------|
 | 1 | **Identity** | A keypair *is* the identity: Ed25519 `IK`, `DeviceCert` subkeys, DNS `name→key` binding, KT transparency, 8-word key-name floor | [`IDENTITY.md`](IDENTITY.md) | §1, §3 | Ed25519 (8032), CBOR (8949), CONIKS/keytrans, RFC 6962 |
-| 2 | **Feeds & Blobs** | Signed append-only per-author feeds + plaintext content-addressed blobs, self-verifying, servable over plain HTTPS with no mesh | [`FEEDS.md`](FEEDS.md) | §22 (DMTAP-PUB) | Nostr-class signed events, IPFS-class CAS, RFC 6962 Merkle, HTTP caching |
-| 3 | **Sync** | A signed CRDT op algebra + range-Merkle reconciliation + snapshots + sparse sync — multi-author, deterministic, COSE-signed | [`SYNC.md`](SYNC.md) | **new** (this directory); semantics grounded in §5.6 device-cluster sync | CBOR/COSE, HLC, version vectors, range-based set reconciliation |
-| 4 | **Infrastructure Roles** | Open, key-addressed roles any node MAY serve: announce/resolve, signaling, circuit relay, short-TTL content-blind mailbox, cache/pin | [`ROLES.md`](ROLES.md) | §4, §14 | libp2p (Kademlia, Circuit Relay v2, DCUtR), Chatmail relay-mailbox |
-| 5 | **Wake** | Content-free, sender-blind push wake-signaling so a sleeping device reconnects and syncs — never a delivery path | [`ROLES.md § Wake`](ROLES.md#wake) | §4.9 | Web Push (RFC 8030/8291/8292 VAPID), UnifiedPush |
+| 2 | **MOTE** | The universal sealed object: signed, encrypted, content-addressed. Mail, chat, offers, credentials are all MOTEs | *(profiled directly by the core spec; no standalone substrate doc)* | §2, §5 | COSE (9052), deterministic CBOR (8949 §4.2), BLAKE3 |
+| 3 | **Transport** | Reach anyone by key — online, offline, or over a mesh; store-and-forward at the edge | [`ROLES.md`](ROLES.md) | §4, §14 | libp2p (Kademlia, Circuit Relay v2, DCUtR) |
+| 4 | **PUB (Feeds & Blobs)** | Signed append-only per-author feeds + plaintext content-addressed blobs, self-verifying, servable over plain HTTPS with no mesh | [`FEEDS.md`](FEEDS.md) | §22 (DMTAP-PUB) | Nostr-class signed events, IPFS-class CAS, RFC 6962 Merkle, HTTP caching |
+| 5 | **SYNC** | A signed CRDT op algebra + range-Merkle reconciliation + snapshots + sparse sync — multi-author, deterministic, COSE-signed | [`SYNC.md`](SYNC.md) | **new** (this directory); semantics grounded in §5.6 device-cluster sync | CBOR/COSE, HLC, version vectors, range-based set reconciliation |
+| 6 | **Roles & Wake** | Open, key-addressed infrastructure roles any node MAY serve (announce/resolve, signaling, circuit relay, short-TTL content-blind mailbox, cache/pin) + content-free, sender-blind wake push | [`ROLES.md`](ROLES.md) | §4, §14, §4.9 | libp2p, Chatmail relay-mailbox, Web Push (RFC 8030/8291/8292 VAPID), UnifiedPush |
 
-> **Wake** is listed as a first-class capability because a product may want it *without* running any of
-> the other roles (a lone always-off client that only needs to be woken). Its normative profile lives
-> inside [`ROLES.md`](ROLES.md) alongside the other infrastructure roles, since a *wake origin* is an
-> infrastructure role like a relay or a mailbox; it is called out at the top level here because *needing
-> to be woken* is a product-facing capability, not an operator-facing one.
+> **Transport** and **Roles & Wake** are two distinct waist capabilities that share one substrate
+> document, [`ROLES.md`](ROLES.md): Transport is the *reach-by-key* mechanism itself (announce/resolve,
+> signaling, circuit relay, mailbox — "how do I reach this key"); Roles & Wake is the *open-role
+> vocabulary* those mechanisms are built from (any node may serve any role, no privileged type) plus
+> **Wake**. Wake is folded into capability 6 rather than numbered on its own because a *wake origin* is an
+> infrastructure role like a relay or a mailbox — but a product may want it *without* running any of the
+> other roles (a lone always-off client that only needs to be woken), which is why it gets its own
+> [named section](ROLES.md#wake) inside the shared document.
 
 ### The layering picture
 
@@ -76,10 +83,11 @@ that profiles it for non-mail use.
 flowchart TD
   subgraph WAIST["The narrow waist (this directory)"]
     ID["① Identity<br/><i>keypair = identity</i>"]
-    FB["② Feeds & Blobs<br/><i>signed append-only + CAS</i>"]
-    SY["③ Sync<br/><i>signed CRDT ops</i>"]
-    RO["④ Infrastructure Roles<br/><i>announce/relay/mailbox/cache</i>"]
-    WK["⑤ Wake<br/><i>content-free push</i>"]
+    MO["② MOTE<br/><i>signed, encrypted, content-addressed object</i>"]
+    TR["③ Transport<br/><i>reach by key: mesh + store-forward</i>"]
+    FB["④ PUB<br/><i>signed append-only feeds + CAS</i>"]
+    SY["⑤ SYNC<br/><i>signed CRDT ops</i>"]
+    RO["⑥ Roles & Wake<br/><i>announce/relay/mailbox/cache + content-free push</i>"]
   end
   subgraph PRIMS["Shared primitives (§18)"]
     CBOR["deterministic CBOR (8949)"]
@@ -92,9 +100,10 @@ flowchart TD
   WAIST --> P2["ofisi · kerf · forge · whatsacc<br/><i>office · CAD · &hellip;</i>"]
 ```
 
-Mail sits **beside** the other products, not beneath them: it is the profile that adopts *all five*
-capabilities and adds the sealed, metadata-private message path (§2, §5, §6) and the legacy bridge (§7)
-on top. Nothing in the waist depends on anything mail-specific.
+Mail sits **beside** the other products, not beneath them: it is the profile that adopts *all six*
+capabilities and adds the sealed, metadata-reducing message path (§2, §5) — plus an **opt-in,
+research-tier** mixnet privacy tier (§6, non-normative — [`../DIRECTION.md § 9`](../DIRECTION.md)) — and
+the legacy bridge (§7) on top. Nothing in the waist depends on anything mail-specific.
 
 ---
 
@@ -103,7 +112,7 @@ on top. Nothing in the waist depends on anything mail-specific.
 The waist is an **à-la-carte** contract. The rules that make "à la carte" safe rather than a
 compatibility swamp:
 
-1. **A product MAY adopt any subset of the five capabilities.** There is no ordering, no prerequisite
+1. **A product MAY adopt any subset of the six capabilities.** There is no ordering, no prerequisite
    bundle, and no "core profile" a product must swallow first. A product that adopts zero waist
    capabilities is simply not a DMTAP product; a product that adopts one is a conformant user of that one.
 
@@ -177,8 +186,9 @@ files behind an ordinary web server and **proves §22 works over plain HTTPS wit
 validates the signed `FeedHead`, walks the `prev` chain, and checks each content address, trusting the
 server for *nothing* (§22.5.1). Identity resolves over DNS + KT with no mesh (§3.3). Sync's wire protocol
 is three ordinary HTTP endpoints (§4.1 of [`SYNC.md`](SYNC.md)). Roles degrade to an HTTPS announce/resolve
-and an HTTPS mailbox where no mesh exists. The mesh binding adds swarming, NAT traversal, and mixnet
-privacy on top — it is never a *requirement* to speak a capability.
+and an HTTPS mailbox where no mesh exists. The mesh binding adds swarming, NAT traversal, and an **opt-in,
+research-tier** mixnet privacy option on top — never a requirement, and never the default, to speak a
+capability (§4.4, non-normative — [`../DIRECTION.md § 9`](../DIRECTION.md)).
 
 ---
 
@@ -187,18 +197,21 @@ privacy on top — it is never a *requirement* to speak a capability.
 Mail is not privileged; it is **complete**. DMTAP-mail is the profile that:
 
 - adopts **Identity** unchanged (§1, §3) — the same `IK`/`DeviceCert`/KT/key-name every product uses;
-- adopts **Sync** for the device-cluster mailbox (§5.6 is the CRDT replica whose op algebra
-  [`SYNC.md`](SYNC.md) generalizes);
-- adopts **Feeds & Blobs** for public list archives / release announcements (§22, and the engineering-artifact facet §24.18,
+- adopts **MOTE** unchanged (§2) — the signed, encrypted, content-addressed object; MOTE itself is
+  general waist ground, not a mail-only format — mail is simply the profile that uses it most;
+- adopts **Transport** — announce/resolve for reachability (§4.2), circuit relay for NAT'd boxes (§4.3,
+  §14.5), and the short-TTL content-blind relay-mailbox for offline holding (§14.3, §14.5);
+- adopts **PUB (Feeds & Blobs)** for public list archives / release announcements (§22, and the engineering-artifact facet §24.18,
   the Video/Media profile §24, and pubsub over the same feeds §25 are *further* applications over the
   same substrate — proof the waist already carries far more than mail; the video profile is also the
   convergence path for the independently built *vidmesh* protocol onto DMTAP-PUB's wire);
-- adopts **Infrastructure Roles** — announce/resolve for reachability (§4.2), circuit relay for NAT'd
-  boxes (§4.3, §14.5), and the short-TTL content-blind relay-mailbox for offline holding (§14.3, §14.5);
-- adopts **Wake** for the push-woken mobile client (§4.9, §14.3);
-- **and then adds the mail-only surface on top:** the sealed, metadata-private MOTE (§2), MLS sessions and
-  groups (§5), the mixnet privacy tiers (§6), the anti-abuse cold-contact economics (§9), and the legacy
-  SMTP/IMAP/JMAP bridge (§7, §8).
+- adopts **SYNC** for the device-cluster mailbox (§5.6 is the CRDT replica whose op algebra
+  [`SYNC.md`](SYNC.md) generalizes);
+- adopts **Roles & Wake** — the open-role vocabulary the Transport mechanisms above are built from, plus
+  push-woken mobile clients (§4.9, §14.3);
+- **and then adds the mail-only surface on top:** MLS sessions and groups (§5), an **opt-in,
+  research-tier** mixnet privacy tier (§6, non-normative — [`../DIRECTION.md § 9`](../DIRECTION.md)), the
+  anti-abuse cold-contact economics (§9), and the legacy SMTP/IMAP/JMAP bridge (§7, §8).
 
 Everything above the last bullet is shared substrate; only the last bullet is mail. That is the whole
 restructuring: the waist is what *any* product stands on, and mail is the profile that happens to stand
@@ -213,9 +226,10 @@ standard or required to speak it. These are named only as existence proofs that 
 
 | Capability | Reference implementation | Proves |
 |------------|--------------------------|--------|
-| Feeds & Blobs | **kerf-pub** (`/Users/pc/code/vulos/kerf/packages/kerf-pub`) | §22 served over plain HTTPS, no mesh (the HTTP test) |
-| Sync | **flowstock** stateless sync (`/Users/pc/code/vulos/flowstock`); **dmtap-clustersync** CRDTs (`/Users/pc/code/vulos/envoir`) | the op algebra + `/sync/vector`·`/sync/pull`·`/sync/ops` wire (the flowstock test) |
-| Infrastructure Roles + Wake | **vulos-relayd** (intended) | key-addressed relay / mailbox / wake origin |
+| Identity, MOTE | the core spec's own implementations (§1, §2, `conformance/`) | no standalone substrate-only implementation is needed — both are profiled directly by the numbered spec |
+| PUB (Feeds & Blobs) | **kerf-pub** (`/Users/pc/code/vulos/kerf/packages/kerf-pub`) | §22 served over plain HTTPS, no mesh (the HTTP test) |
+| SYNC | **flowstock** stateless sync (`/Users/pc/code/vulos/flowstock`); **dmtap-clustersync** CRDTs (`/Users/pc/code/vulos/envoir`) | the op algebra + `/sync/vector`·`/sync/pull`·`/sync/ops` wire (the flowstock test) |
+| Transport, Roles & Wake | **vulos-relayd** (intended) | key-addressed relay / mailbox / announce-resolve / wake origin |
 
 Independent implementations **MUST** be buildable from the substrate documents and the core spec alone,
 without reading any of the above (repository README). Where a reference and the spec disagree, the spec wins.
@@ -235,8 +249,11 @@ from each repository rather than assumed.
 ## 7. Document index
 
 - [`IDENTITY.md`](IDENTITY.md) — Capability ①: keys, `DeviceCert`, `name→key`, KT, key-name floor.
-- [`FEEDS.md`](FEEDS.md) — Capability ②: signed append-only author feeds + public content-addressed blobs.
-- [`SYNC.md`](SYNC.md) — Capability ③: the signed CRDT op algebra and reconciliation wire protocol (the one new spec).
-- [`ROLES.md`](ROLES.md) — Capabilities ④+⑤: open, key-addressed infrastructure roles and content-free wake.
+- MOTE (Capability ②) — profiled directly by the core spec ([`../02-mote.md`](../02-mote.md),
+  [`../05-messaging.md`](../05-messaging.md)); no standalone substrate document.
+- [`ROLES.md`](ROLES.md) — Capabilities ③+⑥: reach-by-key transport (announce/resolve, signaling, relay,
+  mailbox) and the open infrastructure-role vocabulary + content-free wake.
+- [`FEEDS.md`](FEEDS.md) — Capability ④ (PUB): signed append-only author feeds + public content-addressed blobs.
+- [`SYNC.md`](SYNC.md) — Capability ⑤: the signed CRDT op algebra and reconciliation wire protocol (the one new spec).
 - [`BINDINGS.md`](BINDINGS.md) — informative: the one-core/many-surfaces bindings plan (native Rust, cgo/C-ABI, WASM, UniFFI).
-- [`ADOPTION.md`](ADOPTION.md) — informative: today's per-product adoption-status matrix across all five capabilities.
+- [`ADOPTION.md`](ADOPTION.md) — informative: today's per-product adoption-status matrix across all six capabilities.

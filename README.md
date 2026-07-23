@@ -19,8 +19,9 @@ social, media, and real-time calling are profiles of the *same* waist, not separ
 
 ## The one rule
 
-> **Decentralize the substrate and the exit. Every unavoidable coordinator — gateway,
-> relay, indexer, labeler, arbiter, oracle — is _accountable, swappable, and
+> **Decentralize the substrate and the exit. Every unavoidable coordinator — e.g. gateway,
+> relay, indexer, labeler, arbiter, oracle (the full, canonical list is
+> [`coordinator/CONTRACT § 5`](coordinator/CONTRACT.md)) — is _accountable, swappable, and
 > self-hostable_, and _never load-bearing_. Coordinators add reach; they never gate
 > function.**
 

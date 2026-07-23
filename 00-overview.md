@@ -2,9 +2,10 @@
 
 ## 0.1 Goals
 
-DMTAP is a protocol for authenticated, encrypted, metadata-private messaging between
-self-sovereign identities, with async (store-and-forward) delivery, no required central
-party, and an optional bridge to legacy email. One substrate carries **mail, chat, files**,
+DMTAP is a protocol for authenticated, encrypted, metadata-reducing messaging (with an
+opt-in, research-tier path toward stronger metadata privacy, §0.6) between self-sovereign
+identities, with async (store-and-forward) delivery, no required central party, and an
+optional bridge to legacy email. One substrate carries **mail, chat, files**,
 and **decentralized identity/login** — the same keypair that receives your mail logs you in
 across the web (§13), with no central identity provider.
 
@@ -15,9 +16,11 @@ Concretely, DMTAP MUST provide:
    (§13).
 2. **Reachability without a static IP** — a node behind CGNAT, on a dynamic IP, is
    reachable by its key.
-3. **Content, authenticity, and metadata privacy** — messages are end-to-end encrypted and
-   signed, and the social graph (who talks to whom, when, how much) is hidden from a global
-   passive observer.
+3. **Content, authenticity, and metadata reduction** — messages are end-to-end encrypted and
+   signed, and sealed sender keeps the sender's identity out of intermediaries' view by
+   default. Hiding the social graph (who talks to whom, when, how much) from a **global
+   passive observer** is a stronger property that an **opt-in, research-tier** privacy tier
+   works toward (§0.6, §6) — a disclosed roadmap goal, not a default guarantee.
 4. **Continuity** — you never lose access to your identity (redundant, rotatable recovery)
    and can migrate your human name without losing existing contacts.
 5. **Legacy interoperability** — you can exchange mail with the existing SMTP world, and
@@ -52,7 +55,10 @@ and does **all the real work**:
 - Identity: the root keypair, device subkeys, recovery policy (§1).
 - Store: the mailbox and file blobs (encrypted MOTEs + content-addressed chunks) (§2, §5).
 - Mesh participation: peer discovery (DHT), relaying for others, delivery (§4).
-- Mixnet client: onion-wrapping, cover traffic, sealed sender (§4, §6).
+- Sealed sender: keeps the sender's identity out of intermediaries' view, on by default
+  regardless of tier (§2.2, §6.2). Mixnet client (opt-in, research-tier `private` tier):
+  onion-wrapping and cover traffic on top of sealed sender (§4.4, non-normative — DIRECTION
+  §9).
 - Messaging: MLS groups for 1:1, chat, and file folders; MLS KeyPackages (§5.3).
 - Client access: **JMAP** (native — the node's only client surface, §8). Legacy client
   protocols (IMAP/POP/SMTP-submission, CalDAV/CardDAV) are served by the **gateway**, not the
@@ -68,7 +74,7 @@ none is sold, and none has a gatekeeper:
 | Role | Flag | What it provides | Why anyone can run it |
 |------|------|------------------|-----------------------|
 | **Relay** | `--relay` | reachability hop for NAT'd peers; content-blind (§4.3) | needs only a public address |
-| **Mix** | `--mix` | a mixnet hop (§4.4) — **default-on** for an always-on node with a public address (§4.4.2a) | needs only a public address; the fleet self-provisions with adoption |
+| **Mix** | `--mix` | a mixnet hop for the **opt-in, research-tier** `private` transport tier (§4.4, non-normative — DIRECTION §9) | needs only a public address; the fleet self-provisions with adoption |
 | **Buffer / relay-mailbox** | `--mailbox` | short-TTL content-blind hold for an offline peer (§14.3, §14.5) | an **n-of-m** arrangement among peers and the owner's own devices — not a hosted service |
 | **KT log** | `--kt-log` | an append-only `name → key` log others audit (§3.5) | append-only storage; verifiers pin a *set*, so more logs is strictly better |
 | **Rendezvous** | `--rendezvous` | non-DHT lookup fallback + bootstrap entry (§4.2.1, §4.2.2) | needs only a stable address |
@@ -143,7 +149,8 @@ flowchart LR
 1. resolve  abc@def.com → recipient key K            (§3; cached/pinned after first contact)
 2. fetch    K's KeyPackages + current location           (§4 DHT, §5.3 KeyPackages)
 3. build    a MOTE: sealed-sender, MLS/HPKE-encrypted to K, signed  (§2, §5, §6)
-4. send     through the mixnet (private tier) or direct (fast tier) (§4, §6)
+4. send     direct (fast tier, default) or, opt-in, through the mixnet (private tier,
+            research-tier) (§4, §6)
 5. recipient node receives, verifies, decrypts, stores; acks        (§2, §4)
    (sender's node retries until ack — durability at the edge)
 ```
@@ -159,7 +166,7 @@ sequenceDiagram
   S->>S: resolve abc@def.com → key K (§3, cached after first contact)
   S->>D: fetch K's KeyPackages + current location (§4, §5.3)
   S->>S: build MOTE — sealed-sender, MLS/HPKE to K, signed (§2,§5,§6)
-  S->>D: send (mixnet = private tier, or direct = fast tier)
+  S->>D: send (direct = fast tier, default; mixnet = private tier, opt-in research-tier)
   D->>R: deliver
   R->>R: verify → decrypt → store
   R-->>S: ack (sender retries until ack — durability at the edge)
@@ -210,21 +217,34 @@ rest of this document is built to protect (§7.1, §12.3, §14.1).
 ## 0.6 Privacy posture (summary; full model in §6)
 
 - **Content & authenticity:** end-to-end encrypted (MLS/HPKE) and signed. Always.
-- **Sender metadata:** hidden via **sealed sender** — intermediaries never learn the sender.
-- **Social graph & timing:** hidden via a **mixnet** (onion routing + mixing delays) plus
-  **cover traffic** and **size padding**. Email's asynchrony is what makes full-strength
-  mixing affordable.
-- **Recipient retrieval:** the **always-on node receives by push** through the mixnet, so
-  there is *no store-and-poll step to hide* — the hardest metadata problem is dissolved by
-  architecture, not by expensive PIR.
-- **Discovery:** name→key lookups are routed *through* the mixnet, so the directory does not
-  learn who is looking up whom.
-- **Privacy tiers:** messages may choose `private` (full mixnet, minutes of latency) or
-  `fast` (direct/low-hop, seconds, less metadata protection). Default is `private`; bulk
-  file transfer uses `fast` for the payload and `private` for its control message.
+- **Sender metadata (default, all tiers):** hidden via **sealed sender** — the sender's
+  identity and authenticating signature live inside the encrypted payload, so intermediaries
+  never learn the sender. This is a metadata *reduction*, not elimination: it does not hide
+  the sender's IP, and timing/receipt side channels statistically erode it (§6.2).
+- **Social graph & timing (opt-in, research-tier):** the `private` transport tier layers a
+  **mixnet** (onion routing + mixing delays) plus **cover traffic** and **size padding** on
+  top of sealed sender. It is quarantined as **non-normative research** — its assurance is
+  not deployment-grade — and is a stated roadmap goal, not a default guarantee
+  ([`docs/research/mixnet.md`](docs/research/mixnet.md), DIRECTION §9). Email's asynchrony is
+  what would make full-strength mixing affordable if and when it graduates.
+- **Recipient retrieval:** the **always-on node receives by push** over the default
+  direct/mesh path (or, opt-in, through the mixnet), so there is no store-and-poll step for a
+  local adversary to watch — though a buffered/offline recipient is still a polled store an
+  observer can watch (delivery tag, time, volume; see R-9, THREAT-MODEL.md).
+- **Discovery:** name→key lookups resolve over the default path by default; routing them
+  *through* the opt-in mixnet additionally keeps the directory from learning who is looking
+  up whom, for deployments that enable it.
+- **Privacy tiers:** messages may choose `fast` (direct/low-hop, seconds — the **default**) or
+  `private` (full mixnet, minutes of latency, **opt-in, research-tier**). Bulk file transfer
+  uses `fast` for the payload; a control message MAY use `private` where the deployment has
+  opted in.
 
-**Honest boundary:** DMTAP targets a **global passive adversary**. Perfect resistance to a
-global *active* adversary with unlimited resources is not claimed; see §6.
+**Honest boundary:** by default, DMTAP reduces metadata exposure **to intermediaries**
+(sealed sender) — it does not, by default, resist a **global passive adversary** correlating
+IP address and timing. Full graph/timing privacy against a global passive observer is an
+**opt-in, research-tier** goal (the `private`/mixnet tier, §4.4, §6, DIRECTION §9), not a
+shipping guarantee. Perfect resistance to a global *active* adversary with unlimited resources
+is not claimed at any tier; see §6.
 
 ## 0.7 Non-goals
 
@@ -286,8 +306,8 @@ listed deprecated synonyms are read as their canonical term.
   terminates legacy client protocols, §7.15); the **relay role** (any public-address node
   performing the first sense, §0.2.2, §14.1); and the **relay-mailbox** (a content-blind,
   short-TTL buffer held by an **n-of-m** set of peers and own-devices, §14.3; scaling §14.5).
-- **private** — qualified per sense: the **`private` transport tier** (the mixnet
-  metadata-privacy tier, §4.6); the **private gateway operator mode** (a self-operated gateway
+- **private** — qualified per sense: the **`private` transport tier** (the opt-in, research-tier
+  mixnet metadata-privacy tier, §4.6, non-normative); the **private gateway operator mode** (a self-operated gateway
   serving only its operator, §7.15.4); and the **private DHT** (a closed deployment's own
   routing prefix, §4.2).
 - **attestation** — three senses: **gateway attestation** (signed provenance of a

@@ -1,14 +1,18 @@
-# Substrate Capabilities ④ + ⑤ — Infrastructure Roles & Wake
+# Substrate Capabilities ③ + ⑥ — Transport & Infrastructure Roles / Wake
 
 > **Status:** additive profile of the core specification. This document presents the DMTAP
 > **infrastructure roles** — announce/resolve, signaling, circuit relay, short-TTL content-blind
 > mailbox, cache/pin, and **wake** — as an **open, key-addressed protocol** that any product may adopt
-> without reading the mail spec. It restates no normative bytes: the `LocationRecord` (§4.2), the
-> reachability ladder (§4.3), the relay-mailbox (§14.3, §14.5), the wake objects (§4.9, §18.5.5–6), and
-> their fail-closed rules (§21) are all defined in the core, **which governs.** This document names the
-> roles, states the one invariant that unifies them (*key-addressed, any node, no privileged types*),
-> and profiles each for non-mail use. Capability **⑤ Wake** is the last section; it is a first-class
-> capability but an infrastructure role, so it lives here.
+> without reading the mail spec. Together these roles profile two of the waist's canonical six
+> capabilities ([`README.md § 2`](README.md#2-the-six-capabilities)): **③ Transport** (reach anyone by
+> key, online, offline, or over a mesh — announce/resolve, signaling, circuit relay, mailbox) and
+> **⑥ Roles & Wake** (the open, key-addressed role vocabulary itself, plus content-free wake). It
+> restates no normative bytes: the `LocationRecord` (§4.2), the reachability ladder (§4.3), the
+> relay-mailbox (§14.3, §14.5), the wake objects (§4.9, §18.5.5–6), and their fail-closed rules (§21) are
+> all defined in the core, **which governs.** This document names the roles, states the one invariant
+> that unifies them (*key-addressed, any node, no privileged types*), and profiles each for non-mail use.
+> **Wake** (part of capability ⑥) is the last section; it is a first-class capability facet but an
+> infrastructure role, so it lives here.
 
 The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHOULD**, **SHOULD NOT**,
 **RECOMMENDED**, **MAY**, and **OPTIONAL** are to be interpreted as in RFC 2119 / RFC 8174.
@@ -43,7 +47,8 @@ Every role is **transport-pluggable with HTTPS first-class** (the HTTP test,
 [`README.md § 4.2`](README.md#42-the-http-test--are-transports-pluggable-with-https-first-class)): where
 no mesh exists, announce/resolve degrades to a signed record fetched over HTTPS, the mailbox is an HTTPS
 buffer, cache/pin is the `/.well-known/dmtap-pub` surface ([`FEEDS.md § 5`](FEEDS.md)), and wake is Web
-Push. The mesh binding (§4) adds swarming, NAT traversal, and mixnet privacy on top — never a requirement.
+Push. The mesh binding (§4) adds swarming, NAT traversal, and an **opt-in, research-tier** mixnet privacy
+option on top — never a requirement, and never the default (§4.4, non-normative — DIRECTION §9).
 
 ---
 
@@ -219,7 +224,7 @@ Every role above obeys the same discipline, and a product adopting any of them M
 
 ---
 
-## 8. Wake — content-free, sender-blind push (Capability ⑤; profile of §4.9)
+## 8. Wake — content-free, sender-blind push (part of Capability ⑥, Roles & Wake; profile of §4.9)
 
 <a id="wake"></a>
 
@@ -227,9 +232,9 @@ A sleeping mobile device cannot hold a mesh connection, so it must be **woken** 
 naive path — Apple **APNs** / Google **FCM** — sees, for every message, *which device was woken and when*:
 a centralized metadata choke point (§4.9). The **Wake** capability is an **optional, open wake-signaling
 layer** that carries **no content and no sender identity**, is **originated by the user's own node**, and
-**reuses existing standards** rather than inventing a push protocol. It is Capability ⑤ because *needing to
-be woken* is a product-facing property a device may want even when it runs none of §2–§7 roles; its spec is
-an infrastructure role, so it lives here.
+**reuses existing standards** rather than inventing a push protocol. It is part of Capability ⑥ (Roles &
+Wake) because *needing to be woken* is a product-facing property a device may want even when it runs none
+of §2–§7 roles; its spec is an infrastructure role, so it lives here.
 
 **It is never a delivery path (MUST).** A wake is only a hint to *reconnect and sync now* — the actual
 object is still **pulled** over the ordinary reachability ladder (§3) or the mailbox (§5). This is
