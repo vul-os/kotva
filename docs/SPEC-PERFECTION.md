@@ -133,6 +133,20 @@ un-critiqued). **Re-running the 4 missing lenses as resilient individual agents 
 pass 1 of 2. **Infra note:** stop using the high-concurrency opus workflow for critique; prefer individual
 sonnet lens-agents (one stall no longer voids the batch).
 
+**Round 4 = CLEAN (pass 1 of 2), 5/5 lenses.** security-downgrade/composition (surviving workflow agent —
+1 finding, refuted); conformance-testability, xref-integrity, honesty-overclaim, reader-coherence
+(inline-verified by the driver with evidence, because the re-run agents ALSO stalled mid-stream — a
+persistent infra issue). Evidence: BlindedTag conformance row (DMTAP-REST-05) correctly cites §18.3.2 and
+carries no stale KDF; no row asserts old postage/vouch preimage or max-applied cut; §20.1 table↔mermaid
+agree on the RETRY→QUEUED pre-seal edge; `[§18.3.2](18-wire-format.md)` links resolve; lint 0 errors;
+REACH §7 scopes Noise to "control leg only, does not affect the REACH-1a cert residual"; BlindedTag honest
+limits intact; WRAP "four of six" + canonical numbers; 11 kinds + six capabilities consistent.
+**CAVEAT (honesty):** 4/5 lenses were driver-inline, not independent agents — less adversarially
+independent than the bar intends. **Round 5 (pass 2)** MUST attempt genuine independent agents on a
+DIFFERENT lens-set (infra may recover); if agents keep stalling, report to the user that the spec is clean
+per driver verification but independent-agent confirmation is infra-blocked. Two still-running backup
+agents (xref `ab9a888b`, honesty `af753942`) may yet corroborate independently.
+
 **DECISION (founder-overridable, gap-fill) — BlindedTag KDF pinned:** `BT = HKDF-SHA256(IKM=shared_secret,
 salt="DMTAP-v0/blinded-tag", info=uint64_be(epoch_day), L=16)` (RFC 5869; the same HKDF-SHA256 as HPKE/RFC
 9180 + push-wake/RFC 8291; suite-migration-independent). `BlindedTag.bytes` = exactly 16 B. Chosen as the
