@@ -54,29 +54,37 @@ are public author-feed objects under §22 / [`FEEDS.md`](../substrate/FEEDS.md):
 (TRACT §16.5.5 is the reference freeze). Both inherit §22's map conventions and its origination floor
 (§22.3.3 step 1a).
 
-### 2.1 `TrustEdge` — the web-of-trust primitive (plays the ATTEST role)
+### 2.1 The trust-edge attestation — the web-of-trust primitive (an ATTEST claim, no wire object)
 
 A directed, signed vouch from a **truster** to a **subject**, in a **context**. It is
 trust-matrix input to the adopted EigenTrust/OpenRank compute (§5) — with the transitivity and
-polarity caveats disclosed in §9. `TrustEdge` is a **sibling REPUTATION object that plays the
-ATTEST role** ([`ATTEST.md`](ATTEST.md)) — *"IK asserts this claim about subject," narrowed to
-trust polarity — but it is a distinct feed object in its own right, not an instance of the
-`Attestation` map (§4).
+polarity caveats disclosed in §9.
 
-```cddl
-TrustEdge = {
-  1 => ik-pub,        ; subject   the vouched-for identity key (stable, operator-independent)
-  2 => tstr,          ; context   trust domain: "commerce", "courier", "code-review", … (§2.3)
-  3 => int,           ; polarity  -1 distrust · 0 neutral/known · +1 vouch (NOT a magnitude, §2.3)
-  4 => ts,            ; ts        display/ordering only; feed seq is authoritative (§22.3.1)
-  ? 5 => hash,        ; evidence  OPTIONAL content-address of an ATTEST/PurchaseAttestation backing it
-  ? 6 => hash,        ; supersedes prior TrustEdge this revises (retract = supersede, §2.4)
-}
-```
+REPUTATION mints **no wire object of its own** for a trust edge. A profile MAY define a schema
+and constrain fields; it MUST NOT invent a parallel attestation object (the waist adoption rule,
+[`ATTEST.md`](ATTEST.md) §2, `substrate/README` §3.2) — so a trust edge **is** an ATTEST
+`Attestation` ([`ATTEST.md`](ATTEST.md) §2), carried on the **public** carrier (`det_cbor(Attestation)`
+embedded in a `PubAnnounce`, ATTEST §2), constrained by a registered **trust-edge schema**:
 
-The **author** (the truster) is not a field: it is the feed author key that signs the entry (§22.3),
-and it **MUST be a per-context pseudonymous subkey, MUST NOT be the root `IK`** (§2.3, the §1.5
-grant-tier construction). A `TrustEdge` names its own author only through the feed it lives in.
+| retired `TrustEdge` field | `Attestation` field (ATTEST §2) | mapping |
+|---|---|---|
+| `subject` (ik-pub) | `subject` (key 4) | the vouched-for identity key — unchanged: stable, operator-independent |
+| `context` (tstr) | `schema` (key 5) | a registered trust-context schema URI/UID, e.g. `kotva-reputation/trust-edge/commerce/v0`, `…/courier/v0`, `…/code-review/v0`; a new trust context is a **new schema registration**, never a new wire object |
+| `polarity` + `evidence` | `claim` (key 6) | the claim body: `{ polarity: -1/0/+1 (a sign, NOT a magnitude, §2.3), ? evidence: hash of a backing ATTEST/PurchaseAttestation }` |
+| — (feed author key) | `issuer` (key 3) | the vouching key; MUST equal the carrier's authenticated identity (`PubAnnounce.pub`, ATTEST §2) |
+| `ts` | `ts` (key 7) | display/ordering only; feed seq is authoritative (§22.3.1) |
+| `supersedes` | *(no `Attestation` field — rides the carrier's `PubAnnounce.supersedes`)* | retract = supersede at the carrier level (ATTEST §4.3), never a claim field — ATTEST retired its own key-9 `supersedes` for the identical reason (ATTEST §2) |
+
+The **author** (the truster) is, as before, not a claim field: it is the `PubAnnounce`'s
+authenticated `pub`, which MUST equal `Attestation.issuer` (ATTEST §2) and **MUST be a
+per-context pseudonymous subkey, MUST NOT be the root `IK`** (REP-2, §3; the §1.5 grant-tier
+construction). A trust-edge attestation names its own author only through the carrier that signs
+it.
+
+Nothing that guaranteed portability, wash-resistance, or the no-score-object rule (§2.3) depends
+on the retired bespoke shape: those are properties of the *subject-keyed, signed, unauthoritative*
+pattern, which `Attestation` already provides natively. REPUTATION now names a **schema** over
+ATTEST rather than a competing wire object; no guarantee is weakened.
 
 ### 2.2 `Feedback` — subject-attached rating (a REVIEW/attestation input)
 
@@ -99,7 +107,7 @@ subject = ik-pub / hash
 ### 2.3 The non-object: there is no score object (normative)
 
 **No KOTVA object carries an aggregated, network-wide, or per-subject *reputation number*.** A
-`Feedback` carries a per-interaction `score`; a `TrustEdge` carries a per-edge `polarity`. Neither is
+`Feedback` carries a per-interaction `score`; a trust-edge attestation carries a per-edge `polarity`. Neither is
 a reputation. **Aggregation is forbidden as an object and mandated as a derived computation** (§5):
 publishing a single authoritative number requires a party that ranks every subject — exactly the
 operator this primitive removes (TRACT §10.3). `polarity` is a sign, not a weight, precisely so that
@@ -108,8 +116,9 @@ much* is the reader's or the indexer's judgement, never the author's assertion.
 
 ### 2.4 Retraction is supersession, never deletion
 
-An author retracts a `TrustEdge` or `Feedback` by publishing a later feed entry that supersedes it
-(§22.3.4). There is no tombstone byte and no delete. Retraction is **cooperative-only**: it binds a
+An author retracts a trust-edge attestation or `Feedback` by publishing a later feed entry that
+supersedes it (§22.3.4; for the trust-edge attestation this is the carrier's `PubAnnounce.supersedes`,
+ATTEST §4.3). There is no tombstone byte and no delete. Retraction is **cooperative-only**: it binds a
 reader who checks the author's feed head before displaying, and nothing obliges an independent
 byte-holder or a pre-snapshot index to notice it (TRACT §10.2d). A client **MUST disclose
 irrevocability to the author before the object is published** (§8, SEC-9 residual; TRACT §10.2).
@@ -139,8 +148,8 @@ irrevocability to the author before the object is published** (§8, SEC-9 residu
   unanchored author. The anchor and its assurance level MUST be surfaced, never presented as closing
   the Sybil gap (§9). Discounting a fresh, unanchored key is the *only* whitewashing defence and MUST
   be available; it MUST NOT be sold as a solution.
-- **REP-6 — Feedback binds to evidence where it claims to.** Where a `Feedback` or `TrustEdge`
-  asserts it reflects a real interaction, it MUST carry the content-address of an ATTEST /
+- **REP-6 — Feedback binds to evidence where it claims to.** Where a `Feedback` or a trust-edge
+  attestation asserts it reflects a real interaction, it MUST carry the content-address of an ATTEST /
   `PurchaseAttestation` (ATTEST.md §2; TRACT §10.2a/§16.5.5) that a verifier can independently
   check. An index MAY gate on the presence of such a proof (`deny-policy`, TRACT §10.2a); whether
   it does is **index-local policy, never a protocol mandate** — mandating it network-wide would
@@ -164,9 +173,9 @@ Reputation is a **consumer**, not a foundation — it reads what the other primi
 - **IDENTITY** — the subject key and the author subkey are ordinary substrate identities
   ([`substrate/IDENTITY.md`](../substrate/IDENTITY.md), §1). Portability (REP-1) and pseudonymous
   authorship (REP-2) are IDENTITY properties, not new ones.
-- **ATTEST** ([`ATTEST.md`](ATTEST.md)) — `TrustEdge` is a sibling REPUTATION object that plays the
-  ATTEST role (an issuer-signed directed claim about a subject, narrowed to trust polarity) but is
-  a distinct feed object, not an Attestation-map instance (§2.1); the personhood and stake anchors
+- **ATTEST** ([`ATTEST.md`](ATTEST.md)) — the trust-edge vouch is not a REPUTATION wire object at
+  all: it **is** an ATTEST `Attestation` constrained by the trust-edge schema (an issuer-signed
+  directed claim about a subject, narrowed to trust polarity, §2.1); the personhood and stake anchors
   (§5) are ATTEST objects; the `proof` binding a `Feedback` to a real interaction is an ATTEST /
   `PurchaseAttestation`. Reputation is largely ATTEST rearranged around a subject.
 - **OFFER** ([`OFFER.md`](OFFER.md)) — a product/listing content-address is a valid `Feedback`
@@ -213,7 +222,7 @@ controls; the difference is only *whose* edges it weighs and *who* runs the sum.
 
 | | Small / mesh (no coordinator) | Global (hired coordinator) |
 |---|---|---|
-| **Anchor** | web-of-trust: `TrustEdge`s from keys you already pin | a personhood attester you choose (§5) |
+| **Anchor** | web-of-trust: trust-edge attestations from keys you already pin | a personhood attester you choose (§5) |
 | **Compute** | local EigenTrust over the edges you hold, on your device | an `indexer` running OpenRank/TEE over public feeds |
 | **Subject id** | same stable key (REP-1) | same stable key (REP-1) |
 | **Authority** | you | still you — the index is derived, fireable (REP-4/REP-7) |
@@ -231,7 +240,7 @@ number is authoritative and yours is not; here yours is authoritative and the in
 
 Reputation inherits the substrate's offline profile ([`substrate/OFFLINE.md`](../substrate/OFFLINE.md)):
 
-- **Authoring feedback is `full` offline.** Signing a `TrustEdge` / `Feedback` and appending it to
+- **Authoring feedback is `full` offline.** Signing a trust-edge attestation / `Feedback` and appending it to
   your own feed needs no network (OFFLINE §3.3). **Distribution** to the swarm is `deferred`.
 - **Local computation is `full`; global indexer view is `local-trust`.** Computing reputation over the
   feeds you already hold is `full`; an index's global aggregate is a `local-trust` view whose staleness
@@ -293,8 +302,8 @@ this primitive **discloses them rather than solving them**:
   truster and trustee to the same per-context key (a portability cost to REP-1) — KOTVA has
   chosen neither and discloses the gap instead.
 - **Distrust does not reach the global-view compute.** Standard EigenTrust clips negative input
-  to zero (`c_ij = max(s_ij,0) / Σ_k max(s_ik,0)`), and OpenRank inherits this. A `TrustEdge`
-  with `polarity = -1` is therefore discarded, not aggregated, by the bound compute — it carries
+  to zero (`c_ij = max(s_ij,0) / Σ_k max(s_ik,0)`), and OpenRank inherits this. A trust-edge
+  attestation with `polarity = -1` is therefore discarded, not aggregated, by the bound compute — it carries
   no weight against a bad actor's score there — and remains usable only as local, reader-side
   policy, never as input the adopted engine consumes.
 - **The Sybil-cost floor is an open question, not a solved one.** The achievable floor on a
