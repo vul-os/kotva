@@ -289,8 +289,10 @@ Session setup reuses **X3DH** (Marlinspike & Perrin, 2016) for `suite = 0x01` an
   last-resort-only first contact while an unspent `opk`/one-time-KEM remains in its published bundle
   (the initiator SHOULD always consume one when offered) — but that preference is **NOT a substitute
   for the replay cache**: it is vacuous in exactly the case needing defence, because a last-resort
-  init is legitimate precisely when no unspent one-time prekey remains, and §19.3.1's cold-sender cap
-  deliberately routes traffic onto that path once exceeded. An implementation offering only the
+  init is legitimate precisely when no unspent one-time prekey remains, and the §16 cold-sender OPK
+  cap on §19.3.1's reserve-then-commit deliberately serves a cold `DeniableInit` from last-resort once
+  exceeded — the §16 table names that the "**replayable** last-resort path" and separately tabulates
+  this cache's retention window, so the cache is assumed present there and is now required here. An implementation offering only the
   preference has no replay defence on the exhausted-bundle path at all. A repeated last-resort init that fails this check is
   `ERR_DENIABLE_X3DH_FAILED` (`0x040C`). This mirrors Signal's documented X3DH replay caveat and is
   the deniable-mode analog of the MOTE content-address dedup (§2.6).
