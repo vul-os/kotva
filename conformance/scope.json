@@ -15,7 +15,8 @@
   "limits": [
     "Coverage measured against this file is SECTION-level, not MUST-level: a section counts as covered if any case cites it, not if every MUST in it is exercised. It is a floor and deliberately generous.",
     "It counts cases that exist, not cases that pass. Most of the suite is construction recipes and attestations; see the partition in conformance/SUITE.md. No implementation has been run against it.",
-    "The classification below is a judgement call. Inclusion is the default and every exclusion states its owner, but a reader who disagrees with one should reclassify it IMPL and write the case — that is the intended failure mode, and it moves the number."
+    "The classification below is a judgement call. Inclusion is the default and every exclusion states its owner, but a reader who disagrees with one should reclassify it IMPL and write the case — that is the intended failure mode, and it moves the number.",
+    "2026-07 mixnet-demotion sweep: §4.4/§4.4.1–§4.4.11 (Sphinx mixnet) and §9.4.1 (VDF) carry no denominator entries here, not by oversight — they were relocated to docs/research/mixnet.md and docs/research/vdf.md as non-normative/experimental (see 04-transport.md §4.4 and 09-anti-abuse.md §9.4.1 stubs) and are explicitly outside `tools/lint.py`'s SPEC_FILES scan (numbered root files only) and outside the KOTVA conformance surface (docs/research/README.md §5). The wire encodings they still exercise (§18.5.2/§18.5.3/§18.5.4, MixNodeDescriptor/MixDirectory/SphinxCell) remain classified below because they stay normative *as an encoding* for any implementation that offers the opt-in mixnet — offering the mixnet or the mix role at all is not."
   ],
   "sections": [
     {
@@ -81,6 +82,14 @@
       "musts": 11,
       "class": "IMPL",
       "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "1.4a",
+      "file": "01-identity.md",
+      "title": "1.4a The recovery access structure (normative)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway — the authoritative, formal definition of RecoveryPolicy::verify() (the access-structure membership test rules 2-4 reference); the backup/restore MUST it also carries is a normative primitive a conforming node exposes"
     },
     {
       "section": "1.5",
@@ -209,6 +218,14 @@
       "musts": 2,
       "class": "IMPL",
       "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "3.9.2",
+      "file": "03-naming.md",
+      "title": "3.9.2 `@handle` — a registered resolver type, NOT part of the naming ladder (opt-in)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement, but only on a client that has chosen to offer the opt-in `@handle` directory; not a requirement of a baseline conformant client, mirroring the conditional IMPL entries at §9.8/§14.6.3 for the other opt-in, non-default feature (the mixnet)"
     },
     {
       "section": "3.9.3",
@@ -363,116 +380,20 @@
       "reason": "implementation requirement on a conformant node/client/gateway"
     },
     {
-      "section": "4.4.1",
-      "file": "04-transport.md",
-      "title": "4.4.1 Sphinx packet format (profiled; parameters pinned)",
-      "musts": 2,
-      "class": "IMPL",
-      "reason": "implementation requirement on a conformant node/client/gateway"
-    },
-    {
-      "section": "4.4.2",
-      "file": "04-transport.md",
-      "title": "4.4.2 Mix directory (discovery + keys, bound to DNS/KT)",
-      "musts": 6,
-      "class": "IMPL",
-      "reason": "implementation requirement on a conformant node/client/gateway"
-    },
-    {
-      "section": "4.4.2a",
-      "file": "04-transport.md",
-      "title": "4.4.2a The mix role is default-on for always-on public nodes (normative)",
-      "musts": 3,
-      "class": "IMPL",
-      "reason": "implementation requirement on a conformant node/client/gateway"
-    },
-    {
-      "section": "4.4.3",
-      "file": "04-transport.md",
-      "title": "4.4.3 Path selection (3-hop stratified free-route)",
-      "musts": 1,
-      "class": "IMPL",
-      "reason": "implementation requirement on a conformant node/client/gateway"
-    },
-    {
-      "section": "4.4.4",
-      "file": "04-transport.md",
-      "title": "4.4.4 Mix key rotation & epochs",
-      "musts": 3,
-      "class": "IMPL",
-      "reason": "implementation requirement on a conformant node/client/gateway"
-    },
-    {
-      "section": "4.4.5",
-      "file": "04-transport.md",
-      "title": "4.4.5 Cover traffic & Loopix loops (normative)",
-      "musts": 3,
-      "class": "IMPL",
-      "reason": "implementation requirement on a conformant node/client/gateway"
-    },
-    {
-      "section": "4.4.6",
-      "file": "04-transport.md",
-      "title": "4.4.6 Active-attack resistance: replay, tagging, unlinkability, Poisson mixing (normative)",
-      "musts": 6,
-      "class": "IMPL",
-      "reason": "implementation requirement on a conformant node/client/gateway"
-    },
-    {
-      "section": "4.4.7",
-      "file": "04-transport.md",
-      "title": "4.4.7 Loop cover as active-attack detection & fail-closed response (normative) — the key lever",
-      "musts": 7,
-      "class": "IMPL",
-      "reason": "implementation requirement on a conformant node/client/gateway"
-    },
-    {
-      "section": "4.4.8",
-      "file": "04-transport.md",
-      "title": "4.4.8 Entry guards, operator diversity & mix Sybil resistance (normative)",
-      "musts": 10,
-      "class": "IMPL",
-      "reason": "implementation requirement on a conformant node/client/gateway"
-    },
-    {
-      "section": "4.4.9",
-      "file": "04-transport.md",
-      "title": "4.4.9 Fail-closed: minimum viable path, no silent downgrade (normative)",
-      "musts": 6,
-      "class": "IMPL",
-      "reason": "implementation requirement on a conformant node/client/gateway"
-    },
-    {
-      "section": "4.4.10",
-      "file": "04-transport.md",
-      "title": "4.4.10 High-security profile (normative, user-selectable)",
-      "musts": 2,
-      "class": "IMPL",
-      "reason": "implementation requirement on a conformant node/client/gateway"
-    },
-    {
-      "section": "4.4.10a",
-      "file": "04-transport.md",
-      "title": "4.4.10a The Bootstrap profile — a small network must still work (normative)",
-      "musts": 10,
-      "class": "IMPL",
-      "reason": "implementation requirement on a conformant node/client/gateway"
-    },
-    {
-      "section": "4.4.11",
-      "file": "04-transport.md",
-      "title": "4.4.11 Honest low-adoption model (disclosed, §6.6 style)",
-      "musts": 2,
-      "class": "IMPL",
-      "reason": "implementation requirement on a conformant node/client/gateway"
-    },
-    {
       "section": "4.5",
       "file": "04-transport.md",
       "title": "4.5 Bulk / file transfer",
       "musts": 1,
       "class": "IMPL",
       "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
+      "section": "4.6",
+      "file": "04-transport.md",
+      "title": "4.6 Metadata-privacy tiers (`private` / `fast`)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway — the normative default (`fast`) a node MUST run and the constraint on how a client MUST NOT present the opt-in `private` tier if it chooses to offer it"
     },
     {
       "section": "4.7",
@@ -1045,10 +966,10 @@
     {
       "section": "9.8",
       "file": "09-anti-abuse.md",
-      "title": "9.8 Mixnet abuse",
+      "title": "9.8 Mixnet abuse (scoped to the opt-in research-tier mix role)",
       "musts": 2,
       "class": "IMPL",
-      "reason": "implementation requirement on a conformant node/client/gateway"
+      "reason": "implementation requirement, but only on an implementation that has chosen to run the opt-in, research-tier mix role (docs/research/mixnet.md); does not apply to a node that only ever forwards fast-tier traffic"
     },
     {
       "section": "9.9",
@@ -1349,10 +1270,10 @@
     {
       "section": "14.6.3",
       "file": "14-scaling.md",
-      "title": "14.6.3 Tie-in to the mixnet profiles (normative)",
+      "title": "14.6.3 Tie-in to the (opt-in) mixnet profiles — applies only where the mixnet is offered (non-normative for a conformant node)",
       "musts": 1,
       "class": "IMPL",
-      "reason": "implementation requirement on a conformant node/client/gateway"
+      "reason": "implementation requirement, but only on an implementation that has already chosen to offer the opt-in, research-tier mixnet (docs/research/mixnet.md); not a requirement of a baseline conformant node"
     },
     {
       "section": "15.0",
@@ -1799,6 +1720,30 @@
       "file": "18-wire-format.md",
       "title": "18.8.1 `ProvenanceRecord`",
       "musts": 8,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.8a.1",
+      "file": "18-wire-format.md",
+      "title": "18.8a.1 `CoordinatorDescriptor`, `Visibility`, `Tariff` (CONTRACT §2.1, §2.4, §6)",
+      "musts": 9,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.8a.2",
+      "file": "18-wire-format.md",
+      "title": "18.8a.2 `UsageReceipt` (CONTRACT §6)",
+      "musts": 4,
+      "class": "IMPL",
+      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+    },
+    {
+      "section": "18.8a.3",
+      "file": "18-wire-format.md",
+      "title": "18.8a.3 `GatewayAuthz` (§12.2, §7.11.2, §7.12, §26.2.1)",
+      "musts": 5,
       "class": "IMPL",
       "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
     },
