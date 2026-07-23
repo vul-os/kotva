@@ -112,7 +112,8 @@ device. This is the rule that stops anti-abuse from re-centralizing (DMTAP §7.1
 generalized).
 
 Coordinator kinds are all instances of the same contract: **gateway** (legacy bridge),
-**relay** / **media-relay** (content-blind forwarding), **reachability-adapter** (ngrok-style
+**relay** (content-blind forwarding) / **media-relay** (`blind-routing` — SFrame-sealed
+payload, but routing metadata visible, RFC 9605), **reachability-adapter** (ngrok-style
 subdomains), **indexer** (search / discovery), **labeler** (moderation), **matcher**
 (real-time matching), **arbiter** (dispute), **oracle** (physical-world attestation).
 
@@ -157,9 +158,9 @@ connectivity and coordinators become *available* for global reach — never *req
   (WebRTC) that reuses the substrate's identity, keys (MLS→SFrame), roles, coordination, and
   signaling — but **not** the store-and-forward object model. Only the media *bytes* are on
   their own track, which is correct: real-time must not be forced through MOTE delivery.
-- Scaling calls is a **media-relay role** (content-blind, because SFrame E2E-encrypts the
-  media), a pool anyone can provide, coordinated by an existing distributed SFU. The host's
-  hardware is not the size limit.
+- Scaling calls is a **media-relay role** (`blind-routing` — SFrame E2E-encrypts the media
+  *payload*, though the relay still reads routing metadata to forward, RFC 9605), a pool anyone
+  can provide, coordinated by an existing distributed SFU. The host's hardware is not the size limit.
 
 ---
 

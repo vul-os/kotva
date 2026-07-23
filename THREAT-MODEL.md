@@ -234,8 +234,9 @@ profile author cannot silently assume them away:
 - **R-6 (coordinators).** The audit is **one-directional**: a signed receipt confirms a real
   operation, it cannot disconfirm one the coordinator fabricated or silently omitted
   ([CONTRACT §6](coordinator/CONTRACT.md)). One honest scarcity exception is disclosed rather than
-  papered over — legacy SMTP egress needs a resource (reputable IP, unblocked port 25) an ISP may deny
-  ([CONTRACT §2.3](coordinator/CONTRACT.md)). A second, structural exception to "never load-bearing"
+  papered over — the one scarce-network-reachability exception class has two members: legacy SMTP
+  egress (a reputable IP + unblocked port 25) and the reachability-adapter's public ingress, either
+  of which an ISP/host may deny ([CONTRACT §2.3](coordinator/CONTRACT.md)). A second, structural exception to "never load-bearing"
   itself: the **custodial escrow operator** is the family's one honest load-bearing coordinator — it
   holds the trade-window float and can abscond, become insolvent, or freeze funds, a counterparty
   risk bonding/staking bounds but does not eliminate ([CONTRACT §1](coordinator/CONTRACT.md);
