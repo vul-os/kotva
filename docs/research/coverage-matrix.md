@@ -68,6 +68,14 @@ never classifies.
 | 21 | **IoT / telemetry** | MOTE(light) · PUB · WAKE · SYNC | — | relay (`blind`) · mailbox (`blind-routing`) | *unbuilt constrained-device profile* | ✚ constrained crypto |
 | 22 | **Private-AI** | box (self-host) · PUB(weights) · storage | OFFER(compute) · PAY(x402) | **compute** *(provisional kind, CONTRACT §5)* — `terminating` / `attested` (TEE) for blind | TRACT/WRAP for compute-OFFER | self-host ✔ / hosted-blind ✚ |
 
+> **Infrastructure layer (not a 23rd product shape).** The `box` / `storage` / `compute` / `cdn`
+> resources several rows above depend on (rows 5, 11, 22, …) are specified as managed services by the
+> **DEPOT** profile ([`profiles/cloud.md`](../../profiles/cloud.md)) under one `infra-service`
+> coordinator kind — a decentralised-cloud market with operator-defined economics and distributed
+> `ServiceMeasurement` ratings. Honest visibility per service: `bucket`/public-`cdn` `blind`/structural;
+> `database`/`edge-fn`/`box` `terminating`/`declared` (→ `attested` in a TEE). It underlies the product
+> shapes rather than adding one, so the count of 22 product shapes is unchanged.
+
 ---
 
 ## 3. Why the covered rows collapse into so few mechanisms

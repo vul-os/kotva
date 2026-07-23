@@ -561,6 +561,7 @@
             <tr><td><code>labeler</code></td><td>Moderation labels, opt-in, subscribable</td><td>n/a — labels public objects</td></tr>
             <tr><td><code>matcher</code></td><td>Real-time supply↔demand matching (rides, delivery)</td><td><code>terminating</code> default / <code>attested</code> (TEE)</td></tr>
             <tr><td><code>compute</code> <em>(provisional)</em></td><td>Hosted/outsourced computation (e.g. rented-GPU inference)</td><td><code>terminating</code> default / <code>attested</code></td></tr>
+            <tr><td><code>infra-service</code> <em>(draft)</em></td><td>Managed infrastructure — box / bucket / edge-fn / database / cdn (DEPOT)</td><td>per service — <code>bucket</code> <code>blind</code>, <code>edge-fn</code>/<code>database</code>/<code>box</code> <code>terminating</code> → <code>attested</code></td></tr>
             <tr><td><code>arbiter</code></td><td>Dispute resolution (staked jury)</td><td><code>terminating</code> for evidence, disclosed</td></tr>
             <tr><td><code>oracle</code></td><td>Physical-world / real-fact attestation</td><td><code>terminating</code>, disclosed</td></tr>
             <tr><td><code>custodial-escrow</code></td><td>Holds the trade float for a trade window</td><td><code>terminating</code> for evidence — the family's one <strong>load-bearing</strong> exception</td></tr>
@@ -751,6 +752,19 @@
           <dt>Adopts</dt><dd>Reads existing public objects (§22) and subscribes to feeds (§25); no new wire bytes. Its coordinator is an <code>indexer</code> under the coordinator contract.</dd>
           <dt>Narrow waist</dt><dd>The default is a local search over the reader's own following-graph — no crawler, no server, no coordinator required at all. Global reach is an opt-in, hired, fireable, self-hostable indexer that adds reach, never authority; there is no ranking token, because there is no protocol token to buy rank with.</dd>
           <dt>Status</dt><dd>Draft; whether an indexer is TEE-attested (DeSearch-style) or a plain crawler is a declared, surfaced property, not assumed.</dd>
+        </dl>
+      </div>
+
+      <div class="profile" id="p-depot">
+        <div class="profile-head">
+          <h3>DEPOT — managed infrastructure (the decentralised-cloud profile)</h3>
+          <span class="badge b-draft"><span class="dot"></span>draft profile · normative once ratified</span>
+        </div>
+        <p class="profile-thesis">Gateways offer a box, a bucket, an edge-fn, a database and a cdn as fenced coordinators — a decentralised cloud where the user holds their keys and can leave.</p>
+        <dl>
+          <dt>Adopts</dt><dd>No new runtime and no economics. It binds WASI/OCI (edge-fn), S3 / content-addressing (bucket), Redis / Postgres wire (database), HTTP caching (cdn) and cloud-init (box) over the §18.8a descriptor / tariff / usage-receipt seam. One new object: a signed, PUB-carried <code>ServiceMeasurement</code> for distributed ratings. The coordinator is a single <code>infra-service</code> kind with an extensible service registry.</dd>
+          <dt>Narrow waist</dt><dd>Economics are the operator's — KOTVA guarantees a price <em>exists</em>, is signed, and is metered honestly, never what it is. Reputation is a market of signed, reproducible measurements anyone may publish or aggregate, never one authority's score; the maintainer runs <em>one</em> rater, never <em>the</em> rater.</dd>
+          <dt>Honest cliff</dt><dd>Only <code>bucket</code> and public <code>cdn</code> are structurally blind. <code>database</code>, <code>edge-fn</code> and <code>box</code> are <code>terminating</code> — the operator sees plaintext to serve a query, run a function, or host a node. Marketing a managed database as "private" is non-conformant; the safety net is the owner-held root key and a real exit, not host blindness. A TEE with verifiable attestation upgrades these to <code>attested</code>.</dd>
         </dl>
       </div>
     </section>

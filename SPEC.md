@@ -213,6 +213,7 @@ Sections: [00 overview](profiles/wrap/00-overview.md) · [01 identity](profiles/
 | **SEARCH** | Discovery over public objects — following-graph first, indexer-optional. | PUB · PUBSUB; `indexer` | [`profiles/search.md`](profiles/search.md) |
 | **MEDIA** | The Evermesh profile — video & music; box-as-origin, CDN as swappable cache. | PUB · storage · media-relay; `indexer` | [`profiles/media.md`](profiles/media.md) |
 | **RTC** | Real-time voice / video / calling — the parallel media plane (family-level view of §27). | ID · MLS→SFrame; `media-relay` | [`profiles/rtc.md`](profiles/rtc.md) |
+| **DEPOT** *(draft)* | Managed infrastructure — box / bucket / edge-fn / database / cdn; operator-defined economics, distributed ratings; honest per-service visibility. | §18.8a seam · PUB · ATTEST; `infra-service` | [`profiles/cloud.md`](profiles/cloud.md) |
 
 ---
 
@@ -236,6 +237,7 @@ audit (22 shapes, visibility per coordinator, minimal fix per gap):
 | **Search / discovery** | PUB | — | indexer (TEE) | [SEARCH](profiles/search.md) | ▲ editorial + Sybil |
 | **Storage / files** | MOTE · PUB · SYNC · storage | PAY | storage-provider · pin | [DMTAP §5.5](05-messaging.md) | ✔ |
 | **Reachability** | Roles | — | reachability-adapter | [REACH](profiles/reachability.md) | ✔ |
+| **Managed cloud (box/db/fn/bucket/cdn)** | PUB · storage · TRANS | PAY | infra-service | [DEPOT](profiles/cloud.md) | ▲ draft |
 | **Credentials / registries** | ATTEST · PUB · MOTE | REP · PAY | attester · curation | [ATTEST](primitives/ATTEST.md) + TRACT | ▲ authoritative-issuer |
 | **Advertising** | PUB · indexer | OFFER · PAY | indexer (direct-buy) | [§22](22-public-objects.md) / TRACT | ✔ direct / ✖ surveillance |
 
