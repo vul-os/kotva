@@ -44,7 +44,8 @@ is**, and a harvest-now-decrypt-later adversary is recording today. A classical-
 protocol ships a decades-long confidentiality debt on day one. Because DMTAP is greenfield, the
 PQ-hybrid floor costs one parameter decision now and a flag day never. The price is size —
 ML-DSA-65 signatures are ~3.3 KB and ML-KEM-768 ciphertexts ~1.1 KB — which is why the size
-ladder of §16.3 is dimensioned around a PQ envelope from the start (§4.4.1) rather than around a
+ladder of §16.3 is dimensioned around a PQ envelope from the start
+([docs/research/mixnet.md §4.4.1](docs/research/mixnet.md)) rather than around a
 classical one it would later have to outgrow.
 
 A node MAY hold keys in multiple suites during migration; the transparency log records which
@@ -579,12 +580,33 @@ weakening bar below). In words: every factor identity dropped by any version acc
 
 | Case | Condition |
 |---|---|
+| D0 (identity evicted) | some concrete `device`/`guardian` identity present in `Factors_i` is absent from `Factors_{i+1}`: `(Factors_i \ Factors_{i+1}) ∩ (Devices_i ∪ Guardians_i) ≠ ∅` |
 | D1 (count lowered) | some clause's `n` is lower than the corresponding clause at version `i` |
 | D2 (kind dropped) | a kind present at version `i` is absent at version `i+1` |
 | D3 (evicted factor re-admitted) | `Factors_{i+1} ∩ Evicted_i ≠ ∅` |
 
-D1/D2 are the ordinary shrink cases; **D3 is the "eviction is durable" fix**, evaluated against
-`Evicted_i` — the running, whole-chain accumulator — not against version `i` alone. This is what
+**D0 closes the roster-shrink gap.** `Devices(n)`/`Guardians(n)` name a *count* of a kind, not
+*which* concrete identities satisfy it — so dropping one named guardian or device out of a
+multi-member roster while `n` and the kind both stay the same trips neither D1 (`n` unchanged)
+nor D2 (the kind is still present): e.g. `{G1,G2,G3} → {G1,G2}` under a static `{Guardians(2)}`
+looks, by D1/D2 alone, like no change at all. That gap let a transiently-stolen `IK` evict a real
+guardian outright — no quorum, no rule-4 veto window — and then admit a fresh, never-before-seen
+attacker guardian in a later version (D3 only blocks *re*-admitting a previously evicted identity,
+not admitting a brand-new one), fully replacing a social-recovery guardian without ever satisfying
+`rotate_threshold`, exactly the stolen-`IK` takeover §1.4a exists to close. D0 closes it directly:
+any concrete device/guardian identity dropped from the roster is weakening, independent of `n` or
+kind, matching what rule 3's prose ("evicts a guardian/device") already required.
+
+D0 is deliberately scoped to `device`/`guardian` — the only kinds Table A names *multiple*
+concrete identities for (`Phrase`/`Ik` are each a single identity, so dropping either already
+trips D2, kind dropped). D1 and D2 remain independent cases, not subsumed by D0: D1 fires on a
+bare threshold-count edit with the roster itself untouched (`{G1,G2,G3}`,
+`Guardians(2)→Guardians(1)`, no identity removed — D0 does not fire, D1 does); D2 fires when an
+entire kind disappears, which for `device`/`guardian` is exactly the case where D0 already fires
+for *every* identity of that kind at once (D2 is then implied by D0 for those two kinds, and
+remains the only trigger for `phrase`/`ik`). D0/D1/D2 are the ordinary shrink cases; **D3 is the
+"eviction is durable" fix**, evaluated against `Evicted_i` — the running, whole-chain accumulator
+— not against version `i` alone. This is what
 makes the two-step (or *n*-step) bypass structurally impossible: evicting a factor at version `i`
 puts it in `Evicted_i` **permanently**, until a later version clears it *by satisfying the same
 bar the eviction did*. No number of intermediate "looks-additive-against-its-immediate-
@@ -637,16 +659,21 @@ prose or to an implementer's judgement.
   `verify()` is `is_weakening ⟹ satisfies(rotate_threshold)`; there is no branch that accepts a
   weakening change without a genuine minimal authorised set of `rotate_threshold` behind it, and
   `Evicted` is chain-wide, so no sequence of hops opens a path around that branch.
-- **(c) `verify()` above is total and decidable**: B1–B4 and D1–D3 are exhaustive case splits
+- **(c) `verify()` above is total and decidable**: B1–B4 and D0–D3 are exhaustive case splits
   fixed by the shape of `Threshold`/`RecoveryPolicy`, not a list grown by finding
   counterexamples.
 
 **Walking the bypass this replaces (verification).** Using the concrete instance above —
 guardians `{G1, G2, G3}`, `recover_threshold = rotate_threshold = {Guardians(2)}`:
 
-1. `v1`: `G3` is compromised and evicted — `methods` drops `G3`, quorum-signed by `{G1,G2}`
-   (a genuine minimal authorised set of `Γ(rotate_threshold)`), published, and clears the veto
-   window. `Factors_1 = {G1, G2}`; `Evicted_1 = {G3}`.
+1. `v1`: `G3` is compromised and evicted — `methods` drops `G3`, so `Factors_0 = {G1,G2,G3}`,
+   `Factors_1 = {G1,G2}`. `recover_threshold = rotate_threshold = {Guardians(2)}` is unchanged
+   across the edit — `n` stays `2` (no D1) and `social` is still present (no D2) — but
+   `(Factors_0 \ Factors_1) ∩ Guardians_0 = {G3} ≠ ∅` → **D0, weakening**. (Before D0, this step
+   satisfied none of D1–D3 and could have been signed by `IK` alone with no rule-4 veto window —
+   exactly the gap D0 closes.) Rule 3 accordingly requires `satisfies(candidate.sig,
+   rotate_threshold, …)`: `v1` is quorum-signed by `{G1,G2}` (a genuine minimal authorised set of
+   `Γ(rotate_threshold)`), published, and clears the veto window. `Evicted_1 = {G3}`.
 2. `v2`: an attacker holds a transiently-compromised `IK` and publishes a policy that re-adds
    `G3`, signed by `IK` alone. `Factors_2 = {G1, G2, G3}`. Table D: `Factors_2 ∩ Evicted_1 =
    {G3} ≠ ∅` → **D3, weakening** — regardless of the fact that, compared to `v1` alone, `v2` looks
