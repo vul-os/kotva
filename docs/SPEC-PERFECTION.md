@@ -104,6 +104,34 @@ correctly silent. The 6 confirmed (each a different file → 2 disjoint fix-agen
   11-grounding-and-references.md:75 unqualified "DMTAP targets a global passive adversary" → mixnet does; default = reduction.
 After F1+F2 land → **critique round 3** (different lens mix); two consecutive clean → PERFECTED.
 
+**Critique round 3 (workflow `wfmvmanpz`, fresh 5 lenses: adversarial-crypto · state-machine/liveness ·
+implementer-interop · rfc-layout/bcp14 · cross-family) — NOT clean: 8 confirmed** (7 by the workflow + 1
+HIGH I hand-verified after its verify-agent died on an API stall — the "1 refuted" was that miscount, not
+a real refutation). Fix-agents (file-disjoint):
+- [~] **X** {18-wire-format, 13-identity-auth}: (MED) §18.9.8 `auth_hash` bare digest → `0x1e ‖ …`
+  multihash form (violated §18.1.6; cross-hash-forgery under suite-0x05) + §13.3 step 5; (MED) §18.3.3
+  PostageStamp/Vouch preimage tuples → reference §18.9.7 whole-object rule; (HIGH) §18.3.2 pin the
+  BlindedTag KDF. **agent X in flight.**
+- [~] **Y** {20-state-machines}: (MED) §20.1 RETRY totality gap — pre-seal RETRY had no re-resolve edge,
+  a DNS/KT-lagged MOTE was condemned to EXPIRED even on recovery. **agent Y in flight.**
+- [~] **Z** {00-overview, SPEC, STYLE, wrap/00-overview, wrap/15-references, coverage-matrix, ADOPTION}:
+  (MED) §0.8 BCP-14 keyword set completed to full RFC 8174; (MED) WRAP "five"→"four of six" + canonical
+  circled numbers; (MED) coverage-matrix SFU media-relay `blind`→`blind-routing`; (LOW) ADOPTION §1
+  heading. **agent Z in flight.**
+- [ ] **W** {02-mote, 06-privacy}: BlindedTag prose (§2.2a/§6.4) → reference X's pinned §18.3.2
+  construction. QUEUED behind X.
+
+**DECISION (founder-overridable, gap-fill) — BlindedTag KDF pinned:** `BT = HKDF-SHA256(IKM=shared_secret,
+salt="DMTAP-v0/blinded-tag", info=uint64_be(epoch_day), L=16)` (RFC 5869; the same HKDF-SHA256 as HPKE/RFC
+9180 + push-wake/RFC 8291; suite-migration-independent). `BlindedTag.bytes` = exactly 16 B. Chosen as the
+least-surprising, interop-safe pin consistent with the stack's existing KDF choice; was unspecified →
+non-interoperable.
+
+Round-3 verification calibration: the panel correctly adjudicated media-relay/reachability as distinct and
+compute as a disclosed slot (round 2), and this round found real crypto/interop/state-machine defects — the
+adversarial-verify layer is holding. After X/Y/Z/W land → **critique round 4** (re-covers REACH + these
+fixes; different lens mix) toward the two-consecutive-clean gate.
+
 ## PARALLEL TRACK — REACH profile (founder pivot 2026-07-23: "both in parallel" + "spec-first")
 The founder redirected to wakala's #1 gap (content-blind ingress) while this spec loop keeps converging in
 the background. Decision: **spec-first** — finish the REACH profile in kotva (zone/descriptor + Noise
