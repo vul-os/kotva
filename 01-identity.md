@@ -388,7 +388,11 @@ Threshold = { any_of: [+ MethodPredicate] }   // e.g. 1 phrase OR 2 devices OR 2
 
 A **`MethodPredicate`** names a satisfied factor: `Phrase` (the phrase-derived key), `Devices(n)`
 (any *n* device factors), `Guardians(n)` (any *n* social shares), or `Ik` (the root key itself).
-A `Threshold`'s `any_of` is met when **any** listed predicate is satisfied.
+A `Threshold`'s `any_of` is met when **any** listed predicate is satisfied. §1.4a below defines
+`recover_threshold` and `rotate_threshold` together as a single **monotone access structure**
+over these factors and gives `RecoveryPolicy::verify()` as a total, decidable check against it —
+every threshold comparison and weakening classification the rules below reference is defined
+there, not by ad hoc inspection.
 
 **Quorum-signature wire rule (normative).** A signature that satisfies `rotate_threshold` MUST
 take one of exactly two forms: **(i)** a **single aggregated threshold signature** (FROST-class
@@ -404,77 +408,54 @@ Rules:
 1. **Authenticated.** Every version is signed by `IK` (proactive) or by satisfying the
    current `rotate_threshold` (reactive, mid-recovery). Unauthenticated policy changes are
    invalid.
-2. **`rotate_threshold` ≥ `recover_threshold`.** A single compromised factor may (perhaps)
-   recover access but MUST NOT be able to unilaterally rewrite the policy and lock the owner
-   out.
-
-   **What "≥" means here (normative — it is not a total order).** A `Threshold` is
+2. **`rotate_threshold` ≥ `recover_threshold` — defined as access-structure domination (§1.4a
+   Table B).** A single compromised factor may (perhaps) recover access but MUST NOT be able to
+   unilaterally rewrite the policy and lock the owner out. A `Threshold` is
    `any_of: [MethodPredicate]`, a **disjunction over heterogeneous predicates** (`Phrase`,
-   `Devices(n)`, `Guardians(n)`, `Ik`). That structure admits no total order: `{Phrase}` and
-   `{Ik, Guardians(2)}` are simply incomparable, and asking which is "greater" has no answer.
-   Stated only as "≥", this rule was **unimplementable**, which is why `0x010C` was registered,
-   cited from here, and raised nowhere — `RecoveryPolicy::verify()` could check only the
-   degenerate empty-`rotate` case. The comparison is therefore defined as:
+   `Devices(n)`, `Guardians(n)`, `Ik`) that admits no total order — `{Phrase}` and
+   `{Ik, Guardians(2)}` are simply incomparable. "≥" therefore does not mean a numeric comparison
+   of the two `Threshold` objects; it means **no clause of `rotate_threshold` is satisfiable by a
+   set of factors that `recover_threshold` does not also license at that strength** — a single,
+   exhaustive four-case table (§1.4a Table B), evaluated once per `rotate_threshold` clause, not a
+   partial order compared by hand. Two consequences of that table are worth stating plainly here:
+   counts are monotone within a kind, so a same-kind pair where the *same kind* of factor rotates
+   more cheaply than it recovers is rejected (e.g. `recover = {Guardians(2)}`,
+   `rotate = {Guardians(1)}`, under which any two guardians could evict the owner); and no
+   `rotate_threshold` clause is ever satisfiable by a **single non-`Ik` factor** unless that
+   identical factor alone also satisfies `recover_threshold` — which, because kinds are disjoint,
+   can only be true for a same-kind singleton, so a genuinely cross-kind singleton clause (e.g.
+   `rotate = {Phrase}` under `recover = {Guardians(3)}`) is always rejected. `Ik` clauses are
+   exempted from the singleton check — not because `IK` is weak, but because rule 3 independently
+   forbids `IK` alone from executing a *weakening* change regardless of what `rotate_threshold`
+   contains, so the exemption does not reopen the takeover the check exists to close.
 
-   > For every predicate `p ∈ recover_threshold.any_of` and every `q ∈ rotate_threshold.any_of`
-   > **of the same kind**, `q`'s count MUST be **≥** `p`'s count. Predicates of **different kinds
-   > are incomparable** and impose no constraint on each other.
-
-   Counts are monotone within a kind — holding 3 device factors satisfies any predicate asking for
-   ≤ 3 — so this catches exactly the dangerous shape the rule exists to forbid: a policy where the
-   *same kind* of factor rotates more cheaply than it recovers, e.g. `recover = {Guardians(2)}`
-   with `rotate = {Guardians(1)}`, under which any two guardians could evict the owner. Equality is
-   permitted, because "≥" permits it and because rule 3 independently requires a quorum for any
-   *weakening* change, so an equal threshold cannot be used to erode recovery unilaterally.
-
-   **Closing the cross-kind gap: no single weak factor may rotate (normative).** Leaving cross-kind
-   pairs unconstrained has a dangerous direction the same-kind check above does not catch: a
-   `rotate_threshold` containing a single-count, non-`Ik` predicate is satisfied by **one**
-   compromised factor no matter how strong `recover_threshold` is. `recover_threshold =
-   {Guardians(3)}`, `rotate_threshold = {Phrase}` passes the same-kind check (different kinds,
-   unconstrained), yet one stolen phrase can now rewrite the policy that three guardians are
-   required merely to *recover* — the exact single-compromised-factor takeover this rule's
-   headline forbids. Therefore: **`rotate_threshold` MUST NOT be satisfiable by a single non-`Ik`
-   factor unless that same factor, alone, also satisfies `recover_threshold`.** `Ik` is exempted
-   from this specific check — not because it is weak, but because rule 3 already forbids `IK`
-   alone from executing a *weakening* change regardless of what `rotate_threshold` contains, so
-   the exemption does not reopen the takeover this check exists to close.
-
-   **Honest limit, stated rather than papered over:** cross-kind pairs beyond the single-factor
-   case just closed remain unconstrained, because there is no principled way to rank "a recovery
-   phrase" against "two guardians" — any further ordering imposed on them would be invented, and
-   a naive one (e.g. requiring every `rotate_threshold` predicate to also appear in
-   `recover_threshold`) would reject legitimate policies such as `recover = {Phrase}`, `rotate =
-   {Ik, Guardians(2)}`, which is safe under this rule's own rationale (the phrase-holder recovers
-   but cannot rotate). What is left open is only multi-factor cross-kind comparisons, e.g.
-   `recover = {Devices(2)}`, `rotate = {Guardians(2)}`, where no single factor suffices either way
-   and no principled ranking exists. A deployment wanting stricter cross-kind guarantees must
-   express them by choosing kinds deliberately, not by relying on this check.
+   **Honest limit, stated rather than papered over:** multi-factor cross-kind clauses (`n ≥ 2`)
+   remain unconstrained, because there is no principled way to rank "two guardians" against "two
+   devices" — inventing an ordering would be false precision, and a naive one (e.g. requiring
+   every `rotate_threshold` predicate to also appear in `recover_threshold`) would reject
+   legitimate policies such as `recover = {Phrase}`, `rotate = {Ik, Guardians(2)}` (the
+   phrase-holder recovers but cannot rotate — safe under this rule's own rationale). A deployment
+   wanting stricter cross-kind guarantees expresses them by choosing kinds deliberately, not by
+   relying on this check.
 3. **Weakening changes need the quorum, not `IK` alone (compromise defense).** A policy change
-   that **removes or weakens any recovery factor** (drops a method, lowers a threshold, evicts a
-   guardian/device) MUST satisfy `rotate_threshold` **even when signed by `IK`** — `IK` alone MUST
-   NOT be sufficient to weaken recovery. This closes the *stolen-`IK`* takeover where an attacker
-   proactively rewrites recovery to evict the owner and install their own factors. **Additive,
-   non-weakening** changes (adding a redundant factor) MAY be signed by `IK` alone.
+   classified **weakening** by §1.4a Table D — it drops a method, lowers a threshold, evicts a
+   guardian/device, **or re-admits a factor identity currently flagged evicted anywhere in the
+   policy's hash chain** — MUST satisfy `rotate_threshold` **even when signed by `IK`**: `IK`
+   alone MUST NOT be sufficient to weaken recovery. This closes the *stolen-`IK`* takeover where an
+   attacker proactively rewrites recovery to evict the owner and install their own factors.
+   **Additive, non-weakening** changes (adding a genuinely new factor) MAY be signed by `IK` alone.
 
-   **Eviction is durable — weakening is judged against the CHAIN, not the previous version alone
-   (normative).** Re-adding a factor that an earlier version **evicted** is itself a weakening
-   change, and MUST satisfy `rotate_threshold` and the rule-4 veto window exactly as the eviction
-   did. A verifier MUST evaluate a proposed policy against the **hash chain** (`prev`, §1.3), not
-   only against its immediate predecessor; if it cannot obtain the chain it MUST fail closed rather
-   than assume the change is additive.
-
-   Without this, the pairwise reading defeats rules 3 and 4 in two steps. Evicting a compromised
-   guardian correctly demands a quorum and a 72 h window. But the *next* version, compared only
-   against the one before it, sees that guardian's return as **purely additive** — so `IK` alone
-   suffices and the eviction is silently undone, with neither quorum nor veto.
-
-   The escalation this creates is the sharp part. An attacker who transiently holds `IK` cannot
-   *weaken* the policy — rule 3 forbids that. But under the pairwise reading they can **re-add a
-   factor they control that was previously evicted**. The owner then detects the compromise and
-   rotates `IK` (§1.5), which is the correct response — and the attacker's factor **survives the
-   rotation**, because it lives in the recovery policy rather than in the key. A temporary key
-   compromise becomes a permanent foothold in recovery, reached without ever satisfying a quorum.
+   **Eviction is durable (normative).** Weakening is classified against the `Evicted` ledger of
+   §1.4a Table D — a running accumulator over the **whole hash chain** (`prev`, §1.3), not a diff
+   against the immediate predecessor alone. Re-admitting a factor an earlier version evicted MUST
+   satisfy `rotate_threshold` and the rule-4 veto window exactly as the eviction did, however many
+   versions separate the two events: the ledger is cleared only by a later quorum-and-veto-
+   conforming readmission, never by comparing two adjacent versions in isolation. A verifier that
+   cannot obtain the chain MUST fail closed rather than assume a change is additive. §1.4a walks
+   the two-step evasion this closes: a pairwise (version-vs-predecessor-only) reading lets a
+   transiently-compromised `IK` re-admit a factor it controls that a genuine quorum had evicted,
+   turning a temporary key compromise into a permanent foothold in recovery, reached without ever
+   satisfying a quorum — the chain-wide ledger makes that path unreachable.
 4. **Asymmetric veto window on weakening changes.** A recovery-weakening change MUST be published
    to the transparency log and take effect only **after a veto/delay window** (§16), during which
    the owner's monitoring devices (§3.5) can detect it and publish a **counter-signed veto/abort**.
@@ -523,6 +504,175 @@ Rules:
 6. **Logged & detectable.** Every version is published to the transparency log; the owner's
    other devices monitor it and MUST alert on a change they did not initiate (intrusion
    detection, §3.5).
+
+### 1.4a The recovery access structure (normative)
+
+`recover_threshold` and `rotate_threshold` are re-expressed here as a single formal object so
+`RecoveryPolicy::verify()` is a **total, decidable membership test** — no case is settled by
+comparing a partial order by hand, and no exception is enumerated after the fact by finding a
+counterexample. This is the authoritative definition rules 2–4 above reference; it replaces
+hand-patched prose with one closed model, not a weaker or stronger security bar.
+
+**Factors.** A policy version's enrolled factor universe is
+`Factors = {phrase} ∪ Devices ∪ Guardians ∪ {ik}`, where `Devices`/`Guardians` are the concrete
+device/guardian identities named in `methods` at that version. A signer *presents* a held set
+`H ⊆ Factors` — the factors whose signatures accompany the candidate `RecoveryPolicy`.
+
+**Table A — the access structure a `Threshold` generates.**
+
+| `MethodPredicate` clause | Kind | Minimal authorised sets it contributes |
+|---|---|---|
+| `Phrase` | phrase | `{ {phrase} }` |
+| `Devices(n)` | device | every `n`-subset of `Devices` |
+| `Guardians(n)` | social | every `n`-subset of `Guardians` |
+| `Ik` | ik | `{ {ik} }` |
+
+`Γ(T)` — the access structure `Threshold T` generates — is the **upward closure** (superset
+closure) of the union of the minimal sets its `any_of` clauses contribute: `H ∈ Γ(T)` iff some
+clause's minimal set is a subset of `H`. Each clause is, on its own, a plain "≥ n distinct factors
+of one kind" gate — monotone by itself, since holding *more* of a kind still satisfies "at least
+n" — and `any_of` is a disjunction (a union of monotone sets is monotone), so **`Γ(T)` is monotone
+by construction**: `H ∈ Γ(T) ∧ H ⊆ H' ⟹ H' ∈ Γ(T)`. This is design goal (a) (no "adding a factor
+removes authorisation" pathology) satisfied structurally: `Threshold` has no operator — no
+negation, no AND-across-kinds, no "exactly n" — capable of expressing a non-monotone rule, so
+review cannot miss one.
+
+*Concrete instance* (used in the walkthrough below): three guardians `{G1, G2, G3}`,
+`recover_threshold = rotate_threshold = {Guardians(2)}`. `Γ({Guardians(2)})`'s minimal authorised
+sets are exactly `{G1,G2}`, `{G1,G3}`, `{G2,G3}` — any superset (all three guardians, or any of
+those pairs plus other factors) is authorised too, by the closure above.
+
+**Table B — well-formedness of `rotate_threshold` against `recover_threshold` (rule 2, exhaustive
+and total).** Apply exactly one row to every clause `(kind, n)` in `rotate_threshold.any_of`:
+
+| # | Case | Verdict | Why |
+|---|---|---|---|
+| B1 | `kind = Ik` | **WF** | rule 3 is an absolute bar on `IK`-alone weakening, independent of what an `Ik` clause would otherwise license |
+| B2 | `recover_threshold` has a clause of the **same** kind, count `m` | **WF iff `n ≥ m`** | counts are monotone within a kind; a same-kind pair that rotates more cheaply than it recovers is the shape a numeric comparison must catch |
+| B3 | no same-kind `recover_threshold` clause, and `n ≥ 2` | **WF** (unconstrained) | honest residual — no principled ranking between different kinds' multi-factor coalitions, and no single compromised factor reaches a genuine `n ≥ 2` cross-kind clause |
+| B4 | no same-kind `recover_threshold` clause, and `n = 1` | **NOT WF** | a lone factor of a kind `recover_threshold` doesn't independently accept at that strength must never be enough to rotate — "no single weak factor rotates" falls out of the table instead of needing its own hand-written rule |
+
+`rotate_threshold` is well-formed (satisfies rule 2) iff **every** clause passes; a non-WF clause
+is rejected at publish (`ERR_RECOVERY_THRESHOLD_INVALID`, `0x010C`). B1–B4 are exhaustive over
+`(kind, n)` — every clause hits exactly one row — so this is a *total* function of the two
+`Threshold`s' clause lists, not a set of cases discovered by inspection.
+
+*Worked check (unchanged outcomes on the existing `DMTAP-IDENT-90` vectors, §21.3):*
+
+| Policy | Clause(s) checked | Row(s) | Verdict |
+|---|---|---|---|
+| `recover={Guardians(2)}`, `rotate={Guardians(1)}` | `(social,1)` vs. `m=2` | B2 | 1 ≥ 2 false → **reject** |
+| `recover={Devices(2),Phrase}`, `rotate={Devices(1),Ik}` | `(device,1)` vs. `m=2`; `(ik,–)` | B2, B1 | 1 ≥ 2 false → **reject** |
+| `recover={Phrase}`, `rotate={Ik,Guardians(2)}` | `(ik,–)`; `(social,2)` | B1, B3 | both WF → **accept** |
+| `recover=rotate={Guardians(3)}` | `(social,3)` vs. `m=3` | B2 | 3 ≥ 3 → **accept** |
+| `recover={Guardians(3)}`, `rotate={Phrase}` | `(phrase,1)`, no same-kind recover clause | B4 | **reject** |
+| `recover={Devices(2)}`, `rotate={Guardians(2)}` | `(social,2)`, no same-kind recover clause | B3 | `n=2` → **accept** (honest residual) |
+
+**Table D — weakening classification (rules 3–4, a chain-wide, not pairwise, check).** Let
+`Factors_i` be the concrete factor identities `methods` names at version `i`. Define the
+**evicted ledger** recursively over the chain: `Evicted_0 = ∅`; for `i > 0`,
+`Evicted_i` = (`Evicted_{i-1}` ∪ (`Factors_{i-1}` \ `Factors_i`)) minus whichever identities
+version `i` legitimately re-admits (only possible when version `i` itself satisfies the
+weakening bar below). In words: every factor identity dropped by any version accumulates into
+`Evicted` and is cleared **only** by a later quorum-and-veto-conforming version that re-admits it
+— never by a bare `IK` signature. A candidate version `i+1` is **weakening** iff any of:
+
+| Case | Condition |
+|---|---|
+| D1 (count lowered) | some clause's `n` is lower than the corresponding clause at version `i` |
+| D2 (kind dropped) | a kind present at version `i` is absent at version `i+1` |
+| D3 (evicted factor re-admitted) | `Factors_{i+1} ∩ Evicted_i ≠ ∅` |
+
+D1/D2 are the ordinary shrink cases; **D3 is the "eviction is durable" fix**, evaluated against
+`Evicted_i` — the running, whole-chain accumulator — not against version `i` alone. This is what
+makes the two-step (or *n*-step) bypass structurally impossible: evicting a factor at version `i`
+puts it in `Evicted_i` **permanently**, until a later version clears it *by satisfying the same
+bar the eviction did*. No number of intermediate "looks-additive-against-its-immediate-
+predecessor" hops changes that, because the accumulator is reset only by a quorum-and-veto-
+conforming readmission — nothing else touches it.
+
+**`RecoveryPolicy::verify()` — total, decidable, no hand-enumerated exceptions.**
+
+```
+fn verify(chain: &[RecoveryPolicy], candidate: &RecoveryPolicy) -> Result<(), Error> {
+    let prev = chain.last();
+
+    // Rule 1 — authenticated.
+    if !(signed_by_ik(candidate)
+         || satisfies(candidate.sig, prev.rotate_threshold, prev.factors())) {
+        return Err(ERR_RECOVERY_POLICY_UNAUTHENTICATED);        // 0x010B
+    }
+
+    // Rule 2 — structural well-formedness (Table B). Pure function of the two Thresholds.
+    for clause in &candidate.rotate_threshold.any_of {
+        if !well_formed(clause, &candidate.recover_threshold) {
+            return Err(ERR_RECOVERY_THRESHOLD_INVALID);         // 0x010C
+        }
+    }
+
+    // Rules 3/4 — weakening classification against the whole chain (Table D).
+    let evicted = evicted_ledger(chain);                        // accumulator, never pairwise
+    if is_weakening(prev, candidate, &evicted) {
+        if !satisfies(candidate.sig, prev.rotate_threshold, prev.factors()) {
+            return Err(ERR_RECOVERY_WEAKENING_UNQUORUMED);      // 0x010E
+        }
+        if !veto_window_elapsed_unvetoed(candidate) {
+            return Err(ERR_RECOVERY_VETO_WINDOW);               // 0x010F
+        }
+    }
+
+    check_version_and_chain(prev, candidate)                    // 0x0104 / 0x0105, unchanged
+}
+```
+
+Every branch returns; every predicate (`well_formed`, `is_weakening`, `evicted_ledger`) is a
+finite computation over `candidate` and a bounded chain scan. There is no residual case left to
+prose or to an implementer's judgement.
+
+**Why this meets the three design goals:**
+
+- **(a) Monotonicity** is structural (Table A) — no clause shape can express a "more factors ⇒
+  less authorised" rule, so it cannot occur by construction, not by review.
+- **(b) The bypass is structurally excluded** — the only path to a weakening change accepted by
+  `verify()` is `is_weakening ⟹ satisfies(rotate_threshold)`; there is no branch that accepts a
+  weakening change without a genuine minimal authorised set of `rotate_threshold` behind it, and
+  `Evicted` is chain-wide, so no sequence of hops opens a path around that branch.
+- **(c) `verify()` above is total and decidable**: B1–B4 and D1–D3 are exhaustive case splits
+  fixed by the shape of `Threshold`/`RecoveryPolicy`, not a list grown by finding
+  counterexamples.
+
+**Walking the bypass this replaces (verification).** Using the concrete instance above —
+guardians `{G1, G2, G3}`, `recover_threshold = rotate_threshold = {Guardians(2)}`:
+
+1. `v1`: `G3` is compromised and evicted — `methods` drops `G3`, quorum-signed by `{G1,G2}`
+   (a genuine minimal authorised set of `Γ(rotate_threshold)`), published, and clears the veto
+   window. `Factors_1 = {G1, G2}`; `Evicted_1 = {G3}`.
+2. `v2`: an attacker holds a transiently-compromised `IK` and publishes a policy that re-adds
+   `G3`, signed by `IK` alone. `Factors_2 = {G1, G2, G3}`. Table D: `Factors_2 ∩ Evicted_1 =
+   {G3} ≠ ∅` → **D3, weakening** — regardless of the fact that, compared to `v1` alone, `v2` looks
+   purely additive. Rule 3 then requires `satisfies(candidate.sig, rotate_threshold, …)`, which is
+   **false** for a bare `IK` signature → `verify()` returns `ERR_RECOVERY_WEAKENING_UNQUORUMED`
+   (`0x010E`) and `v2` is rejected. `Evicted_2` still contains `G3`.
+3. The owner detects the compromise (KT monitoring, rule 6) and rotates `IK` (§1.5). Because `v2`
+   was never accepted, `G3` never re-entered `Factors`, and the rotation carries no attacker
+   foothold forward — the "temporary key compromise becomes a permanent foothold in recovery"
+   escalation has no step at which it can occur.
+
+`G3` can leave `Evicted` again only via a version that is itself `{Guardians(2)}`-quorum-signed
+(e.g. `{G1,G2}` deliberately re-admitting `G3`) and survives the veto window — exactly the bar its
+eviction required, satisfied genuinely rather than laundered through an `IK`-alone "addition".
+
+**Honest limit (unchanged from rule 2 above).** Multi-factor cross-kind clauses beyond the
+singleton case (Table B, row B3) remain unranked by design: there is no principled way to say
+"two guardians" dominates or is dominated by "two devices," and inventing one would be false
+precision. A deployment wanting a stricter cross-kind bar expresses it by choosing kinds
+deliberately, not by relying on this check.
+
+**Future work (informative).** This section's state is small enough — Tables A/B/D plus the
+unrelated version/chain check — to be a reasonable Tamarin/ProVerif target: model `RecoveryPolicy`
+transitions as a labelled transition system over `(chain, Evicted)` and state the bypass this
+section closes (D3) as a reachability query. A machine-checked model is not attempted here; it is
+flagged as a natural next step, not a substitute for this section's decidable definition.
 
 ### Recovery flows
 
