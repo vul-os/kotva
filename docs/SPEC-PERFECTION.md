@@ -47,6 +47,17 @@ resolving + BCP-14 correct. Commit per wave; `git pull --rebase` before push; on
   preimages (match the Wakala impl's logged descriptor layout where sensible), so "Accountable" is
   wire-checkable.
 
+**W1-ripple (mixnet-demotion cross-file contradictions — fix right after A1b commits, one agent):**
+The demotion moved §4.4 to `docs/research/mixnet.md` but these untouched docs still present the mixnet as
+default/normative or dangle refs to the moved section — reconcile to opt-in/research + `fast` default:
+- `14-scaling.md` §14 table "Mix … **default-on** (§4.4.2a)" + heading "14.6.3 Tie-in to the mixnet profiles
+  (**normative**)" → opt-in/non-default + non-normative; repoint §4.4.* refs to `docs/research/mixnet.md`.
+- `27-realtime-media.md` §150/§342 "`private` (mixnet) the default for mail and all control messages" →
+  restate: default is `fast`; `private`/mixnet is opt-in/research.
+- `18-wire-format.md §1740` `min_hops` — repoint moved `§4.4.10`/`§6.8` refs to `docs/research/mixnet.md`;
+  soften "the mixnet's anonymity guarantee" to the opt-in/research framing.
+- Sweep for any other doc still saying mixnet "default"/"normative"/"guarantee" (grep) and reconcile.
+
 **W2 (substantive residuals — after W1 commits, watch overlaps):** RecoveryPolicy §1.4 formal model
 (01/13); HPKE-mode pinned Base (02/05/18); SYNC split minimal-core+extension + open-namespace determinism
 (substrate/SYNC); premature-generality cuts (suites 0x03-0x05→appendix; compute-kind note; media-relay/
