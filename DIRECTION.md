@@ -120,6 +120,12 @@ subdomains), **indexer** (search / discovery), **labeler** (moderation), **match
 Canonical, exhaustive list:
 [`coordinator/CONTRACT § 5`](coordinator/CONTRACT.md).
 
+**`indexer` and `matcher` carry the sharpest version of this risk, and it is a named open
+problem, not a solved one.** Both are "authorize, never classify" by contract — but search,
+ranking, and match-assignment are exactly the functions through which real markets
+re-concentrate power even under low switching costs; a fenced role does not, on its own, prove
+the fence holds. See §8.
+
 ---
 
 ## 5. Money and trust — no token, ever
@@ -133,6 +139,10 @@ Canonical, exhaustive list:
   coordination problem a token cannot actually solve. Free tiers, subsidies, and even ads are
   *operator policy* a coordinator may offer — optional, swappable, escapable by self-hosting —
   never a protocol requirement.
+- **Open problem: coordinator-funding sustainability.** Whether charge-for-service alone — no
+  token, no ads, zero lock-in, no paid classification — sustainably funds coordinators at scale
+  is unproven: an open economic question, not a solved one
+  ([`coordinator/CONTRACT § 6`](coordinator/CONTRACT.md)).
 
 ---
 
@@ -185,6 +195,18 @@ trust and legal residual. Four root ceilings recur, and everything hard traces t
 Two things KOTVA genuinely **cannot** give, even in principle, and says so: **coercion-
 resistant public-election voting** (harder than anti-Sybil) and **surveillance-based ad
 markets** (rejected by design). Everything else composes.
+
+One further item is a **named open problem** — a candidate fix exists but is unproven, unlike
+the ceilings above, which have no fix even proposed (a second open problem, coordinator-funding
+sustainability, is named at §5):
+
+- **Discovery / indexer / matcher re-centralization.** `indexer` and `matcher` are
+  contractually authorize-only and swappable (§4), but that does not by itself stop the effect
+  real markets show repeatedly: whoever runs search, ranking, or match-assignment accrues power
+  over what gets found and who gets matched, however low the switching cost. The proposed
+  structural answer — **verifiable-completeness indexing**, where an index proves (not merely
+  discloses its policy) that it did not selectively omit or bury a result — has **no deployed
+  precedent**. Named here as open, not claimed solved.
 
 ---
 

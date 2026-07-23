@@ -17,8 +17,8 @@ never change ([DIRECTION §9](../DIRECTION.md), "future-proof by seams").
 |---|---|---|---|---|
 | **Identity recovery** | Account abstraction (ERC-4337, EIP-7702), passkeys, MPC (Turnkey/Privy/Web3Auth/Lit) | Kills irreversible key-loss: social recovery, passkey backup, MPC shares. ~200M smart wallets in 2026. | Solid, mainstream. Recovery finality is real; UX is web2-grade. | **adopt** |
 | **Attestation** | EAS (Ethereum Attestation Service), W3C Verifiable Credentials | Signed claims about identities — "X vouches Y is licensed/over-18/KYC'd". | Plumbing is mature; the *portable-reputation* layer on top is nascent. | **adopt** |
-| **Reputation** | OpenRank (EigenTrust, TEE-verified over restaking) | Sybil-resistant, context-specific reputation compute over the attestation graph. | Real; global reputation quality still depends on the personhood anchor below. | **adopt (evolving)** |
-| **Proof-of-personhood** | World ID; Human Passport (ex-Gitcoin Passport, 2M+ users, secured $500M+) | The anti-Sybil anchor under reputation. | **Imperfect** — every method trades off (biometrics+operator, or passport-zk excludes the undocumented). Local scale uses web-of-trust instead. | **adopt (ceiling)** |
+| **Reputation** | OpenRank (EigenTrust, TEE-verified over restaking) | Sybil-resistant, context-specific reputation compute over the attestation graph. | Real, but **does not compose cleanly over KOTVA's own objects** — the disjoint truster/trustee keys (REP-1/REP-2) degrade the transitive engine to a near-non-transitive tally, and distrust is dropped, not aggregated ([`primitives/REPUTATION.md § 9`](../primitives/REPUTATION.md)). Global reputation quality also still depends on the personhood anchor below. | **adopt (degraded — see REPUTATION §9)** |
+| **Proof-of-personhood** | World ID **and** a structurally-different second anchor (e.g. a zk-passport binding such as Human Passport / OpenPassport) — **interop with ≥2 structurally-different personhood bindings is a v0 target**, not a future swap; see below | The anti-Sybil anchor under reputation. | **Imperfect, and single-vendor today for the primary anchor** — World ID is one commercial vendor operating under active, multi-jurisdiction biometric-privacy regulatory pressure. Every method trades off (biometrics+operator excludes differently than passport-zk, which excludes the undocumented). Local scale uses web-of-trust instead. | **adopt (ceiling)** |
 | **Payments / settlement** | x402 (HTTP-402 stablecoin, Coinbase+Cloudflare); USDC on Base/Solana | Money rail + micropayments + agentic payments. | Infra is real (165M+ txns); *genuine* demand still thin (~$28k/day real). | **adopt** |
 | **Streaming / subscriptions** | Payment channels (Lightning/state channels), Superfluid-class streams | Recurring + streaming money over the settlement rail. | Works; recurring-pull UX still rough. | **adopt** |
 | **Storage — hot** | Walrus (Sui; erasure-coded, CDN-like, ~1/5 cloud cost) | Fast retrieval for media/blobs — the Evermesh CDN answer. | Newer; behaves like a CDN, not an archive. | **adopt** |
@@ -32,6 +32,29 @@ never change ([DIRECTION §9](../DIRECTION.md), "future-proof by seams").
 | **Mesh reachability** | libp2p — Circuit Relay v2, DCUtR, Kademlia, Noise, QUIC | Key-addressed reachability behind CGNAT; content-blind relay. | Mature; DMTAP §4 profiles it directly. | **adopt** |
 | **Messaging crypto** | MLS (RFC 9420) | Group ratchet for 1:1, chat, files, and (via SFrame) media keys. | Standards-track, mature. | **adopt** |
 | **Verifiable coordination** | TEEs (Intel SGX / AMD SEV / ARM) | Lets a coordinator hold a global view *without* seeing plaintext or being able to cheat — the `attested` assurance level. | **New trust dependency** — trades operator-trust for chip-vendor-trust; side-channel history. Disclosed, not trustless. | **adopt (disclosed)** |
+
+---
+
+## Personhood — v0 requires ≥2 structurally-different bindings
+
+The proof-of-personhood row above names **World ID** first, but a single commercial biometric
+vendor — under active, multi-jurisdiction regulatory pressure over biometric data — is not an
+anchor KOTVA can responsibly stake reputation portability on alone. **v0 target, not a
+future-swap option:** interoperate with **at least two structurally-different personhood
+bindings** — for example a biometric anchor (World ID) **and** a zk-passport anchor (Human
+Passport / OpenPassport) — so no single vendor's regulatory exposure, outage, or policy change
+can strand a subject's reputation. Each method keeps its own honest exclusion tradeoff, and
+adding a second binding discloses that rather than resolving it: biometric enrolment excludes
+those unwilling or unable to enrol; passport-zk excludes the undocumented. Concretely: a
+conformant implementation accepts anchors from at least two structurally-different bindings,
+never just the one named first — the normative acceptance rule belongs in the profile that
+consumes the anchor, not in this binding index.
+
+A crypto-anchored personhood proof also assumes a wallet-holding, key-managing user. **A
+non-crypto, day-one recovery/personhood path is required for mainstream adoption** — most
+users hold no wallet and have signed no key. This is a stated v0 requirement, not yet a
+specified binding; it slots in as a future binding swap without a rearchitecture
+([`DIRECTION § 9`](../DIRECTION.md), "future-proof by seams").
 
 ---
 

@@ -119,6 +119,10 @@ Canonical, exhaustive kind list (11 kinds, incl. `compute` and the load-bearing
 `custodial-escrow` exception): [`coordinator/CONTRACT § 5`](coordinator/CONTRACT.md) — that
 table governs; it is not reproduced here to avoid drift.
 
+`indexer` and `matcher` add **reach, never authority**, by contract — but whether a fenced,
+swappable role actually stops search, ranking, and matching from re-concentrating the way real
+markets do is a **named open problem**, not a proven property: [`DIRECTION § 8`](DIRECTION.md).
+
 ---
 
 ## ⑤ Bindings — what KOTVA adopts instead of reinventing
@@ -297,6 +301,10 @@ TEE / `declared` honest-trust); **no protocol token, ever** ([`DIRECTION § 5`](
   **physical-event oracle**, **legal / authoritative-issuer**, or **editorial governance**
   ([`DIRECTION § 8`](DIRECTION.md)). They are consequences of not being a single surveilling company —
   disclosed, not solved; several are the point.
+- **Discovery / indexer / matcher re-centralization is a named open problem, not a solved one.**
+  A swappable, authorize-only `indexer`/`matcher` (CONTRACT §4) does not by itself prove search,
+  ranking, and match-assignment avoid re-concentrating the way real markets do; the proposed fix —
+  verifiable-completeness indexing — has **no deployed precedent** ([`DIRECTION § 8`](DIRECTION.md)).
 - **Two things are refused, not missing.** Coercion-resistant public-election voting (harder than
   anti-Sybil) and surveillance-based ad markets (rejected by design) — [`DIRECTION § 8`](DIRECTION.md).
 - **The `attested` level trades trust, it does not remove it.** TEEs close several gaps by exchanging
