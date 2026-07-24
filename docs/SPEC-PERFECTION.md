@@ -324,6 +324,22 @@ high-traffic audited surfaces** (`SPEC.md`, `DIRECTION.md`, `00-overview.md`,
 this round's evidence alone: six fixes landed in `24-video-profile.md` and `conformance/*` today, and
 a copy-edit pass over text that changed hours ago is exactly the churn W5 is sequenced to avoid.
 
+### CRITIQUE-LENS ROTATION (founder directive 2026-07-24: "deep research… critique and criticise and look from different perspectives")
+
+Internal review has hit diminishing returns: the spec is now largely self-consistent, so re-reading it
+against itself mostly re-confirms it. The remaining defects are the ones **no internal pass can see**.
+Rotate these lenses, one or two per wave, and record the result here. A lens that returns clean is a
+result worth recording, not a wasted wave.
+
+| # | Lens | The defect class only this lens can find | Status |
+|---|---|---|---|
+| L1 | **Adopted-standards accuracy** (external, web research) | The spec mis-describes an external standard, or the standard moved under it. KOTVA "binds, doesn't reinvent", so a wrong binding is load-bearing. | dispatched 2026-07-24 |
+| L2 | **Prior art / deployed systems** (Matrix, Nostr, ActivityPub, Signal, DIDComm, IPFS, Farcaster) | A failure these systems already hit in production and documented — metadata leakage, relay economics, moderation collapse, key-loss UX, spam. Ours is a paper design; theirs have scars. | pending |
+| L3 | **IETF/RFC-editor lens** | RFC-grade structure: BCP-14 correctness, IANA Considerations completeness, Security Considerations per-section, normative vs informative separation, ambiguity an independent implementer would resolve differently. | pending |
+| L4 | **Independent implementer** | Can a competent engineer build an interoperating node from the text alone? Every "obvious" step left unwritten is an interop break waiting to happen. | pending |
+| L5 | **Operator / economics** | Can anyone actually run this and survive? The coordinator-funding open problem (§5) is disclosed but never stress-tested against real hosting/bandwidth/abuse costs. | pending |
+| L6 | **Privacy & regulatory** | GDPR Art 17 vs immutable published objects (TRACT §11's disclosed hard blocker), data-residency, lawful-intercept pressure on coordinators. | pending |
+
 ### W5 SAFETY CONTRACT — read before any spelling sweep
 
 **W5 is UNBLOCKED** as of the clean confirming pass over `SPEC.md` · `DIRECTION.md` ·

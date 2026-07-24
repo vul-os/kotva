@@ -128,7 +128,7 @@ kind / key numbers are a profile-and-registry concern, deliberately not fixed he
   rail (§4) it expires into the arbiter's ruling, enforced by co-signature; only where no signer,
   including the ruling's beneficiary, will act does the disclosed default (§10) govern.
 - **N-6 — The operator never holds identity keys.** An escrow operator holds a float; it MUST NOT
-  hold, recover, or sign as a party's `IK` or `DeviceCert` (TRACT §9.5; SEC-5). It authorizes and
+  hold, recover, or sign as a party's `IK` or `DeviceCert` (TRACT §9.5; SEC-5). It authorises and
   settles; it is not the identity substrate.
 - **N-7 — No token.** Any stake an arbiter or operator posts, and all settlement, MUST be an
   **existing asset** ([`DIRECTION § 5`](../DIRECTION.md), CONTRACT §6). ESCROW mints nothing.
@@ -248,7 +248,7 @@ ones here:
   An unsigned transition is not evidence of anything (TRACT §18.6).
 - **SEC-6 (coordinator).** The escrow operator and the arbiter MUST satisfy all four CONTRACT
   clauses — accountable, swappable (per-order, zero migration), self-hostable at local scale (§7),
-  visibility-declared (`terminating` for evidence, disclosed, CONTRACT §5). They **authorize and
+  visibility-declared (`terminating` for evidence, disclosed, CONTRACT §5). They **authorise and
   rule; they never classify content**. Their audit is one-directional (R-6).
 - **SEC-6a (custody risk).** A *custodial* escrow coordinator holds the trade float for the trade
   window and is a live counterparty: it can abscond, become insolvent, or freeze funds. It MUST

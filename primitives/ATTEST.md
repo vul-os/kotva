@@ -114,7 +114,7 @@ Revoke = {
   carrier's `sig` MAY be produced by a `DeviceCert` operational subkey (§1); a verifier MUST confirm
   `signer == issuer` **or** a valid non-revoked `DeviceCert` chain from `signer` to `issuer` before
   accepting (identical to the §22.3.3 `PubAnnounce` rule; the equivalent MOTE rule for the private
-  carrier is `Payload.from`'s device-key authorization, §1).
+  carrier is `Payload.from`'s device-key authorisation, §1).
 - **Pseudonymous-issuer mode (normative — for deliberately unlinkable claim classes).** Where a claim
   class requires the issuer to be **unlinkable** to a root identity — the web-of-trust edges of
   [`REPUTATION.md`](REPUTATION.md) REP-2 are the load-bearing case — `issuer` MAY instead be a
@@ -176,7 +176,7 @@ fields; it MUST NOT invent a parallel attestation object (the waist adoption rul
 - **R-ATT-6 (physical facts go through an oracle).** A claim about a **physical event** ("the
   parcel arrived", "the ride completed") **MUST** be issued by an `oracle`
   ([CONTRACT §5](../coordinator/CONTRACT.md)) — accountable, swappable, self-declared visibility
-  `terminating`, disclosed. The oracle *authorizes and attests*; it **MUST NOT** classify content
+  `terminating`, disclosed. The oracle *authorises and attests*; it **MUST NOT** classify content
   ([CONTRACT §4](../coordinator/CONTRACT.md)).
 - **R-ATT-7 (personhood is a binding, not our biometrics).** A proof-of-personhood attestation
   **MUST** bind to World ID / Human Passport ([bindings](../bindings/README.md)); the substrate
@@ -194,7 +194,7 @@ fields; it MUST NOT invent a parallel attestation object (the waist adoption rul
 - **OFFER** attaches attestations — an issuer's "licensed", a personhood proof, a
   `PurchaseAttestation` — to a listing, so a buyer weighs the seller by verifiable claims, not by
   a platform's opaque badge. Attestation and listing are both §22 public objects.
-- **MATCH / RESERVE** may *authorize* participation on a required attestation (e.g. personhood
+- **MATCH / RESERVE** may *authorise* participation on a required attestation (e.g. personhood
   before joining an order book). This is **authorize-never-classify**
   ([CONTRACT §4](../coordinator/CONTRACT.md)): the gate checks *who you are*, never *whether your
   content is wanted*.
