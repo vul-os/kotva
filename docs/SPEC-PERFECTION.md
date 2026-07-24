@@ -1,8 +1,8 @@
-# KOTVA spec-perfection — driven by the Wakala session (founder-authorised)
+# KOTVA spec-perfection — driven by the Ephor session (founder-authorised)
 
 Temporary process file (delete at convergence). Edits land directly in kotva; **no co-author footer**.
-The Wakala session is driving this pass per founder; the spec session should HOLD spec edits to avoid
-collision (see wakala COORDINATION.md).
+The Ephor session is driving this pass per founder; the spec session should HOLD spec edits to avoid
+collision (see ephor COORDINATION.md).
 
 ## Founder calls — DECIDED (agents obey these)
 - **MIXNET = DEMOTE.** Move `04-transport §4.4` (Sphinx/Loopix mixnet, ~883 lines) and `09-anti-abuse
@@ -24,7 +24,7 @@ collision (see wakala COORDINATION.md).
   day-one path; disclose the single-vendor (World ID) fragility.
 - **Custodial escrow:** disclose + accept (the one honest load-bearing exception); hold it to the same
   MUST-verify-stake bar as other kinds; add it as a disclosed self-host exception class in CONTRACT §2.3.
-- **Naming:** keep legacy brands (DMTAP / TRACT / WRAP) primary as aliases; **wakala** = the coordinator
+- **Naming:** keep legacy brands (DMTAP / TRACT / WRAP) primary as aliases; **ephor** = the coordinator
   umbrella (provisional resolved).
 - **SA/British English + RFC layout: LAST**, after correctness is frozen (don't re-spell churned text).
 
@@ -44,7 +44,7 @@ resolving + BCP-14 correct. Commit per wave; `git pull --rebase` before push; on
 - **A2 contract + wire-debt** — coordinator/CONTRACT (§5 canonical kinds; §6 economics + the honesty note;
   custodial-escrow bar §2.3/§6), 07-gateway, 12-operators, 26-legacy-adapters, 18-wire-format, 21-errors:
   write **GatewayAuthz / CoordinatorDescriptor / SignedTariff / UsageReceipt** CDDL + DS-tags + signing
-  preimages (match the Wakala impl's logged descriptor layout where sensible), so "Accountable" is
+  preimages (match the Ephor impl's logged descriptor layout where sensible), so "Accountable" is
   wire-checkable.
 
 **W1-ripple (mixnet-demotion cross-file contradictions — fix right after A1b commits, one agent):**
@@ -72,7 +72,7 @@ default/normative or dangle refs to the moved section — reconcile to opt-in/re
   arithmetic, §18.1.5 multihash) — an appendix move would dangle 30+ refs and break the migration
   narrative, i.e. a regression not a simplification. Keep as-is. compute-kind note + media-relay/
   reachability collapse: DEFER to critique round 2 — act only if a fresh lens confirms real
-  over-engineering (avoid a risky kind-merge that ripples into the Wakala impl + CONTRACT §5).
+  over-engineering (avoid a risky kind-merge that ripples into the Ephor impl + CONTRACT §5).
 - [x] multi-homing RECOMMENDED (substrate/ROLES) — `7c89506`.
 - [x] REPUTATION→OpenRank "degraded" label + personhood ≥2 + discovery/indexer + coordinator-funding
   open problems (primitives/REPUTATION, bindings, profiles, DIRECTION/SPEC) — `5d05427`.
@@ -208,9 +208,9 @@ adversarial-verify layer is holding. After X/Y/Z/W land → **critique round 4**
 fixes; different lens mix) toward the two-consecutive-clean gate.
 
 ## PARALLEL TRACK — REACH profile (founder pivot 2026-07-23: "both in parallel" + "spec-first")
-The founder redirected to wakala's #1 gap (content-blind ingress) while this spec loop keeps converging in
+The founder redirected to ephor's #1 gap (content-blind ingress) while this spec loop keeps converging in
 the background. Decision: **spec-first** — finish the REACH profile in kotva (zone/descriptor + Noise
-control-channel handshake + REACH-* error codes) to freeze it, THEN implement the wakala
+control-channel handshake + REACH-* error codes) to freeze it, THEN implement the ephor
 `reachability-adapter` against it. **Disjointness rule for the background loop:** the REACH thread OWNS
 `profiles/reachability.md` (+ any new REACH wire additions to 18-wire-format/21-errors it introduces) —
 spec-perfection fix-agents MUST NOT touch those while REACH is being developed; critique may still READ
@@ -223,8 +223,8 @@ mis-citation that had produced an Asokan-vulnerable `nonce‖name`-with-no-bindi
 control frames (ReachRegister/ReachRegisterAck, session-local, unsigned); reconciled the adapter descriptor
 to §18.8a `CoordinatorDescriptor{kind=reachability-adapter}`; **no new §18 wire object, no new §21 code**;
 §7 states Noise secures the control leg ONLY (does not close the REACH-1a cert residual) + IK dual-signing-
-domain disclosure. Verified: SIGMA framing correct, no overclaim, lint clean. **Impl (wakala) follows the
-freeze** — logged to wakala/COORDINATION.md [2026-07-23 reach] with the 1-day libp2p-noise-0.56 API spike +
+domain disclosure. Verified: SIGMA framing correct, no overclaim, lint clean. **Impl (ephor) follows the
+freeze** — logged to ephor/COORDINATION.md [2026-07-23 reach] with the 1-day libp2p-noise-0.56 API spike +
 atomicity MUST. Round 4 will re-cover REACH under the convergence gate.
 
 **W3 (simplify):** compress per-doc SEC-invariant/honest-residual boilerplate to reference tables
@@ -278,11 +278,18 @@ surfaces when a specific mechanism is adversarially traced. Hunt by that heurist
 11. ATTEST↔REPUTATION issuer contradiction resolved (ATTEST gained a pseudonymous-issuer mode with its disqualification stated); REP-2's primitive-depends-on-profile citation fixed — `d6f7b5a`
 12. §10.1 structural-version (DS-tag/`v=dmtap`) migration specified — the hardest-to-change seam — `03f4647`; §10.3a falsifiable Core boundary + the **two senses of "Core"** disambiguated — `06f5f80`, `77f0897`
 
-**Audited → CLEAN:** substrate/* + TRACT + WRAP; §22 PUB; §25 PUBSUB; §5.2.1; SYNC; §18.8a objects;
-deterministic CBOR §18.1; §2.7; §3 (post-fix); §18.7.3; §1.4; DEPOT.
-**In flight:** §13 org/admin + §26 legacy adapters; §12 · §14 · §23 · §24.
-**Never audited (remaining risk is concentrated here):** §19 operations (partial), §16 parameters,
-§17 parity, §20 state machines (partial), §21 registries (partial).
+**Audited → CLEAN:** substrate/* + TRACT + WRAP; §26 legacy adapters; §22 PUB; §25 PUBSUB; §5.2.1;
+SYNC; §18.8a objects; deterministic CBOR §18.1; §2.7; §3 (post-fix); §18.7.3; §1.4; DEPOT;
+§12 operators + §14 scaling (**driver-inline**, not agent-audited — see caveat below).
+**Fixed, then clean:** §13 org/admin (rank escalation, `db52634`).
+**In flight:** §16 · §17 · §21 (numeric/registry drift); §19 · §20 (systematic pass).
+**Still un-audited:** §23 CAD · §24 video profiles.
+
+**Caveat on "inline" entries.** Driver-inline checks target the highest-yield axes (framing,
+overclaim, refs) and are NOT equivalent to an independent adversarial mechanism-trace. This mattered
+twice: an inline pass declared rounds 4-5 "clean" while a live HIGH sat in §1.4, and a driver fix to
+§18.3.2 was itself wrong (unbounded epoch retention fighting MLS forward secrecy) until an agent
+caught it. Treat inline-audited surfaces as lower-confidence than agent-audited ones.
 
 **Convergence honesty.** The three-round stop-rule has fired (≈8 rounds, each finding something real).
 Do NOT declare PERFECTED on a quiet round alone — the honest options are (a) keep hunting
