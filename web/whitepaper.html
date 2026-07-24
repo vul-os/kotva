@@ -629,42 +629,42 @@
 
       <figure>
         <div class="diagram-frame">
-          <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="coordTitle coordDesc">
+          <svg viewBox="0 0 700 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="coordTitle coordDesc">
             <title id="coordTitle">The coordinator contract — hired, not depended on</title>
             <desc id="coordDesc">Peer A and Peer B are joined by a solid direct line that works with no coordinator present. A coordinator node floats above, joined to both peers only by dashed, optional lines, carrying four fenced properties: accountable, swappable, self-hostable, and content-visibility declared.</desc>
             <g font-family="var(--font-mono)" font-size="12.5">
-              <rect x="40" y="200" width="140" height="56" rx="10" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.3"></rect>
-              <text x="110" y="224" text-anchor="middle" fill="var(--text-primary)" font-weight="700">PEER A</text>
-              <text x="110" y="242" text-anchor="middle" fill="var(--text-faint)" font-size="10.5">holds its own IK</text>
+              <rect x="40" y="220" width="140" height="56" rx="10" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.3"></rect>
+              <text x="110" y="244" text-anchor="middle" fill="var(--text-primary)" font-weight="700">PEER A</text>
+              <text x="110" y="262" text-anchor="middle" fill="var(--text-faint)" font-size="10.5">holds its own IK</text>
 
-              <rect x="520" y="200" width="140" height="56" rx="10" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.3"></rect>
-              <text x="590" y="224" text-anchor="middle" fill="var(--text-primary)" font-weight="700">PEER B</text>
-              <text x="590" y="242" text-anchor="middle" fill="var(--text-faint)" font-size="10.5">holds its own IK</text>
+              <rect x="520" y="220" width="140" height="56" rx="10" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.3"></rect>
+              <text x="590" y="244" text-anchor="middle" fill="var(--text-primary)" font-weight="700">PEER B</text>
+              <text x="590" y="262" text-anchor="middle" fill="var(--text-faint)" font-size="10.5">holds its own IK</text>
 
-              <line x1="180" y1="228" x2="520" y2="228" stroke="var(--text-secondary)" stroke-width="2"></line>
-              <text x="350" y="218" text-anchor="middle" fill="var(--text-secondary)" font-size="11.5" font-weight="700">direct — works with zero coordinators</text>
+              <line x1="180" y1="248" x2="520" y2="248" stroke="var(--text-secondary)" stroke-width="2"></line>
+              <text x="350" y="238" text-anchor="middle" fill="var(--text-secondary)" font-size="11.5" font-weight="700">direct — works with zero coordinators</text>
 
-              <rect x="235" y="26" width="230" height="70" rx="12" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.6"></rect>
-              <text x="350" y="52" text-anchor="middle" fill="var(--accent-ink)" font-weight="700">COORDINATOR</text>
-              <text x="350" y="70" text-anchor="middle" fill="var(--text-secondary)" font-size="11">gateway · relay · indexer ·</text>
-              <text x="350" y="84" text-anchor="middle" fill="var(--text-secondary)" font-size="11">labeler · arbiter · oracle …</text>
+              <rect x="235" y="20" width="230" height="66" rx="12" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.6"></rect>
+              <text x="350" y="45" text-anchor="middle" fill="var(--accent-ink)" font-weight="700">COORDINATOR</text>
+              <text x="350" y="62" text-anchor="middle" fill="var(--text-secondary)" font-size="11">gateway · relay · indexer ·</text>
+              <text x="350" y="76" text-anchor="middle" fill="var(--text-secondary)" font-size="11">labeler · arbiter · oracle …</text>
 
-              <path d="M240,90 L130,200" stroke="var(--border-emphasis)" stroke-width="1.3" fill="none" stroke-dasharray="5 4"></path>
-              <path d="M460,90 L580,200" stroke="var(--border-emphasis)" stroke-width="1.3" fill="none" stroke-dasharray="5 4"></path>
-              <text x="350" y="120" text-anchor="middle" fill="var(--text-faint)" font-style="italic" font-size="11">optional — adds reach, never gates function</text>
+              <path d="M240,86 L130,220" stroke="var(--border-emphasis)" stroke-width="1.3" fill="none" stroke-dasharray="5 4"></path>
+              <path d="M460,86 L580,220" stroke="var(--border-emphasis)" stroke-width="1.3" fill="none" stroke-dasharray="5 4"></path>
+              <text x="350" y="103" text-anchor="middle" fill="var(--text-faint)" font-style="italic" font-size="11">optional — adds reach, never gates function</text>
 
               <g font-size="10.3" text-anchor="middle">
-                <rect x="235" y="112" width="112" height="24" rx="12" fill="var(--bg-base)" stroke="var(--border-strong)"></rect>
-                <text x="291" y="128" fill="var(--text-secondary)">ACCOUNTABLE</text>
-                <rect x="353" y="112" width="112" height="24" rx="12" fill="var(--bg-base)" stroke="var(--border-strong)"></rect>
-                <text x="409" y="128" fill="var(--text-secondary)">SWAPPABLE</text>
-                <rect x="176" y="144" width="130" height="24" rx="12" fill="var(--bg-base)" stroke="var(--border-strong)"></rect>
-                <text x="241" y="160" fill="var(--text-secondary)">SELF-HOSTABLE</text>
-                <rect x="312" y="144" width="212" height="24" rx="12" fill="var(--bg-base)" stroke="var(--border-strong)"></rect>
-                <text x="418" y="160" fill="var(--text-secondary)">VISIBILITY DECLARED</text>
+                <rect x="235" y="116" width="112" height="24" rx="12" fill="var(--bg-base)" stroke="var(--border-strong)"></rect>
+                <text x="291" y="132" fill="var(--text-secondary)">ACCOUNTABLE</text>
+                <rect x="353" y="116" width="112" height="24" rx="12" fill="var(--bg-base)" stroke="var(--border-strong)"></rect>
+                <text x="409" y="132" fill="var(--text-secondary)">SWAPPABLE</text>
+                <rect x="176" y="150" width="130" height="24" rx="12" fill="var(--bg-base)" stroke="var(--border-strong)"></rect>
+                <text x="241" y="166" fill="var(--text-secondary)">SELF-HOSTABLE</text>
+                <rect x="312" y="150" width="212" height="24" rx="12" fill="var(--bg-base)" stroke="var(--border-strong)"></rect>
+                <text x="418" y="166" fill="var(--text-secondary)">VISIBILITY DECLARED</text>
               </g>
             </g>
-            <text x="350" y="284" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--text-faint)" font-style="italic">a coordinator is hired, not depended on — the solid line is load-bearing, the dashed lines never are</text>
+            <text x="350" y="312" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--text-faint)" font-style="italic">a coordinator is hired, not depended on — the solid line is load-bearing, the dashed lines never are</text>
           </svg>
         </div>
         <figcaption>Figure 2 — the coordinator contract's shape. The direct peer-to-peer path (solid) is what the substrate guarantees on its own; a coordinator (dashed) is an optional accelerant fenced by four conformance clauses. Custodial escrow is the family's one disclosed exception (§3.4).</figcaption>
@@ -762,10 +762,10 @@
             <desc id="layDesc">ADOPT, SUBSTRATE, PRIMITIVES stack vertically as the shared floor; PROFILES sit on top; the coordinator contract and bindings sit as side seams that absorb hard problems.</desc>
             <g font-family="var(--font-mono)" font-size="12.5" text-anchor="middle">
               <rect x="140" y="10"  width="480" height="40" rx="8" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.3"></rect>
-              <text x="380" y="35" fill="var(--accent-ink)" font-weight="700">⑥ PROFILES — mail · commerce · work · social · media · calls · search · reach · cloud</text>
+              <text x="380" y="35" fill="var(--accent-ink)" font-weight="700" font-size="11.5">⑥ PROFILES — nine thin profiles over one substrate</text>
 
               <rect x="140" y="70"  width="480" height="36" rx="8" fill="var(--bg-elevated)" stroke="var(--border-emphasis)"></rect>
-              <text x="380" y="93" fill="var(--text-secondary)">③ PRIMITIVES — OFFER · MATCH · RESERVE · REPUTATION · ESCROW · ATTEST</text>
+              <text x="380" y="93" fill="var(--text-secondary)" font-size="11">③ PRIMITIVES — OFFER · MATCH · RESERVE · REPUTATION · ESCROW · ATTEST</text>
 
               <rect x="140" y="126" width="480" height="36" rx="8" fill="var(--bg-elevated)" stroke="var(--border-emphasis)"></rect>
               <text x="380" y="149" fill="var(--text-secondary)">② SUBSTRATE — Identity · MOTE · Transport · PUB · Sync · Roles</text>

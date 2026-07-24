@@ -19,8 +19,9 @@ BCP 14 (RFC 2119, RFC 8174) when, and only when, in all capitals.
 ## 1. What this is
 
 A market where any operator — a **gateway** — offers managed infrastructure to a user who holds their
-own keys and can leave: a **box** (a managed node), a **bucket** (object storage), an **edge-fn**
-(serverless compute), a **database** (Redis / Postgres), a **cdn**. It is the Hetzner / AWS / ngrok
+own keys and can leave: a **box** (a managed node), a **bucket** (object storage, which also serves
+public objects at the edge — the CDN shape), an **edge-fn** (serverless compute), a **database**
+(Redis / Postgres). It is the Hetzner / AWS / ngrok
 product shape rebuilt as **fenced coordinators** ([coordinator/CONTRACT.md](../coordinator/CONTRACT.md)):
 each service is `accountable`, `swappable`, `self-hostable`, and **never load-bearing** — reach and
 convenience, never a gate on the user's function or identity.
@@ -45,8 +46,9 @@ DEPOT is composition, not new machinery. It reuses:
 | **IK-authenticated Noise transport** | the box↔service control/data channel is a libp2p-Noise `XX` stream keyed to the user's `IK` (as REACH-2), not a bearer token. | [profiles/reachability.md REACH-2](reachability.md) |
 
 Bindings **adopted rather than reinvented** ([bindings/README.md](../bindings/README.md)): **WASI** /
-**OCI** (edge-fn runtime), **S3 API** / content-addressing (bucket), **Redis RESP** / **Postgres
-wire** (database), **HTTP caching** (cdn), **cloud-init** / any OS (box). DEPOT specifies **no** new
+**OCI** (edge-fn runtime), **S3 API** / content-addressing **and HTTP caching** (bucket, including
+its public-object/edge mode), **Redis RESP** / **Postgres wire** (database), **cloud-init** / any OS
+(box). DEPOT specifies **no** new
 runtime, storage format, or price model.
 
 ---
@@ -59,8 +61,7 @@ profile enforces. v0 registry:
 
 | `service` | Adopt (native protocol) | **Honest visibility** (DEPOT-2) | Metering unit (example — operator sets the number) | Portability (DEPOT-4) |
 |---|---|---|---|---|
-| `bucket` | S3 API / CID content-addressing | **`blind` / structural** — client-encrypted, content-addressed | GB-month + egress-GB | **zero-migration** (re-pin elsewhere) |
-| `cdn` | HTTP caching | **`blind-routing`** — serves *public* objects; sees which/when, not private payload | egress-GB + requests | **zero-migration** |
+| `bucket` | S3 API / CID content-addressing; **HTTP caching** when serving public objects | **`blind` / structural** for client-encrypted objects; **`blind-routing`** when it serves *public* objects — it then sees which and when, never a private payload | GB-month + egress-GB + requests | **zero-migration** (re-pin elsewhere) |
 | `edge-fn` | WASI / OCI | **`terminating`** (runs your code, sees I/O) → **`attested`** in a TEE | CPU-ms + invocations | **zero-migration** (redeploy the artefact) |
 | `database` | Redis RESP / Postgres wire | **`terminating` / `declared`** — the operator sees plaintext to answer queries | GB-month + ops | **export/import** (a portable dump) |
 | `box` | OS + node (cloud-init) | **`terminating` / `declared`** — the operator has root on the host | instance-hour | **export** (keys stay with the user; data dumps out) |
@@ -68,10 +69,20 @@ profile enforces. v0 registry:
 
 **Completeness, not catalogue.** This set is deliberately small and is chosen to *span* what a
 centralised platform does, not to mirror a product list: run code (`edge-fn`, `box`), store blobs
-(`bucket`), store queryable state (`database`), serve at the edge (`cdn`), decouple asynchronously
+and serve them at the edge (`bucket`), store queryable state (`database`), decouple asynchronously
 (`queue`) — composed with public reachability ([REACH](reachability.md)), identity and login (§13),
 messaging and wake (§2, §4.9), real-time (§27, §25), and the control plane of DEPOT-11. A capability
 that is merely a *product* built from these MUST be a product, not a registry row.
+
+**Why there is no `cdn` row — it folded into `bucket`.** A CDN and an object store are the *same
+mechanism*: retain content-addressed bytes and serve them on request. In a content-addressed system
+there is no origin-versus-edge distinction to encode — every holder is equivalent and every byte is
+verified by hash, so "the CDN" is simply **a copy that is closer**. What genuinely differs is not the
+service but the **content class**, and the visibility follows from it: objects the client encrypted
+leave the operator `blind`; public objects it must serve on demand leave it `blind-routing`, seeing
+which and when but never a private payload. Encoding that as one row with a derived visibility is
+honest; encoding it as two rows implied a mechanism split that does not exist. Locality and
+edge-placement are an operator's **policy and tariff**, not a separate service.
 
 **`database` is a posture, not a mechanism — and often you should not rent one at all.** A managed
 database *is* a `box` running an engine over a `bucket`; that is how the centralised ones are built
@@ -96,14 +107,14 @@ in scope is the decentralised form of the same need — **choosing and failing o
 operators**: signed `CoordinatorDescriptor`s to discover them, published measurements (§5) to
 compare them, and DEPOT-4 swappability to leave. That composition, not an elastic-group API, is this
 profile's load balancer. **The honest ceiling is the stateless/stateful asymmetry**, not the absence
-of an autoscaler: `bucket`, `cdn` and `edge-fn` spread across operators freely *because* they are
+of an autoscaler: `bucket` and `edge-fn` spread across operators freely *because* they are
 zero-migration, while `database` and `box` carry state that must be exported and re-imported to
 move. Adding providers is cheap for the former and a migration for the latter, and no protocol rule
 changes that.
 
 **Worked example — static-site / SPA hosting is a product, not a service.** A static site is already
 what PUB ([§22](../22-public-objects.md)) is: signed, content-addressed, self-verifying public objects
-servable over plain HTTPS. It composes as **PUB objects in a `bucket`, served through `cdn`, named via
+servable over plain HTTPS. It composes as **PUB objects in a public-serving `bucket`, named via
 [REACH](reachability.md)** (own domain or vanity, certificates per REACH-2a) — and a deploy is simply
 publishing a new content-addressed root plus a signed announcement superseding the previous one, which
 makes the switch **atomic** and makes **rollback** a pointer back to a root that is still addressable.
@@ -122,7 +133,7 @@ DepotSite = {                                    ; "kotva-depot/site/v0"
 
   A provider MUST serve `root` as the site, apply `redirects` in array order, and — for a path that
   resolves to no object — serve `fallback` when present or return 404 when absent (never a guess). Without it each
-operator invents its own hosting config and the site stops being swappable; with it, any `cdn` or box
+operator invents its own hosting config and the site stops being swappable; with it, any `bucket` or box
 serves the same site identically. It is a **schema over a content-addressed object** — no new wire
 object, DS-tag, or error code — exactly like the measurement schema of §5. Deploy pipelines are
 authorised by scoped `CapabilityToken`s under DEPOT-11 (a CI credential is strictly narrower than its
@@ -134,7 +145,8 @@ parent), so a leaked deploy token can publish a site and **cannot** reach mail o
 buffered in a `queue` when the target is offline). A new trigger is an enum value; it is **not** a
 spec change and **not** a new coordinator kind.
 
-Only **`bucket`** (`blind`), **`queue`**, and public-object **`cdn`** (`blind-routing`) keep the
+Only **`bucket`** — `blind` when client-encrypted, `blind-routing` when serving public objects — and
+**`queue`** keep the
 payload cryptographically out of the operator's reach. **`edge-fn`, `database`, and `box` are
 `terminating`** — the operator sees your data or computation. This is normal and honest
 (Fastmail-tier trust); it is **not** cryptographic blindness, and DEPOT-2 forbids pretending otherwise.
@@ -149,7 +161,7 @@ payload cryptographically out of the operator's reach. **`edge-fn`, `database`, 
   channel (REACH-2 shape — the user's `IK` is the libp2p identity key; **no bearer token**). It mints
   no new runtime, wire object, DS-tag, or error code — reputation reuses the ATTEST claim primitive (§5).
 - **DEPOT-2 — honest visibility is load-bearing (the cliff).** Each service MUST declare **exactly**
-  the visibility its data model permits (§3): `bucket` `blind`/`structural`; public `cdn`
+  the visibility its data model permits (§3): `bucket` `blind`/`structural`, or public-serving
   `blind-routing`; `edge-fn`/`database`/`box` `terminating`/`declared`. **Advertising a `terminating`
   service as `blind`, `private`, or `sovereign` is non-conformant misrepresentation**
   ([CONTRACT §3.2](../coordinator/CONTRACT.md)), not marketing. A TEE with **verifiable remote
@@ -164,7 +176,7 @@ payload cryptographically out of the operator's reach. **`edge-fn`, `database`, 
   sufficient alone.
 - **DEPOT-4 — swappable, honest portability.** Leaving or switching an `infra-service` MUST be a
   **config change with zero identity change** ([CONTRACT §2.2](../coordinator/CONTRACT.md)). Each
-  service MUST state its **true** portability (§3): content-addressed `bucket`/`cdn` and stateless
+  service MUST state its **true** portability (§3): content-addressed `bucket` and stateless
   `edge-fn` are **zero-migration**; stateful `database`/`box` MUST provide a **portable
   export/import**, and MUST NOT be advertised as zero-migration. A slow or lossy export is a weaker
   exit and MUST be disclosed as such (§7).
@@ -242,7 +254,7 @@ payload cryptographically out of the operator's reach. **`edge-fn`, `database`, 
   signed descriptor** (§18.8a); standing is **earned through measurement claims** (§5), never granted
   by a gatekeeper. Because no single small provider can match a hyperscaler's availability, a client
   obtains durability and availability by **using several independent providers**, not by trusting one —
-  and content-addressed services (`bucket`, `cdn`, and `queue` payloads) replicate freely, so plurality
+  and content-addressed services (`bucket` and `queue` payloads) replicate freely, so plurality
   is cheap and re-pinning is zero-migration (DEPOT-4). **Honest asymmetry:** stateful `database` and
   `box` do **NOT** replicate freely — they carry single-writer state whose portability is an
   export/import, so for those a client's real protections are that export plus the operator's declared
@@ -306,7 +318,7 @@ schema, not by wire.
 Inheriting [THREAT-MODEL.md](../THREAT-MODEL.md) (SEC-1…SEC-9); the DEPOT-specific posture is the
 **cliff of §4 DEPOT-2**, restated for clarity:
 
-- **Only `bucket`, `queue`, and public `cdn` are structurally private.** They hold client-encrypted,
+- **Only `bucket` and `queue` are structurally private.** They hold client-encrypted,
   content-addressed data — or, for `queue`, client-encrypted payloads whose depth, rate and timing are
   visible but whose content is not (SEC-4, `blind`/`structural` / `blind-routing`) — so the operator
   forwards, holds, or serves ciphertext it has no key to read.
