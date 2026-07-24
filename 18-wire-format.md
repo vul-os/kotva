@@ -1128,7 +1128,11 @@ DeniablePrekeyBundle = {
 ### 18.4.9 `SignedTreeHead` (KT, §3.5)
 
 The **signed tree head (STH)** of a key-transparency log — the wire object §3.5 REQUIRES but did
-not previously give a CBOR form. DMTAP's KT is an **RFC 6962-profiled** append-only Merkle log;
+not previously give a CBOR form. DMTAP's KT is an **RFC 6962-profiled** append-only Merkle log
+(**deliberately RFC 6962 rather than its successor RFC 9162** — CT v2.0 obsoletes 6962 on paper, but
+the deployed CT ecosystem, its log implementations and its monitoring tooling remain 6962-shaped, so
+profiling 6962 is what buys real reuse today; a future migration to 9162 is a
+[§10.1](10-conformance.md)-style versioned change, not a redesign);
 this is the STH a verifier fetches, gossips (§3.5.2(a)), and checks freshness on. It is the KT
 analog of `MixDirectory` (§18.5.3): signed by the log's own key, versioned by `tree_size`.
 
@@ -2001,6 +2005,23 @@ bytes that changes during an outage, only which records the gateway can still co
 Two independent implementations MUST produce **identical** signatures and content addresses. This
 requires an exact, shared definition of the bytes fed to `Sign` / `Hash`. Except where noted,
 every signature is over `DS-tag ‖ det_cbor(object∖sig)`, where:
+
+> **Why a bare preimage here, when `SyncOp` uses a real `COSE_Sign1` (recorded, because the spec
+> genuinely does this two ways).** [SYNC §4.1](../substrate/SYNC.md) signs its ops as RFC 9052
+> `COSE_Sign1` and carries domain separation in the standard `external_aad` slot — the same job §18.9
+> does by hand. The divergence is deliberate on two grounds and is **not** a claim of COSE
+> conformance for §18.9 objects ([§18.1.2](#1812-integer-key-convention-cosecwt-style) borrows only
+> COSE's integer-key *convention*, and says so). First, **bytes**: a `COSE_Sign1` envelope adds
+> protected/unprotected header maps and array framing to every object, and §4.8's radio arithmetic
+> shows the envelope budget is already the binding constraint on constrained links — a bare preimage
+> keeps the smallest objects smallest. Second, **the preimage is the hardest thing in this spec to
+> change**: it is the seam [§10.1](../10-conformance.md) builds a whole structural-version migration
+> around, so converging the two schemes is a versioned migration, never an edit. `SyncOp` uses the
+> full envelope because it already carries COSE-shaped metadata and pays that cost willingly.
+> **The honest cost of the split:** an implementer writes two signing paths rather than one, and a
+> reader must not assume §18.9 objects are COSE-verifiable. Recorded here so the divergence is a
+> known trade rather than an accident.
+
 
 - `DS-tag` is the object's ASCII domain-separation string from the table below, **terminated by
   one `0x00` byte**;

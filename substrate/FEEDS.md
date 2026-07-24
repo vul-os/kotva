@@ -31,6 +31,17 @@ niches that today require separate ecosystems, using **one** object model:
 - **public content-addressed storage** with global cross-user dedup and swarmed retrieval — the niche
   served by IPFS-style pinning — realized as the **public blob profile** (§3 below).
 
+**Why these niches are re-realised rather than bound (recorded, since "bind, don't reinvent"
+[DIRECTION §3](../DIRECTION.md) demands the argument).** The IPFS side *is* bound: content addressing
+uses multihash/multicodec prefixes directly (§18.1.5), not a bespoke scheme. The Nostr side is **not**
+bound, and the reason is that NIP-01's event shape carries its own identity and signature model, while
+an author feed here must verify against the substrate's **own** `IK` and key-transparency chain,
+offline and with **zero DNS** (§22.3.3) — adopting the foreign event envelope would mean either two
+identity systems in one object or a re-signing bridge that breaks the offline-verification property
+that motivates the feed. What *is* reused is the idea, not the bytes. An interop mapping to NIP-01 for
+consumers outside the family is a **binding-layer** concern ([bindings/README.md](../bindings/README.md)),
+exactly as ATTEST treats EAS/W3C-VC, and is deliberately out of scope here.
+
 Everything is **opt-in, additive, and capability-negotiated** (`pub-1`, §10.2, §22.6.1). A product that
 does not implement it never advertises `pub-1`, never serves a public object, and never receives one it
 must reject.
