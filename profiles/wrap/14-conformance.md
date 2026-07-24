@@ -3,7 +3,13 @@
 ## 15.1. Vectors are normative
 
 The conformance vectors in `conformance/wrap_vectors.json` are **normative and
-take precedence over the prose of this document** wherever the two disagree.
+take precedence over the prose of this document** wherever the two disagree —
+**except while the corpus carries the v0.2 regeneration debt recorded in §15.5**,
+which is the situation today. The shipped corpus still encodes the **retired**
+bespoke signing envelope and string-HLC, so following it would produce
+non-conformant bytes. **Until it is regenerated, the prose of this document
+governs and the vectors do not.** Precedence returns to the vectors only once
+§15.5's regeneration has landed.
 
 This inversion is deliberate. Prose cannot tell an implementer that they broke
 a tie the wrong way, sorted a map incorrectly, or omitted a domain-separation

@@ -140,10 +140,24 @@ Revoke = {
   match.
 
 **Profile instances (normative examples, not re-definitions).** TRACT `PurchaseAttestation`
-([§10.2a](../profiles/tract/10-trust.md)) and WRAP work attestations are already this shape,
-addressing their subject by content-address or `IK`. A profile MAY define a schema and constrain
-fields; it MUST NOT invent a parallel attestation object (the waist adoption rule,
-[substrate/README §3.2](../substrate/README.md)).
+([§10.2a](../profiles/tract/10-trust.md)) is exactly this shape: an unsigned map carried inside a
+signed object, addressing its subject by content-address or `IK`.
+
+**WRAP's `Attestation` (kind `0x06`) is deliberately NOT this shape, and an implementer must not
+assume it is.** WRAP carries ATTEST's *semantics* — a claim by an identified attester about a
+subject — but not its wire shape: a WRAP `Attestation` is one of six kinds in WRAP's uniform object
+model, so it carries its own `author` and `id` and is independently signed under WRAP's `COSE_Sign1`
+envelope ([WRAP §5.3](../profiles/wrap/04-signing.md)), rather than riding unsigned inside a
+carrier. Both bind an attester's signature to the claim, so the trust semantics are the same; the
+**bytes are not**, and code written against one shape will not read the other. Follow the profile's
+own wire spec: [WRAP §3.8](../profiles/wrap/02-objects.md) for WRAP, this document's §2 for the
+carried form.
+
+A profile MAY define a schema and constrain fields, and MAY — as WRAP does — carry attestation
+semantics in a signed object it *already* defines for every one of its kinds. What it MUST NOT do
+is mint a **bespoke, attestation-only** parallel object where a carried claim would serve (the
+waist adoption rule, [substrate/README §3.2](../substrate/README.md)); that is the bloat this rule
+exists to prevent, and it is why `ServiceMeasurement` and `TrustEdge` were retired into ATTEST.
 
 ---
 

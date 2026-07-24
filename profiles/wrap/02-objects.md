@@ -181,6 +181,17 @@ An attestation is meaningful only in the light of who signed it (§9.3).
 Implementations MUST NOT aggregate attestations without regard to author; a
 self-signed five-star rating is worth exactly nothing and MUST NOT be counted.
 
+> **Shape caution — this carries ATTEST's semantics, not ATTEST's wire shape.** The
+> [ATTEST](../../primitives/ATTEST.md) primitive defines an attestation as an **unsigned**
+> deterministic-CBOR map carried inside some other signed object, authenticated by that carrier's
+> signature. WRAP's `Attestation` is **not** encoded that way: like every WRAP kind it carries its
+> own `author` and `id` (§3.2) and is independently signed under the `COSE_Sign1` envelope of
+> [§5.3](04-signing.md). The trust semantics match — an identified attester signs a claim about a
+> subject — but the **bytes differ**, so an implementer reading ATTEST's carried form will not parse
+> a WRAP `Attestation`, and vice versa. This is a disclosed, deliberate divergence, permitted
+> because the signing envelope is WRAP's uniform one for all six kinds rather than a bespoke
+> attestation-only object; it is **this** section, not ATTEST §2, that governs WRAP's wire format.
+
 ## 3.9. Place
 
 | Key | Name | Type | Notes |

@@ -1,325 +1,436 @@
+<!DOCTYPE html>
+<html lang="en-ZA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>KOTVA — a narrow-waist protocol family</title>
-<meta name="description" content="KOTVA: a narrow-waist substrate (identity, MOTE, transport, PUB, sync, roles) with a checkable coordinator contract and thin protocol profiles for mail, commerce, work, media, social, calling, search and reachability.">
+<meta name="description" content="KOTVA: a narrow-waist substrate (identity, MOTE, transport, PUB, sync, coordinator roles) with a checkable coordinator contract and thin protocol profiles for mail, commerce, work, media, social, real-time calling, search and reachability.">
+<meta name="color-scheme" content="dark light">
 <style>
+  /* ═══════════════════════════════════════════════════════════════════════
+     KOTVA whitepaper — design tokens
+     Same family as the Vulos site (near-black dark canvas, warm-paper light
+     canvas, monospace display type, hairline borders, one restrained accent,
+     tokens not hardcoded hex) with its own accent: an oxidised rust/copper —
+     kotva is Slavic for anchor, and an anchor is iron that has been in the
+     water a while. No webfonts are loaded; every stack below is system-native.
+     ═══════════════════════════════════════════════════════════════════════ */
   :root{
-    --serif: "Iowan Old Style","Palatino Linotype","Book Antiqua",Georgia,"Times New Roman",serif;
-    --sans: -apple-system,"Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;
-    --mono: "SF Mono","Menlo","Consolas","Liberation Mono",monospace;
+    --font-mono: ui-monospace,"SF Mono","Cascadia Code","Fira Code",Menlo,Consolas,"Liberation Mono",monospace;
+    --font-sans: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 
-    --bg:        #fbfaf7;
-    --bg-panel:  #f3f1ea;
-    --bg-raise:  #ffffff;
-    --ink:       #1b1a17;
-    --ink-soft:  #46443d;
-    --ink-faint: #77746a;
-    --rule:      #ddd8c9;
-    --rule-soft: #e9e5d8;
-    --accent:    #7a3b28;   /* anchor rust / oxide */
-    --accent-ink:#5c2b1d;
-    --accent-bg: #f3e6df;
-    --link:      #5c3a20;
-    --code-bg:   #f1efe4;
-    --code-bd:   #e1ddc9;
-    --status-live:  #3d5f3a; --status-live-bg:#e5ede1;
-    --status-draft: #7a5b1e; --status-draft-bg:#f3ead3;
-    --status-early: #6b4747; --status-early-bg:#f1e2df;
-    --shadow: 0 1px 2px rgba(30,25,15,.05), 0 8px 24px rgba(30,25,15,.05);
+    /* dark (default) */
+    --bg-base:      #0c0c0b;
+    --bg-surface:   #111110;
+    --bg-elevated:  #1a1917;
+    --bg-hover:     #1f1e1b;
+    --border-subtle:   #161514;
+    --border-default:  #201f1c;
+    --border-strong:   #2a2825;
+    --border-emphasis: #3a3732;
+    --text-primary:   #e9e5dd;
+    --text-secondary: #c7c1b5;
+    --text-tertiary:  #9c9587;
+    --text-muted:     #857e70;
+    --text-faint:     #6a6459;
+
+    --accent:       #cb7245;
+    --accent-hover: #e08a5c;
+    --accent-ink:   #e8a077;
+    --accent-bg:    rgba(203,114,69,.13);
+    --accent-border:rgba(203,114,69,.38);
+
+    --status-live:    #78b08e; --status-live-bg:   rgba(120,176,142,.14);
+    --status-draft:   #d0a24a; --status-draft-bg:  rgba(208,162,74,.14);
+    --status-early:   #c98a72; --status-early-bg:  rgba(201,138,114,.14);
+
+    --code-bg:     #16140f;
+    --code-border: #2a2620;
+
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 14px 36px rgba(0,0,0,.4);
+    --focus-ring: 0 0 0 3px rgba(203,114,69,.38);
   }
-  @media (prefers-color-scheme: dark){
-    :root{
-      --bg:        #17140f;
-      --bg-panel:  #1e1a13;
-      --bg-raise:  #221e16;
-      --ink:       #ece6d8;
-      --ink-soft:  #c9c2ae;
-      --ink-faint: #8f8871;
-      --rule:      #3a3527;
-      --rule-soft: #2c2819;
-      --accent:    #d98a63;
-      --accent-ink:#f0a679;
-      --accent-bg: #3a281d;
-      --link:      #e0a67e;
-      --code-bg:   #201c14;
-      --code-bd:   #35301f;
-      --status-live:  #a9d19f; --status-live-bg:#243620;
-      --status-draft: #e3c37c; --status-draft-bg:#3a2f18;
-      --status-early: #e0b3ab; --status-early-bg:#3a2521;
-      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  /* Light palette — applied via prefers-color-scheme (no explicit choice) and
+     via [data-theme="light"] (an explicit choice, e.g. from a parent page
+     that stamps this same-origin document). data-theme="dark" always wins,
+     matching the pattern used across the Vulos family. */
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg-base:      #fdfcf9;
+      --bg-surface:   #f5f1e8;
+      --bg-elevated:  #efe9dc;
+      --bg-hover:     #e8e1d1;
+      --border-subtle:   #f0e9da;
+      --border-default:  #e4dbc7;
+      --border-strong:   #d6c9ae;
+      --border-emphasis: #c2b294;
+      --text-primary:   #201b14;
+      --text-secondary: #3d362a;
+      --text-tertiary:  #5c5342;
+      --text-muted:     #746a56;
+      --text-faint:     #8f8369;
+
+      --accent:       #a2481f;
+      --accent-hover: #883c19;
+      --accent-ink:   #7c3517;
+      --accent-bg:    rgba(162,72,31,.09);
+      --accent-border:rgba(162,72,31,.3);
+
+      --status-live:    #3d6e50; --status-live-bg:   rgba(61,110,80,.12);
+      --status-draft:   #8a611c; --status-draft-bg:  rgba(138,97,28,.12);
+      --status-early:   #93412c; --status-early-bg:  rgba(147,65,44,.12);
+
+      --code-bg:     #f2ece0;
+      --code-border: #e0d5bd;
+
+      --shadow: 0 1px 2px rgba(30,24,15,.06), 0 10px 28px rgba(30,24,15,.06);
+      --focus-ring: 0 0 0 3px rgba(162,72,31,.3);
     }
   }
-  :root[data-theme="dark"]{
-    --bg:#17140f; --bg-panel:#1e1a13; --bg-raise:#221e16; --ink:#ece6d8; --ink-soft:#c9c2ae; --ink-faint:#8f8871;
-    --rule:#3a3527; --rule-soft:#2c2819; --accent:#d98a63; --accent-ink:#f0a679; --accent-bg:#3a281d; --link:#e0a67e;
-    --code-bg:#201c14; --code-bd:#35301f;
-    --status-live:#a9d19f; --status-live-bg:#243620; --status-draft:#e3c37c; --status-draft-bg:#3a2f18;
-    --status-early:#e0b3ab; --status-early-bg:#3a2521; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
-  }
   :root[data-theme="light"]{
-    --bg:#fbfaf7; --bg-panel:#f3f1ea; --bg-raise:#ffffff; --ink:#1b1a17; --ink-soft:#46443d; --ink-faint:#77746a;
-    --rule:#ddd8c9; --rule-soft:#e9e5d8; --accent:#7a3b28; --accent-ink:#5c2b1d; --accent-bg:#f3e6df; --link:#5c3a20;
-    --code-bg:#f1efe4; --code-bd:#e1ddc9;
-    --status-live:#3d5f3a; --status-live-bg:#e5ede1; --status-draft:#7a5b1e; --status-draft-bg:#f3ead3;
-    --status-early:#6b4747; --status-early-bg:#f1e2df; --shadow:0 1px 2px rgba(30,25,15,.05),0 8px 24px rgba(30,25,15,.05);
+    --bg-base:      #fdfcf9; --bg-surface:   #f5f1e8; --bg-elevated:  #efe9dc; --bg-hover: #e8e1d1;
+    --border-subtle:   #f0e9da; --border-default:  #e4dbc7; --border-strong:   #d6c9ae; --border-emphasis: #c2b294;
+    --text-primary:   #201b14; --text-secondary: #3d362a; --text-tertiary:  #5c5342; --text-muted: #746a56; --text-faint: #8f8369;
+    --accent: #a2481f; --accent-hover: #883c19; --accent-ink: #7c3517;
+    --accent-bg: rgba(162,72,31,.09); --accent-border: rgba(162,72,31,.3);
+    --status-live: #3d6e50; --status-live-bg: rgba(61,110,80,.12);
+    --status-draft: #8a611c; --status-draft-bg: rgba(138,97,28,.12);
+    --status-early: #93412c; --status-early-bg: rgba(147,65,44,.12);
+    --code-bg: #f2ece0; --code-border: #e0d5bd;
+    --shadow: 0 1px 2px rgba(30,24,15,.06), 0 10px 28px rgba(30,24,15,.06);
+    --focus-ring: 0 0 0 3px rgba(162,72,31,.3);
+  }
+  :root[data-theme="dark"]{
+    --bg-base: #0c0c0b; --bg-surface: #111110; --bg-elevated: #1a1917; --bg-hover: #1f1e1b;
+    --border-subtle: #161514; --border-default: #201f1c; --border-strong: #2a2825; --border-emphasis: #3a3732;
+    --text-primary: #e9e5dd; --text-secondary: #c7c1b5; --text-tertiary: #9c9587; --text-muted: #857e70; --text-faint: #6a6459;
+    --accent: #cb7245; --accent-hover: #e08a5c; --accent-ink: #e8a077;
+    --accent-bg: rgba(203,114,69,.13); --accent-border: rgba(203,114,69,.38);
+    --status-live: #78b08e; --status-live-bg: rgba(120,176,142,.14);
+    --status-draft: #d0a24a; --status-draft-bg: rgba(208,162,74,.14);
+    --status-early: #c98a72; --status-early-bg: rgba(201,138,114,.14);
+    --code-bg: #16140f; --code-border: #2a2620;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 14px 36px rgba(0,0,0,.4);
+    --focus-ring: 0 0 0 3px rgba(203,114,69,.38);
   }
 
-  *{box-sizing:border-box;}
-  html{background:var(--bg);}
+  *,*::before,*::after{ box-sizing:border-box; }
+  html{ background:var(--bg-base); }
+  html,body{ max-width:100%; overflow-x:hidden; }
   body{
-    margin:0; background:var(--bg); color:var(--ink);
-    font-family:var(--serif); font-size:17px; line-height:1.62;
-    -webkit-font-smoothing:antialiased;
+    margin:0; background:var(--bg-base); color:var(--text-primary);
+    font-family:var(--font-sans); font-size:16.5px; line-height:1.7;
+    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
   }
   ::selection{ background:var(--accent-bg); color:var(--accent-ink); }
+  ::-webkit-scrollbar{ width:6px; height:6px; }
+  ::-webkit-scrollbar-thumb{ background:var(--border-emphasis); border-radius:99px; }
+  * { scrollbar-width:thin; scrollbar-color:var(--border-emphasis) transparent; }
 
-  a{ color:var(--link); text-decoration-thickness:1px; text-underline-offset:2px; }
-  a:hover{ color:var(--accent); }
+  a{ color:var(--accent-ink); text-decoration-thickness:1px; text-underline-offset:2px; }
+  a:hover{ color:var(--accent-hover); }
+  :focus-visible{ outline:none; box-shadow:var(--focus-ring); border-radius:4px; }
+
+  .skip-link{
+    position:absolute; left:8px; top:-48px; z-index:200; background:var(--accent);
+    color:#0c0c0b; font-family:var(--font-mono); font-size:13px; font-weight:700;
+    padding:10px 16px; border-radius:8px; transition:top .15s ease;
+  }
+  .skip-link:focus{ top:8px; color:#0c0c0b; }
 
   /* ---------- layout shell ---------- */
   .shell{
-    max-width:1240px; margin:0 auto;
-    display:grid; grid-template-columns:250px minmax(0,1fr); gap:0 56px;
+    max-width:1280px; margin:0 auto;
+    display:grid; grid-template-columns:260px minmax(0,1fr); gap:0 56px;
     padding:0 28px;
   }
   nav.toc{
     position:sticky; top:0; align-self:start;
-    height:100vh; overflow-y:auto; padding:36px 0 36px 2px;
-    font-family:var(--sans);
+    height:100vh; overflow-y:auto; padding:32px 0 32px 2px;
+    font-family:var(--font-mono);
   }
-  nav.toc::-webkit-scrollbar{ width:6px; }
-  nav.toc::-webkit-scrollbar-thumb{ background:var(--rule); border-radius:3px; }
+  .brand{ display:flex; align-items:center; gap:.6em; margin-bottom:1.5em; text-decoration:none; }
+  .brand svg{ width:28px; height:28px; flex:none; }
+  .brand-text{ font-size:15px; font-weight:700; letter-spacing:.01em; color:var(--text-primary); }
+  .brand-sub{ font-size:10.5px; color:var(--text-faint); letter-spacing:.04em; }
 
-  .brand{ display:flex; align-items:center; gap:.55em; margin-bottom:1.4em; }
-  .brand svg{ width:26px; height:26px; flex:none; }
-  .brand-text{ font-size:15px; font-weight:700; letter-spacing:.02em; color:var(--ink); }
-  .brand-sub{ font-size:11px; color:var(--ink-faint); letter-spacing:.03em; }
-
-  .toc-list{ list-style:none; margin:0; padding:0; font-size:13.2px; }
+  .toc-list{ list-style:none; margin:0; padding:0; font-size:13px; }
   .toc-list li{ margin:0; }
   .toc-list a{
-    display:block; padding:5px 10px; margin:1px 0; border-radius:6px;
-    color:var(--ink-soft); text-decoration:none; border-left:2px solid transparent;
-    transition:background .12s ease, color .12s ease;
+    display:block; padding:6px 10px; margin:1px 0; border-radius:7px;
+    color:var(--text-tertiary); text-decoration:none; border-left:2px solid transparent;
+    transition:background .12s ease, color .12s ease, border-color .12s ease;
   }
-  .toc-list a:hover{ background:var(--bg-panel); color:var(--ink); }
+  .toc-list a:hover{ background:var(--bg-elevated); color:var(--text-primary); }
   .toc-list a.active{ color:var(--accent-ink); background:var(--accent-bg); border-left-color:var(--accent); font-weight:600; }
   .toc-list .toc-sub{ list-style:none; margin:0 0 6px 0; padding:0 0 0 12px; }
-  .toc-list .toc-sub a{ font-size:12.3px; padding:3px 10px; color:var(--ink-faint); }
-  .toc-group-title{ font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-faint); margin:18px 0 4px 10px; }
+  .toc-list .toc-sub a{ font-size:12px; padding:4px 10px; color:var(--text-faint); }
+  .toc-group-title{ font-size:10.5px; text-transform:uppercase; letter-spacing:.1em; color:var(--text-faint); margin:18px 0 5px 10px; }
   .toc-group-title:first-child{ margin-top:0; }
-
   .toc-toggle{ display:none; }
 
-  main{ min-width:0; padding:44px 0 120px; }
+  main{ min-width:0; padding:46px 0 130px; }
+  main:focus{ outline:none; }
 
   /* ---------- title block ---------- */
-  .titleblock{ margin-bottom:2.6em; }
+  .titleblock{ margin-bottom:2.8em; }
   .kicker{
-    font-family:var(--sans); font-size:12.5px; letter-spacing:.14em; text-transform:uppercase;
-    color:var(--accent-ink); font-weight:700; margin:0 0 14px;
+    font-family:var(--font-mono); font-size:12px; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--accent-ink); font-weight:700; margin:0 0 16px; display:flex; align-items:center; gap:.6em;
   }
+  .kicker::before{ content:''; width:22px; height:1px; background:currentColor; opacity:.85; }
   h1.doctitle{
-    font-family:var(--sans); font-size:clamp(34px,5vw,52px); line-height:1.05; letter-spacing:-.015em;
-    margin:0 0 16px; color:var(--ink); font-weight:800;
+    font-family:var(--font-mono); font-size:clamp(32px,5.4vw,54px); line-height:1.04; letter-spacing:-.03em;
+    margin:0 0 18px; color:var(--text-primary); font-weight:700;
   }
+  h1.doctitle .accent{ color:var(--accent); }
   .thesis{
-    font-family:var(--serif); font-style:italic; font-size:21px; line-height:1.5;
-    color:var(--ink-soft); max-width:40em; margin:0 0 22px;
+    font-family:var(--font-sans); font-size:19.5px; line-height:1.6;
+    color:var(--text-secondary); max-width:42em; margin:0 0 24px;
   }
-  .meta-row{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; font-family:var(--sans); }
+  .thesis strong{ color:var(--text-primary); }
+  .meta-row{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; font-family:var(--font-mono); }
   .badge{
-    display:inline-flex; align-items:center; gap:.4em; font-size:12px; font-weight:600;
-    padding:5px 11px; border-radius:999px; border:1px solid var(--rule); color:var(--ink-soft);
-    background:var(--bg-panel); letter-spacing:.02em;
+    display:inline-flex; align-items:center; gap:.45em; font-size:11.5px; font-weight:600;
+    padding:5px 11px; border-radius:999px; border:1px solid var(--border-strong); color:var(--text-tertiary);
+    background:var(--bg-surface); letter-spacing:.02em;
   }
   .badge.b-live{ color:var(--status-live); background:var(--status-live-bg); border-color:transparent; }
   .badge.b-draft{ color:var(--status-draft); background:var(--status-draft-bg); border-color:transparent; }
   .badge.b-early{ color:var(--status-early); background:var(--status-early-bg); border-color:transparent; }
-  .badge dot{ width:6px; height:6px; border-radius:50%; background:currentColor; display:inline-block; }
+  .badge .dot{ width:6px; height:6px; border-radius:50%; background:currentColor; display:inline-block; }
 
-  hr.rule{ border:none; border-top:1px solid var(--rule); margin:2.6em 0; }
+  hr.rule{ border:none; border-top:1px solid var(--border-strong); margin:2.8em 0; }
 
   /* ---------- headings & prose ---------- */
-  section{ scroll-margin-top:18px; }
+  section{ scroll-margin-top:20px; }
   h2{
-    font-family:var(--sans); font-size:28px; font-weight:800; letter-spacing:-.01em;
-    color:var(--ink); margin:2.2em 0 .5em; padding-top:.2em;
-    display:flex; align-items:baseline; gap:.5em;
+    font-family:var(--font-mono); font-size:26px; font-weight:700; letter-spacing:-.02em;
+    color:var(--text-primary); margin:2.3em 0 .55em; padding-top:.2em;
+    display:flex; align-items:baseline; gap:.5em; flex-wrap:wrap;
   }
-  h2 .secnum{ color:var(--accent); font-variant-numeric:tabular-nums; font-size:.72em; font-weight:700; }
-  h3{ font-family:var(--sans); font-size:20px; font-weight:700; color:var(--ink); margin:1.9em 0 .6em; letter-spacing:-.005em;}
-  h4{ font-family:var(--sans); font-size:15.5px; font-weight:700; color:var(--ink-soft); margin:1.6em 0 .5em; text-transform:none; }
-  p{ margin:0 0 1.05em; max-width:42em; }
-  section > p, section > ul, section > ol, section > figure, section > .callout, section > .grid-2 { max-width:44em; }
-  ul, ol{ margin:0 0 1.1em; padding-left:1.3em; max-width:42em; }
-  li{ margin:.32em 0; }
-  strong{ color:var(--ink); font-weight:700; }
-  .lede{ font-size:18px; color:var(--ink-soft); }
+  h2 .secnum{ color:var(--accent); font-variant-numeric:tabular-nums; font-size:.7em; font-weight:700; }
+  h3{ font-family:var(--font-mono); font-size:19px; font-weight:700; color:var(--text-primary); margin:1.9em 0 .6em; letter-spacing:-.01em; scroll-margin-top:20px; }
+  h3 .secnum{ color:var(--accent); font-size:.85em; }
+  h4{ font-family:var(--font-mono); font-size:13.5px; font-weight:700; color:var(--text-tertiary); margin:1.6em 0 .5em; text-transform:uppercase; letter-spacing:.05em; }
+  p{ margin:0 0 1.05em; max-width:70ch; }
+  section > p, section > ul, section > ol, section > figure, section > .callout, section > .grid-2 { max-width:72ch; }
+  ul, ol{ margin:0 0 1.15em; padding-left:1.3em; max-width:70ch; }
+  li{ margin:.35em 0; }
+  strong{ color:var(--text-primary); font-weight:700; }
+  em{ color:var(--text-secondary); }
+  .lede{ font-size:18px; color:var(--text-secondary); }
 
   code{
-    font-family:var(--mono); font-size:.86em; background:var(--code-bg);
-    border:1px solid var(--code-bd); border-radius:4px; padding:.08em .38em; color:var(--accent-ink);
+    font-family:var(--font-mono); font-size:.85em; background:var(--code-bg);
+    border:1px solid var(--code-border); border-radius:4px; padding:.1em .4em; color:var(--accent-ink);
+    word-break:break-word;
   }
   pre{
-    font-family:var(--mono); font-size:13.2px; line-height:1.55; background:var(--code-bg);
-    border:1px solid var(--code-bd); border-radius:10px; padding:16px 18px; overflow-x:auto;
-    margin:0 0 1.3em; max-width:100%; color:var(--ink-soft);
+    font-family:var(--font-mono); font-size:13px; line-height:1.6; background:var(--code-bg);
+    border:1px solid var(--code-border); border-radius:10px; padding:16px 18px; overflow-x:auto;
+    margin:0 0 1.3em; max-width:100%; color:var(--text-secondary);
   }
   pre code{ background:none; border:none; padding:0; color:inherit; }
 
   blockquote{
-    margin:1.4em 0; padding:.4em 0 .4em 1.1em; border-left:3px solid var(--accent);
-    color:var(--ink-soft); font-style:italic; max-width:42em;
+    margin:1.5em 0; padding:.5em 0 .5em 1.2em; border-left:3px solid var(--accent);
+    color:var(--text-secondary); font-style:italic; max-width:70ch; font-family:var(--font-sans);
   }
   blockquote p{ margin:.3em 0; }
 
   .callout{
-    background:var(--bg-panel); border:1px solid var(--rule-soft); border-radius:12px;
-    padding:18px 22px; margin:1.4em 0; font-size:15.5px;
+    background:var(--bg-surface); border:1px solid var(--border-default); border-radius:12px;
+    padding:18px 22px; margin:1.4em 0; font-size:15px;
   }
-  .callout h4{ margin-top:0; font-family:var(--sans); color:var(--ink); font-size:14px; letter-spacing:.03em; text-transform:uppercase; }
-  .callout.warn{ border-left:3px solid #a9612f; }
-  .callout.honest{ background:var(--accent-bg); border-color:transparent; }
+  .callout h4{ margin-top:0; }
+  .callout p:last-child{ margin-bottom:0; }
+  .callout.warn{ border-left:3px solid var(--status-early); }
+  .callout.honest{ background:var(--accent-bg); border-color:var(--accent-border); }
   .callout.honest h4{ color:var(--accent-ink); }
 
+  sup.fn{ font-size:.72em; margin-left:1px; }
+  sup.fn a{ color:var(--accent-ink); font-weight:700; text-decoration:none; padding:0 1px; }
+  sup.fn a:hover{ text-decoration:underline; }
+
   /* ---------- tables ---------- */
-  .tablewrap{ overflow-x:auto; margin:0 0 1.6em; border:1px solid var(--rule); border-radius:10px; max-width:100%;}
-  table{ border-collapse:collapse; width:100%; font-size:14.6px; font-family:var(--sans); min-width:560px; }
-  th, td{ text-align:left; padding:10px 14px; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+  .tablewrap{ overflow-x:auto; margin:0 0 1.6em; border:1px solid var(--border-default); border-radius:10px; max-width:100%;}
+  table{ border-collapse:collapse; width:100%; font-size:14px; font-family:var(--font-sans); min-width:560px; }
+  th, td{ text-align:left; padding:10px 14px; border-bottom:1px solid var(--border-default); vertical-align:top; }
   thead th{
-    background:var(--bg-panel); color:var(--ink-soft); font-weight:700; font-size:11.5px;
-    text-transform:uppercase; letter-spacing:.06em; border-bottom:1px solid var(--rule);
+    background:var(--bg-surface); color:var(--text-tertiary); font-weight:700; font-size:11px;
+    text-transform:uppercase; letter-spacing:.06em; border-bottom:1px solid var(--border-strong);
+    font-family:var(--font-mono);
   }
   tbody tr:last-child td{ border-bottom:none; }
-  tbody tr:hover{ background:var(--bg-panel); }
+  tbody tr:hover{ background:var(--bg-surface); }
   td code, th code{ white-space:nowrap; }
   .tablewrap.compact table{ min-width:0; }
 
   /* ---------- profile cards ---------- */
   .profile{
-    border:1px solid var(--rule); border-radius:14px; background:var(--bg-raise);
+    border:1px solid var(--border-default); border-radius:14px; background:var(--bg-surface);
     padding:24px 26px; margin:1.6em 0 2.2em; box-shadow:var(--shadow);
   }
   .profile-head{ display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-bottom:.3em; }
-  .profile-head h3{ margin:0; font-size:21px; }
-  .profile-thesis{ font-style:italic; color:var(--ink-soft); margin:.2em 0 1em; max-width:42em; }
-  .profile dl{ display:grid; grid-template-columns:max-content 1fr; gap:6px 18px; font-size:14.5px; margin:1em 0; max-width:44em;}
-  .profile dt{ font-family:var(--sans); font-weight:700; color:var(--ink-faint); font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; padding-top:2px; white-space:nowrap;}
+  .profile-head h3{ margin:0; font-size:20px; }
+  .profile-thesis{ font-style:italic; color:var(--text-secondary); margin:.2em 0 1em; max-width:66ch; font-family:var(--font-sans); }
+  .profile dl{ display:grid; grid-template-columns:max-content 1fr; gap:8px 18px; font-size:14.2px; margin:1em 0; max-width:70ch; font-family:var(--font-sans);}
+  .profile dt{ font-family:var(--font-mono); font-weight:700; color:var(--text-faint); font-size:10.8px; text-transform:uppercase; letter-spacing:.06em; padding-top:3px; white-space:nowrap;}
   .profile dd{ margin:0; }
 
   /* ---------- diagrams ---------- */
-  figure{ margin:1.6em 0 2em; }
+  figure{ margin:1.7em 0 2.1em; }
   figure svg{ width:100%; height:auto; display:block; }
-  figcaption{ font-family:var(--sans); font-size:13px; color:var(--ink-faint); margin-top:.6em; max-width:42em; }
+  figcaption{ font-family:var(--font-mono); font-size:12.5px; color:var(--text-faint); margin-top:.7em; max-width:66ch; line-height:1.55; }
   .diagram-frame{
-    border:1px solid var(--rule); border-radius:14px; background:var(--bg-raise);
+    border:1px solid var(--border-default); border-radius:14px; background:var(--bg-surface);
     padding:22px 20px; box-shadow:var(--shadow);
   }
+  @media (prefers-reduced-motion: no-preference){
+    .pulse{ animation:kv-pulse 2.8s ease-in-out infinite; transform-origin:center; }
+    .fade-in{ animation:kv-fade 900ms ease-out both; }
+  }
+  @keyframes kv-pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.45; } }
+  @keyframes kv-fade{ from{ opacity:0; } to{ opacity:1; } }
 
   /* ---------- misc ---------- */
   .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   @media (max-width:640px){ .grid-2{ grid-template-columns:1fr; } }
-  .kbd-list{ display:flex; flex-wrap:wrap; gap:8px; margin:0 0 1.2em; padding:0; list-style:none;}
-  .kbd-list li{ margin:0; }
   .pill{
-    font-family:var(--mono); font-size:12.5px; background:var(--code-bg); border:1px solid var(--code-bd);
-    border-radius:999px; padding:3px 11px; color:var(--ink-soft);
+    font-family:var(--font-mono); font-size:12px; background:var(--code-bg); border:1px solid var(--code-border);
+    border-radius:999px; padding:3px 11px; color:var(--text-secondary);
   }
 
   footer{
-    max-width:44em; margin-top:4em; padding-top:1.8em; border-top:1px solid var(--rule);
-    font-family:var(--sans); font-size:13px; color:var(--ink-faint); line-height:1.7;
+    max-width:70ch; margin-top:4em; padding-top:1.8em; border-top:1px solid var(--border-strong);
+    font-family:var(--font-mono); font-size:12.5px; color:var(--text-faint); line-height:1.75;
   }
-  footer a{ color:var(--ink-faint); }
-  footer strong{ color:var(--ink-soft); }
+  footer a{ color:var(--text-faint); }
+  footer strong{ color:var(--text-tertiary); }
+  .backtotop{ font-family:var(--font-mono); font-size:12.5px; }
 
-  .backtotop{ font-family:var(--sans); font-size:12.5px; }
+  /* ---------- references ---------- */
+  .reflist{ list-style:none; margin:0; padding:0; max-width:72ch; font-family:var(--font-sans); font-size:14.5px; }
+  .reflist li{ display:grid; grid-template-columns:2.4em 1fr; gap:10px; padding:9px 0; border-bottom:1px solid var(--border-subtle); }
+  .reflist li:last-child{ border-bottom:none; }
+  .reflist .refnum{ font-family:var(--font-mono); color:var(--accent-ink); font-weight:700; }
+  .reflist code{ font-size:.82em; }
 
   /* ---------- responsive ---------- */
   @media (max-width:920px){
     .shell{ grid-template-columns:1fr; padding:0 20px; }
     nav.toc{
-      position:static; height:auto; padding:14px 0; border-bottom:1px solid var(--rule);
+      position:static; height:auto; padding:14px 0; border-bottom:1px solid var(--border-strong);
       margin-bottom:8px;
     }
     .toc-toggle{
       display:flex; align-items:center; justify-content:space-between; width:100%;
-      font-family:var(--sans); font-weight:700; font-size:14px; background:none; border:none; color:var(--ink);
+      font-family:var(--font-mono); font-weight:700; font-size:13.5px; background:none; border:none; color:var(--text-primary);
       padding:10px 2px; cursor:pointer;
     }
     .toc-body{ display:none; }
     .toc-body.open{ display:block; }
-    main{ padding-top:20px; }
+    main{ padding-top:22px; }
     body{ font-size:16px; }
     h1.doctitle{ font-size:32px; }
   }
+  @media (max-width:480px){
+    .shell{ padding:0 16px; }
+    .profile{ padding:20px 18px; }
+    h2{ font-size:22px; }
+  }
+  @media (max-width:360px){
+    .shell{ padding:0 12px; }
+    body{ font-size:15.2px; }
+    .callout{ padding:14px 16px; }
+    .profile{ padding:16px 14px; }
+  }
 
   @media print{
-    nav.toc{ display:none; }
-    .shell{ display:block; }
+    :root, :root[data-theme]{
+      --bg-base:#fff; --bg-surface:#fff; --bg-elevated:#fff;
+      --border-subtle:#ddd; --border-default:#ccc; --border-strong:#999; --border-emphasis:#777;
+      --text-primary:#000; --text-secondary:#111; --text-tertiary:#222; --text-muted:#333; --text-faint:#444;
+      --accent:#7a3b1f; --accent-ink:#5c2b16; --accent-bg:#f1e6dd; --code-bg:#f4f4f4; --code-border:#ccc;
+      --shadow:none;
+    }
+    .skip-link, nav.toc{ display:none !important; }
+    .shell{ display:block; padding:0; max-width:none; }
+    main{ padding:0; }
+    a{ color:#000; text-decoration:underline; }
+    .profile, .callout, .diagram-frame, .tablewrap{ box-shadow:none; break-inside:avoid; }
+    h2, h3{ break-after:avoid; }
+    figure, table{ break-inside:avoid; }
   }
 </style>
+</head>
+<body>
+<a class="skip-link" href="#maincontent">Skip to whitepaper content</a>
 
 <div class="shell">
 
-  <nav class="toc">
-    <button class="toc-toggle" id="tocToggle" aria-expanded="false">
+  <nav class="toc" aria-label="Table of contents">
+    <button class="toc-toggle" id="tocToggle" aria-expanded="false" aria-controls="tocBody">
       <span>Contents</span><span aria-hidden="true">☰</span>
     </button>
     <div class="toc-body" id="tocBody">
-      <div class="brand">
-        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <a class="brand" href="#top">
+        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <circle cx="24" cy="10" r="5" stroke="var(--accent)" stroke-width="3"/>
           <line x1="24" y1="15" x2="24" y2="40" stroke="var(--accent)" stroke-width="3"/>
           <path d="M8 24C8 24 10 40 24 40C38 40 40 24 40 24" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
           <line x1="13" y1="21" x2="35" y2="21" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
         </svg>
-        <div>
-          <div class="brand-text">KOTVA</div>
-          <div class="brand-sub">protocol family · v0.1.0</div>
-        </div>
-      </div>
+        <span>
+          <span class="brand-text" style="display:block;">KOTVA</span>
+          <span class="brand-sub">protocol family · v0.1.0</span>
+        </span>
+      </a>
 
       <ul class="toc-list">
-        <li><a href="#abstract">Abstract</a></li>
+        <li><a href="#abstract">§0&nbsp;&nbsp;Abstract</a></li>
 
         <div class="toc-group-title">Architecture</div>
-        <li><a href="#waist">1&nbsp;&nbsp;The narrow waist</a></li>
-        <li><a href="#substrate">2&nbsp;&nbsp;The substrate</a>
+        <li><a href="#waist">§1&nbsp;&nbsp;The narrow waist</a></li>
+        <li><a href="#substrate">§2&nbsp;&nbsp;The substrate</a>
           <ul class="toc-sub">
             <li><a href="#substrate-caps">2.1 Six capabilities</a></li>
             <li><a href="#substrate-sync">2.2 Sync — the CRDT op algebra</a></li>
           </ul>
         </li>
-        <li><a href="#coordinator">3&nbsp;&nbsp;The coordinator contract</a></li>
-        <li><a href="#bindings">4&nbsp;&nbsp;Bindings</a></li>
+        <li><a href="#coordinator">§3&nbsp;&nbsp;The coordinator contract</a></li>
+        <li><a href="#bindings">§4&nbsp;&nbsp;Bindings</a></li>
 
         <div class="toc-group-title">The profiles</div>
-        <li><a href="#profiles">5&nbsp;&nbsp;Profiles overview</a>
+        <li><a href="#profiles">§5&nbsp;&nbsp;Profiles overview</a>
           <ul class="toc-sub">
-            <li><a href="#p-mail">DMTAP&nbsp;mail</a></li>
-            <li><a href="#p-tract">TRACT&nbsp;commerce</a></li>
-            <li><a href="#p-wrap">WRAP&nbsp;work</a></li>
-            <li><a href="#p-media">MEDIA&nbsp;Evermesh</a></li>
+            <li><a href="#p-mail">DMTAP mail</a></li>
+            <li><a href="#p-tract">TRACT commerce</a></li>
+            <li><a href="#p-wrap">WRAP work</a></li>
+            <li><a href="#p-media">MEDIA / Evermesh</a></li>
             <li><a href="#p-social">SOCIAL</a></li>
             <li><a href="#p-rtc">RTC calling</a></li>
             <li><a href="#p-reach">REACH</a></li>
             <li><a href="#p-search">SEARCH</a></li>
+            <li><a href="#p-depot">DEPOT cloud</a></li>
           </ul>
         </li>
 
         <div class="toc-group-title">Discipline</div>
-        <li><a href="#honesty">6&nbsp;&nbsp;Honest ceilings &amp; threat model</a></li>
-        <li><a href="#status">7&nbsp;&nbsp;Status &amp; governance</a></li>
+        <li><a href="#honesty">§6&nbsp;&nbsp;Honest ceilings &amp; threat model</a></li>
+        <li><a href="#status">§7&nbsp;&nbsp;Status &amp; governance</a></li>
+        <li><a href="#references">§8&nbsp;&nbsp;References</a></li>
       </ul>
     </div>
   </nav>
 
-  <main>
+  <main id="maincontent" tabindex="-1">
 
     <div class="titleblock">
       <p class="kicker">Whitepaper — protocol family specification</p>
-      <h1 class="doctitle" id="top">KOTVA</h1>
-      <p class="thesis">A narrow-waist protocol family: one small, shared substrate — identity, signed objects, transport, publish/subscribe, sync, and infrastructure roles — over which mail, commerce, work, social, media, and real-time calling compose as thin, independent profiles.</p>
+      <h1 class="doctitle" id="top">KOT<span class="accent">V</span>A</h1>
+      <p class="thesis">The sovereign substrate: one small, shared narrow waist — identity, signed objects, transport, publish/subscribe, sync, and infrastructure roles — over which mail, commerce, work, social, media, search and real-time calling compose as thin, independent <strong>profiles</strong>. <em>Kotva</em> is Slavic for anchor: the key is the anchor, and every name, address, provider or operator above it is a swappable pointer.</p>
       <div class="meta-row">
         <span class="badge b-draft"><span class="dot"></span>v0.1.0 — early &amp; evolving</span>
         <span class="badge">CC BY 4.0</span>
@@ -328,24 +439,24 @@
       </div>
     </div>
 
-    <section id="abstract">
-      <h2><span class="secnum">§0</span> Abstract</h2>
-      <p><em>kotva</em> is Slavic for <strong>anchor</strong>. The key is the anchor: identity is a keypair its owner holds, and every name, address, alias, or operator that sits above it is a swappable pointer. KOTVA is not a product. It is a family of protocols sharing one narrow waist — six capabilities small enough to read in an afternoon — plus a keystone document, the <strong>coordinator contract</strong>, that turns "some centralization, done safely" into a checkable property instead of a marketing promise. Above the waist sit thin <strong>profiles</strong>: DMTAP (mail, the reference profile), TRACT (commerce), WRAP (work), and a set of further drafts — media, social, real-time calling, search, reachability. Below the waist, KOTVA adopts rather than reinvents: Ed25519, HPKE, deterministic CBOR, MLS, libp2p, SFrame, WebRTC, and a slate of external bindings for recovery, reputation, payments, storage, and dispute. The one piece of genuinely new normative engineering is <strong>Sync</strong> — a signed, multi-author CRDT operation algebra with deterministic, coordinator-free convergence. Everything else is composition, and every unavoidable point of centralization is fenced: accountable, swappable, self-hostable, and never load-bearing.</p>
+    <section id="abstract" aria-labelledby="abstract-h">
+      <h2 id="abstract-h"><span class="secnum">§0</span> Abstract</h2>
+      <p><em>Kotva</em> is Slavic for <strong>anchor</strong>. The key is the anchor: identity is a keypair its holder controls, and every name, address, alias, or operator sitting above it is a swappable pointer. KOTVA itself is not a product — it is a family of protocols sharing one narrow waist, six capabilities small enough to read in an afternoon,<sup class="fn"><a href="#r3">[3]</a></sup> plus a keystone document, the <strong>coordinator contract</strong>,<sup class="fn"><a href="#r2">[2]</a></sup> that turns "some centralisation, done safely" into a checkable property instead of a marketing promise. Above the waist sit thin <strong>profiles</strong>: DMTAP (mail, the flagship and reference profile), TRACT (commerce), WRAP (work), and a set of further drafts — media, social, real-time calling, search, reachability, cloud infrastructure. Below the waist, KOTVA adopts rather than reinvents: Ed25519, HPKE, deterministic CBOR, MLS, libp2p, SFrame, WebRTC, and a slate of external bindings for recovery, reputation, payments, storage, and dispute.<sup class="fn"><a href="#r5">[5]</a></sup> The one piece of genuinely new normative engineering is <strong>Sync</strong> — a signed, multi-author CRDT operation algebra with deterministic, coordinator-free convergence. Everything else is composition, and every unavoidable point of centralisation is fenced: accountable, swappable, self-hostable, and never load-bearing.</p>
     </section>
 
     <hr class="rule">
 
-    <section id="waist">
-      <h2><span class="secnum">§1</span> The narrow waist</h2>
+    <section id="waist" aria-labelledby="waist-h">
+      <h2 id="waist-h"><span class="secnum">§1</span> The narrow waist</h2>
       <p class="lede">KOTVA "covers everything" the way IP or HTTP do — by being a thin waist that composes upward and downward, not by containing everything.</p>
-      <p>Federated-messaging history has one loud lesson: monolithic protocols die of their own weight, and tiny cores win. XMPP and Matrix are technically complete and genuinely federated, yet both carry a large mandatory surface — presence, rosters, room-state resolution, a sprawl of extensions — that every server must implement to interoperate. HTTP did the opposite: the core is almost nothing, and everything else is a profile layered on top. Nostr reduced a social network to "a signed JSON event, relayed by dumb relays"; AT Protocol to "a signed content-addressed repo with pluggable identity." Both won by being small enough that a new client, or a new application <em>kind</em>, did not have to swallow the whole thing.</p>
-      <p>KOTVA's waist is exactly six capabilities. A profile may adopt any subset — there is no ordering, no prerequisite bundle, no "core profile" a product must swallow first. But if a profile implements a capability's <em>function</em>, it <strong>must</strong> speak that capability's <em>bytes</em>: a product that syncs structured state must use the Sync op algebra, not a parallel CRDT it calls the same name. Two independently built profiles interoperate on any capability they both adopt — that only holds if adopting a capability means adopting its wire format, not merely its idea.</p>
+      <p>Federated-messaging history carries one loud lesson: monolithic protocols die of their own weight, and tiny cores win. XMPP and Matrix are technically complete and genuinely federated, yet both carry a large mandatory surface — presence, rosters, room-state resolution, a sprawl of extensions — that every server must implement to interoperate. HTTP took the opposite path: the core is almost nothing, and everything else is a profile layered on top. Nostr reduces a social network to "a signed JSON event, relayed by dumb relays"; AT Protocol reduces one to "a signed content-addressed repo with pluggable identity." Both win adoption by staying small enough that a new client, or a new application <em>kind</em>, need not swallow the whole thing.</p>
+      <p>KOTVA's waist is exactly six capabilities. A profile may adopt any subset — there is no ordering, no prerequisite bundle, no "core profile" a product must swallow first. But if a profile implements a capability's <em>function</em>, it <strong>must</strong> speak that capability's <em>bytes</em>: a product that syncs structured state uses the Sync op algebra, not a parallel CRDT it happens to call the same name. Two independently built profiles interoperate on any capability they both adopt — and that only holds if adopting a capability means adopting its wire format, not merely its idea.</p>
 
       <div class="tablewrap">
         <table>
           <thead><tr><th>Capability</th><th>What it is</th><th>Byte-home</th></tr></thead>
           <tbody>
-            <tr><td><strong>① Identity</strong></td><td>A keypair <em>is</em> the identity. Names — DNS, chain, an 8-word key-name floor — are swappable pointers to it, never authoritative over it.</td><td><code>01-identity.md</code>, <code>03-naming.md</code></td></tr>
+            <tr><td><strong>① Identity</strong></td><td>A keypair <em>is</em> the identity. Names — DNS, a chain, an 8-word key-name floor — are swappable pointers to it, never authoritative over it.</td><td><code>01-identity.md</code>, <code>03-naming.md</code></td></tr>
             <tr><td><strong>② MOTE</strong></td><td>The universal object: signed, encrypted, content-addressed. Mail, chat, offers, feed entries, and credentials are all MOTEs.</td><td><code>02-mote.md</code>, <code>05-messaging.md</code></td></tr>
             <tr><td><strong>③ Transport</strong></td><td>Reach anyone by key — online, offline, or over a mesh. Store-and-forward at the edge; no static IP required.</td><td><code>04-transport.md</code>, <code>substrate/ROLES.md</code></td></tr>
             <tr><td><strong>④ PUB</strong></td><td>Signed public objects plus append-only author feeds — authenticity without confidentiality.</td><td><code>22-public-objects.md</code>, <code>25-pubsub.md</code></td></tr>
@@ -359,79 +470,71 @@
         <div class="diagram-frame">
           <svg viewBox="0 0 900 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="hgTitle hgDesc">
             <title id="hgTitle">The narrow-waist hourglass</title>
-            <desc id="hgDesc">Profiles fan out at the top; adopted standards fan out at the bottom; the six waist capabilities sit at the narrow neck in the middle.</desc>
-            <defs>
-              <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                <path d="M0 0L10 5L0 10z" fill="var(--ink-faint)"></path>
-              </marker>
-            </defs>
-            <!-- top fan: profiles -->
-            <g font-family="var(--sans)" font-size="13" text-anchor="middle">
-              <g>
-                <rect x="20"  y="18" width="118" height="34" rx="8" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.2"></rect>
-                <text x="79" y="39" fill="var(--accent-ink)" font-weight="700">DMTAP mail</text>
-                <rect x="152" y="18" width="118" height="34" rx="8" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.2"></rect>
-                <text x="211" y="39" fill="var(--accent-ink)" font-weight="700">TRACT</text>
-                <rect x="284" y="18" width="118" height="34" rx="8" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.2"></rect>
-                <text x="343" y="39" fill="var(--accent-ink)" font-weight="700">WRAP</text>
-                <rect x="416" y="18" width="118" height="34" rx="8" fill="var(--bg-panel)" stroke="var(--rule)" stroke-width="1.2"></rect>
-                <text x="475" y="39" fill="var(--ink-soft)" font-weight="700">MEDIA</text>
-                <rect x="548" y="18" width="118" height="34" rx="8" fill="var(--bg-panel)" stroke="var(--rule)" stroke-width="1.2"></rect>
-                <text x="607" y="39" fill="var(--ink-soft)" font-weight="700">SOCIAL</text>
-                <rect x="680" y="18" width="90" height="34" rx="8" fill="var(--bg-panel)" stroke="var(--rule)" stroke-width="1.2"></rect>
-                <text x="725" y="39" fill="var(--ink-soft)" font-weight="700">RTC</text>
-                <rect x="780" y="18" width="100" height="34" rx="8" fill="var(--bg-panel)" stroke="var(--rule)" stroke-width="1.2"></rect>
-                <text x="830" y="39" fill="var(--ink-soft)" font-weight="700">REACH / SEARCH</text>
+            <desc id="hgDesc">Eight profiles fan out at the top, funnelling down into the six waist capabilities at the neck, which funnel further down into six adopted external standards at the base.</desc>
+            <g font-family="var(--font-mono)" font-size="12.5" text-anchor="middle">
+              <rect x="18"  y="18" width="112" height="34" rx="7" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.1"></rect>
+              <text x="74" y="39" fill="var(--accent-ink)" font-weight="700">DMTAP</text>
+              <rect x="146" y="18" width="100" height="34" rx="7" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.1"></rect>
+              <text x="196" y="39" fill="var(--accent-ink)" font-weight="700">TRACT</text>
+              <rect x="262" y="18" width="100" height="34" rx="7" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.1"></rect>
+              <text x="312" y="39" fill="var(--accent-ink)" font-weight="700">WRAP</text>
+              <rect x="378" y="18" width="100" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
+              <text x="428" y="39" fill="var(--text-secondary)" font-weight="700">MEDIA</text>
+              <rect x="494" y="18" width="100" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
+              <text x="544" y="39" fill="var(--text-secondary)" font-weight="700">SOCIAL</text>
+              <rect x="610" y="18" width="86" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
+              <text x="653" y="39" fill="var(--text-secondary)" font-weight="700">RTC</text>
+              <rect x="712" y="18" width="86" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
+              <text x="755" y="39" fill="var(--text-secondary)" font-weight="700">REACH</text>
+              <rect x="814" y="18" width="72" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
+              <text x="850" y="39" fill="var(--text-secondary)" font-weight="700" font-size="11">SEARCH</text>
+            </g>
+            <g stroke="var(--border-emphasis)" stroke-width="1.1" fill="none" stroke-dasharray="3 3">
+              <path d="M74,52 L360,150"></path>
+              <path d="M196,52 L400,150"></path>
+              <path d="M312,52 L438,150"></path>
+              <path d="M428,52 L470,150"></path>
+              <path d="M544,52 L505,150"></path>
+              <path d="M653,52 L540,150"></path>
+              <path d="M755,52 L575,150"></path>
+              <path d="M850,52 L610,150"></path>
+            </g>
+            <rect class="pulse" x="270" y="150" width="360" height="120" rx="14" fill="var(--bg-elevated)" stroke="var(--accent)" stroke-width="1.6"></rect>
+            <g font-family="var(--font-mono)" font-size="12" text-anchor="middle" fill="var(--text-primary)">
+              <text x="450" y="172" font-weight="700" letter-spacing="0.09em">THE NARROW WAIST</text>
+              <g font-size="11.5">
+                <text x="345" y="197">① Identity</text>
+                <text x="450" y="197">② MOTE</text>
+                <text x="555" y="197">③ Transport</text>
+                <text x="345" y="221">④ PUB</text>
+                <text x="450" y="221">⑤ Sync</text>
+                <text x="555" y="221">⑥ Roles/Wake</text>
               </g>
+              <text x="450" y="251" fill="var(--text-faint)" font-style="italic" font-size="11">six capabilities · à-la-carte · shared signing &amp; encoding</text>
             </g>
-            <!-- funnel lines down to waist -->
-            <g stroke="var(--rule)" stroke-width="1.4" fill="none">
-              <path d="M79,52 L360,150"></path>
-              <path d="M211,52 L400,150"></path>
-              <path d="M343,52 L440,150"></path>
-              <path d="M475,52 L480,150"></path>
-              <path d="M607,52 L520,150"></path>
-              <path d="M725,52 L560,150"></path>
-              <path d="M830,52 L600,150"></path>
+            <g stroke="var(--border-emphasis)" stroke-width="1.1" fill="none" stroke-dasharray="3 3">
+              <path d="M340,270 L120,338"></path>
+              <path d="M390,270 L250,338"></path>
+              <path d="M450,270 L400,338"></path>
+              <path d="M510,270 L560,338"></path>
+              <path d="M560,270 L700,338"></path>
+              <path d="M600,270 L818,338"></path>
             </g>
-            <!-- waist -->
-            <rect x="270" y="150" width="360" height="120" rx="14" fill="var(--bg-raise)" stroke="var(--accent)" stroke-width="2"></rect>
-            <g font-family="var(--sans)" font-size="12.5" text-anchor="middle" fill="var(--ink)">
-              <text x="450" y="172" font-weight="800" letter-spacing="0.08em">THE NARROW WAIST</text>
-              <g font-size="12">
-                <text x="345" y="196">① Identity</text>
-                <text x="450" y="196">② MOTE</text>
-                <text x="555" y="196">③ Transport</text>
-                <text x="345" y="220">④ PUB</text>
-                <text x="450" y="220">⑤ Sync</text>
-                <text x="555" y="220">⑥ Roles/Wake</text>
-              </g>
-              <text x="450" y="250" fill="var(--ink-faint)" font-style="italic" font-size="11.5">six capabilities · à-la-carte · shared signing &amp; encoding</text>
+            <g font-family="var(--font-mono)" font-size="12" text-anchor="middle">
+              <rect x="40"  y="338" width="140" height="34" rx="7" fill="var(--code-bg)" stroke="var(--code-border)"></rect>
+              <text x="110" y="359" fill="var(--text-secondary)">Ed25519 · CBOR</text>
+              <rect x="196" y="338" width="130" height="34" rx="7" fill="var(--code-bg)" stroke="var(--code-border)"></rect>
+              <text x="261" y="359" fill="var(--text-secondary)">HPKE · COSE</text>
+              <rect x="342" y="338" width="120" height="34" rx="7" fill="var(--code-bg)" stroke="var(--code-border)"></rect>
+              <text x="402" y="359" fill="var(--text-secondary)">MLS · SFrame</text>
+              <rect x="478" y="338" width="130" height="34" rx="7" fill="var(--code-bg)" stroke="var(--code-border)"></rect>
+              <text x="543" y="359" fill="var(--text-secondary)">libp2p mesh</text>
+              <rect x="624" y="338" width="130" height="34" rx="7" fill="var(--code-bg)" stroke="var(--code-border)"></rect>
+              <text x="689" y="359" fill="var(--text-secondary)">WebRTC · TURN</text>
+              <rect x="770" y="338" width="110" height="34" rx="7" fill="var(--code-bg)" stroke="var(--code-border)"></rect>
+              <text x="825" y="359" fill="var(--text-secondary)">Web Push</text>
             </g>
-            <!-- funnel lines to adopted standards -->
-            <g stroke="var(--rule)" stroke-width="1.4" fill="none">
-              <path d="M340,270 L120,340"></path>
-              <path d="M390,270 L250,340"></path>
-              <path d="M450,270 L400,340"></path>
-              <path d="M510,270 L560,340"></path>
-              <path d="M560,270 L700,340"></path>
-              <path d="M600,270 L820,340"></path>
-            </g>
-            <g font-family="var(--sans)" font-size="12.5" text-anchor="middle">
-              <rect x="40"  y="340" width="140" height="34" rx="8" fill="var(--code-bg)" stroke="var(--code-bd)"></rect>
-              <text x="110" y="361" fill="var(--ink-soft)">Ed25519 · CBOR</text>
-              <rect x="196" y="340" width="130" height="34" rx="8" fill="var(--code-bg)" stroke="var(--code-bd)"></rect>
-              <text x="261" y="361" fill="var(--ink-soft)">HPKE · COSE</text>
-              <rect x="342" y="340" width="120" height="34" rx="8" fill="var(--code-bg)" stroke="var(--code-bd)"></rect>
-              <text x="402" y="361" fill="var(--ink-soft)">MLS · SFrame</text>
-              <rect x="478" y="340" width="130" height="34" rx="8" fill="var(--code-bg)" stroke="var(--code-bd)"></rect>
-              <text x="543" y="361" fill="var(--ink-soft)">libp2p mesh</text>
-              <rect x="624" y="340" width="130" height="34" rx="8" fill="var(--code-bg)" stroke="var(--code-bd)"></rect>
-              <text x="689" y="361" fill="var(--ink-soft)">WebRTC · TURN</text>
-              <rect x="770" y="340" width="110" height="34" rx="8" fill="var(--code-bg)" stroke="var(--code-bd)"></rect>
-              <text x="825" y="361" fill="var(--ink-soft)">Web Push</text>
-            </g>
-            <text x="450" y="405" text-anchor="middle" font-family="var(--sans)" font-size="11.5" fill="var(--ink-faint)" font-style="italic">profiles fan out above · adopted standards fan out below · the waist invents only where nothing existed</text>
+            <text x="450" y="403" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--text-faint)" font-style="italic">profiles fan out above · adopted standards fan out below · the waist invents new bytes only where nothing existed</text>
           </svg>
         </div>
         <figcaption>Figure 1 — the hourglass shape. KOTVA specifies new bytes only at the neck (chiefly Sync); everything above and below is composition of existing standards and thin profiles.</figcaption>
@@ -446,11 +549,11 @@
 
     <hr class="rule">
 
-    <section id="substrate">
-      <h2><span class="secnum">§2</span> The substrate</h2>
+    <section id="substrate" aria-labelledby="substrate-h">
+      <h2 id="substrate-h"><span class="secnum">§2</span> The substrate</h2>
 
-      <h3 id="substrate-caps">2.1 Six capabilities, one shared floor</h3>
-      <p>The substrate directory re-presents the waist as a standalone contract any non-mail product can adopt à la carte. Five of the six capabilities <em>profile</em> existing sections of the core mail spec — they extract general machinery that happened to be written down as part of a mail protocol. Only one — Sync — is genuinely new normative ground.</p>
+      <h3 id="substrate-caps"><span class="secnum">2.1</span> Six capabilities, one shared floor</h3>
+      <p>The substrate directory re-presents the waist as a standalone contract any non-mail product can adopt à la carte.<sup class="fn"><a href="#r3">[3]</a></sup> Five of the six capabilities <em>profile</em> existing sections of the core mail spec — they extract general machinery that happened to be written down as part of a mail protocol. Only one — Sync — is genuinely new normative ground.</p>
 
       <div class="tablewrap">
         <table>
@@ -461,14 +564,14 @@
             <tr><td>3</td><td>Transport</td><td>libp2p (Kademlia, Circuit Relay v2, DCUtR); store-and-forward at the edge — reach a key online, offline, or over a mesh</td><td><code>dmtap-p2p</code> (Envoir mesh)</td></tr>
             <tr><td>4</td><td>PUB — Feeds &amp; Blobs</td><td>Nostr-class signed events, IPFS-class content addressing, RFC 6962 Merkle, HTTP caching</td><td><code>kerf-pub</code> — serves §22 over plain HTTPS, no mesh</td></tr>
             <tr><td>5</td><td>Sync</td><td>CBOR/COSE, Hybrid Logical Clocks, version vectors, range-based set reconciliation</td><td><code>flowstock</code> stateless sync; <code>dmtap-clustersync</code> CRDTs (Envoir)</td></tr>
-            <tr><td>6</td><td>Roles &amp; Wake</td><td>libp2p infrastructure roles (announce/resolve, Circuit Relay v2, short-TTL content-blind mailbox, cache) + content-free, sender-blind Web Push (RFC 8030/8291/8292, VAPID), UnifiedPush</td><td><code>vulos-relayd</code> (intended)</td></tr>
+            <tr><td>6</td><td>Roles &amp; Wake</td><td>libp2p infrastructure roles (announce/resolve, Circuit Relay v2, short-TTL content-blind mailbox, cache) + content-free, sender-blind Web Push (RFC 8030/8291/8292, VAPID), UnifiedPush</td><td>the reference gateway/broker, <strong>Ephor</strong>, built on the <code>kotva-core</code>/<code>kotva-mail</code> crates</td></tr>
           </tbody>
         </table>
       </div>
-      <p>The repository is candid about where implementation currently stands: roughly five independently hand-rolled sync/identity/feed implementations exist across the product suite today, <strong>none byte-interoperable with any other</strong>. The stated fix is not more prose but one compiled Rust core with thin per-language bindings (native, C-ABI/cgo, WASM, UniFFI) and frozen conformance vectors as the proof a binding is byte-identical to the core — a plan, not yet a finished fact.</p>
+      <p>The repository is candid about where implementation currently stands: roughly five independently hand-rolled sync/identity/feed implementations exist across the product suite today, <strong>none byte-interoperable with any other</strong>. The stated fix is not more prose but one compiled Rust core with thin per-language bindings (native, C-ABI/cgo, WASM, UniFFI) and frozen conformance vectors as the proof a binding is byte-identical to the core — a plan, not yet a finished fact. Two of those crates, <code>kotva-core</code> and <code>kotva-mail</code>, are tag-pinned dependencies today: consumers — the Envoir mesh node and the <strong>Ephor</strong> broker, KOTVA's reference coordinator/gateway implementation — pin a git tag rather than tracking a moving path.</p>
 
-      <h3 id="substrate-sync">2.2 Sync — the one new normative capability</h3>
-      <p>Every other waist capability profiles something that already exists. Sync does not: no single deployed standard covers <em>signed, deterministic, multi-author CRDT operations with snapshot and sparse namespace sync</em>. Its semantics are grounded in the mail spec's existing single-owner device-cluster CRDT, generalized to any set of independent identities converging on shared state — by making the <strong>operation itself</strong> the unit of authenticity.</p>
+      <h3 id="substrate-sync"><span class="secnum">2.2</span> Sync — the one new normative capability</h3>
+      <p>Every other waist capability profiles something that already exists. Sync does not: no single deployed standard covers <em>signed, deterministic, multi-author CRDT operations with snapshot and sparse namespace sync</em>. Its semantics are grounded in the mail spec's existing single-owner device-cluster CRDT, generalised to any set of independent identities converging on shared state — by making the <strong>operation itself</strong> the unit of authenticity.</p>
 
       <div class="grid-2">
         <div class="callout">
@@ -482,7 +585,7 @@
       </div>
 
       <h4>The <code>SyncOp</code> envelope</h4>
-      <p>One envelope, six-plus CRDT types selected by a <code>kind</code> discriminator, each op individually <strong>COSE-signed</strong> (RFC 9052) or batched into a hash-chained, singly-signed <code>SyncFrame</code> for amortized signatures:</p>
+      <p>One envelope, six-plus CRDT types selected by a <code>kind</code> discriminator, each op individually <strong>COSE-signed</strong> (RFC 9052) or batched into a hash-chained, singly-signed <code>SyncFrame</code> for amortised signatures:</p>
       <pre><code>SyncOp = {
   1  =&gt; u8,          ; kind    CRDT/op discriminator
   2  =&gt; tstr,        ; ns      namespace ("" = default)
@@ -496,7 +599,7 @@
 
       <div class="tablewrap compact">
         <table>
-          <thead><tr><th>kind</th><th>CRDT type</th><th>Behavior</th></tr></thead>
+          <thead><tr><th>kind</th><th>CRDT type</th><th>Behaviour</th></tr></thead>
           <tbody>
             <tr><td><code>set-add</code> / <code>set-remove</code></td><td>OR-Set</td><td>add-wins observed-remove; a remove cancels only the specific add-tags it saw, so a concurrent unseen add survives</td></tr>
             <tr><td><code>lww-set</code></td><td>LWW register</td><td>greater HLC wins; an exact tie breaks on larger encoded-value bytes</td></tr>
@@ -508,7 +611,7 @@
         </table>
       </div>
 
-      <p>Authenticity, ordering, and abuse-resistance are treated as one problem rather than three add-ons: an op's HLC is rejected if its wall-clock is more than a bounded skew <em>ahead</em> of the receiver — deliberately one-sided, so a device that was offline for days can still push its legitimate backlog without a two-sided check discarding honest offline work. A counter's overflow spills forward into the next tick rather than wrapping, because a silent wrap would retroactively invert causal order for any op minted at the wrapped position. Reconciliation is a three-endpoint HTTP protocol — <code>GET /sync/vector</code>, <code>POST /sync/pull</code>, <code>POST /sync/ops</code> — the same shape proven by the <code>flowstock</code> reference implementation.</p>
+      <p>Authenticity, ordering, and abuse-resistance are treated as one problem rather than three add-ons: an op's HLC is rejected if its wall-clock is more than a bounded skew <em>ahead</em> of the receiver — deliberately one-sided, so a device offline for days can still push its legitimate backlog without a two-sided check discarding honest offline work. A counter's overflow spills forward into the next tick rather than wrapping, because a silent wrap would retroactively invert causal order for any op minted at the wrapped position. Reconciliation is a three-endpoint HTTP protocol — <code>GET /sync/vector</code>, <code>POST /sync/pull</code>, <code>POST /sync/ops</code> — the same shape proven by the <code>flowstock</code> reference implementation.</p>
 
       <div class="callout honest">
         <h4>Honest framing</h4>
@@ -518,21 +621,64 @@
 
     <hr class="rule">
 
-    <section id="coordinator">
-      <h2><span class="secnum">§3</span> The coordinator contract</h2>
-      <p class="lede">The keystone new specification of the family — a draft, normative once ratified — that turns "some centralization, done safely" into a checkable property rather than a hope.</p>
-      <blockquote>Decentralize the substrate and the exit. Every unavoidable coordinator is <strong>accountable, swappable, and self-hostable</strong>, and <strong>never load-bearing</strong>. Coordinators add reach; they never gate function.</blockquote>
-      <p>A <strong>coordinator</strong> is any party that provides a function the peer-to-peer substrate cannot provide reciprocally: a global view (matching, ranking, search), a scarce resource (a reputable IP for legacy mail egress, a public ingress), a legal or real-world anchor (licensing, physical-event attestation), or cross-party judgement (moderation, arbitration). KOTVA does not pretend these jobs away — it fences each one behind one contract, generalized from DMTAP's legacy-mail gateway and legacy adapters into a reusable shape.</p>
+    <section id="coordinator" aria-labelledby="coordinator-h">
+      <h2 id="coordinator-h"><span class="secnum">§3</span> The coordinator contract</h2>
+      <p class="lede">The keystone new specification of the family — a draft, normative once ratified — that turns "some centralisation, done safely" into a checkable property rather than a hope.</p>
+      <blockquote>Decentralise the substrate and the exit. Every unavoidable coordinator is <strong>accountable, swappable, and self-hostable</strong>, and <strong>never load-bearing</strong>. Coordinators add reach; they never gate function.<sup class="fn"><a href="#r2">[2]</a></sup></blockquote>
+      <p>A <strong>coordinator</strong> is any party that provides a function the peer-to-peer substrate cannot provide reciprocally: a global view (matching, ranking, search), a scarce resource (a reputable IP for legacy mail egress, a public ingress), a legal or real-world anchor (licensing, physical-event attestation), or cross-party judgement (moderation, arbitration). KOTVA does not pretend these jobs away — it fences each one behind one contract, generalised from DMTAP's legacy-mail gateway and legacy adapters into a reusable shape.</p>
 
-      <h3>3.1 Four conformance clauses</h3>
+      <figure>
+        <div class="diagram-frame">
+          <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="coordTitle coordDesc">
+            <title id="coordTitle">The coordinator contract — hired, not depended on</title>
+            <desc id="coordDesc">Peer A and Peer B are joined by a solid direct line that works with no coordinator present. A coordinator node floats above, joined to both peers only by dashed, optional lines, carrying four fenced properties: accountable, swappable, self-hostable, and content-visibility declared.</desc>
+            <g font-family="var(--font-mono)" font-size="12.5">
+              <rect x="40" y="200" width="140" height="56" rx="10" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.3"></rect>
+              <text x="110" y="224" text-anchor="middle" fill="var(--text-primary)" font-weight="700">PEER A</text>
+              <text x="110" y="242" text-anchor="middle" fill="var(--text-faint)" font-size="10.5">holds its own IK</text>
+
+              <rect x="520" y="200" width="140" height="56" rx="10" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.3"></rect>
+              <text x="590" y="224" text-anchor="middle" fill="var(--text-primary)" font-weight="700">PEER B</text>
+              <text x="590" y="242" text-anchor="middle" fill="var(--text-faint)" font-size="10.5">holds its own IK</text>
+
+              <line x1="180" y1="228" x2="520" y2="228" stroke="var(--text-secondary)" stroke-width="2"></line>
+              <text x="350" y="218" text-anchor="middle" fill="var(--text-secondary)" font-size="11.5" font-weight="700">direct — works with zero coordinators</text>
+
+              <rect x="235" y="26" width="230" height="70" rx="12" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.6"></rect>
+              <text x="350" y="52" text-anchor="middle" fill="var(--accent-ink)" font-weight="700">COORDINATOR</text>
+              <text x="350" y="70" text-anchor="middle" fill="var(--text-secondary)" font-size="11">gateway · relay · indexer ·</text>
+              <text x="350" y="84" text-anchor="middle" fill="var(--text-secondary)" font-size="11">labeler · arbiter · oracle …</text>
+
+              <path d="M240,90 L130,200" stroke="var(--border-emphasis)" stroke-width="1.3" fill="none" stroke-dasharray="5 4"></path>
+              <path d="M460,90 L580,200" stroke="var(--border-emphasis)" stroke-width="1.3" fill="none" stroke-dasharray="5 4"></path>
+              <text x="350" y="120" text-anchor="middle" fill="var(--text-faint)" font-style="italic" font-size="11">optional — adds reach, never gates function</text>
+
+              <g font-size="10.3" text-anchor="middle">
+                <rect x="235" y="112" width="112" height="24" rx="12" fill="var(--bg-base)" stroke="var(--border-strong)"></rect>
+                <text x="291" y="128" fill="var(--text-secondary)">ACCOUNTABLE</text>
+                <rect x="353" y="112" width="112" height="24" rx="12" fill="var(--bg-base)" stroke="var(--border-strong)"></rect>
+                <text x="409" y="128" fill="var(--text-secondary)">SWAPPABLE</text>
+                <rect x="176" y="144" width="130" height="24" rx="12" fill="var(--bg-base)" stroke="var(--border-strong)"></rect>
+                <text x="241" y="160" fill="var(--text-secondary)">SELF-HOSTABLE</text>
+                <rect x="312" y="144" width="212" height="24" rx="12" fill="var(--bg-base)" stroke="var(--border-strong)"></rect>
+                <text x="418" y="160" fill="var(--text-secondary)">VISIBILITY DECLARED</text>
+              </g>
+            </g>
+            <text x="350" y="284" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--text-faint)" font-style="italic">a coordinator is hired, not depended on — the solid line is load-bearing, the dashed lines never are</text>
+          </svg>
+        </div>
+        <figcaption>Figure 2 — the coordinator contract's shape. The direct peer-to-peer path (solid) is what the substrate guarantees on its own; a coordinator (dashed) is an optional accelerant fenced by four conformance clauses. Custodial escrow is the family's one disclosed exception (§3.4).</figcaption>
+      </figure>
+
+      <h3><span class="secnum">3.1</span> Four conformance clauses</h3>
       <div class="grid-2">
         <div class="callout"><h4>Accountable</h4><p>A signed descriptor carrying kind, policy, and — where it charges — a signed tariff. Discovery-only and self-asserted: no global reputation score, no price rank, no stake field. Reputation is measured locally by each client, never published as a single authority's number.</p></div>
         <div class="callout"><h4>Swappable</h4><p>Leaving is a configuration change with zero data migration and zero identity change. Keys, mailbox, listings, and history live at the edge; a coordinator holds only rebuildable operational state. Lock-in is a conformance violation, not a business model.</p></div>
-        <div class="callout"><h4>Self-hostable</h4><p>For every coordinator kind, a user who can meet its requirement can run it themselves. One honest exception class is disclosed rather than papered over: scarce network reachability (a reputable IP for SMTP egress; a public ingress) — a resource an ISP or host allocates, not something a user can always self-provision.</p></div>
+        <div class="callout"><h4>Self-hostable</h4><p>For every coordinator kind, a user who can meet its requirement can run it themselves. Two honest exception classes are disclosed rather than papered over: scarce network reachability (a reputable IP for SMTP egress; a public ingress) and, for <code>custodial-escrow</code> alone, regulatory licensing — holding a stranger's money for a trade window is, in most jurisdictions, a licensed activity no individual can self-provision at any skill level.</p></div>
         <div class="callout"><h4>Content-visibility declared</h4><p>Every coordinator declares exactly one visibility class at one assurance level and surfaces it to users. Advertising one class while operating another is non-conformant misrepresentation, not policy.</p></div>
       </div>
 
-      <h3>3.2 The content-visibility property</h3>
+      <h3><span class="secnum">3.2</span> The content-visibility property</h3>
       <div class="tablewrap">
         <table>
           <thead><tr><th>Class</th><th>Meaning</th><th>Examples</th></tr></thead>
@@ -545,10 +691,11 @@
       </div>
       <p>Layered on top, an <strong>assurance level</strong> states how a blindness claim is guaranteed: <code>structural</code> (the role has no key at all — provable), <code>attested</code> (a TEE proves the code only forwards — hardware-trust), or <code>declared</code> (the operator promises — honest-trust, unverifiable). The contract can mandate the architecture and the declaration; it cannot cryptographically prove a <code>declared</code>-level operator isn't secretly logging. A client must never present a <code>declared</code> claim as if it were verified.</p>
 
-      <h3>3.3 Authorize, never classify</h3>
-      <p>Every gate a coordinator applies on a delivery path or an authoritative path must be answered from <strong>sender identity and rate</strong> — never from a judgement about whether content is wanted. A coordinator must not run spam scoring, ML filtering, or keyword/URL reputation on that path, and must not drop, quarantine, re-rank, or annotate on a content basis. "Wanted" is the recipient's judgement, on the recipient's device. This is structural rather than a style preference: content classification improves with corpus size, so it centralizes and never finishes — which is exactly how anti-abuse would otherwise regrow a second centralized tier. A carve-out exists for a coordinator's own <strong>derived, opt-in, subscribable view</strong> — a labeler classifying into labels you subscribe to, or an indexer ranking its own corpus — because gating what reaches you by default is prohibited, but ranking your own opt-in view is not.</p>
+      <h3><span class="secnum">3.3</span> Authorise, never classify</h3>
+      <p>Every gate a coordinator applies on a delivery path or an authoritative path must be answered from <strong>sender identity and rate</strong> — never from a judgement about whether content is wanted. A coordinator must not run spam scoring, ML filtering, or keyword/URL reputation on that path, and must not drop, quarantine, re-rank, or annotate on a content basis. "Wanted" is the recipient's judgement, on the recipient's device. This is structural rather than a style preference: content classification improves with corpus size, so it centralises and never finishes — which is exactly how anti-abuse would otherwise regrow a second centralised tier. A carve-out exists for a coordinator's own <strong>derived, opt-in, subscribable view</strong> — a labeler classifying into labels you subscribe to, or an indexer ranking its own corpus — because gating what reaches you by default is prohibited, but ranking your own opt-in view is not.</p>
 
-      <h3>3.4 Coordinator kinds</h3>
+      <h3><span class="secnum">3.4</span> Coordinator kinds</h3>
+      <p>The coordinator contract names twelve kinds — ten fully specified, one (<code>compute</code>) provisional, and one (<code>infra-service</code>) draft — as the single canonical, exhaustive list for the family.</p>
       <div class="tablewrap">
         <table>
           <thead><tr><th>Kind</th><th>Provides</th><th>Typical visibility</th></tr></thead>
@@ -561,21 +708,21 @@
             <tr><td><code>labeler</code></td><td>Moderation labels, opt-in, subscribable</td><td>n/a — labels public objects</td></tr>
             <tr><td><code>matcher</code></td><td>Real-time supply↔demand matching (rides, delivery)</td><td><code>terminating</code> default / <code>attested</code> (TEE)</td></tr>
             <tr><td><code>compute</code> <em>(provisional)</em></td><td>Hosted/outsourced computation (e.g. rented-GPU inference)</td><td><code>terminating</code> default / <code>attested</code></td></tr>
-            <tr><td><code>infra-service</code> <em>(draft)</em></td><td>Managed infrastructure — box / bucket / edge-fn / database / cdn (DEPOT)</td><td>per service — <code>bucket</code> <code>blind</code>, <code>edge-fn</code>/<code>database</code>/<code>box</code> <code>terminating</code> → <code>attested</code></td></tr>
+            <tr><td><code>infra-service</code> <em>(draft)</em></td><td>Managed infrastructure — box / bucket / edge-fn / database / cdn (the DEPOT profile)</td><td>per service — <code>bucket</code> <code>blind</code>, <code>edge-fn</code>/<code>database</code>/<code>box</code> <code>terminating</code> → <code>attested</code></td></tr>
             <tr><td><code>arbiter</code></td><td>Dispute resolution (staked jury)</td><td><code>terminating</code> for evidence, disclosed</td></tr>
             <tr><td><code>oracle</code></td><td>Physical-world / real-fact attestation</td><td><code>terminating</code>, disclosed</td></tr>
             <tr><td><code>custodial-escrow</code></td><td>Holds the trade float for a trade window</td><td><code>terminating</code> for evidence — the family's one <strong>load-bearing</strong> exception</td></tr>
           </tbody>
         </table>
       </div>
-      <p>Every kind above inherits the four clauses and the visibility property unchanged. The <strong>custodial-escrow</strong> operator is the one disclosed departure: it satisfies all four clauses like every other kind but, uniquely, does not fade once hired — holding money for strangers during a trade window is a real, licensed, structurally necessary role, bounded by staking sized to the float rather than eliminated by wishful design.</p>
+      <p>Every kind above inherits the four clauses and the visibility property unchanged. The <strong>custodial-escrow</strong> operator is the one disclosed departure: it satisfies all four clauses like every other kind but, uniquely, does not fade once hired — holding money for strangers during a trade window is a real, licensed, structurally necessary role, bounded by staking sized to the float rather than eliminated by wishful design. The reference implementation of the <code>gateway</code> kind — <strong>Ephor</strong> — carries the same fencing: a mail-adapter competitor can swap it out for its own gateway without asking KOTVA's permission, because the contract, not the implementation, is what conformance checks against.</p>
     </section>
 
     <hr class="rule">
 
-    <section id="bindings">
-      <h2><span class="secnum">§4</span> Bindings — adopt, don't reinvent</h2>
-      <p>KOTVA specifies new bytes only where nothing proven exists, and binds everywhere else. A binding is a thin mapping document — how substrate identity or objects map onto an external standard — never a re-derivation. When the frontier improves, the binding swaps; the substrate and profiles above it never change.</p>
+    <section id="bindings" aria-labelledby="bindings-h">
+      <h2 id="bindings-h"><span class="secnum">§4</span> Bindings — adopt, don't reinvent</h2>
+      <p>KOTVA specifies new bytes only where nothing proven exists, and binds everywhere else.<sup class="fn"><a href="#r5">[5]</a></sup> A binding is a thin mapping document — how substrate identity or objects map onto an external standard — never a re-derivation. When the frontier improves, the binding swaps; the substrate and profiles above it never change.</p>
 
       <div class="tablewrap">
         <table>
@@ -583,14 +730,14 @@
           <tbody>
             <tr><td>Identity recovery</td><td>Account abstraction (ERC-4337 / EIP-7702), passkeys, MPC (Turnkey / Privy / Web3Auth / Lit)</td><td>Solid, mainstream — recovery finality is real; UX is web2-grade.</td></tr>
             <tr><td>Attestation</td><td>EAS, W3C Verifiable Credentials</td><td>Plumbing is mature; the portable-reputation layer on top is nascent.</td></tr>
-            <tr><td>Reputation</td><td>OpenRank (EigenTrust, TEE-verified)</td><td>Real; quality still depends on the personhood anchor below it.</td></tr>
-            <tr><td>Proof-of-personhood</td><td>World ID; Human Passport</td><td><strong>Imperfect</strong> — every method trades off; local scale uses web-of-trust instead.</td></tr>
+            <tr><td>Reputation</td><td>OpenRank (EigenTrust, TEE-verified)</td><td>Real, but does not compose cleanly over KOTVA's own objects yet; quality still depends on the personhood anchor below it.</td></tr>
+            <tr><td>Proof-of-personhood</td><td>World ID <strong>and</strong> a structurally different second anchor (e.g. a zk-passport binding)</td><td><strong>Imperfect, and single-vendor today for the primary anchor</strong> — a v0 target is interop with at least two structurally different bindings so no one vendor's exposure strands a subject's reputation. Local scale uses web-of-trust instead.</td></tr>
             <tr><td>Payments / settlement</td><td>x402 (HTTP-402 stablecoin), USDC on Base/Solana</td><td>Infra is real; genuine demand is still thin.</td></tr>
             <tr><td>Storage — hot / permanent / scale</td><td>Walrus / Arweave / Filecoin (+ Storj)</td><td>Behaves like a CDN, not an archive; retrieval on bulk tiers historically slow.</td></tr>
-            <tr><td>Dispute / arbitration</td><td>Kleros-class staked juries</td><td>Real but small and unproven at scale; risks re-centralizing toward professional jurors.</td></tr>
+            <tr><td>Dispute / arbitration</td><td>Kleros-class staked juries</td><td>Real but small and unproven at scale; risks re-centralising toward professional jurors.</td></tr>
             <tr><td>Mesh reachability</td><td>libp2p — Circuit Relay v2, DCUtR, Kademlia, Noise, QUIC</td><td>Mature; profiled directly, not re-derived.</td></tr>
             <tr><td>Messaging crypto</td><td>MLS (RFC 9420)</td><td>Standards-track, mature group ratchet.</td></tr>
-            <tr><td>Media transport / E2E</td><td>WebRTC + SFrame (RFC 9605, keyed from the MLS epoch) + TURN</td><td>Mature and standardized; a media relay that commits to <code>sframe_required=true</code> is content-blind (<code>blind-routing</code> — routing metadata stays visible).</td></tr>
+            <tr><td>Media transport / E2E</td><td>WebRTC + SFrame (RFC 9605, keyed from the MLS epoch) + TURN</td><td>Mature and standardised; a media relay that commits to <code>sframe_required=true</code> is content-blind (<code>blind-routing</code> — routing metadata stays visible).</td></tr>
             <tr><td>Verifiable coordination</td><td>TEEs (SGX / SEV / ARM)</td><td><strong>New trust dependency</strong> — trades operator-trust for chip-vendor-trust; disclosed, not trustless.</td></tr>
           </tbody>
         </table>
@@ -604,47 +751,47 @@
 
     <hr class="rule">
 
-    <section id="profiles">
-      <h2><span class="secnum">§5</span> The profiles</h2>
-      <p>Every real-world service reduces to the same small primitive set — <code>OFFER · MATCH/RESERVE · REPUTATION · ESCROW · ORACLE · DISPUTE · PAY</code> — differing mainly in MATCH's assignment rule (nearest, best-fit, highest-bid) or dropping MATCH entirely for a single-owner RESERVE. Because services reduce to the same primitives, "different products" are thin profiles standing on one substrate, not separate systems.</p>
+    <section id="profiles" aria-labelledby="profiles-h">
+      <h2 id="profiles-h"><span class="secnum">§5</span> The profiles</h2>
+      <p>Six primitives recur across almost every real-world service: <strong>OFFER · MATCH · RESERVE · REPUTATION · ESCROW · ATTEST</strong>.<sup class="fn"><a href="#r6">[6]</a></sup> A wider service <em>recipe</em> — <code>OFFER · MATCH/RESERVE · REPUTATION · ESCROW · ORACLE · DISPUTE · PAY</code> — is a useful shorthand for describing a product, but only six of those names are primitives: <code>ORACLE</code> is the <code>oracle</code> coordinator kind (a physical-fact attestation, i.e. <code>ORACLE</code> ⊂ <code>ATTEST</code>), <code>DISPUTE</code> is the <code>arbiter</code> coordinator kind, and <code>PAY</code> is the stablecoin binding — composite roles built from primitives and coordinators, not a seventh and eighth primitive. Because the underlying services reduce to the same six primitives, "different products" are thin profiles standing on one substrate, not separate systems: Uber, delivery, freelance work, and auctions differ mainly in MATCH's assignment rule (nearest, best-fit, highest-bid); bookings drop MATCH entirely for a single-owner RESERVE.</p>
 
       <figure>
         <div class="diagram-frame">
           <svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="layTitle layDesc">
             <title id="layTitle">Six layers, bottom to top</title>
-            <desc id="layDesc">ADOPT, SUBSTRATE, PRIMITIVES stack vertically; COORDINATOR CONTRACT and BINDINGS sit as seams to the side; PROFILES sit on top.</desc>
-            <g font-family="var(--sans)" font-size="13" text-anchor="middle">
-              <rect x="140" y="10"  width="480" height="40" rx="8" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.4"></rect>
-              <text x="380" y="35" fill="var(--accent-ink)" font-weight="700">⑥ PROFILES — mail · commerce · work · social · media · calls · search · reach</text>
+            <desc id="layDesc">ADOPT, SUBSTRATE, PRIMITIVES stack vertically as the shared floor; PROFILES sit on top; the coordinator contract and bindings sit as side seams that absorb hard problems.</desc>
+            <g font-family="var(--font-mono)" font-size="12.5" text-anchor="middle">
+              <rect x="140" y="10"  width="480" height="40" rx="8" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.3"></rect>
+              <text x="380" y="35" fill="var(--accent-ink)" font-weight="700">⑥ PROFILES — mail · commerce · work · social · media · calls · search · reach · cloud</text>
 
-              <rect x="140" y="70"  width="480" height="36" rx="8" fill="var(--bg-panel)" stroke="var(--rule)"></rect>
-              <text x="380" y="93" fill="var(--ink-soft)">③ PRIMITIVES — OFFER · MATCH/RESERVE · REPUTATION · ESCROW · ORACLE · DISPUTE · PAY</text>
+              <rect x="140" y="70"  width="480" height="36" rx="8" fill="var(--bg-elevated)" stroke="var(--border-emphasis)"></rect>
+              <text x="380" y="93" fill="var(--text-secondary)">③ PRIMITIVES — OFFER · MATCH · RESERVE · REPUTATION · ESCROW · ATTEST</text>
 
-              <rect x="140" y="126" width="480" height="36" rx="8" fill="var(--bg-panel)" stroke="var(--rule)"></rect>
-              <text x="380" y="149" fill="var(--ink-soft)">② SUBSTRATE — Identity · MOTE · Transport · PUB · Sync · Roles</text>
+              <rect x="140" y="126" width="480" height="36" rx="8" fill="var(--bg-elevated)" stroke="var(--border-emphasis)"></rect>
+              <text x="380" y="149" fill="var(--text-secondary)">② SUBSTRATE — Identity · MOTE · Transport · PUB · Sync · Roles</text>
 
-              <rect x="140" y="182" width="480" height="36" rx="8" fill="var(--bg-panel)" stroke="var(--rule)"></rect>
-              <text x="380" y="205" fill="var(--ink-soft)">① ADOPT — Ed25519 · HPKE · CBOR</text>
+              <rect x="140" y="182" width="480" height="36" rx="8" fill="var(--bg-elevated)" stroke="var(--border-emphasis)"></rect>
+              <text x="380" y="205" fill="var(--text-secondary)">① ADOPT — Ed25519 · HPKE · CBOR</text>
 
-              <!-- side seams -->
-              <rect x="640" y="70" width="200" height="92" rx="8" fill="var(--bg-raise)" stroke="var(--accent)" stroke-width="1.2" stroke-dasharray="4 3"></rect>
-              <text x="740" y="98" fill="var(--ink)" font-weight="700" font-size="12">④ COORDINATOR</text>
-              <text x="740" y="114" fill="var(--ink)" font-weight="700" font-size="12">CONTRACT</text>
-              <text x="740" y="135" fill="var(--ink-faint)" font-size="11" font-style="italic">safe centralization,</text>
-              <text x="740" y="150" fill="var(--ink-faint)" font-size="11" font-style="italic">made checkable</text>
+              <rect x="640" y="70" width="200" height="92" rx="8" fill="var(--bg-surface)" stroke="var(--accent)" stroke-width="1.2" stroke-dasharray="4 3"></rect>
+              <text x="740" y="98" fill="var(--text-primary)" font-weight="700" font-size="12">④ COORDINATOR</text>
+              <text x="740" y="114" fill="var(--text-primary)" font-weight="700" font-size="12">CONTRACT</text>
+              <text x="740" y="135" fill="var(--text-faint)" font-size="11" font-style="italic">safe centralisation,</text>
+              <text x="740" y="150" fill="var(--text-faint)" font-size="11" font-style="italic">made checkable</text>
 
-              <rect x="60" y="70" width="70" height="92" rx="8" fill="var(--bg-raise)" stroke="var(--rule)" stroke-width="1.2" stroke-dasharray="4 3"></rect>
-              <text x="95" y="105" fill="var(--ink-soft)" font-weight="700" font-size="12">⑤</text>
-              <text x="95" y="122" fill="var(--ink-soft)" font-weight="700" font-size="11.5">BIND-</text>
-              <text x="95" y="136" fill="var(--ink-soft)" font-weight="700" font-size="11.5">INGS</text>
+              <rect x="60" y="70" width="70" height="92" rx="8" fill="var(--bg-surface)" stroke="var(--border-strong)" stroke-width="1.2" stroke-dasharray="4 3"></rect>
+              <text x="95" y="105" fill="var(--text-secondary)" font-weight="700" font-size="12">⑤</text>
+              <text x="95" y="122" fill="var(--text-secondary)" font-weight="700" font-size="11">BIND-</text>
+              <text x="95" y="136" fill="var(--text-secondary)" font-weight="700" font-size="11">INGS</text>
 
-              <line x1="130" y1="112" x2="140" y2="112" stroke="var(--rule)" stroke-width="1.4"></line>
+              <line x1="130" y1="112" x2="140" y2="112" stroke="var(--border-strong)" stroke-width="1.4"></line>
               <line x1="620" y1="112" x2="640" y2="112" stroke="var(--accent)" stroke-width="1.4"></line>
             </g>
-            <text x="380" y="250" text-anchor="middle" font-family="var(--sans)" font-size="11.5" fill="var(--ink-faint)" font-style="italic">a hard problem is never hard-wired — it is a swappable binding or a fenced coordinator</text>
+            <text x="380" y="250" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--text-faint)" font-style="italic">a hard problem is never hard-wired — it is a swappable binding or a fenced coordinator</text>
+            <text x="380" y="268" text-anchor="middle" font-family="var(--font-mono)" font-size="10" fill="var(--text-faint)" font-style="italic">ORACLE (⊂ATTEST), DISPUTE (arbiter) and PAY (stablecoin) are composite roles, not extra primitives — DIRECTION.md §2</text>
           </svg>
         </div>
-        <figcaption>Figure 2 — the layered architecture. Profiles are thin because everything hard is either adopted (layer ①/⑤) or fenced (layer ④), never re-derived at the top.</figcaption>
+        <figcaption>Figure 3 — the layered architecture. Profiles are thin because everything hard is either adopted (layer ①/⑤) or fenced (layer ④), never re-derived at the top.</figcaption>
       </figure>
 
       <div class="profile" id="p-mail">
@@ -656,7 +803,7 @@
         <dl>
           <dt>Adopts</dt><dd>All six substrate capabilities unchanged, plus MLS groups (§5), the opt-in/research mixnet privacy tiers (§6), cold-contact anti-abuse economics (§9), and the legacy SMTP/IMAP/JMAP gateway (§7, §8) on top.</dd>
           <dt>Narrow waist</dt><dd>Sync for the device-cluster mailbox; Feeds for public list archives and release announcements; Roles for reachability and NAT'd circuit relay; Wake for push-woken mobile clients.</dd>
-          <dt>Status</dt><dd>The core, numbered specification (§0–§27); slated for relocation under <code>profiles/dmtap-mail/</code> in a later restructure without changing its normative content. One binary, roles selected at runtime (<code>--relay</code>, <code>--mix</code>, <code>--gateway</code>) — the gateway is the family's original, fully-worked coordinator instance, and the only DMTAP function needing a scarce resource (send reputation for legacy SMTP egress).</dd>
+          <dt>Status</dt><dd>The core, numbered specification (§0–§27); slated for relocation under <code>profiles/dmtap-mail/</code> in a later restructure without changing its normative content. One binary, roles selected at runtime (<code>--relay</code>, <code>--mix</code>, <code>--gateway</code>) — the gateway is the family's original, fully-worked coordinator instance, and the only DMTAP function needing a scarce resource (send reputation for legacy SMTP egress). <strong>Ephor</strong> is its reference gateway/broker implementation, built on <code>kotva-core</code> and <code>kotva-mail</code>.</dd>
           <dt>Honest caveat</dt><dd>The mixnet's per-hop cryptography (the Sphinx-style onion layer) is, in the current Rust implementation, an explicit stand-in — not yet the real per-hop construction the spec specifies — and far-future privacy cryptography (mixnet, VDF, PQ envelope tuning) is deliberately quarantined as non-normative research rather than perfected on the critical path.</dd>
         </dl>
       </div>
@@ -671,7 +818,7 @@
           <dt>Adopts</dt><dd>Identity, Feeds &amp; Blobs (catalogues, offers, rate cards, reviews), Sync (carts across a buyer's devices, inventory across a seller's replicas), Roles, and Wake — plus the sealed MOTE for order messages. No new cryptography of its own.</dd>
           <dt>Narrow waist</dt><dd>Every trade — goods, services, rentals, bookings, subscriptions, licences, made-to-order — expresses as one four-axis offer rather than a category-specific schema; delivery routing is computed on the buyer's own node from publicly published rate cards, so no single party sees the whole cart.</dd>
           <dt>Status</dt><dd>Overview through wire-format and conformance vectors specified; content-addressed product identity across independent sellers is stated as "the mechanism, not yet a demonstrated solution."</dd>
-          <dt>Honest caveat</dt><dd>TRACT names its own departure from DMTAP's structural claim: the <strong>storefront</strong> and <strong>escrow</strong> gateway functions are permanent, not self-extinguishing, because browsers and money-holding licenses are permanent. Discovery is flagged as the weakest load-bearing claim in the document — a content-addressed substrate has no global index by construction, so whichever indexer becomes economically dominant risks becoming a de facto content-policy gatekeeper, and no protocol rule here prevents that.</dd>
+          <dt>Honest caveat</dt><dd>TRACT names its own departure from DMTAP's structural claim: the <strong>storefront</strong> and <strong>escrow</strong> gateway functions are permanent, not self-extinguishing, because browsers and money-holding licences are permanent. Discovery is flagged as the weakest load-bearing claim in the document — a content-addressed substrate has no global index by construction, so whichever indexer becomes economically dominant risks becoming a de facto content-policy gatekeeper, and no protocol rule here prevents that.</dd>
         </dl>
       </div>
 
@@ -684,7 +831,7 @@
         <dl>
           <dt>Adopts</dt><dd>Identity (a Principal is a substrate <code>IK</code>), Sync (coordination state — <code>Offer</code>/<code>Bid</code>/<code>Assignment</code>/<code>Progress</code> are ordinary Sync ops), Feeds &amp; Blobs (a <code>WorkOrder</code> is an immutable content object, an <code>Attestation</code> a portable author-feed entry), and Infrastructure Roles for pool discovery.</dd>
           <dt>Narrow waist</dt><dd>Six object kinds and one assignment rule on top of the substrate — no bespoke encoding, signing, CRDT, or transport of its own; an earlier draft that had all four was rebased onto the shared substrate.</dd>
-          <dt>Status</dt><dd>Version 0 — no compatibility guarantee, written with standards-document rigor for design discipline rather than to claim stability. Conformance vectors are normative where they disagree with prose.</dd>
+          <dt>Status</dt><dd>Version 0 — no compatibility guarantee, written with standards-document rigour for design discipline rather than to claim stability. Conformance vectors are normative where they disagree with prose.</dd>
           <dt>Honest caveat</dt><dd>Explicitly not trustless: open participation without a gatekeeper admits Sybils, and WRAP states the trust source rather than claiming to have solved it. Not a mesh — broadcasting work orders to every participant would leak commercial volumes and addresses, so WRAP is point-to-point plus pools, not gossip.</dd>
         </dl>
       </div>
@@ -696,7 +843,7 @@
         </div>
         <p class="profile-thesis">A YouTube/Spotify/Twitch-shaped surface built as a thin profile: the platform's four welds — identity, catalogue, discovery, payment — cut apart and placed back on the substrate.</p>
         <dl>
-          <dt>Adopts</dt><dd>Generalizes the existing Published-Artifact media facet (§24, the <code>VideoManifest</code>/channel/live model) from a publishing convention into a full product. Adds no new wire bytes beyond the one signed structure §24 already owns.</dd>
+          <dt>Adopts</dt><dd>Generalises the existing Published-Artifact media facet (§24, the <code>VideoManifest</code>/channel/live model) from a publishing convention into a full product. Adds no new wire bytes beyond the one signed structure §24 already owns.</dd>
           <dt>Narrow waist</dt><dd>The creator's box is the origin; a CDN is a swappable cache tier; discovery is a derived index served by a swappable indexer coordinator; live is a media-relay plane.</dd>
           <dt>Status</dt><dd>Product-rule layer over an existing normative object — states the rules (box-as-origin, licensing honesty) without restating §24's schemas.</dd>
         </dl>
@@ -723,7 +870,7 @@
         </div>
         <p class="profile-thesis">A call is the opposite shape from a MOTE — a live stream that cannot be queued — so it rides a parallel media plane that reuses the substrate's identity and keys but not its store-and-forward object model.</p>
         <dl>
-          <dt>Adopts</dt><dd>WebRTC for the media transport, keyed via MLS→SFrame so media relays are structurally blind; the substrate's existing signed, mutually-authenticated delivery layer fills WebRTC's deliberately signaling-agnostic hole with no separate signaling server.</dd>
+          <dt>Adopts</dt><dd>WebRTC for the media transport, keyed via MLS→SFrame so media relays are structurally blind; the substrate's existing signed, mutually-authenticated delivery layer fills WebRTC's deliberately signalling-agnostic hole with no separate signalling server.</dd>
           <dt>Narrow waist</dt><dd>Defines no new bytes — the wire spec lives entirely in §27 (the <code>rtc_signal</code> object, the SFrame key schedule, capacity advertisement); this document is the family-level view of how it composes and degrades offline.</dd>
           <dt>Status</dt><dd>Scaling calls beyond the host's own hardware is a <code>media-relay</code> coordinator role — a pool anyone can provide, coordinated by an existing distributed SFU (LiveKit/Pion, Jitsi+Octo, mediasoup) rather than a bespoke one.</dd>
         </dl>
@@ -736,7 +883,7 @@
         </div>
         <p class="profile-thesis">The ngrok/Cloudflare-Tunnel product shape, rebuilt so the tunnel operator is hired, not depended on.</p>
         <dl>
-          <dt>Adopts</dt><dd>Generalizes the legacy-client reachability ingress (§7.15) from "carry one legacy mail client to a mailbox" to "carry any TLS client to any box service," and vanity local-parts (§7.10.5) from mail addressing to DNS subdomains.</dd>
+          <dt>Adopts</dt><dd>Generalises the legacy-client reachability ingress (§7.15) from "carry one legacy mail client to a mailbox" to "carry any TLS client to any box service," and vanity local-parts (§7.10.5) from mail addressing to DNS subdomains.</dd>
           <dt>Narrow waist</dt><dd>A box→adapter persistent, libp2p-secured (Noise + yamux) reverse-tunnel stream-mux, SNI-demuxed by the adapter — explicitly <em>not</em> the mesh's native Circuit Relay v2, which relays between two libp2p peers and cannot carry a non-libp2p client (a conflation the spec calls out explicitly).</dd>
           <dt>Status</dt><dd>The provider is a <code>reachability-adapter</code> coordinator, fenced by the same contract as every other kind — <code>blind-routing</code> (SNI-passthrough) preferred, the box terminates TLS, the adapter forwards ciphertext it holds no key to read. That blindness is <code>structural</code> for an own-domain name whose CAA record denies the adapter a certificate, and <code>declared</code> for a bare adapter-zone vanity, where the adapter writes its own zone and a MITM residual is disclosed rather than excluded.</dd>
         </dl>
@@ -747,7 +894,7 @@
           <h3>SEARCH — discovery, following-graph first, indexer-optional</h3>
           <span class="badge b-draft"><span class="dot"></span>profile spec · normative once ratified</span>
         </div>
-        <p class="profile-thesis">Unbundles what a centralized search engine bundles — the crawl, the rank, the query log — and keeps discovery coordinator-optional.</p>
+        <p class="profile-thesis">Unbundles what a centralised search engine bundles — the crawl, the rank, the query log — and keeps discovery coordinator-optional.</p>
         <dl>
           <dt>Adopts</dt><dd>Reads existing public objects (§22) and subscribes to feeds (§25); no new wire bytes. Its coordinator is an <code>indexer</code> under the coordinator contract.</dd>
           <dt>Narrow waist</dt><dd>The default is a local search over the reader's own following-graph — no crawler, no server, no coordinator required at all. Global reach is an opt-in, hired, fireable, self-hostable indexer that adds reach, never authority; there is no ranking token, because there is no protocol token to buy rank with.</dd>
@@ -771,11 +918,75 @@
 
     <hr class="rule">
 
-    <section id="honesty">
-      <h2><span class="secnum">§6</span> Honest ceilings &amp; threat model</h2>
+    <section id="anchor" aria-labelledby="anchor-h">
+      <h2 id="anchor-h"><span class="secnum">§5.9</span> The key is the anchor</h2>
+      <p class="lede">Every profile above shares one root fact: the keypair does not move. Everything that looks like an identity — a mail address, a domain, a key-name, a provider, a device — is a pointer someone can take away, and none of them are the anchor.</p>
+      <p>Recovery is adopted, not invented (§4): account abstraction, passkeys, and MPC shares heal a lost device without ever making a name, a domain, or a provider load-bearing over the key itself. A name can expire, a provider can shut down, a device can be lost or seized — the identity underneath, and everything signed under it, survives, because none of those things were ever anything more than a swappable pointer to the same <code>IK</code>.</p>
+      <figure>
+        <div class="diagram-frame">
+          <svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="anchorTitle anchorDesc">
+            <title id="anchorTitle">The key is the anchor</title>
+            <desc id="anchorDesc">A solid keypair sits at the centre. Six pointers — a DNS name, an 8-word key-name, a mail provider, a gateway, a relay, and a device — orbit it on dashed spokes. One pointer, the mail provider, is shown fading and struck through, with the caption "swap it — the anchor doesn't move."</desc>
+            <defs>
+              <radialGradient id="anchorGlow" cx="50%" cy="50%" r="60%">
+                <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.22"/>
+                <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <circle class="pulse" cx="360" cy="190" r="96" fill="url(#anchorGlow)"></circle>
+
+            <g stroke="var(--border-emphasis)" stroke-width="1.2" stroke-dasharray="4 4" fill="none">
+              <line x1="360" y1="190" x2="360" y2="52"></line>
+              <line x1="360" y1="190" x2="516" y2="96"></line>
+              <line x1="360" y1="190" x2="560" y2="228"></line>
+              <line x1="360" y1="190" x2="470" y2="322"></line>
+              <line x1="360" y1="190" x2="250" y2="322"></line>
+              <line x1="360" y1="190" x2="160" y2="228"></line>
+              <line x1="360" y1="190" x2="204" y2="96" stroke-opacity="0.45"></line>
+            </g>
+
+            <circle cx="360" cy="190" r="42" fill="var(--bg-elevated)" stroke="var(--accent)" stroke-width="2.2"></circle>
+            <g font-family="var(--font-mono)" text-anchor="middle" fill="var(--text-primary)">
+              <text x="360" y="185" font-weight="700" font-size="12.5">IK</text>
+              <text x="360" y="200" font-size="9" fill="var(--text-faint)">keypair</text>
+            </g>
+
+            <g font-family="var(--font-mono)" font-size="11" text-anchor="middle">
+              <rect x="308" y="26" width="104" height="30" rx="15" fill="var(--bg-surface)" stroke="var(--border-strong)"></rect>
+              <text x="360" y="46" fill="var(--text-secondary)">DNS name</text>
+
+              <rect x="464" y="80" width="104" height="30" rx="15" fill="var(--bg-surface)" stroke="var(--border-strong)"></rect>
+              <text x="516" y="100" fill="var(--text-secondary)">key-name</text>
+
+              <rect x="508" y="212" width="104" height="30" rx="15" fill="var(--bg-surface)" stroke="var(--border-strong)"></rect>
+              <text x="560" y="232" fill="var(--text-secondary)">relay</text>
+
+              <rect x="418" y="306" width="104" height="30" rx="15" fill="var(--bg-surface)" stroke="var(--border-strong)"></rect>
+              <text x="470" y="326" fill="var(--text-secondary)">device</text>
+
+              <rect x="108" y="212" width="104" height="30" rx="15" fill="var(--bg-surface)" stroke="var(--border-strong)"></rect>
+              <text x="160" y="232" fill="var(--text-secondary)">gateway</text>
+
+              <rect x="152" y="80" width="104" height="30" rx="15" fill="var(--bg-surface)" stroke="var(--border-emphasis)" stroke-opacity="0.55" opacity="0.55"></rect>
+              <text x="204" y="100" fill="var(--text-faint)" text-decoration="line-through">mail provider</text>
+            </g>
+
+            <text x="200" y="322" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--text-faint)"></text>
+            <text x="204" y="130" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--accent-ink)" font-style="italic">swap it —</text>
+            <text x="204" y="144" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--accent-ink)" font-style="italic">the anchor doesn't move</text>
+          </svg>
+        </div>
+        <figcaption>Figure 4 — the key is the anchor. A name, a key-name, a gateway, a relay, or a provider are all swappable pointers to the same keypair (dashed spokes); lose one, or fire one, and the anchor — the <code>IK</code> itself — holds.</figcaption>
+      </figure>
+    </section>
+
+    <hr class="rule">
+
+    <section id="honesty" aria-labelledby="honesty-h">
+      <h2 id="honesty-h"><span class="secnum">§6</span> Honest ceilings &amp; threat model</h2>
       <p>KOTVA covers every service's mechanism; it discloses, rather than hides, each service's trust and legal residual. A research pass tested the substrate against roughly 35 real-world services across communication, money, the gig economy, discovery, infrastructure, civic function, media, and AI: about 29 reduce cleanly to the shared primitives (a handful with disclosed ceilings), about 3 are hard-blocked, about 2 are governance gaps, and one — a lightweight IoT profile — is simply unbuilt.</p>
 
-      <h3>6.1 Four root ceilings</h3>
+      <h3><span class="secnum">6.1</span> Four root ceilings</h3>
       <div class="tablewrap">
         <table>
           <thead><tr><th>Ceiling</th><th>What it means</th></tr></thead>
@@ -789,8 +1000,8 @@
       </div>
       <p>Two things are stated as genuinely unsolvable in principle, not merely unsolved: <strong>coercion-resistant public-election voting</strong> (harder than anti-Sybil) and <strong>surveillance-based advertising markets</strong> (rejected by design, not a gap to close).</p>
 
-      <h3>6.2 The security floor (threat model)</h3>
-      <p>A family-level threat model states nine invariants (SEC-1 through SEC-9) that every primitive, binding, coordinator, and profile inherits — fail-closed everywhere, intrinsic self-authenticity, end-to-end confidentiality via adopted crypto only, declared visibility with no silent downgrade, recoverable keys with no single load-bearing device, coordinators that authorize rather than classify, priced rather than centrally-filtered abuse, inert replay, and metadata minimized-where-bought and disclosed-where-not. Each MUST ships with a numbered residual — the boundary it does <em>not</em> cross — on the stated house rule that a security section listing only strengths is marketing.</p>
+      <h3><span class="secnum">6.2</span> The security floor (threat model)</h3>
+      <p>A family-level threat model states nine invariants (SEC-1 through SEC-9)<sup class="fn"><a href="#r10">[10]</a></sup> that every primitive, binding, coordinator, and profile inherits — fail-closed everywhere, intrinsic self-authenticity, end-to-end confidentiality via adopted crypto only, declared visibility with no silent downgrade, recoverable keys with no single load-bearing device, coordinators that authorise rather than classify, priced rather than centrally filtered abuse, inert replay, and metadata minimised-where-bought and disclosed-where-not. Each MUST ships with a numbered residual — the boundary it does <em>not</em> cross — on the stated house rule that a security section listing only strengths is marketing.</p>
 
       <div class="tablewrap compact">
         <table>
@@ -808,7 +1019,7 @@
 
       <div class="callout honest">
         <h4>What is quarantined, and why that is honest rather than a defect</h4>
-        <p>Far-future cryptography that is unproven or unsound at deployment grade — mixnet construction, VDFs, PQ envelope tuning — is deliberately kept out of the normative surface and marked non-normative research. This is a stated discipline, not an oversight: a spec that claims a guarantee its implementation does not meet is worse than a spec that names the gap. Concretely, the current mixnet implementation's per-hop cryptography is documented in the code itself as a stand-in for the real per-hop construction the specification calls for — the directory-shape work is real; the cryptography inside it is not yet.</p>
+        <p>Far-future cryptography that is unproven or unsound at deployment grade — mixnet construction, VDFs, PQ envelope tuning — is deliberately kept out of the normative surface and marked non-normative research.<sup class="fn"><a href="#r11">[11]</a></sup> This is a stated discipline, not an oversight: a spec that claims a guarantee its implementation does not meet is worse than a spec that names the gap. Concretely, the current mixnet implementation's per-hop cryptography is documented in the code itself as a stand-in for the real per-hop construction the specification calls for — the directory-shape work is real; the cryptography inside it is not yet.</p>
       </div>
 
       <p>Every invariant above is required to survive with <strong>no coordinator and no connectivity at all</strong> — authenticity and confidentiality are intrinsic to the object and need no server; anti-abuse collapses to web-of-trust and local policy; replay-inertness and deterministic merge let a partitioned replica reconcile on reconnect with byte-identical convergence. The one disclosed exception is a custodial-escrow trade window, whose settlement is blocked offline by design, leaving only the trade objects themselves to reconcile once connectivity returns. A security property that only holds while a coordinator is reachable is treated as a conformance violation of this document, not a degraded mode.</p>
@@ -816,19 +1027,40 @@
 
     <hr class="rule">
 
-    <section id="status">
-      <h2><span class="secnum">§7</span> Status &amp; governance</h2>
-      <p>KOTVA is <strong>v0.1.0 — early and evolving</strong>. The substrate, the DMTAP mail profile, and the TRACT (v0.1.0) and WRAP (v0.2.0) profiles are specified; the coordinator contract and the bindings index are the active consolidation work. Far-future cryptographic research is being quarantined to non-normative status rather than perfected on the critical path.</p>
+    <section id="status" aria-labelledby="status-h">
+      <h2 id="status-h"><span class="secnum">§7</span> Status &amp; governance</h2>
+      <p>KOTVA is <strong>v0.1.0 — early and evolving</strong>. The substrate, the DMTAP mail profile, and the TRACT (v0.1.0) and WRAP (v0.2.0) profiles are specified; the coordinator contract and the bindings index are the active consolidation work. Far-future cryptographic research stays quarantined to non-normative status rather than perfected on the critical path.</p>
       <ul>
-        <li>Spec license: <strong>Creative Commons Attribution 4.0 International (CC BY 4.0)</strong> — anyone may implement, quote, and build on it freely with attribution.</li>
-        <li>Reference implementations (e.g. Envoir) are licensed separately under permissive open-source terms so any party — including competitors — may embed them.</li>
+        <li>Spec licence: <strong>Creative Commons Attribution 4.0 International (CC BY 4.0)</strong> — anyone may implement, quote, and build on it freely with attribution.</li>
+        <li>Reference implementations (e.g. Envoir for DMTAP-mail, Ephor as the reference gateway/broker, Soko for TRACT) are licensed separately under permissive open-source terms so any party — including competitors — may embed them.</li>
         <li><strong>No protocol token exists, and none will be added.</strong> Money is an existing stablecoin; trust is staked existing value; free tiers and subsidies are operator policy, never a protocol requirement.</li>
         <li>Copyright © 2026 VulOS (<code>github.com/vul-os</code>).</li>
       </ul>
     </section>
 
+    <hr class="rule">
+
+    <section id="references" aria-labelledby="references-h">
+      <h2 id="references-h"><span class="secnum">§8</span> References</h2>
+      <p>This whitepaper is a rendering of the specification tree in the <code>kotva</code> repository, not an independent source. Every numbered claim above cites one of the documents below; where this document and a cited source appear to differ, the source governs.</p>
+      <ol class="reflist">
+        <li id="r1"><span class="refnum">[1]</span><span><code>README.md</code> — the repository's front door: layout, design-in-one-breath, and status.</span></li>
+        <li id="r2"><span class="refnum">[2]</span><span><code>DIRECTION.md</code> and <code>coordinator/CONTRACT.md</code> — the one rule, the four conformance clauses, the content-visibility property, authorise-never-classify, the twelve coordinator kinds, and the economics boundary.</span></li>
+        <li id="r3"><span class="refnum">[3]</span><span><code>substrate/README.md</code>, <code>substrate/IDENTITY.md</code>, <code>substrate/ROLES.md</code>, <code>substrate/FEEDS.md</code>, <code>substrate/SYNC.md</code> — the six waist capabilities, re-presented as a standalone, à-la-carte contract.</span></li>
+        <li id="r4"><span class="refnum">[4]</span><span><code>00-overview.md</code> through <code>27-realtime-media.md</code> (repository root) — DMTAP, the mail, messaging, and legacy-gateway reference profile.</span></li>
+        <li id="r5"><span class="refnum">[5]</span><span><code>bindings/README.md</code> — the adoption index: identity recovery, attestation, reputation, personhood, payments, storage, dispute, media transport, and TEE-verified coordination.</span></li>
+        <li id="r6"><span class="refnum">[6]</span><span><code>primitives/OFFER.md</code>, <code>MATCH.md</code>, <code>RESERVE.md</code>, <code>REPUTATION.md</code>, <code>ESCROW.md</code>, <code>ATTEST.md</code> — the six primitives every service composes from.</span></li>
+        <li id="r7"><span class="refnum">[7]</span><span><code>profiles/tract/</code> — TRACT, the commerce profile (offer, cart, order, settlement, dispute).</span></li>
+        <li id="r8"><span class="refnum">[8]</span><span><code>profiles/wrap/</code> — WRAP, the work profile (jobs, dispatch, delivery, milestone escrow).</span></li>
+        <li id="r9"><span class="refnum">[9]</span><span><code>profiles/media.md</code>, <code>social.md</code>, <code>rtc.md</code>, <code>reachability.md</code>, <code>search.md</code>, <code>cloud.md</code> — the MEDIA, SOCIAL, RTC, REACH, SEARCH, and DEPOT profile drafts.</span></li>
+        <li id="r10"><span class="refnum">[10]</span><span><code>THREAT-MODEL.md</code> — the family threat model: SEC-1 through SEC-9 and the numbered residuals (R-1 … R-9).</span></li>
+        <li id="r11"><span class="refnum">[11]</span><span><code>docs/research/</code> (<code>mixnet.md</code>, <code>vdf.md</code>, <code>PRIMITIVES.md</code>) — far-future cryptography, deliberately quarantined as non-normative.</span></li>
+        <li id="r12"><span class="refnum">[12]</span><span><code>GOVERNANCE.md</code>, <code>LICENSE.md</code>, <code>VERSION</code>, <code>Cargo.toml</code> / <code>crates/kotva-mail/Cargo.toml</code> — status, licensing, versioning, and the reference crates behind Ephor and the Envoir mesh node.</span></li>
+      </ol>
+    </section>
+
     <footer>
-      <p><strong>KOTVA</strong> — a narrow-waist protocol family. <em>kotva</em>, Slavic for anchor: the key is the anchor; every name, domain, or operator above it is a swappable pointer. This document is derived directly from the specification tree in the <code>kotva</code> repository (<code>DIRECTION.md</code>, <code>coordinator/CONTRACT.md</code>, <code>bindings/README.md</code>, <code>substrate/</code>, <code>profiles/</code>, <code>docs/research/</code>) and states no claim the repository does not itself make.</p>
+      <p><strong>KOTVA</strong> — a narrow-waist protocol family. <em>Kotva</em>, Slavic for anchor: the key is the anchor; every name, domain, or operator above it is a swappable pointer. This document is derived directly from the specification tree in the <code>kotva</code> repository (see §8, References) and states no claim the repository does not itself make.</p>
       <p class="backtotop"><a href="#top">↑ Back to top</a></p>
     </footer>
 
@@ -837,9 +1069,10 @@
 
 <script>
 (function(){
+  'use strict';
   var toggle = document.getElementById('tocToggle');
   var body = document.getElementById('tocBody');
-  if (toggle) {
+  if (toggle && body) {
     toggle.addEventListener('click', function(){
       var open = body.classList.toggle('open');
       toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -858,7 +1091,12 @@
     for (var i = 0; i < targets.length; i++){
       if (targets[i] && targets[i].offsetTop <= y) activeIdx = i;
     }
-    links.forEach(function(a, i){ a.classList.toggle('active', i === activeIdx); });
+    links.forEach(function(a, i){
+      var isActive = i === activeIdx;
+      a.classList.toggle('active', isActive);
+      if (isActive) { a.setAttribute('aria-current', 'location'); }
+      else { a.removeAttribute('aria-current'); }
+    });
   }
   document.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('resize', onScroll);
@@ -875,3 +1113,5 @@
   });
 })();
 </script>
+</body>
+</html>

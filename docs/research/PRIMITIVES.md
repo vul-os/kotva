@@ -144,8 +144,11 @@ published score or a protocol token** ([DIRECTION §5](../../DIRECTION.md),
 - **Wire shape:** an attestation is a signed object carrying `{issuer IK, subject, schema/type, claim,
   ts, ?revocation-ref}` — either a **public** feed object (§22) when the claim is meant to be openly
   verifiable, or a **sealed `identity` MOTE** (kind `0x09`, §2.3) when it is a private identity claim.
-  Profile-specific attestations already exist: TRACT `PurchaseAttestation` (§10.2a) and WRAP work
-  attestations both follow this shape, addressing their subject by content-address or `IK` only.
+  Profile-specific attestations already exist: TRACT `PurchaseAttestation` (§10.2a) follows this
+  shape. **WRAP's `Attestation` deliberately does not** — it carries the same semantics in WRAP's own
+  uniform `COSE_Sign1` object (its own `author`/`id`), not as an unsigned map inside a carrier; see
+  [`primitives/ATTEST.md` §5](../../primitives/ATTEST.md). Both address their subject by
+  content-address or `IK` only.
 - **Normative rules:**
   - An attestation is **verifiable offline by the issuer's signature** — it proves *`IK` said this*,
     and *nothing more*. A client MUST NOT present an attestation as an established fact beyond the
