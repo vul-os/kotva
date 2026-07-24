@@ -295,3 +295,29 @@ caught it. Treat inline-audited surfaces as lower-confidence than agent-audited 
 Do NOT declare PERFECTED on a quiet round alone — the honest options are (a) keep hunting
 surface-by-surface, or (b) freeze deliberately **with this audited/un-audited map recorded**. W5
 (South-African English + RFC layout) remains correctly blocked: correctness is still moving.
+
+### Method notes earned the hard way (keep these)
+
+**1. Fix-and-sweep, never fix-in-place.** An agent report names *where a defect was found*, not
+every place it occurs. Three times a fix was applied only at the reported site and the same defect
+survived elsewhere: the group rank rule (fixed §19.5.2, missed §5.8.2 — *the authority §19.5.2
+cites*); the `fast/onion` bulk mislabel (fixed 2 lines in §2.5, missed 6 more, one of them two lines
+below); the RESERVE honesty qualifier (fixed `SPEC.md`, missed `DIRECTION.md`, `primitives/OFFER.md`,
+`docs/research/PRIMITIVES.md`). **After every fix, grep the whole tree for echoes of the same claim
+before committing.**
+
+**2. Summaries drop hedges the detail carries.** A doc can be scrupulously honest in its depths and
+overclaiming at its surface — and the surface is what gets read and quoted. `primitives/RESERVE.md`
+scoped its guarantee correctly and disclosed the malicious-owner case in §9; four separate summaries
+of it asserted the absolute. Audit index/overview docs *against* the sections they summarise.
+
+**3. Prose that argues for its own correctness is a red flag.** The dedup ack-oracle was found
+because a note explained *why* its ordering prevented an oracle — while the ordering did not. Text
+that justifies an invariant is worth checking against the mechanism precisely because it sounds
+settled.
+
+**4. Lint-guard every commit.** `lint && git commit` piped through `tail` cannot fail; one broken
+commit reached `main` that way. Use an explicit `grep -q "^0 error"` guard.
+
+**5. An in-text "TODO"/"owed to §X" is a defect, not documentation.** §20's replay-cache row had
+flagged its own unresolved conflict; it sat there until treated as a finding.
