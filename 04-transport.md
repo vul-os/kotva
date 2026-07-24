@@ -298,6 +298,24 @@ network need no infrastructure at all.
   no such transport (Briar's offline radio transports are its own Bramble code, not libp2p).
   Supporting them would mean writing a custom libp2p `Transport` — flagged as future work, not
   a v0 claim.
+- **A transport is not the whole blocker: on LoRa-class links the object itself does not fit
+  (normative scoping of any future radio binding).** Writing the `Transport` is the *easy* half.
+  A LoRa-class frame carries on the order of **230 bytes**, and airtime — not bandwidth — is the
+  scarce resource, on a duty-cycled *shared* channel. Against that budget:
+  - A minimal MOTE spends roughly **140 bytes before any payload** — a 64-byte `sender_sig`, a
+    33-byte content address (§18.1.5), a `DeliveryTag`, `ts` and `kind` — leaving on the order of
+    90 bytes of ciphertext per frame. Workable for short text under suite `0x01`, and only with a
+    fragmentation-and-reassembly binding this document does not define.
+  - **Suite `0x02` (PQ) does not fit at all.** Its `ik-pub` is **1984 B** (§18.2) — about **nine
+    frames for a single public key**, before any message. This is arithmetic, not tuning: no
+    future radio binding makes the PQ suite viable on a LoRa-class link, and one MUST NOT be
+    specified as though it could.
+
+  A future radio binding MUST therefore state the suite it targets and its fragmentation rules,
+  and MUST NOT claim §1.1's PQ floor on links that cannot carry it. Higher-MTU radio (BLE, Wi-Fi
+  Direct) is bounded by throughput rather than by this arithmetic and is the more tractable case —
+  which is the shape deployed Bluetooth-mesh messengers have converged on, pairing a local radio
+  mesh with an internet relay for out-of-range peers, exactly as the §4.3 ladder already does.
 
 ## 4.9 Push wake-signalling (optional)
 

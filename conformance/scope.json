@@ -404,6 +404,14 @@
       "reason": "implementation requirement on a conformant node/client/gateway"
     },
     {
+      "section": "4.8",
+      "file": "04-transport.md",
+      "title": "4.8 Local, isolated, and delay-tolerant networks",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement scoping any future radio-transport binding (suite targeting, fragmentation)"
+    },
+    {
       "section": "4.9.1",
       "file": "04-transport.md",
       "title": "4.9.1 The two objects, and who holds what",
