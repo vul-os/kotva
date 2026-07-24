@@ -193,8 +193,10 @@ must not be reused); reported to the §18 owner.**
 ## 2.5 Attachments and files
 
 Small attachments MAY be inlined into `Payload.attach`. Larger files MUST be referenced by a
-content-addressed **manifest**; **normal-tier** chunks (≤ 4 MiB) transfer **via the mixnet**
-like messages, **large-tier** chunks via the fast/onion bulk path (§4.5). This is what makes
+content-addressed **manifest**; **normal-tier** chunks (≤ 4 MiB) transfer via **whichever tier the
+message itself uses** — default `fast`, or the opt-in research-tier mixnet if the sender selected it —
+and **large-tier** chunks via the `fast`/direct swarmed bulk path, which **MUST NOT** traverse the
+mixnet at all (§4.5). This is what makes
 DMTAP a file-share of arbitrary size (no protocol cap).
 
 ```
@@ -214,8 +216,8 @@ The manifest lists chunk hashes (a BLAKE3 Merkle DAG). Chunks are fixed-size, in
 encrypted and content-addressed, enabling **resumable, parallel, swarmed, deduplicated**
 transfer. Only the manifest + `key` travel in the (private) MOTE; the chunks travel per the
 size tier below — normal-tier via whichever tier the message itself uses (default `fast`, or
-the opt-in research-tier mixnet if a sender has selected it), large-tier via the `fast`/onion
-bulk path (§4.5). See §5.5 for the full file model.
+the opt-in research-tier mixnet if a sender has selected it), large-tier via the `fast`/direct
+swarmed bulk path, which **MUST NOT** traverse the mixnet (§4.5). See §5.5 for the full file model.
 
 **Metadata-privacy size tiers (normative threshold, reconciles §2.5 / §4.5 / §6.5).** These are
 **metadata-privacy tiers** — they fix which *path* the bytes take and what an observer can

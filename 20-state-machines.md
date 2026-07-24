@@ -225,7 +225,8 @@ Formalizes the §2.7 ordered validation pipeline as a state machine, with the dr
 | Requests-area retention | 30 days | §16.5 |
 | Clock-skew tolerance (bounds acceptable `ts`, future direction) | ±120 s | §16.1 |
 | Freshness past-bound / durable seen-id horizon (bounds acceptable `ts`, past direction — H-7, §2.7 step 3a) | ≥ max(72 h retry, 20 d offline-buffer) = 20 days | §16.10 |
-| Replay cache retention (covers dedup window) | ≥ 300 s — **inconsistent with the 20-day figure directly above for what is conceptually one cache; reconciliation into a single cited parameter is owed to §16, not made here** | §16.1 |
+| Replay-cache retention — **challenge / nonce** caches only (auth `Challenge` §13.3, cold-sender PoW §9); **NOT** message dedup | ≥ 300 s, and MUST cover the skew + validity window | §16.1 |
+| Message **dedup** retention (seen-`id` set) | the durable seen-id horizon in the row above — **20 days**, not the 300 s challenge floor | §16.10 |
 
 ### Diagram
 
