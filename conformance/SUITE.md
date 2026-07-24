@@ -100,7 +100,7 @@ and on `reject` MUST map it to the named §21 error code with that code's `Actio
 | **Private** — data at rest, provenance limits & residuals (`REST`) | 5 | 0 | 0 | 4 | 1 |
 | **Clients** — surfaces, decentralisation invariant & UX obligations (`CLIUX`) | 5 | 0 | 0 | 2 | 3 |
 | **Core** — anchor suite, DNS pointers & cold start (`ANCHOR`) | 6 | 0 | 0 | 6 | 0 |
-| **Groups & Files** — group custody, fan-out & membership privacy (`GRPGOV`) | 6 | 0 | 0 | 6 | 0 |
+| **Groups & Files** — group custody, fan-out & membership privacy (`GRPGOV`) | 7 | 0 | 0 | 7 | 0 |
 | **Core** — issuer trust, vouch, postage & mixnet admission (`ABUSE`) | 5 | 0 | 0 | 5 | 0 |
 | **Core** — the operator seam & the inviolable rule (`SEAM`) | 4 | 0 | 0 | 4 | 0 |
 | **Core** — roles at scale: fleet, thin clients, buffers & status pages (`SCALE`) | 5 | 0 | 0 | 5 | 0 |
@@ -113,7 +113,7 @@ and on `reject` MUST map it to the named §21 error code with that code's `Actio
 | **Core** — wire objects with no vector: decode & cross-field rules (`WIRE`) | 10 | 0 | 0 | 10 | 0 |
 | **Core** — §18 KATs: manifest, mix descriptor, Sphinx framing (`WIREKAT`) | 9 | 9 | 0 | 0 | 0 |
 | **Core** — DMTAP-PUBSUB extension, optional `pubsub-1` (`PUBSUB`) | 15 | 0 | 0 | 14 | 1 |
-| **Total** | **361** | **52** | **6** | **284** | **19** |
+| **Total** | **362** | **52** | **6** | **285** | **19** |
 
 The 52 vectored + 6 self-contained cases (**58**) are fully machine-runnable **today** from
 `vectors.json` / `pub_vectors.json` + the inline bytes here, with **no reference implementation
@@ -154,7 +154,7 @@ easy to over-read, so:
 - It is **section-level, not MUST-level.** A section counts as covered if *any* case cites it, not
   if every MUST in it is exercised. The metric is a deliberately generous floor: it says "nothing
   in the implementable spec is entirely unattended", never "everything is checked".
-- It counts cases that **exist**, not cases that **pass.** Of 361 cases, 58 are byte-runnable
+- It counts cases that **exist**, not cases that **pass.** Of 362 cases, 58 are byte-runnable
   today; the rest carry a construction recipe or are settled by review. **No implementation has
   been run against this suite**, so the suite is a specification of tests, not a test result.
 - The denominator is **curated.** [`scope.json`](scope.json) classifies all 347 MUST-bearing
@@ -169,7 +169,7 @@ numbers are printed by `make coverage`, deliberately, so the curation can be che
 trusted.
 
 **Sync status:** `SUITE.md` and [`suite.json`](suite.json) are **in sync** — both carry the same
-**361** case ids, and `make lint` (check C5) fails the build if they ever disagree, or if any
+**362** case ids, and `make lint` (check C5) fails the build if they ever disagree, or if any
 document states a different count. The changed deniable objects (§5.2.1 dedicated-`idk`) are still
 to be re-vectored when the reference regenerates `vectors.json`.
 
@@ -1138,6 +1138,7 @@ an open spam relay.
 | DMTAP-GRPGOV-03 | MUST | §5.8.4, §9.9, §9.2 | **No accountability laundering behind a group address.** Fan-out is an amplification vector: one post becomes N deliveries, so each recipient's per-sender policy MUST be applied to the **original poster**, never to the list identity. The poster's proof MUST be carried on each per-member delivery, and *which* proof depends on the membership model, because ARC is per-origin scoped and does not compose with fan-out: member-visible channels MAY use per-member ARC, while hidden-membership lists MUST use postage or PoW scoped to the list address, since per-member ARC would require the poster to know the members | construction: post to (a) a member-visible channel carrying per-member ARC, (b) a hidden-membership list carrying a list-scoped postage/PoW proof, (c) the same hidden list carrying nothing but the committer's own standing; inspect each per-member delivery for the poster's proof and each recipient's policy evaluation | accept (a) and (b) — every delivery carries the poster's proof and is evaluated against the poster; reject (c) → `ERR_CHALLENGE_ABSENT_INSUFFICIENT` (0x0206); evaluating any of them against the *list* identity is non-conformant | construction-todo |
 | DMTAP-GRPGOV-04 | MUST | §5.8.4, §9.9 | **Fan-out is rate-limited per poster, `open` amplification is capped, and large lists cost.** A list MUST rate-limit fan-out per poster and cap amplification for `open` (anyone-can-post) lists, and posting to a large list MUST require postage or PoW commensurate with the fan-out size. Without all three, a single accepted post is an unbounded multiplier, and the cheapest attack on the network is to find one open list | construction: from one poster, drive posts past the per-poster fan-out budget on an `open` list of N members; separately, post to a large list carrying no postage or PoW | reject → `ERR_RATE_LIMIT_EXCEEDED` (0x070C), DEFER_REQUESTS past the per-poster budget; reject → `ERR_CHALLENGE_ABSENT_INSUFFICIENT` (0x0206) for the unpaid large-list post; an `open` list with no amplification cap is non-conformant even before either limit is reached | construction-todo |
 | DMTAP-GRPGOV-05 | MUST | §5.8.3, §5.8.1 | **Hidden membership is a supported model, not a setting that leaks anyway.** Broadcast lists MUST support hidden membership: members receive via per-member sealed delivery and do not learn each other's keys. MLS's ratchet tree exposes members to one another by default, so a hidden-membership list uses relay/committer fan-out with the list identity re-sealing to each member individually — paying the shared-group efficiency to get the property. Channels use the normal member-visible tree, and the model is chosen per group and disclosed | construction: create a hidden-membership broadcast list with ≥ 3 members; from one member's node, enumerate everything reachable about the roster — ratchet tree, `GroupInfo`, delivery metadata — and compare against the same enumeration on a member-visible channel | accept (the hidden list yields no other member's key or count to a member, while the channel does); a "hidden" list implemented over a shared member-visible tree is non-conformant however it is labelled | construction-todo |
+| DMTAP-GRPGOV-07 | MUST | §5.8.2 (rank rule), §19.5.2 | **The rank rule: an actor cannot act on, or grant, a role strictly above its own — and this is a security rejection, not a policy deny.** The required-role gates authorise the *actor*, never the act against a superior; without it, "requires `admin`" alone would let an `admin` seize the group by expelling its owners (§5.8.2). Peer and self acts remain permitted, so ownership transfer and voluntary departure still work. The action class is `FAIL_CLOSED_BLOCK`, not `DENY_POLICY`: §21.2 reserves `DENY_POLICY` for a non-security deny, and this is a group-takeover defence (the same taxonomy distinction the registry draws for `0x0409` and `0x070E`) | construction: in a group with owner `O` and admin `A`, have `A` attempt to (a) remove `O`, (b) demote `O` to member, (c) mint a second `owner`; separately (d) `O` acts on a co-`owner`, (e) a member removes itself | reject (a)–(c) → `ERR_GROUP_POLICY_VIOLATION` (0x0409), **FAIL_CLOSED_BLOCK** (§19.5.2) — a security rejection, never `DENY_POLICY`; accept (d) and (e) — peer and self acts are permitted, so transfer and departure still work | construction-todo |
 | DMTAP-GRPGOV-06 | MUST | §5.6.5, §16.10, §5.6.1 | **A tombstone is never GC'd before the stability cut — and a dead device cannot stall GC forever.** A delete tombstone MAY be reclaimed only once every **live** cluster member has acknowledged an HLC ≥ the tombstone's and the §16.10 retention floor has elapsed; reclaiming early lets a partitioned device's stale add resurrect a deleted object. The cut is computed over live members only — a device that has not advanced its `StabilityMark` within the cluster-member-liveness timeout is excluded — so an unrevoked dead device cannot hold the tombstone store open indefinitely. Exclusion affects only **when** tombstones may be reclaimed, never **whether** an op is authorised | construction: three-device cluster; delete an object, hold device C partitioned with a stale add for that object, and attempt GC before the cut and after C is excluded by the liveness timeout; then return C and let it backfill | accept (no GC before the cut and the retention floor; GC proceeds once C is excluded as stale; the returning C backfills current state — including the `deleted` flag — before it may push, so it cannot resurrect the object); GC before the cut is non-conformant, and so is treating C's exclusion as de-authorising its ops | construction-todo |
 
 ---

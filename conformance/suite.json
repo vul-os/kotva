@@ -5758,6 +5758,49 @@
       "status": "construction-todo"
     },
     {
+      "id": "DMTAP-GRPGOV-07",
+      "level": "Groups & Files",
+      "category": "GRPGOV",
+      "req": "MUST",
+      "clause": [
+        "§5.8.2 rank rule",
+        "§19.5.2"
+      ],
+      "checks": "the rank rule: an actor cannot act on, or grant, a role strictly above its own, and this is a security rejection not a policy deny. Required-role gates authorise the actor, never the act against a superior; without it 'requires admin' would let an admin seize the group by expelling its owners. Peer and self acts remain permitted so ownership transfer and voluntary departure still work",
+      "operation": "cluster_tombstone_gc",
+      "construction": "group with owner O and admin A: A attempts (a) remove O, (b) demote O to member, (c) mint a second owner; separately (d) O acts on a co-owner, (e) a member removes itself",
+      "expect": {
+        "cases": {
+          "a": {
+            "outcome": "reject",
+            "error_code": "0x0409",
+            "error_name": "ERR_GROUP_POLICY_VIOLATION",
+            "action": "FAIL_CLOSED_BLOCK",
+            "note": "security rejection per 19.5.2, never DENY_POLICY"
+          },
+          "b": {
+            "outcome": "reject",
+            "error_code": "0x0409",
+            "action": "FAIL_CLOSED_BLOCK"
+          },
+          "c": {
+            "outcome": "reject",
+            "error_code": "0x0409",
+            "action": "FAIL_CLOSED_BLOCK"
+          },
+          "d": {
+            "outcome": "accept",
+            "note": "peer act permitted"
+          },
+          "e": {
+            "outcome": "accept",
+            "note": "self act permitted; voluntary departure"
+          }
+        }
+      },
+      "status": "construction-todo"
+    },
+    {
       "id": "DMTAP-GRPGOV-06",
       "level": "Groups & Files",
       "category": "GRPGOV",
