@@ -187,6 +187,7 @@ thereby non-conformant, provided the object's content and the rules above are ho
 | **Telegram** | Inbound-triggered — a bot cannot message a user first | outbound-persistent | Free | Telegram, always (§26.5.1) — plus a third-party gateway operator, iff not self-hosted |
 | **Discord** | Inbound-triggered — a shared guild is required | outbound-persistent | Free | Discord, always — plus a third-party gateway operator, iff not self-hosted |
 | **Slack** | Inbound-triggered — a workspace install is required | outbound-persistent | Free | Slack, always — plus a third-party gateway operator, iff not self-hosted |
+| **LoRa mesh** (Meshtastic-class; §26.11 registration) | Freely-initiating, but **best-effort with no timeliness guarantee** — the rail is duty-cycle limited and airtime is a *shared* resource, so a busy bridge degrades the mesh for every node in radio range | webhook or hardware-local (an MQTT gateway, or an attached radio) | Free (no marginal cost); the real cost is **airtime**, which is rivalrous and uncharged | **Everyone in radio range**, always — a LoRa mesh is a *broadcast* medium, so the exposure set is not a named operator but every receiver within reach. Plus a third-party gateway operator iff not self-hosted. This is the widest exposure of any rail in this table, and §26's per-rail exposure disclosure carries it |
 
 ### 26.4.1 WhatsApp's asymmetry, stated as a wall, not a footnote (normative)
 

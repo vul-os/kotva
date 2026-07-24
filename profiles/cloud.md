@@ -88,8 +88,35 @@ Capacity = {                    ; every value a uint — no floats (§18.1)
   ? 4 => uint,                  ; max_concurrent     concurrent streams / instances
   ? 5 => tstr,                  ; class              "cold" / "warm" / "commit-path" (latency tier, §3)
   ? 6 => uint,                  ; uptime_target      per-mille intent (0…1000) — an aim, NOT a promise
+  ? 7 => { * tstr => uint },    ; resources          OPEN quantity vocabulary, §3.2 — never a closed enum
 }
 ```
+
+**Machine shape (`resources`) — an open vocabulary, not a product list.** A GPU is **not a service**:
+a box with an accelerator is still a `box` — same `terminating` visibility, same operator-has-root
+posture, same export portability. Making `gpu` a registry row would be exactly the catalogue-thinking
+this section forbids. What a client needs is *how much of what*, and that is a **map of
+`resource-name → uint quantity`** whose key namespace is **open and registry-extensible**, so a new
+accelerator class is a registry name and **never a spec change**:
+
+| Resource key | Unit | Notes |
+|---|---|---|
+| `cpu-millicores` | thousandths of a core | 1000 = one core; integer, so no float creeps in (§18.1) |
+| `mem-bytes` | bytes | |
+| `gpu-count` | whole devices | a fractional GPU is a scheduling fiction; count devices |
+| `gpu-mem-bytes` | bytes | the axis that actually decides whether a model fits |
+| `accel-<class>` | vendor/registry-defined | the extension point — tensor/NPU/FPGA/whatever is next enters here, never as a new service |
+
+**`arch` is an attribute, not a resource — and the distinction is load-bearing.** Architecture
+(`x86_64`, `aarch64`, …) belongs in `attributes` (§3.1), because it is a **compatibility predicate**:
+you match it or you do not, and there is no such thing as half an ARM. Resources are **quantities**:
+more or less. Conflating the two is a common and expensive design error — a client **filters** on
+`arch` (and any other predicate), then **compares** on `resources`. Declaring an architecture it
+cannot actually serve is the same `capacity-conformance` falsehood as overstating bytes (§5).
+
+Quota separation follows for free: because `resources` is one vocabulary, a declared ceiling and an
+enforced per-user quota are the **same keys** — `cpu-millicores` and `gpu-count` are metered and
+limited independently without the protocol naming a single number for either (CONTRACT §6).
 
 **This is a declaration, not a promise, and the difference is the whole point.** A home operator with
 2 TB and a 50 Mbit uplink can say exactly that and be chosen for the work it can actually carry,

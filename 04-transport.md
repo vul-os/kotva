@@ -312,7 +312,13 @@ network need no infrastructure at all.
     specified as though it could.
 
   A future radio binding MUST therefore state the suite it targets and its fragmentation rules,
-  and MUST NOT claim §1.1's PQ floor on links that cannot carry it. Higher-MTU radio (BLE, Wi-Fi
+  and MUST NOT claim §1.1's PQ floor on links that cannot carry it. **Do not re-derive the
+  fragmentation problem:** stacks already exist that carry small signed objects over heterogeneous
+  low-bandwidth links (Reticulum/RNS being the closest — LoRa, serial and IP under one
+  path-independent addressing scheme), and riding one is a *binding*, not a transport rewrite. Note
+  the honest cost of that route: such a stack brings its **own** identity and cipher layer, so the
+  result is two PKIs stacked, and a binding MUST state which one is authoritative for identity
+  (KOTVA's `IK`, always — §1) rather than leaving it to the reader. Higher-MTU radio (BLE, Wi-Fi
   Direct) is bounded by throughput rather than by this arithmetic and is the more tractable case —
   which is the shape deployed Bluetooth-mesh messengers have converged on, pairing a local radio
   mesh with an internet relay for out-of-range peers, exactly as the §4.3 ladder already does.
