@@ -319,11 +319,16 @@ A wake spends the target's battery, so wakes are gated **fail-closed**, and the 
 
 ## 9. Reference implementation (informative, non-normative)
 
-**vulos-relayd** is the intended reference implementation of these roles — a single key-addressed daemon
-serving announce/resolve, circuit relay, the short-TTL content-blind mailbox, and the wake origin. It is
-named only as an existence proof; per the repository's implementation-neutral stance it is not part of the
-standard and not required to speak it, and where it and the spec disagree, **the spec wins.** An
-independent implementation MUST be buildable from this document and the core (§4, §14, §4.9) alone.
+**Ephor** (github.com/vul-os/ephor), the broker reference implementation of the KOTVA standard, houses the
+existence proofs for these roles, split across two components. Its Go **`vulos-relayd`** daemon
+(`tunnel/rendezvous`) serves announce/resolve, signalling, and the short-TTL content-blind mailbox as one
+key-addressed, Ed25519-signed, content-blind **rendezvous** role, and separately serves cache/pin as an
+explicit opt-in **pubcache** role (`tunnel/pubcache`). Content-blind circuit relay (§4) is instead proved by
+a distinct component: Ephor's Rust `relay` crate, a real libp2p 0.56 Circuit Relay v2 server. **Wake (§8)
+has no reference implementation anywhere in Ephor today.** These are named only as existence proofs; per
+the repository's implementation-neutral stance none of them is part of the standard or required to speak
+it, and where any of them and the spec disagree, **the spec wins.** An independent implementation MUST be
+buildable from this document and the core (§4, §14, §4.9) alone.
 
 ---
 

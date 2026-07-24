@@ -23,7 +23,6 @@ relevant to the product but nothing exists yet.
 |---|---|---|---|---|---|
 | **envoir** (`/Users/pc/code/vulos/envoir`) | to-spec | to-spec | to-spec | partial | not built |
 | **vulos** (`/Users/pc/code/vulos/vulos`) | independent (×2) | independent | independent (×2) | independent | independent** |
-| **vulos-relay** (`/Users/pc/code/vulos/vulos-relay`) | minimal | to-spec | not built | independent | not built |
 | **ofisi** (`/Users/pc/code/vulos/ofisi`) | minimal | n/a | **partial**† | independent | n/a |
 | **flowstock** (`/Users/pc/code/vulos/flowstock`) | minimal | n/a | independent (partial algebra) | n/a | n/a |
 | **vidmesh** (`/Users/pc/code/vulos/vidmesh`) | independent*** | independent (founder-gated convergence) | n/a | partial | not built |
@@ -110,8 +109,8 @@ the substrate's shape without speaking its bytes.
 - **Roles — independent.** `peering/relay.go` is a genuine Ed25519-signed deposit/pickup/ack mailbox with
   TTL — structurally the mailbox role, own auth-header wire format (`Vula-Relay <id>.<ts>.<sig>`), not
   `LocationRecord`/DMTAP's mailbox wire. `peering/discovery.go` is a plain REST directory lookup against
-  vulos.org, not key-addressed announce/resolve. No circuit-relay/signalling in this repo (that lives in
-  vulos-relay). **What would move it:** re-key `discovery.go` to resolve by `IK` instead of an account
+  vulos.org, not key-addressed announce/resolve. No circuit-relay/signalling in this repo. **What would
+  move it:** re-key `discovery.go` to resolve by `IK` instead of an account
   directory lookup, and re-wire `relay.go`'s auth header as a `DeviceCert`-chained signature.
 - **Wake — independent, and not content-free.** `internal/webpush/webpush.go` (`PUSH-CELL-01`) is real,
   sovereign, RFC 8291-compliant Web Push/VAPID — the box holds its own VAPID keys, SSRF-guarded, correctly
@@ -121,33 +120,6 @@ the substrate's shape without speaking its bytes.
   sync), not a bug, but it is not what [`ROLES.md § 8`](ROLES.md#8-wake--content-free-sender-blind-push-capability-⑤-profile-of-49)
   defines as Wake. **What would move it:** add a second, genuinely content-free `WakePing` path
   alongside the existing notification push, rather than repurposing the notification payload.
-
-### vulos-relay — `/Users/pc/code/vulos/vulos-relay`
-
-- **Identity — minimal.** The commercial tunnel core is bearer-token/`AccountID`-based, not key-addressed
-  at all. The separate rendezvous subsystem (below) does Ed25519-sign its writes, but that is Roles usage,
-  not a general Identity capability (no `DeviceCert`, no naming ladder). **What would move it:** adopt
-  `IK`/`DeviceCert` as the rendezvous subsystem's identity rather than a bare signing key.
-- **Feeds & Blobs — to-spec.** `tunnel/pubcache/*` is a literal §22 implementation: BLAKE3 domain-separated
-  Merkle addressing (`"DMTAP-PUB-v0/manifest"`), served at `/.well-known/dmtap-pub/{announce,manifest,
-  chunk,feed}` with correct immutable-vs-mutable caching. This is the most spec-faithful code found in
-  either vulos repo. It has since also picked up the OPTIONAL [`FEEDS.md § 5.3`](FEEDS.md#53-optional--chunk-tree-range-proofs-additive-proposal)
-  chunk-tree range-proof endpoint (`tunnel/pubcache/proof.go`, flag-gated behind
-  `-pubcache-serve-proofs`) — encode/decode/generate/verify for `[chunk_index, [sibling_hashes…]]`, correctly
-  taking `nChunks` out-of-band from the manifest header rather than the proof response (the precision
-  [`FEEDS.md § 5.3`](FEEDS.md#53-optional--chunk-tree-range-proofs-additive-proposal) itself was just
-  tightened to require, per this survey — see `docs/PUBCACHE.md` §5 in this repo, which independently
-  reached the same conclusion). Nothing to close here.
-- **Sync — not built.** No CRDT/HLC code found in this repo.
-- **Roles — independent.** `tunnel/rendezvous/*` implements key-addressed announce/resolve/signal/mailbox +
-  ICE, Ed25519-signed, content-blind, standalone from the OS repo — structurally faithful to the role
-  definitions in [`ROLES.md`](ROLES.md) but its own wire protocol, not literal `LocationRecord` CBOR. The
-  commercial tunnel core itself (bearer-token WSS+yamux) is a separate product surface, not a spec role.
-  **What would move it:** re-encode `rendezvous`'s records as DMTAP `LocationRecord`/mailbox objects; the
-  role *shape* is already right, only the bytes differ.
-- **Wake — not built.** No VAPID/webpush code found in this repo. (Unrelated honesty gap, noted for
-  completeness: SNI-passthrough mail is also still not built here, per the 2026-07-17 audit — this affects
-  none of the five substrate capabilities and is not part of this matrix.)
 
 ### ofisi — `/Users/pc/code/vulos/ofisi`
 
@@ -375,27 +347,26 @@ retire them" — holds up, with more nuance than the premise implied:
   would have surfaced. This is exactly the gap [`BINDINGS.md`](BINDINGS.md) is written to
   close — not by asking four teams to rewrite four times, but by giving Sync one compiled core and four
   thin bindings.
-- **Feeds & Blobs is closer to converged than expected.** vulos-relay's `pubcache`, kerf-pub, and envoir's
-  `dmtap-core::pubobj` are now all to-spec, independently and vector-verified. The gap here is not
-  fragmentation so much as reach: three products have it, most don't need it, and vidmesh's convergence
-  is a real, drafted, founder-gated plan rather than an open question.
-- **Roles is the most consistently "right shape, wrong bytes" capability** — vulos's peering relay,
-  vulos-relay's rendezvous, and ofisi's `FabricClient` are all structurally faithful, independent
-  reinventions of announce/resolve/mailbox/relay. This is the capability where a shared binding would
-  probably require the least behavioural change per product, only a wire-format swap.
+- **Feeds & Blobs is closer to converged than expected.** kerf-pub and envoir's `dmtap-core::pubobj` are
+  now both to-spec, independently and vector-verified. The gap here is not fragmentation so much as reach:
+  two products have it, most don't need it, and vidmesh's convergence is a real, drafted, founder-gated
+  plan rather than an open question.
+- **Roles is the most consistently "right shape, wrong bytes" capability** — vulos's peering relay and
+  ofisi's `FabricClient` are both structurally faithful, independent reinventions of
+  announce/resolve/mailbox/relay. This is the capability where a shared binding would probably require the
+  least behavioural change per product, only a wire-format swap.
 - **Wake is the least attempted and the most subtly wrong where it exists.** vulos's cellpush is a correct,
   sovereign VAPID implementation for the wrong job (it wants to render a notification, not fire a
   content-free hint) — a good reminder that "uses the right open standard" and "implements this capability"
   are different claims, worth keeping distinct in future audits.
 - **The ordered-domain invariant is a measured defect class, not a hypothetical.** A follow-up audit of
   every adopter against [`FEEDS.md § 4.3`](FEEDS.md#43-anti-rollback-and-equivocation-2242) found it
-  **five times, in five languages, by five different mechanisms** — each network-reachable, each invisible
+  **four times, in four languages, by four different mechanisms** — each network-reachable, each invisible
   to that repo's own tests because the local engine agreed with itself:
 
   | Repo | Language | Mechanism | Fixed |
   |------|----------|-----------|-------|
   | kerf-pub | Python | bare `int()` decode accepted a **negative `seq`** | exo/kerf `66ea6e33` |
-  | vulos-relay | Go | `PubManifest.size`/`chunk_sz` presence-checked but **never value-decoded** — a negative `size` or over-`u32` `chunk_sz` passed as "verified" and would be re-served, while a `u64`/`u32`-typed peer cannot parse it at all (the cross-engine well-formedness gap §4.3 names) | `d0f7b3a` |
   | ofisi | JavaScript | **`NaN` comparison** — `parseInt` on a malformed counter yields `NaN`, and `NaN < x`, `x < NaN`, `NaN >= x` are *all* false, so the obvious comparator returns "not less than" and the caller applies the op; one hostile peer could overwrite any cell | `0b3fd70` |
   | flowstock | Go | two entry points **re-implemented the HLC string format** with a bare `Sprintf`, bypassing the width guard | `9e431a3` |
   | vidmesh | Rust | `contest_window as i64` silently reinterprets any `u64 ≥ 2^63` as **negative**, making a finality check trivially true and instantly finalizing a stolen-key rotation | `ad04112` |

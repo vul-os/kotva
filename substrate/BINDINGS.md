@@ -210,13 +210,6 @@ through a core binding, per the current state recorded in [`ADOPTION.md`](ADOPTI
   own Ed25519+rotation cert format, `peering/feeds.go`'s signed-but-uncontent-addressed hash-chained feed,
   and `peering/relay.go`'s bespoke mailbox auth header — each independently designed and each already doing
   roughly the right *thing*, just not the spec's *bytes*. Same Go binding tradeoff as above applies.
-- **vulos-relay** (Go). Its `tunnel/pubcache/*` (Feeds & Blobs) is **already spec-conformant**
-  (`/.well-known/dmtap-pub/*`, BLAKE3 DS-tagged addressing) — nothing to migrate there; it is a candidate
-  to eventually *become* a binding consumer purely to stop maintaining a parallel Go implementation of
-  logic the core crate also has, not because it is behaviorally wrong today. Its `tunnel/rendezvous/*`
-  (Roles) is a structurally faithful but independently-wired-protocol implementation of announce/resolve/
-  signal/mailbox; a binding would let it speak the core's `LocationRecord` bytes directly instead of its
-  own record shape.
 - **ofisi** (JS/TS frontend, Sync — partially, by design). Yjs is load-bearing through the editor
   (ProseMirror binding, undo manager, whiteboard binding); replacing its CRDT engine outright is not a
   binding exercise, it's a rewrite of the editor's data model, and is **out of scope** for this plan. The

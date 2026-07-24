@@ -114,8 +114,8 @@ value. BLAKE3-256 (`0x1e`) from the start, no flag day.
 > the construction the *vidmesh* protocol's own chunk tree uses (§5.3 below). These two constructions
 > produce **structurally identical trees** — same shape, same root, for the same ordered leaf list — for
 > every `n` tested: exhaustively up to `n = 2999` by an implementer building an audit-path generator
-> against this section, with a committed conformance suite (vulos-relay's `tunnel/pubcache`) asserting the
-> equivalence for every `n ≤ 300`. This is exactly the kind of property that holds trivially at powers of
+> against this section, with a committed conformance suite (Ephor's `tunnel/pubcache/proof_test.go`)
+> asserting the equivalence for every `n ≤ 300`. This is exactly the kind of property that holds trivially at powers of
 > two and could plausibly fail at, say, `n = 11`; it is recorded here as a verified-by-exhaustion
 > observation, not a proof, and an implementation that builds its own audit-path generator on the
 > level-by-level construction SHOULD verify the equivalence itself rather than take this note as a
@@ -346,7 +346,7 @@ GET /.well-known/dmtap-pub/manifest/{id}/proof?chunk=i   → [ i, [ sibling_hash
   or range-fetch the manifest response and stop once it has read keys `1`–`3`, though this is an
   implementation optimisation, not new normative machinery. With that in hand, the O(log n) property
   holds as stated: **two small header fields, not the chunk list.**
-  - **Chosen resolution: (a) — document the requirement, do not change the encoding.** vulos-relay's
+  - **Chosen resolution: (a) — document the requirement, do not change the encoding.** Ephor's
     `tunnel/pubcache` already ships this endpoint decoding `[index, path]` and taking `nChunks` from the
     manifest header out-of-band, exactly as this note now specifies; widening the wire encoding to carry
     the tree size would be a breaking change to a **fielded** implementation of an OPTIONAL endpoint, for
