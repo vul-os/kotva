@@ -66,7 +66,7 @@ MatchDemand = {
 ; ---- MatchRule : the pluggable seam (data, never protocol-baked) ----
 MatchRule = {
   name:    tstr,          ; "nearest" / "highest-bid" / "best-fit" / profile-registered
-  ? weights: { * tstr => number },  ; declared coefficients over `fields` keys (best-fit); canonicalized per §3.4
+  ? weights: { * tstr => int },     ; declared coefficients over `fields` keys (best-fit); integer fixed-point, §3.4
   tiebreak: tstr,         ; deterministic final tie-break, e.g. "hlc" then "id-bytes" (§3.4)
 }
 
@@ -95,7 +95,7 @@ Assignment = {
   ? revoked: bool,          ; true unassigns (no-show / cancellation) — valid until MatchDemand.expires, §3.5
 }                            ; LWW register (SYNC §4.4): the sole authorized writer is the demand issuer (§3.1)
 
-MatchFields = { * tstr => any }   ; e.g. {"lat":…, "lon":…, "bid":…, "caps":["vehicle:bicycle"]}; canonicalized per §3.4
+MatchFields = { * tstr => ext-value }  ; e.g. {"lat":…, "lon":…, "bid":…, "caps":["vehicle:bicycle"]}; §3.4
 ```
 
 > `demand` is always a `MatchDemand.id`, in every object that carries it (`Candidate`,
@@ -149,8 +149,13 @@ non-conformant, because classification centralises by construction (§8).
 
 ### 3.4 Determinism and ties — canonical arithmetic is mandatory
 The rule MUST be a deterministic function of `(candidate-set, rule)`. IEEE-754 floating-point
-arithmetic is **not** bit-identical across languages/runtimes, so any `MatchFields` value consumed
-by `nearest` or `best-fit` MUST be canonicalized to fixed-point integers before the rule runs:
+arithmetic is **not** bit-identical across languages/runtimes, so `MatchFields` and `weights` values
+MUST already be fixed-point integers **as published** — the fixed-point form is what gets signed, not
+a normalisation the matcher applies afterwards. A float can never appear on the wire at all
+([§18.1.1](../18-wire-format.md) rule 4 forbids it in every object, and these are signed objects), so
+both maps are typed `ext-value` / `int`: text-keyed like `Headers.ext` because the criteria set is
+application-declared, and value-restricted for exactly the same reason — floats, NaN/Infinity,
+`undefined` and tags would make the signature non-reproducible. Concretely, the encodings are:
 coordinates as integer microdegrees (`round(1e6 × decimal-degrees)`), bid/score/weight terms as
 integer minor units, `nearest`'s distance compared as squared-integer (no `sqrt`, no float), and
 `best-fit`'s weighted sum accumulated as integer (fixed-point) multiply-then-sum over `weights`

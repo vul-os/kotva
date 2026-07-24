@@ -126,8 +126,11 @@ object `{"t": ..., "v": ...}`:
 | `map` | CBOR major type 5, definite-length, **unsigned-integer keys** | JSON object; keys are decimal strings of the uint key, values typed |
 | `refmap` | The one WRAP map with **text** keys — `WorkOrder.refs` (key 14, §3.3) | plain JSON object string:string |
 
-There is **no `float64`** in this corpus: the objects are float-free by
-construction (no `Place` lat/lon), to sidestep an unresolved question — see gaps.
+There is **no `float64`** anywhere in WRAP: every object is float-free by
+construction. `Place.lat`/`lon` (§3.9) are integer microdegrees
+(`round(1e6 × decimal-degrees)`), the substrate's own fixed-point convention
+([MATCH §3.4](../../../primitives/MATCH.md)), so §18.1.1's float ban holds with
+no exception and no open question.
 
 ### `vectors`
 
@@ -218,12 +221,12 @@ honest gap.
    text namespace is not stated by the spec, so the `map` vectors record the two
    parts **structurally** (`{prefix, order_id_hex}`) rather than assert a single
    concatenated string. This is a real spec ambiguity, not a vector choice.
-3. **Floats are avoided, not solved.** `Place.lat`/`lon` are `float` in §3.9, but
-   DMTAP §18.1.1 rule 4 says floats MUST NOT appear in wire objects, and
-   deterministic float encoding (RFC 8949 §4.2.2) is a separate hazard. The
-   objects here are float-free so the ambiguity is dodged; a corpus that needs to
-   pin `Place` bytes must first resolve whether WRAP content objects may carry
-   floats at all. Flagged, not decided.
+3. **Floats — resolved (no longer a gap).** `Place.lat`/`lon` (§3.9) are integer
+   microdegrees (`round(1e6 × decimal-degrees)`, ~11 cm), not `float`, matching
+   the substrate fixed-point convention ([MATCH §3.4](../../../primitives/MATCH.md)).
+   WRAP therefore carries **no** floating-point wire value at all, so DMTAP
+   §18.1.1 rule 4 holds by construction and `Place` bytes pin deterministically —
+   there is no deferred question about whether WRAP objects may carry floats.
 4. **`proof` order-id width is a choice.** §10.2 says
    `commit = BLAKE3-256(code ‖ order_id)`; the corpus uses the **full 33-byte
    `id`** (the `0x1e`-prefixed value) as `order_id`. The spec does not say whether

@@ -204,9 +204,9 @@ def ns_of(order_id_hex):
 
 
 # --------------------------------------------------------------------------- #
-# The object set.  Float-free by construction (no Place lat/lon) to sidestep the
-# unresolved float-determinism / §18.1.1-floats-forbidden question; recorded as a
-# gap rather than guessed at.
+# The object set.  Float-free by construction: Place.lat/lon are integer
+# microdegrees (round(1e6 * decimal-degrees)) per MATCH §3.4, so §18.1.1's
+# floats-forbidden rule holds with no exception. No open float question remains.
 # --------------------------------------------------------------------------- #
 WO_EXPIRES = 1784563200          # unix seconds
 NOW_BEFORE = 1784500000          # < expires

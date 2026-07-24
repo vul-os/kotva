@@ -186,8 +186,8 @@ self-signed five-star rating is worth exactly nothing and MUST NOT be counted.
 | Key | Name | Type | Notes |
 |---|---|---|---|
 | 1 | `role` | tstr | e.g. `"pickup"`, `"dropoff"`, `"site"` |
-| 2 | `lat` | float | WGS84 |
-| 3 | `lon` | float | WGS84 |
+| 2 | `lat` | int | WGS84 latitude in **integer microdegrees**, `round(1e6 × decimal-degrees)` (range −90 000 000…90 000 000, ~11 cm precision). **Never a float** — §18.1.1 forbids floats in every wire object, and `Place` is a signed field of `WorkOrder`/`Progress`; the fixed-point convention is the substrate's own ([MATCH §3.4](../../primitives/MATCH.md)). |
+| 3 | `lon` | int | WGS84 longitude in integer microdegrees, `round(1e6 × decimal-degrees)` (range −180 000 000…180 000 000). Never a float (§18.1.1, [MATCH §3.4](../../primitives/MATCH.md)). |
 | 4 | `label` | tstr | Human address |
 | 5 | `detail` | tstr | Access notes, unit number, gate code |
 | 6 | `geo` | tstr | Optional GeoJSON for areas rather than points |
