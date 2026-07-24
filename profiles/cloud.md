@@ -20,8 +20,8 @@ BCP 14 (RFC 2119, RFC 8174) when, and only when, in all capitals.
 
 A market where any operator — a **gateway** — offers managed infrastructure to a user who holds their
 own keys and can leave: a **box** (a managed node), a **bucket** (object storage, which also serves
-public objects at the edge — the CDN shape), an **edge-fn** (serverless compute), a **database**
-(Redis / Postgres). It is the Hetzner / AWS / ngrok
+public objects at the edge — the CDN shape), a **volume** (block storage), an **edge-fn**
+(serverless compute), a **database** (Redis / Postgres), a **queue**. It is the Hetzner / AWS / ngrok
 product shape rebuilt as **fenced coordinators** ([coordinator/CONTRACT.md](../coordinator/CONTRACT.md)):
 each service is `accountable`, `swappable`, `self-hostable`, and **never load-bearing** — reach and
 convenience, never a gate on the user's function or identity.
@@ -134,7 +134,7 @@ operators**: signed `CoordinatorDescriptor`s to discover them, published measure
 compare them, and DEPOT-4 swappability to leave. That composition, not an elastic-group API, is this
 profile's load balancer. **The honest ceiling is the stateless/stateful asymmetry**, not the absence
 of an autoscaler: `bucket` and `edge-fn` spread across operators freely *because* they are
-zero-migration, while `database` and `box` carry state that must be exported and re-imported to
+zero-migration, while `database`, `volume` and `box` carry state that must be exported and re-imported to
 move. Adding providers is cheap for the former and a migration for the latter, and no protocol rule
 changes that.
 
@@ -171,10 +171,10 @@ parent), so a leaked deploy token can publish a site and **cannot** reach mail o
 buffered in a `queue` when the target is offline). A new trigger is an enum value; it is **not** a
 spec change and **not** a new coordinator kind.
 
-Only **`bucket`** — `blind` when client-encrypted, `blind-routing` when serving public objects — and
-**`queue`** keep the
-payload cryptographically out of the operator's reach. **`edge-fn`, `database`, and `box` are
-`terminating`** — the operator sees your data or computation. This is normal and honest
+Only **`bucket`** — `blind` when client-encrypted, `blind-routing` when serving public objects —
+**`queue`**, and a **guest-encrypted `volume`** (the operator holds ciphertext blocks) keep the
+payload cryptographically out of the operator's reach. **`edge-fn`, `database`, `box`, and an
+unencrypted `volume` are `terminating`** — the operator sees your data or computation. This is normal and honest
 (Fastmail-tier trust); it is **not** cryptographic blindness, and DEPOT-2 forbids pretending otherwise.
 
 ---
@@ -188,7 +188,8 @@ payload cryptographically out of the operator's reach. **`edge-fn`, `database`, 
   no new runtime, wire object, DS-tag, or error code — reputation reuses the ATTEST claim primitive (§5).
 - **DEPOT-2 — honest visibility is load-bearing (the cliff).** Each service MUST declare **exactly**
   the visibility its data model permits (§3): `bucket` `blind`/`structural`, or public-serving
-  `blind-routing`; `edge-fn`/`database`/`box` `terminating`/`declared`. **Advertising a `terminating`
+  `blind-routing`; `volume` `blind` when the guest encrypts it, else `terminating`/`declared`;
+  `edge-fn`/`database`/`box` `terminating`/`declared`. **Advertising a `terminating`
   service as `blind`, `private`, or `sovereign` is non-conformant misrepresentation**
   ([CONTRACT §3.2](../coordinator/CONTRACT.md)), not marketing. A TEE with **verifiable remote
   attestation** MAY raise `edge-fn`/`database`/`box` from `declared` to `attested`; the attestation
@@ -203,8 +204,9 @@ payload cryptographically out of the operator's reach. **`edge-fn`, `database`, 
 - **DEPOT-4 — swappable, honest portability.** Leaving or switching an `infra-service` MUST be a
   **config change with zero identity change** ([CONTRACT §2.2](../coordinator/CONTRACT.md)). Each
   service MUST state its **true** portability (§3): content-addressed `bucket` and stateless
-  `edge-fn` are **zero-migration**; stateful `database`/`box` MUST provide a **portable
-  export/import**, and MUST NOT be advertised as zero-migration. A slow or lossy export is a weaker
+  `edge-fn` are **zero-migration**; stateful `database`/`volume`/`box` MUST provide a **portable
+  export/import**, and MUST NOT be advertised as zero-migration. A `detachable` volume moves between
+  boxes of **one** operator and MUST NOT be advertised as zero-migration on that basis (§3). A slow or lossy export is a weaker
   exit and MUST be disclosed as such (§7).
 - **DEPOT-5 — economics are the operator's; KOTVA specifies only the seam.** Prices, price model
   (per-unit / flat / tiered / spot), billing cycle, free tier, SLA, discounts, and settlement asset are
@@ -345,11 +347,11 @@ schema, not by wire.
 Inheriting [THREAT-MODEL.md](../THREAT-MODEL.md) (SEC-1…SEC-9); the DEPOT-specific posture is the
 **cliff of §4 DEPOT-2**, restated for clarity:
 
-- **Only `bucket` and `queue` are structurally private.** They hold client-encrypted,
+- **Only `bucket`, `queue`, and a guest-encrypted `volume` are structurally private.** They hold client-encrypted,
   content-addressed data — or, for `queue`, client-encrypted payloads whose depth, rate and timing are
   visible but whose content is not (SEC-4, `blind`/`structural` / `blind-routing`) — so the operator
   forwards, holds, or serves ciphertext it has no key to read.
-- **`database`, `edge-fn`, and `box` are `declared`-trust.** The operator (and any cloud host or
+- **`database`, `edge-fn`, `box`, and an unencrypted `volume` are `declared`-trust.** The operator (and any cloud host or
   subcontractor beneath it, DEPOT-6) can read what it must process to serve a query, run a function, or
   host a node. This is a **real, disclosed trust boundary** (SEC-4 `declared`), **not** structurally
   excluded. The durable protections are **DEPOT-3** (the owner-held root key — a breach reads live data
