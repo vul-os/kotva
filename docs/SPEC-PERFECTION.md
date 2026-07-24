@@ -342,11 +342,20 @@ received; this is not to be read as approval for anything beyond those two items
   Added `DMTAP-ORG-06` (conjunctive across every link — parent's caveat survives a child omitting
   it), `-07` (unrecognised caveat key fails closed), `-08` (purely restrictive; no exemption form).
   Case count is stated in **eleven** places across three files; the linter caught every stale one.
-- [ ] **Gap 2 — §21's ~188 `FAIL_CLOSED_BLOCK`/`DROP_SILENT` actions** have never been checked
-  systematically against the clauses they cite. Dispatched. The `0x02xx` range matters most: a
-  wrong action there is exactly how the existence oracle reopened, twice.
+- [x] **Gap 2 — §21 action-vs-clause audit: CLEAN on every code checked** (no commit — read-only
+  audit found nothing to fix). Verified in full depth against their owning clauses: all 19 `0x02xx`
+  MOTE-delivery codes (incl. `0x020E`, the twice-broken oracle code — now correct), all 11 `0x05xx`
+  auth codes, all 15 `0x09xx` PUB codes, and `0x01xx` partially. The silent-vs-notify asymmetry
+  holds throughout `0x02xx`. **Not reached:** `0x03xx` (transport/mesh), `0x04xx` (media/deniable),
+  `0x06xx` (gateway), `0x07xx`, and `0x0107`–`0x010A`/`0x0110`–`0x0127`. These are lower-risk than
+  the delivery range and are disclosed as remaining coverage, not certified.
 
-**Then freeze**, regardless of what Gap 2 returns, per the stop rule.
+**FROZEN — per the stop rule.** Both option-(b) gaps are closed as far as they go. The pass does
+NOT take the convergence path (delete this file, CronDelete, declare perfected): that path requires
+a **clean** W6 round, and three successive rounds each found substantive residuals. Every finding
+across all three is fixed and pushed; lint 0 errors. What remains is the founder's
+invest-further decision (COORDINATION.md) and the disclosed lower-risk coverage above — neither is a
+known defect, and neither is mine to resolve by declaring done.
 
 ### W6 ROUND 2 — one HIGH finding, fixed (`0254027`). NOT converged.
 
