@@ -2,7 +2,7 @@
 
 > **Status:** profile spec (KOTVA family). Normative once ratified. MEDIA is the consumer-media
 > profile — a YouTube/Spotify/Twitch-shaped surface (uploaded video, music, podcasts, live) built
-> as a **thin profile**, not a new stack. It **generalizes** the Published-Artifact media facet
+> as a **thin profile**, not a new stack. It **generalises** the Published-Artifact media facet
 > ([`24-video-profile.md`](../24-video-profile.md), the `VideoManifest`/channel/live model) from a
 > publishing convention into a full product, and adds **no new wire bytes** beyond the one signed
 > structure §24 already owns. Where §24 defines the objects, this document states the product rules
@@ -117,7 +117,7 @@ author's own feed:
 | `LiveManifest` / `LiveChat` (`vid-live-1`) | §24.10 | rolling signed segment batches; the durable record of a live stream |
 | `Mirror` | §24.7 | a serving assertion → the cache/pin role ([`ROLES.md`](../substrate/ROLES.md)) |
 | `RightsClaim` (`meta["claim"]`) | §24.11 | a self-asserted rights claim, presented with provenance, never as truth |
-| `Delegate` grant | §24.4.6 | authorizes a third-party transcoder |
+| `Delegate` grant | §24.4.6 | authorises a third-party transcoder |
 
 **MOTE (the sealed object) is used in exactly two places, and only there:**
 
@@ -175,7 +175,7 @@ real-time must not be forced through MOTE delivery.
   unsubscribing, and moving between apps MUST NOT require re-telling followers or re-establishing
   identity — the graph lives at the edge, in signed feeds ([CONTRACT §2.2](../coordinator/CONTRACT.md)).
 
-- **MED-6 — Discovery is a coordinator that authorizes, never classifies.** Search, trending, and
+- **MED-6 — Discovery is a coordinator that authorises, never classifies.** Search, trending, and
   recommendation are `indexer` output: **derived, rebuildable, never authoritative** (§22.4.3), TEE
   (`attested`) preferred. An indexer MAY rank or re-rank content within its own derived,
   non-authoritative view — that ranking *is* its function; it MUST NOT drop, gate, quarantine, or
@@ -212,7 +212,7 @@ real-time must not be forced through MOTE delivery.
 
 - **MED-10 — Moderation is edge-selected and opt-in.** A viewer's client decides what it renders,
   against `labeler` subscriptions it chose (§24.13); a labeler is itself a coordinator under the
-  contract (it labels; you subscribe; you can leave). Anti-abuse allowed is authorization-level only —
+  contract (it labels; you subscribe; you can leave). Anti-abuse allowed is authorisation-level only —
   authenticated identity, rate limits, optional postage for cold contact — never central content
   classification ([CONTRACT §4](../coordinator/CONTRACT.md)).
 
@@ -239,7 +239,7 @@ collapses the function to its local-trust form without changing an object.
 
 ---
 
-## 6. Offline / apocalypse behavior
+## 6. Offline / apocalypse behaviour
 
 Graded per [`substrate/OFFLINE.md`](../substrate/OFFLINE.md); the **Sneakernet test** holds because
 every Evermesh object is self-authenticating and verifies identically over HTTPS, mesh, or an SD card
@@ -326,8 +326,8 @@ traces to a root ceiling in [DIRECTION §8](../DIRECTION.md).
   not a durability promise ([§22.1.2](../22-public-objects.md)). Permanence costs — Arweave, or an
   origin-hold the creator's box keeps serving. A work whose every holder stops serving it is gone,
   and the profile does not pretend otherwise.
-- **Recommendation without surveillance is weaker.** No behavioral surveillance engine means the feed
-  is less personalized than an ad-funded platform's — the one thing genuinely surrendered by not
+- **Recommendation without surveillance is weaker.** No behavioural surveillance engine means the feed
+  is less personalised than an ad-funded platform's — the one thing genuinely surrendered by not
   being a company that owns you ([research §3](../docs/research/README.md)), and surrendered on
   purpose.
 - **A non-attested indexer's query privacy is a promise, not a proof.** Per

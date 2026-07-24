@@ -1,4 +1,4 @@
-# DEPOT — managed infrastructure services (the decentralized-cloud profile)
+# DEPOT — managed infrastructure services (the decentralised-cloud profile)
 
 > **Status:** profile spec (KOTVA family), **draft — normative once ratified**. Provisional name
 > (**DEPOT** — a supply depot where infrastructure is provisioned and dispensed); the codename is a
@@ -153,7 +153,7 @@ payload cryptographically out of the operator's reach. **`edge-fn`, `database`, 
   accountable, declaring party**. It MUST NOT launder visibility: a subcontracted `terminating` leg is
   still `terminating` and MUST be declared so — an operator MUST NOT claim `blind` by pointing at a
   subcontractor. The user holds the **declaring operator** accountable, not its supplier.
-- **DEPOT-7 — authorize, never classify.** An `infra-service` gates admission on **identity + rate +
+- **DEPOT-7 — authorise, never classify.** An `infra-service` gates admission on **identity + rate +
   payment** only ([CONTRACT §4](../coordinator/CONTRACT.md)); it MUST NOT admit, refuse, throttle, or
   price on a **content judgement**. Metering measures **resource use**, never content. (A service that
   *must* read content to function — `database`, `edge-fn` — does so under its declared `terminating`
@@ -288,7 +288,7 @@ Inheriting [THREAT-MODEL.md](../THREAT-MODEL.md) (SEC-1…SEC-9); the DEPOT-spec
   excluded. The durable protections are **DEPOT-3** (the owner-held root key — a breach reads live data
   but cannot *become* the user or survive a device revocation) and **DEPOT-4** (a real exit). A TEE with
   verifiable attestation upgrades these to `attested`.
-- **SEC-1 fail-closed / SEC-6 authorize-never-classify / SEC-8 swappable** hold verbatim
+- **SEC-1 fail-closed / SEC-6 authorise-never-classify / SEC-8 swappable** hold verbatim
   (DEPOT-7/-8/-4).
 - **SEC-7 abuse is priced and localised**, never content-classified: a service refuses on identity /
   rate / payment; a poisoned operator is one operator, swappable, and rated down by independent

@@ -6,7 +6,7 @@
 > own-domain name, without the coordinator that provides the name being able to read the traffic
 > (`structural`; a bare adapter-zone vanity is `declared` and carries a disclosed MITM residual —
 > REACH-1a, §8). It defines **no new wire kinds**: it
-> is the generalization of DMTAP [§7.15.2](../07-gateway.md) (the legacy-client *reachability
+> is the generalisation of DMTAP [§7.15.2](../07-gateway.md) (the legacy-client *reachability
 > ingress*) from "carry one legacy mail client to a mailbox" to "carry any TLS client to any box
 > service", and of [§7.10.5](../07-gateway.md) (vanity *local-parts*) from mail local-parts to **DNS
 > subdomains**. The party that provides the public name is a **`reachability-adapter`**
@@ -36,11 +36,11 @@ REACH is three thin things over existing substrate:
 
 1. a **reverse-tunnel stream-mux** — a box→adapter persistent, libp2p-secured (Noise + yamux)
    connection the adapter SNI-demuxes and multiplexes arbitrary inbound client streams onto: the
-   ngrok/frp-shaped reachability ingress of [§7.15.2](../07-gateway.md), generalized and inverted
+   ngrok/frp-shaped reachability ingress of [§7.15.2](../07-gateway.md), generalised and inverted
    (the box terminates, not the adapter) — explicitly **not** the mesh's native Circuit Relay v2,
    which relays between two libp2p *peers* and cannot carry a non-libp2p client
    ([ROLES §4](../substrate/ROLES.md) conflation warning);
-2. **vanity-alias rules** for the public subdomain namespace ([§7.10.5](../07-gateway.md) generalized
+2. **vanity-alias rules** for the public subdomain namespace ([§7.10.5](../07-gateway.md) generalised
    from mail local-parts to DNS labels); and
 3. the **`reachability-adapter`** coordinator that ties them together and is fenced by
    [coordinator/CONTRACT.md](../coordinator/CONTRACT.md).
@@ -57,11 +57,11 @@ REACH is composition, not new machinery. It reuses:
 | Composed with | Role in REACH | Home |
 |---|---|---|
 | **`reachability-adapter`** coordinator | provides the public name + the ingress; `blind-routing` (SNI-passthrough), assurance `structural` for an own-domain name or `declared` for a bare vanity (REACH-1a). The one load-bearing new binding, fully fenced by the contract. | [CONTRACT §5](../coordinator/CONTRACT.md) |
-| **Reachability ingress** pattern | the box↔adapter reverse tunnel + adapter-side SNI-demux is [§7.15.2](../07-gateway.md)'s legacy-client reachability ingress generalized from "carry one legacy mail client to a mailbox" to "carry any TLS client to any box service," and inverted — the box terminates TLS, not the adapter. **Not** the mesh's native Circuit relay role (ROLES §4 explicitly forbids conflating a legacy/non-mesh ingress with the native peer↔peer relay); the box↔adapter leg is secured as an ordinary libp2p transport (Noise + yamux), never a Circuit Relay v2 hop/stop circuit. | [§7.15.2](../07-gateway.md), [ROLES §4](../substrate/ROLES.md) |
+| **Reachability ingress** pattern | the box↔adapter reverse tunnel + adapter-side SNI-demux is [§7.15.2](../07-gateway.md)'s legacy-client reachability ingress generalised from "carry one legacy mail client to a mailbox" to "carry any TLS client to any box service," and inverted — the box terminates TLS, not the adapter. **Not** the mesh's native Circuit relay role (ROLES §4 explicitly forbids conflating a legacy/non-mesh ingress with the native peer↔peer relay); the box↔adapter leg is secured as an ordinary libp2p transport (Noise + yamux), never a Circuit Relay v2 hop/stop circuit. | [§7.15.2](../07-gateway.md), [ROLES §4](../substrate/ROLES.md) |
 | **Announce / Resolve** role | the box publishes a `LocationRecord` whose reachability hints include its adapter-tunnel address; monotonic-`seq` anti-rollback inherited. | [ROLES §2](../substrate/ROLES.md) |
 | **Signaling** role | the reachability *ladder* — direct (rung 1) → hole-punch (rung 2) → adapter tunnel (rung 3). REACH is the rung-3 fallback for clients that cannot mesh. | [ROLES §3](../substrate/ROLES.md) |
 | **RESERVE** primitive | subdomain allocation is a **single-writer bounded namespace**: the adapter is the only writer of its own DNS zone, so a name collision is a single-writer decision, never a race. | [primitives/RESERVE.md](../primitives/RESERVE.md) |
-| **ATTEST** (optional) | an adapter MAY require an accountability attestation (a paid registration, a personhood claim) before granting a vanity name — an authorization input, never a content gate. | [primitives/ATTEST.md](../primitives/ATTEST.md) |
+| **ATTEST** (optional) | an adapter MAY require an accountability attestation (a paid registration, a personhood claim) before granting a vanity name — an authorisation input, never a content gate. | [primitives/ATTEST.md](../primitives/ATTEST.md) |
 
 Bindings adopted rather than reinvented ([bindings/README.md](../bindings/README.md),
 [DIRECTION §3](../DIRECTION.md)): a **libp2p-secured stream** (Noise transport security +
@@ -133,7 +133,18 @@ and cannot be squatted.
   under the same CAA-permitted CA, using its own ACME account — and mint a MITM certificate a bare
   CAA record never excludes. An own-domain box using an adapter MUST publish an RFC 8657
   `accounturi`-bound CAA record for the `structural` claim to hold; a bare RFC 8659 CAA alone is
-  insufficient. For a **bare adapter-zone vanity** (REACH-3) the adapter is the zone's sole writer
+  insufficient. **The binding is necessary but not sufficient: it restrains only a CA that
+  implements RFC 8657.** RFC 8657 §5.2 ("Restrictions Ineffective without CA Recognition") is
+  explicit — *"Domains configuring CAA records for a CA MUST NOT assume that the restrictions
+  implied by the `accounturi` and `validationmethods` parameters are effective in the absence of
+  explicit indication as such from that CA."* Against a CAA-permitted CA that ignores the
+  parameter, an in-path adapter can still complete validation under its own ACME account, and the
+  assurance degrades to the bare-vanity residual. A zone claiming `structural` therefore MUST
+  restrict its CAA `issue`/`issuewild` properties to CAs whose `accounturi` enforcement it has
+  established; absent that, the adapter MUST declare `declared`, not `structural`. Note the
+  asymmetry this leaves: the precondition is verifiable by the **zone owner**, who chooses the CA,
+  and never by the **connecting client** — so `structural` here is a property of the deployment,
+  attested by the operator, not one the client can check from the wire. For a **bare adapter-zone vanity** (REACH-3) the adapter is the zone's sole writer
   (REACH-7) and can complete DNS-01, HTTP-01, or TLS-ALPN-01 validation for that name itself at
   any time, terminate TLS, and re-encrypt to the box — no CAA record helps there, since the adapter
   itself writes the zone. An adapter serving a bare vanity name MUST declare
@@ -328,8 +339,10 @@ Inheriting [THREAT-MODEL.md](../THREAT-MODEL.md) (SEC-1…SEC-9); the REACH-spec
   (REACH-1). For an **own-domain** name the box controls the zone **and publishes an RFC 8657
   `accounturi`-bound CAA record** (REACH-1a) — a bare RFC 8659 CAA names only a permitted CA and
   does not bar an in-path adapter forwarding REACH-2a's default TLS-ALPN-01 challenge from
-  completing issuance itself — so with that binding blindness is *structural*, provable from key
-  placement and account binding. For a **bare adapter-zone vanity** the adapter is the zone's sole
+  completing issuance itself — so with that binding, **and only at a CA that actually implements
+  RFC 8657** (§5.2; REACH-1a), blindness is *structural*, provable from key placement and account
+  binding. Against a permitted CA that ignores the parameter the binding is inert and the level is
+  `declared`. For a **bare adapter-zone vanity** the adapter is the zone's sole
   writer (REACH-7) and can mint its own certificate for the name, so blindness there is `declared`,
   not `structural` (REACH-1a) — a real, disclosed trust residual (§8), mitigated by
   `LocationRecord` TLS-key pinning for KOTVA-aware clients and CT monitoring, never structurally
@@ -347,8 +360,10 @@ Inheriting [THREAT-MODEL.md](../THREAT-MODEL.md) (SEC-1…SEC-9); the REACH-spec
   `XX` signed-static-key handshake); the client
   authenticates the *service* by its TLS certificate, which the box — not the adapter — presents.
   For an **own-domain** name publishing an RFC 8657 `accounturi`-bound CAA record (REACH-1a), this
-  is intrinsic: the adapter cannot mint a competing cert for a zone it does not write, and the CAA
-  binding excludes it from completing issuance itself over the passthrough path. Without that
+  is intrinsic **so far as the named CA honours RFC 8657** (§5.2, REACH-1a): the adapter cannot mint
+  a competing cert for a zone it does not write, and the CAA binding excludes it from completing
+  issuance itself over the passthrough path — at a CA that does not implement the parameter, it
+  does not. Without that
   binding, a bare RFC 8659 CAA does not exclude an in-path adapter from completing REACH-2a's
   default TLS-ALPN-01 challenge under a permitted CA using its own account — the same residual as
   a bare vanity. For a **bare adapter-zone vanity**, the adapter *is* the zone's writer and can
@@ -403,7 +418,11 @@ Inheriting [THREAT-MODEL.md](../THREAT-MODEL.md) (SEC-1…SEC-9); the REACH-spec
   publishes an RFC 8657 `accounturi`-bound CAA record (REACH-1a): a **bare RFC 8659 CAA restricts
   only the issuing CA, not the validation method or account**, so without the RFC 8657 binding an
   in-path adapter forwarding REACH-2a's default TLS-ALPN-01 challenge can complete issuance itself
-  under the same permitted CA and MITM the box exactly as for a bare vanity. `LocationRecord`
+  under the same permitted CA and MITM the box exactly as for a bare vanity. The binding is also
+  only as good as the CA: RFC 8657 §5.2 states domains **MUST NOT assume** these restrictions are
+  effective without explicit indication from that CA, so an own-domain zone naming a CA that does
+  not implement `accounturi` carries the vanity residual despite publishing the record — a residual
+  its owner can close by CA choice and its clients cannot detect. `LocationRecord`
   TLS-key pinning (KOTVA-aware clients only) and CT-log monitoring *detect* a rogue or
   legally-compelled adapter, own-domain or vanity; neither *prevents* it. The specification
   discloses this as a real trust boundary rather than presenting bare-CAA blindness as structural.
