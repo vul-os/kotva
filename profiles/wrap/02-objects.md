@@ -80,6 +80,17 @@ stop trusting all of it.
 Binds a work order to an audience. One `Offer` per pool; several MAY exist for
 one work order.
 
+> **Naming caution — this is *not* the OFFER primitive.** Despite the name, WRAP's `Offer` is an
+> *audience binding*: it says which pool a `WorkOrder` is exposed to. WRAP's instantiation of the
+> [OFFER](../../primitives/OFFER.md) / [MATCH](../../primitives/MATCH.md) primitives is
+> **`WorkOrder` / `Bid` / `Assignment`** (= `MatchDemand` / `Candidate` / `Assignment`,
+> [MATCH §2](../../primitives/MATCH.md)), *not* this object. A reader arriving from
+> [`SPEC.md`](../../SPEC.md)'s coverage table — which lists WRAP as composing `OFFER · MATCH` —
+> should look to `WorkOrder`, not here. The collision is with TRACT's `Offer`
+> ([tract §2.3](../tract/02-catalogue.md)), which *is* the OFFER-primitive instance; the two names
+> denote different things in different profiles and neither is renamed, because both are frozen
+> wire objects with allocated kind bytes.
+
 | Key | Name | Type | Req | Notes |
 |---|---|---|---|---|
 | 6 | `order` | bstr | MUST | `WorkOrder.id` |

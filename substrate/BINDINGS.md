@@ -51,7 +51,12 @@ workspace (not assumed):
 
 Everything else in the workspace (`dmtap-mail`, `dmtap-send`, `dmtap-mls`, `dmtap-deniable`, `dmtap-auth`,
 `gateway`) builds *on top of* the substrate for the mail profile and DMTAP-Auth; it is out of scope for
-this document, which is about the five waist capabilities only.
+this document, which is about **five of the six** waist capabilities
+([DIRECTION §1](../DIRECTION.md)) — Identity, MOTE, PUB, SYNC and Roles & Wake. **Transport** has no
+binding surface of its own here: it is exercised through MOTE delivery and the Roles, exactly as
+[OFFLINE §3](OFFLINE.md) records for the same reason, so a language binding never calls it directly.
+The capability numbering used in the table below is local to this document; the canonical numbering
+is [`substrate/README.md` §2](README.md).
 
 **No binding infrastructure exists yet.** A direct search of the envoir repository found **zero**
 `wasm-bindgen`, **zero** `#[no_mangle] extern "C"` FFI exports, **zero** `uniffi`/`.udl`/`uniffi.toml`, and
