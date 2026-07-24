@@ -92,9 +92,12 @@ shape is frozen at §16.5.5 and an implementation MUST encode exactly that shape
 - **Timestamp** (`PurchaseAttestation[4]`). `ts`, display and ordering only.
 
 An attestation is verifiable by anyone who can check the issuer's signature — unlike a centralised
-platform's "verified purchase" badge, which is an assertion only that platform can make. Because a
-review's attestation binds it to a real transaction, ballot-stuffing costs actual trades rather
-than free key generation.
+platform's "verified purchase" badge, which is an assertion only that platform can make. **What that
+signature establishes is narrower than it looks, and the limit is stated below rather than implied:**
+it proves *an* order exists that this issuer vouched for. It does **not** prove that the review's
+author is a party to that order, nor that the order concerns the subject under review — neither the
+author key nor the subject appears in the attestation's field set (§16.5.5). Ballot-stuffing
+therefore costs *a* trade, not a trade per review.
 
 **Index gating is policy, not protocol.** The grammar makes the attestation optional (§16.5.5).
 Whether an index requires one is the index's own weighting decision: `ERR_TRACT_REVIEW_UNATTESTED`
@@ -108,6 +111,31 @@ transacting with itself produces a **genuine** attestation; an escrow-issued att
 `1`) is stronger but is scarcest where it would matter most, because escrow is opt-in and declined
 by exactly the actors it constrains (§9.5a, §10.3a). This is a measured outcome (§21.6), stated
 here rather than resolved.
+
+**It is a bearer token, not a binding (normative disclosure).** `PurchaseAttestation` (§16.5.5)
+carries `attestor`, `issuer`, the sealed order's `content-address` and a `ts` — and **nothing that
+names the reviewer or the subject**. A `Review` is signed by its author, which proves the author
+*included* the attestation; it does not prove the attestation was *issued to* that author. Three
+consequences follow directly from the field set, and an index MUST NOT be built as though they were
+excluded:
+
+- **Transferable.** Anyone who obtains a valid attestation may embed it in a review they sign, and
+  it verifies. This is precisely the bought-review case a "verified purchase" badge is meant to
+  exclude.
+- **Reusable.** One attestation may be embedded in unboundedly many reviews, by one author or many.
+- **Subject-agnostic.** It names no subject, so an attestation for one order verifies against a
+  review of **any** `Subject`.
+
+This is a **direct consequence of a deliberate privacy choice**, not an oversight: the review author
+is a per-subject pseudonymous subkey (§16.5.5) exactly so reviews are not linkable across sellers,
+and naming the buyer in a publicly-verifiable attestation would undo that. Binding the two without
+losing the unlinkability needs an anonymous credential presented rather than copied — the
+issuance-unlinkable, per-origin-scoped ARC shape the family already adopts for anti-abuse
+([§9.3](../../09-anti-abuse.md)) — and that is a **specified-but-undecided** design, recorded as a
+founder decision rather than assumed here. Until it lands, an index treating an attested review as
+proof *this reviewer bought this subject* is relying on a property the wire format does not carry;
+gating on attestation (§17 `0x0901`) raises the cost of the first fake review and of nothing after
+it.
 
 ## 10.2b Reputation is portable
 
