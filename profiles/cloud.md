@@ -68,6 +68,48 @@ profile enforces. v0 registry:
 | `box` | OS + node (cloud-init) | **`terminating` / `declared`** — the operator has root on the host | instance-hour | **export** (keys stay with the user; data dumps out) |
 | `queue` | AMQP-class / opaque-payload FIFO | **`blind-routing` / structural** — holds **client-encrypted** payloads; sees depth, size, rate and timing, never content | message-count + GB-month retained | **zero-migration** (drain and re-enqueue elsewhere) |
 
+### 3.1 Declared capacity — how a small operator competes honestly
+
+An `infra-service` descriptor's `policy` field ([§18.8a.1](../18-wire-format.md)) is an **opaque,
+kind-specific det_cbor blob**. DEPOT fixes its shape for this kind, so a **new limit is a DEPOT
+registry change, never a §18 wire change**. It carries what a client must know *before* committing,
+which the after-the-fact measurements of §5 cannot supply:
+
+```cddl
+DepotServicePolicy = {          ; det_cbor `policy` blob for kind = "infra-service"
+  1 => tstr,                    ; service     a §3 registry value ("bucket", "volume", …)
+  ? 2 => Capacity,              ; capacity    declared ceilings — absent means UNDECLARED, never unlimited
+  ? 3 => { * tstr => tstr },    ; attributes  service-specific, e.g. volume {persistence, attachment}
+}
+Capacity = {                    ; every value a uint — no floats (§18.1)
+  ? 1 => uint,                  ; total_bytes        storage ceiling
+  ? 2 => uint,                  ; max_object_bytes   largest single object/volume
+  ? 3 => uint,                  ; egress_bps         sustained throughput ceiling
+  ? 4 => uint,                  ; max_concurrent     concurrent streams / instances
+  ? 5 => tstr,                  ; class              "cold" / "warm" / "commit-path" (latency tier, §3)
+  ? 6 => uint,                  ; uptime_target      per-mille intent (0…1000) — an aim, NOT a promise
+}
+```
+
+**This is a declaration, not a promise, and the difference is the whole point.** A home operator with
+2 TB and a 50 Mbit uplink can say exactly that and be chosen for the work it can actually carry,
+instead of competing on an undifferentiated axis against a datacentre and losing. Three rules keep it
+honest:
+
+- **Absent means undeclared, never unlimited.** A client MUST NOT infer a ceiling from an omitted
+  field, and an operator MUST NOT read an omission as permission to refuse arbitrarily.
+- **`uptime_target` is an intent, not an SLA.** It is the operator's aim; what it *achieved* is the
+  §5 `uptime` measurement, published by observers, not by the operator. A consumer MUST NOT treat the
+  target as evidence.
+- **A declared ceiling is falsifiable.** Because the descriptor is signed and the §5 `metric`
+  vocabulary already carries `capacity-conformance`, an operator that advertises 2 TB and refuses at
+  1 TB is **detectably** overstating — the same declare-then-measure loop that makes `visibility`
+  honest (DEPOT-2). Overstating capacity is non-conformant, not merely rude.
+
+Quotas the operator *enforces* per user at runtime (rate limits, storage caps, `0x070D`, `0x0806`)
+remain **operator policy** and are deliberately not fixed here: the protocol standardises the
+*declaration* so a client can choose, never the *number*.
+
 **Completeness, not catalogue.** This set is deliberately small and is chosen to *span* what a
 centralised platform does, not to mirror a product list: run code (`edge-fn`, `box`), store blobs
 and serve them at the edge (`bucket`), store queryable state (`database`), decouple asynchronously
@@ -206,7 +248,16 @@ unencrypted `volume` are `terminating`** — the operator sees your data or comp
   service MUST state its **true** portability (§3): content-addressed `bucket` and stateless
   `edge-fn` are **zero-migration**; stateful `database`/`volume`/`box` MUST provide a **portable
   export/import**, and MUST NOT be advertised as zero-migration. A `detachable` volume moves between
-  boxes of **one** operator and MUST NOT be advertised as zero-migration on that basis (§3). A slow or lossy export is a weaker
+  boxes of **one** operator and MUST NOT be advertised as zero-migration on that basis (§3).
+  **"Portable" means format-portable, and downtime is an acceptable price:** the export MUST be in the
+  **adopted standard's own interchange format** for that service — S3-API objects for `bucket`, a
+  standard block image or filesystem dump for `volume`, the engine's native dump (`pg_dump`-class,
+  RESP) for `database`, an OCI/WASI artefact for `edge-fn`, a standard disk image for `box` — such
+  that **any conformant operator of the same service can ingest it without the exporting operator's
+  cooperation**. An export only its author's tooling can read is **not** an export and MUST NOT be
+  advertised as satisfying this clause. The exit this profile guarantees is *interoperable*, not
+  *seamless*: a migration MAY cost real downtime, and that is an acceptable price for being able to
+  leave at all — what is never acceptable is a format that makes leaving impossible. A slow or lossy export is a weaker
   exit and MUST be disclosed as such (§7).
 - **DEPOT-5 — economics are the operator's; KOTVA specifies only the seam.** Prices, price model
   (per-unit / flat / tiered / spot), billing cycle, free tier, SLA, discounts, and settlement asset are
@@ -312,7 +363,7 @@ or signature** for reputation — it defines only a **claim schema** carried ins
 ```cddl
 DepotMeasurement = {                ; claim body for schema "kotva-depot/measurement/v0"
   1 => tstr,                        ; service      a §3 registry value ("bucket", "queue", …)
-  2 => tstr,                        ; metric       "uptime" / "conformance" / "visibility-audit" / "latency-ms"
+  2 => tstr,                        ; metric       "uptime" / "conformance" / "visibility-audit" / "latency-ms" / "capacity-conformance"
   3 => uint / bool,                 ; value        metric-typed, below — never a float (§18.1)
   4 => tstr,                        ; method       "probe" / "conformance-vector" / "audit" / "self-report"
   5 => ts,                          ; observed_at  ms since the Unix epoch (§18.1)
@@ -321,7 +372,10 @@ DepotMeasurement = {                ; claim body for schema "kotva-depot/measure
 ```
 
   `value` is typed **by `metric`**, with no float anywhere: `uptime` = `uint` **per-mille** availability
-  (`0…1000`); `latency-ms` = `uint` milliseconds; `conformance` and `visibility-audit` = `bool`. An
+  (`0…1000`); `latency-ms` = `uint` milliseconds; `conformance`, `visibility-audit` and
+  `capacity-conformance` = `bool` — the last records whether the operator honoured the ceilings its
+  own signed `DepotServicePolicy` declared (§3.1), which is what makes a declared capacity
+  falsifiable rather than marketing. An
   unrecognised `metric` MUST be ignored by aggregators (never guessed at). Representing the same claim
   as an EAS attestation or W3C VC for consumers outside KOTVA is a **binding-layer mapping**
   ([bindings/README.md](../bindings/README.md)) and is out of scope for `v0`; pinning that external
