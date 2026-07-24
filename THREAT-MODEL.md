@@ -103,7 +103,13 @@ intent, never a proof, and MUST NOT be presented as verified (only `structural` 
 checkable). *Residual: R-4.*
 
 ### SEC-5 — Key compromise and loss are recoverable, and no single device is load-bearing
-Irreversible key-loss MUST NOT be the failure mode. Recovery is **adopted, not invented** — account
+Irreversible key-loss MUST NOT be the failure mode. **This holds only where a `RecoveryPolicy`
+actually exists (§1.4), and that is a user action nothing in the wire format compels** — for an
+identity with zero configured factors, §1.4's own loss clause is trivially satisfied and losing the
+single device holding `IK` is immediately permanent. The gap is closed at the client layer, not the
+wire: [§8.6a](08-clients.md) MUST-requires a client to either guide recovery setup at onboarding or
+warn explicitly that the identity is unrecoverable. Read SEC-5 as a property of a *configured*
+identity, never of a fresh one. Recovery is **adopted, not invented** — account
 abstraction (ERC-4337 / EIP-7702), passkey backup, or MPC shares behind the recovery seam
 ([`bindings/README.md`](bindings/README.md), [DIRECTION §3](DIRECTION.md)). The root `IK` SHOULD be
 held cold / in recovery custody and used rarely; day-to-day signing uses `DeviceCert` subkeys

@@ -892,6 +892,14 @@
       "reason": "implementation requirement on a conformant node/client/gateway"
     },
     {
+      "section": "8.6a",
+      "file": "08-clients.md",
+      "title": "8.6a Recovery setup at onboarding (MUST — normative UX)",
+      "musts": 7,
+      "class": "IMPL",
+      "reason": "client UX requirement: recovery setup or explicit unrecoverability warning at onboarding"
+    },
+    {
       "section": "8.7",
       "file": "08-clients.md",
       "title": "8.7 Deniable mode, org administration & device attestation (UX guidance)",

@@ -136,6 +136,38 @@ implementer UX guidance, not a wire requirement.
   user's correspondence (§7.1c), a client SHOULD make that fraction visible over time rather than
   presenting legacy bridging as a standing feature.
 
+## 8.6a Recovery setup at onboarding (MUST — normative UX)
+
+**The default of doing nothing is total, permanent loss, and a client MUST NOT let a user reach it
+silently.** [SEC-5](THREAT-MODEL.md) states that *"irreversible key-loss MUST NOT be the failure
+mode"*, and [§1.4](01-identity.md) delivers that **only where a `RecoveryPolicy` exists** — its own
+bottom-turtle clause is explicit that losing `IK` **and** enough recovery factors is unrecoverable.
+For a user who has configured **no** factors, "enough factors" is **zero**: losing the one device
+holding `IK` is immediately and permanently unrecoverable, taking the identity and every
+relationship bound to it ([§1.6](01-identity.md)). Losing or breaking a phone is the most common
+failure a real user meets, so this is the ordinary case, not an edge case.
+
+Nothing in the wire format prevents this, which is exactly why it lands here as a client obligation.
+Before or during onboarding a client MUST do **one** of:
+
+1. **Guide the user through configuring at least one recovery factor** ([§1.4](01-identity.md) —
+   a recovery phrase, a guardian quorum, or a passkey/MPC binding through the recovery seam); or
+2. **Warn, explicitly and unambiguously, that the identity is unrecoverable** — that losing this
+   device loses the identity and every relationship permanently, with no operator, gateway or
+   guardian able to restore it.
+
+A client MUST NOT present an identity with no recovery factor as though SEC-5's guarantee applied to
+it, and MUST NOT bury the choice such that the default outcome is silent unrecoverability. This
+mirrors the spec's other client-MUST disclosures — the irrevocability warning
+([§22.7](22-public-objects.md)), the deniability residual (§5.2.1(e)), and the
+`sensitive`/`redact` cooperative-only warnings (§6.6) — and exists for the same reason: a property
+the mechanism cannot enforce must at least be one the user is told about before they lose by it.
+
+**Honest limit.** Prompting is not protection. A user who declines, or who configures a single
+factor and loses it alongside the device, is still unrecoverable — recovery trades irreversible-loss
+risk for a guardian/quorum trust dependency (§1.4, R-5), and this clause buys an **informed** choice,
+never a safe default.
+
 ## 8.7 Deniable mode, org administration & device attestation (UX guidance)
 
 The hardening mechanisms of §5.2.1, §3.10 and §1.2a each have a **client surface** a conforming
