@@ -117,7 +117,7 @@ the rule that identities are discriminated by key.
 | Inline attachment threshold | ≤ **48 KiB** | rides the message (§2.5). This is the **top bucket-ladder rung (64 KiB) minus the PQ envelope**: the envelope costs 11 967 B before any content ([docs/research/mixnet.md §4.4.1](docs/research/mixnet.md), opt-in research-tier mixnet sizing), so 65 536 − 11 967 − 49 152 leaves **4 417 B** for headers, `refs` and framing — the same headroom the floor rung reserves. NOT larger: a bigger inline cap forces a MOTE above the top bucket → cannot ride the opt-in `private` mixnet even when selected (§5.5.1) |
 | Normal-file threshold | ≤ 4 MiB (≤ 4 chunks) | chunks route via whichever tier the message uses — default `fast`, or the opt-in mixnet's full privacy if selected (§6.5) |
 | Chunk size | 1 MiB | fixed; content-addressed over **ciphertext** (§5.5, §18.9.5) |
-| Large-file bulk | > 4 MiB | fast/onion bulk path — weaker privacy (§6.5) |
+| Large-file bulk | > 4 MiB | fast/direct bulk path — weaker privacy (§6.5) |
 | Swarm parallelism | ≤ 8 sources | per-file concurrent fetch; bounds swarm-poisoning wasted bandwidth (§5.5.3) |
 
 **Delivery / durability tiers** (durability axis, §5.5.1–§5.5.5 — orthogonal to the privacy axis

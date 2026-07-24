@@ -2431,7 +2431,7 @@ ordinary `deliver`, §19.3.1), and — implicitly — every future chunk-swarm p
   |---|---|---|
   | **inline** | ≤ 48 KiB of content (the padded MOTE rides the 64 KiB top rung) | `Attachment.inline`, inside the MOTE itself |
   | **normal** | ≤ 4 MiB (≤ 4 chunks) | Manifest in the MOTE; chunks fetched via whichever tier the message itself uses — default `fast`, or the opt-in research-tier mixnet's full privacy if selected |
-  | **large** | > 4 MiB | Manifest in the MOTE; chunks fetched via the **fast/onion bulk path** (weaker privacy, §6.5) |
+  | **large** | > 4 MiB | Manifest in the MOTE; chunks fetched via the **fast/direct bulk path** (weaker privacy, §6.5) |
 
   This table is the **privacy** axis (which transfer *path* the chunks take). It is **orthogonal**
   to the **durability** axis (whether the chunks are **pushed** with the offer or **pulled** on
@@ -2494,7 +2494,7 @@ A: construct Attachment{ name:"video.mp4", mime:"video/mp4", size:52428800,
                          manifest: ManifestRef{id:c4a1..., size:52428800, chunks:50}, key:k_file }
 A: MOTE{ kind:0x05 file_offer, to:bob_ik, payload:{ attach:[Attachment{...}] } } — private tier
 A: deliver() as ordinary control MOTE → bob's node
-bob: ack(id); manifest (chunk list) + Attachment.key now held; begins fetch-chunk() over the fast/onion bulk path
+bob: ack(id); manifest (chunk list) + Attachment.key now held; begins fetch-chunk() over the fast/direct bulk path
 ```
 
 ### 19.8.2 `fetch-chunk(chunk_hash, sources) → chunk`
@@ -2519,7 +2519,7 @@ chunk (origin node, or another peer that has already fetched and cached it).
    peer-exchange, not separately specified at the object-format level in v0).
 2. Fetch from up to `parallelism` sources concurrently, over the tier-appropriate path (whichever
    tier the message uses — default `fast`, or the opt-in mixnet if selected — for normal-tier
-   files; the fast/onion bulk path for large-tier, §4.5, §6.5).
+   files; the fast/direct bulk path for large-tier, §4.5, §6.5).
 3. On receipt, **verify the chunk self-verifies against `chunk_hash`** (content-address
    integrity, §5.5) before accepting it into local storage.
 4. Decrypt using `Attachment.key`.
@@ -2538,7 +2538,7 @@ completion, §5.5).
 | A fetched blob does not hash to `chunk_hash` (corrupt or malicious source) | Reject | `ERR_CHUNK_HASH_MISMATCH` (`0x0802`); discard and retry from a different source — content addressing (BLAKE3 CR) makes a bad/poisoning source immediately detectable, never silently accepted, so swarm-fetch poisoning is reduced to wasted bandwidth bounded by the ≤ 8-source parallelism cap (§5.5.3) |
 | No source currently holds the chunk (origin offline, no swarm cache yet) | Defer, then Reject | `ERR_CHUNK_UNAVAILABLE` (`0x0803`) while retry may still succeed; if the **whole file** has no reachable holder and no durability contract (§5.5.2) can be satisfied, `ERR_FILE_UNAVAILABLE` (`0x0809`, REJECT_NOTIFY). For an **origin-hold** (best-effort, unpinned) file this is the disclosed durability residual (§6.6 item 10), closed prospectively by pinning/replication (§5.5.2); a `pinned(term)` served past its retention is `ERR_FILE_RETENTION_EXPIRED` (`0x080B`) |
 | Decryption under `Attachment.key` fails (wrong key, corrupted manifest) | Reject | `ERR_ATTACHMENT_KEY_INVALID` (`0x0807`); if this occurs for *every* chunk, treat the whole manifest as invalid and do not present a partially-decrypted file to the user |
-| Large-tier fetch traverses the fast/onion bulk path, exposing the fact/approximate size of the transfer to a well-positioned observer | N/A (disclosed limit, not a failure) | This is the accepted §6.5 tradeoff for this tier, not an error condition — implementations MUST NOT claim mixnet-grade metadata privacy for large-file chunk fetch |
+| Large-tier fetch traverses the fast/direct bulk path, exposing the fact/approximate size of the transfer to a well-positioned observer | N/A (disclosed limit, not a failure) | This is the accepted §6.5 tradeoff for this tier, not an error condition — implementations MUST NOT claim mixnet-grade metadata privacy for large-file chunk fetch |
 
 **Idempotency / retry.** Fully idempotent per chunk (content-addressed fetch of an immutable
 blob); safe to retry against any source, and safe to fetch the same chunk redundantly from

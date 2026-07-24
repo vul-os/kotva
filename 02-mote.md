@@ -228,7 +228,7 @@ orthogonal axis. A file is handled by one of three paths, by size:
 |------|------|------|------------------|
 | **inline** | ≤ v0 **48 KiB** of content — the padded MOTE then rides the top bucket rung, 64 KiB = 32 Sphinx cells, opt-in research-tier mixnet only ([docs/research/mixnet.md §4.4.1](docs/research/mixnet.md)/§16.3); the 16 KiB gap is ≈12 kB PQ envelope plus ≈4.4 kB header/framing headroom (§5.5.1) | in `Attachment.inline`, inside the MOTE | full (rides the message's tier) |
 | **normal** | > inline, ≤ 4 chunks (v0: ≤ 4 MiB) | manifest in MOTE; **chunks route via whichever tier the message uses** — default `fast`, or the opt-in research-tier mixnet if selected | full when the opt-in mixnet is in use; the default `fast` tier's guarantee otherwise (like messages, §6.5) |
-| **large** | > normal | manifest in MOTE; **chunks via the `fast`/onion bulk path** (§4.5) | weaker — Tor-class (§6.5) |
+| **large** | > normal | manifest in MOTE; **chunks via the `fast`/direct bulk path** (§4.5) | weaker — observable by construction, never mixnet (§6.5) |
 
 The v0 numeric thresholds (48 KiB / 4 MiB) are parameters (§16.4) and MAY be tuned;
 the three-tier model is normative. This removes the earlier binary small/large ambiguity.

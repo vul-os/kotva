@@ -56,8 +56,9 @@ existing standards**; the novelty is the composition and transport, not new cryp
    (`quinn` has no multipath) (§4.1).
 7. **Sealed sender scope** — hides sender from intermediaries, not the IP (mixnet does that);
    metadata-*reduction*, not elimination (NDSS 2021 side-channel) (§6.2).
-8. **Bulk-file tier** — explicitly weaker; Tor-style onion routing is subject to end-to-end
-   correlation; swarming/padding raise cost, not guarantees (§6.5).
+8. **Bulk-file tier** — explicitly weaker: large-tier chunks transfer **direct** and swarmed and
+   **never** traverse the mixnet (§4.5), so the fact and approximate size of a transfer stay
+   observable to a well-positioned observer; swarming/padding raise cost, not guarantees (§6.5).
 9. **Recovery** — VSS over plain Shamir; FROST to avoid key reassembly; SLIP-0039 encoding;
    "redistribution" vs "proactive refresh" distinguished (§1.4).
 10. **Anti-abuse tokens** — need **ARC** (per-origin rate-limited + cross-recipient unlinkable),
@@ -80,7 +81,8 @@ existing standards**; the novelty is the composition and transport, not new cryp
 - **First-contact MITM** is possible until KT gossip or out-of-band verification (§3.4).
 - **KT without gossip** catches later tampering and enables self-monitoring, but a single
   equivocating log is not caught until independent auditors/gossip exist (§3.5).
-- **Large-file bulk** metadata is weaker than message metadata (Tor-class), by necessity.
+- **Large-file bulk** metadata is weaker than message metadata by necessity — bulk never traverses
+  the mixnet (§4.5), so the fact and approximate size of a transfer remain observable.
 - **Persistent-file forward secrecy** cannot match ephemeral-message FS (files must stay
   readable); mitigated by per-file keys + FS-delivered keys + at-rest encryption (§6.7).
 - **Key loss** of `IK` plus all recovery factors is unrecoverable (the bottom turtle, §1.4).

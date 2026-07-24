@@ -5,7 +5,7 @@ edition = "2021"
 rust-version = "1.75"
 license = "MIT"
 # KOTVA-Mail (a.k.a. DMTAP) server layer. Carved from envoir's `dmtap-mail`; shared by the envoir
-# node and the Wakala mail gateway (the mail-adapter coordinator kind). Pinned by tag.
+# node and the Ephor mail gateway (the mail-adapter coordinator kind). Pinned by tag.
 description = "KOTVA-Mail (DMTAP) server layer — IMAP4rev2/rev1, SMTP submission, POP3, JMAP, and autodiscovery servers projecting the MOTE store for legacy and modern mail clients"
 repository = "https://github.com/vul-os/kotva"
 homepage = "https://github.com/vul-os/kotva"

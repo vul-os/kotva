@@ -557,7 +557,7 @@ envelope is not free: under suite `0x02` it costs **11 967 B** before a byte of 
 The durability tier (inline / push / pull) is **orthogonal** to the
 metadata-privacy size sub-tier of §2.5/§16.4 (**normal**, ≤ 4 MiB, rides whichever tier the
 message itself uses — default `fast`, or the opt-in mixnet if selected — vs. **bulk**, > 4 MiB,
-always the weaker `fast`/onion path): a 25 MiB **Attached** file is pushed *and* transits the
+always the weaker `fast`/direct path): a 25 MiB **Attached** file is pushed *and* transits the
 weaker bulk path (§6.5) — push-vs-pull governs durability, normal-vs-bulk governs metadata
 privacy.
 
@@ -870,6 +870,16 @@ authorized by role:
   locked**. Group-file access revocation is thus **forward-only** — it stops the removed member
   reading *future* files, never *already-fetched* ones (§6.7; the un-share limit).
 - **Role change / transfer ownership** — requires `admin`/`owner`.
+
+**Rank rule (normative).** The role gates above authorise the **actor**; they do **not** constrain
+the **target**. An actor MUST NOT remove, demote, or otherwise act on a member whose role is
+**strictly above its own**, and MUST NOT grant a role **strictly above its own** — in particular an
+`admin` MUST NOT expel, demote, or mint an `owner`; acting on or granting `owner` requires `owner`.
+Peer-level acts remain permitted (an `owner` MAY act on a co-`owner`, and any member MAY act on
+itself), so ownership transfer and voluntary departure still work. Without this, "requires `admin`"
+alone would let an `admin` seize the group by expelling its owners. The operational form of this rule,
+with its failure mode, is §19.5.2; retaining ≥ 1 `owner` is a separate invariant and **not** a
+substitute (it prevents a group reaching zero owners, never an `admin` acting on a non-last one).
 - **Policy change** (posting model, membership visibility, join policy) — requires `admin`.
 - **Join policy:** `closed` (invite only), `request` (request → admin approval; a request with no
   admin response auto-expires after the join-request expiry, 30 days, §16.8), `open` (anyone

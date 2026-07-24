@@ -1,5 +1,5 @@
 # KOTVA Rust crates — the substrate implementation carved out of envoir so consumers (the envoir
-# node, the Wakala broker) can depend on a stable, *tag-pinned* core instead of tracking a moving
+# node, the Ephor broker) can depend on a stable, *tag-pinned* core instead of tracking a moving
 # path dependency (the isango churn lesson). The spec itself remains prose in this repo; these
 # crates are the reference implementation of the substrate wire.
 #
