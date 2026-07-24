@@ -131,7 +131,9 @@ honest:
 - **A declared ceiling is falsifiable.** Because the descriptor is signed and the §5 `metric`
   vocabulary already carries `capacity-conformance`, an operator that advertises 2 TB and refuses at
   1 TB is **detectably** overstating — the same declare-then-measure loop that makes `visibility`
-  honest (DEPOT-2). Overstating capacity is non-conformant, not merely rude.
+  honest (DEPOT-2). Overstating capacity is non-conformant, not merely rude — but **falsifiable is not
+  the same as cheaply falsified**: testing a ceiling costs what the ceiling claims, so this deters a
+  careless operator far better than a patient one (§7).
 
 Quotas the operator *enforces* per user at runtime (rate limits, storage caps, `0x070D`, `0x0806`)
 remain **operator policy** and are deliberately not fixed here: the protocol standardises the
@@ -394,7 +396,7 @@ or signature** for reputation — it defines only a **claim schema** carried ins
 ```cddl
 DepotMeasurement = {                ; claim body for schema "kotva-depot/measurement/v0"
   1 => tstr,                        ; service      a §3 registry value ("bucket", "queue", …)
-  2 => tstr,                        ; metric       "uptime" / "conformance" / "visibility-audit" / "latency-ms" / "capacity-conformance"
+  2 => tstr,                        ; metric       "uptime" / "conformance" / "visibility-audit" / "latency-ms" / "capacity-conformance" / "export-conformance"
   3 => uint / bool,                 ; value        metric-typed, below — never a float (§18.1)
   4 => tstr,                        ; method       "probe" / "conformance-vector" / "audit" / "self-report"
   5 => ts,                          ; observed_at  ms since the Unix epoch (§18.1)
@@ -403,10 +405,13 @@ DepotMeasurement = {                ; claim body for schema "kotva-depot/measure
 ```
 
   `value` is typed **by `metric`**, with no float anywhere: `uptime` = `uint` **per-mille** availability
-  (`0…1000`); `latency-ms` = `uint` milliseconds; `conformance`, `visibility-audit` and
-  `capacity-conformance` = `bool` — the last records whether the operator honoured the ceilings its
-  own signed `DepotServicePolicy` declared (§3.1), which is what makes a declared capacity
-  falsifiable rather than marketing. An
+  (`0…1000`); `latency-ms` = `uint` milliseconds; `conformance`, `visibility-audit`,
+  `capacity-conformance` and `export-conformance` = `bool`. `capacity-conformance` records whether the
+  operator honoured the ceilings its own signed `DepotServicePolicy` declared (§3.1);
+  `export-conformance` records whether a DEPOT-4 export actually round-tripped into a *different*
+  operator of the same service. Both exist so a declaration is falsifiable rather than marketing —
+  with the honest limits stated in §7, because both are far more expensive to test than a signature
+  is to verify. An
   unrecognised `metric` MUST be ignored by aggregators (never guessed at). Representing the same claim
   as an EAS attestation or W3C VC for consumers outside KOTVA is a **binding-layer mapping**
   ([bindings/README.md](../bindings/README.md)) and is out of scope for `v0`; pinning that external
@@ -467,6 +472,31 @@ Inheriting [THREAT-MODEL.md](../THREAT-MODEL.md) (SEC-1…SEC-9); the DEPOT-spec
   reproducible measurements bound this (re-run the probe), signatures attribute it, and no single number
   is authoritative — but "distributed and honest" is a *reduction* of the trusted-rating-authority
   problem, not its elimination (DEPOT-9).
+- **The re-run-the-probe bound has a hole, and it is the cheapest attack.** `method = "self-report"`
+  and `evidence.kind = "transcript"` (§5) are **not reproducible by construction**, so they sit
+  entirely outside the mitigation the bullet above leans on. `issuer == subject` catches only a rater
+  signing as the operator itself; nothing stops an operator minting fresh pseudonymous keys — no
+  anchor or personhood is required of a *rater* anywhere in DEPOT — and publishing praise from each.
+  A consumer SHOULD therefore weight a measurement by whether its `method` is re-runnable at all, and
+  MUST NOT treat a corpus of `self-report` claims as evidence. This is the general anti-Sybil ceiling
+  ([DIRECTION §8](../DIRECTION.md)) arriving in a specific place, not a solved problem.
+- **Falsification cost scales with the lie, which inverts the incentive.** Verifying a signature is
+  cheap; verifying a *ceiling* is not. Testing a 2 TB `total_bytes` claim means storing ~2 TB, and
+  testing an export at real scale means performing the migration — so the more aggressively an
+  operator overstates, the more expensive it is to catch, and the routine cheap probes (`uptime`,
+  `latency-ms`) are exactly the ones that never catch it. `capacity-conformance` and
+  `export-conformance` make these claims falsifiable **in principle**; neither makes them cheap, and
+  a profile MUST NOT be read as though publishing the metric had made the lie improbable.
+- **The first large customer is unprotected — the measurement that would expose the lie is the harm.**
+  For every property whose falsification requires an actual stress event — hitting a capacity ceiling,
+  exporting at terabyte scale, discovering plaintext was readable — the observation can only be
+  produced by someone already experiencing the harm. A patient operator can farm a clean, cheap,
+  frequently-probed history (`uptime`, `latency-ms`) for as long as it likes and defect against the
+  first commitment large enough to matter, at the moment its counterparty has least leverage. Plurality
+  (DEPOT-13) is the real mitigation and it is a *cost* mitigation, not a detection one: use several
+  independent providers so no single defection is total. This is distinct from the whitewashing
+  residual in [REPUTATION](../primitives/REPUTATION.md), which concerns fresh keys — here the operator
+  is long-lived and well-measured, and defects selectively on the axis nobody has priced.
 - **A public IP and real compute are genuinely scarce.** DEPOT-10's self-host backstop is real only for
   a user who has the resource; the user who most needs a managed box is the one who cannot be their own.
   The scarcity is confined to this kind (like port-25 / REACH-9) but does not vanish.
