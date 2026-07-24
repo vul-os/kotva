@@ -377,7 +377,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   likewise ignored.
 
 - **§2.7/§19.3.1 close H-7: no freshness check bounded how old an accepted `ts` could be, so a
-  captured, validly-signed 1:1 MOTE replayed after aging out of dedup would pass every remaining
+  captured, validly-signed 1:1 MOTE replayed after ageing out of dedup would pass every remaining
   check.** Three retentions for what is conceptually one cache disagreed — §16.1's "≥ 300 s" replay
   cache, §16.10's 20-day durable seen-id horizon, and §2.6's dedup-by-previously-acked set, which as
   written had no upper bound at all — while §2.7's ordered validation list had no `ts` check
