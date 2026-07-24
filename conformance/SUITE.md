@@ -59,7 +59,7 @@ and on `reject` MUST map it to the named §21 error code with that code's `Actio
      rows below are explicitly optional extensions (`pub-1`, `pubsub-1`). The Core LEVEL boundary
      is only the "## Core level" case block. -->
 | **Core** — §2.7 validation pipeline (`VAL`) | 15 | 0 (2 reuse ADDR/PRE) | 0 | 15 | 0 |
-| **Core** — identity / KT / naming (`IDENT`) | 6 | 0 | 0 | 6 | 0 |
+| **Core** — identity / KT / naming (`IDENT`) | 8 | 0 | 0 | 8 | 0 |
 | **Core** — aliases (`ALIAS`) | 3 | 0 | 0 | 3 | 0 |
 | **Core** — resolver framework (`RESOLVE`) | 3 | 0 | 0 | 3 | 0 |
 | **Private** (`PRIV`) | 7 | 0 | 0 | 7 | 0 |
@@ -69,17 +69,17 @@ and on `reject` MUST map it to the named §21 error code with that code's `Actio
 | **Legacy** — gateway alias mapping (`GWALIAS`) | 3 | 0 | 0 | 3 | 0 |
 | **Clients** (`CLI`) | 1 | 0 | 0 | 1 | 0 |
 | **Auth** (`AUTH`) | 5 | 0 | 0 | 5 | 0 |
-| **Private** — deniable 1:1 mode (`DENIABLE`) | 5 | 0 | 0 | 5 | 0 |
+| **Private** — deniable 1:1 mode (`DENIABLE`) | 6 | 0 | 0 | 6 | 0 |
 | **Core** — org administration (`ORG`) | 8 | 0 | 0 | 8 | 0 |
 | **Private** — KT-v1 hardening (`KTV1`) | 4 | 0 | 0 | 4 | 0 |
 | **Core** — device attestation (`ATTEST`) | 2 | 0 | 0 | 2 | 0 |
 | **Core** — profile / avatar (`PROFILE`) | 2 | 0 | 0 | 2 | 0 |
 | **Optional** — push wake-signalling (`PUSH`) | 2 | 0 | 0 | 2 | 0 |
-| **Private** — Bootstrap mix profile (`MIXPROF`) | 5 | 0 | 0 | 3 | 2 |
+| **Private** — Bootstrap mix profile (`MIXPROF`) | 7 | 0 | 0 | 5 | 2 |
 | **Private** — derived mix-fleet view (`FLEET`) | 3 | 0 | 0 | 3 | 0 |
 | **Private** — guards & path diversity (`GUARD`) | 3 | 0 | 0 | 3 | 0 |
 | **Core** — location & resolution order (`LOC`) | 2 | 0 | 0 | 2 | 0 |
-| **Core** — zero-relationship delivery floor (`FLOOR`) | 4 | 0 | 0 | 4 | 0 |
+| **Core** — zero-relationship delivery floor (`FLOOR`) | 6 | 0 | 0 | 6 | 0 |
 | **Core** — §10.7.0 failure classes (`FAILCLASS`) | 2 | 0 | 0 | 2 | 0 |
 | **Legacy** — gateway role boundaries (`GWROLE`) | 3 | 0 | 0 | 1 | 2 |
 | **Core** — DMTAP-PUB extension, optional `pub-1` (`PUB`) | 22 | 12 | 0 | 9 | 1 |
@@ -101,7 +101,7 @@ and on `reject` MUST map it to the named §21 error code with that code's `Actio
 | **Clients** — surfaces, decentralisation invariant & UX obligations (`CLIUX`) | 5 | 0 | 0 | 2 | 3 |
 | **Core** — anchor suite, DNS pointers & cold start (`ANCHOR`) | 6 | 0 | 0 | 6 | 0 |
 | **Groups & Files** — group custody, fan-out & membership privacy (`GRPGOV`) | 7 | 0 | 0 | 7 | 0 |
-| **Core** — issuer trust, vouch, postage & mixnet admission (`ABUSE`) | 5 | 0 | 0 | 5 | 0 |
+| **Core** — issuer trust, vouch, postage & mixnet admission (`ABUSE`) | 6 | 0 | 0 | 6 | 0 |
 | **Core** — the operator seam & the inviolable rule (`SEAM`) | 4 | 0 | 0 | 4 | 0 |
 | **Core** — roles at scale: fleet, thin clients, buffers & status pages (`SCALE`) | 5 | 0 | 0 | 5 | 0 |
 | **Core** — hybrid-suite composition (`HYBRID`) | 1 | 0 | 0 | 1 | 0 |
@@ -112,7 +112,7 @@ and on `reject` MUST map it to the named §21 error code with that code's `Actio
 | **Core** — video hints, migration & attestation badges, optional `pub-1` (`VIDMIG`) | 3 | 0 | 0 | 3 | 0 |
 | **Core** — wire objects with no vector: decode & cross-field rules (`WIRE`) | 10 | 0 | 0 | 10 | 0 |
 | **Core** — §18 KATs: manifest, mix descriptor, Sphinx framing (`WIREKAT`) | 9 | 9 | 0 | 0 | 0 |
-| **Core** — DMTAP-PUBSUB extension, optional `pubsub-1` (`PUBSUB`) | 15 | 0 | 0 | 14 | 1 |
+| **Core** — DMTAP-PUBSUB extension, optional `pubsub-1` (`PUBSUB`) | 16 | 0 | 0 | 15 | 1 |
 | **Total** | **362** | **52** | **6** | **285** | **19** |
 
 The 52 vectored + 6 self-contained cases (**58**) are fully machine-runnable **today** from
