@@ -447,7 +447,7 @@ forward-verifiable GAL.
 
 | Condition | Class | Response |
 |---|---|---|
-| `cap` invalid / over-attenuated / expired | Reject | `ERR_CAPABILITY_DELEGATION_INVALID` (`0x0508`), DENY_POLICY |
+| `cap` invalid / over-attenuated / expired | Reject | `ERR_CAPABILITY_DELEGATION_INVALID` (`0x0508`), FAIL_CLOSED_BLOCK |
 | `cap` revoked | Reject | `ERR_CAPABILITY_REVOKED` (`0x050B`), DENY_POLICY |
 | Domain-authoritative act without threshold | Reject | Treated as unauthorised (`0x0508`) — no unilateral super-admin (§13.5.1) |
 | Directory not authority-signed / stale version | Reject | `ERR_DOMAIN_DIRECTORY_SIG_INVALID` (`0x0113`) / rollback reject |
@@ -2239,9 +2239,9 @@ verifier can check **offline**; or a KT-logged revocation that thereafter denies
 
 | Condition | Class | Response |
 |---|---|---|
-| `caps` exceed the delegator's own / parent (attenuation broken) | Reject | `ERR_CAPABILITY_DELEGATION_INVALID` (`0x0508`), DENY_POLICY |
-| Token expired / malformed / chain-`iss`≠parent-`aud` | Reject | `0x0508`, DENY_POLICY |
-| Invoked right exceeds what was granted | Reject | `0x0508`, DENY_POLICY |
+| `caps` exceed the delegator's own / parent (attenuation broken) | Reject | `ERR_CAPABILITY_DELEGATION_INVALID` (`0x0508`), FAIL_CLOSED_BLOCK |
+| Token expired / malformed / chain-`iss`≠parent-`aud` | Reject | `0x0508`, FAIL_CLOSED_BLOCK |
+| Invoked right exceeds what was granted | Reject | `0x0508`, FAIL_CLOSED_BLOCK |
 | Token (or ancestor) covered by a valid revocation | Reject | `ERR_CAPABILITY_REVOKED` (`0x050B`), DENY_POLICY |
 | Domain-authoritative capability minted without threshold | Reject | Unauthorized (`0x0508`) — no unilateral super-admin (§13.5.1) |
 | Grant/revoke not routed through the KT/owner-visible path | Reject | Prohibited (§13.5) — silent authorisation is not honoured |

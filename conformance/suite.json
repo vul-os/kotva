@@ -2157,7 +2157,7 @@
         "outcome": "reject",
         "error_code": "0x0508",
         "error_name": "ERR_CAPABILITY_DELEGATION_INVALID",
-        "action": "DENY_POLICY"
+        "action": "FAIL_CLOSED_BLOCK"
       },
       "status": "construction-todo"
     },
@@ -2197,7 +2197,7 @@
         "outcome": "reject",
         "error_code": "0x0508",
         "error_name": "ERR_CAPABILITY_DELEGATION_INVALID",
-        "action": "DENY_POLICY",
+        "action": "FAIL_CLOSED_BLOCK",
         "note": "accepting because the leaf carries no caveat is non-conformant - it is the attenuation escape the conjunctive rule exists to close"
       },
       "status": "construction-todo"
@@ -2218,7 +2218,7 @@
         "outcome": "reject",
         "error_code": "0x0508",
         "error_name": "ERR_CAPABILITY_DELEGATION_INVALID",
-        "action": "DENY_POLICY",
+        "action": "FAIL_CLOSED_BLOCK",
         "note": "ignoring the unknown key and granting is non-conformant: an unknown caveat is a restriction the verifier cannot evaluate, so it cannot be satisfied"
       },
       "status": "construction-todo"
@@ -2239,7 +2239,7 @@
         "outcome": "reject",
         "error_code": "0x0508",
         "error_name": "ERR_CAPABILITY_DELEGATION_INVALID",
-        "action": "DENY_POLICY",
+        "action": "FAIL_CLOSED_BLOCK",
         "note": "the key is either unrecognised (fail closed, ORG-07) or recognised and still purely narrowing; in neither case may it widen the grant"
       },
       "status": "construction-todo"
