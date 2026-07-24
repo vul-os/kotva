@@ -1320,7 +1320,8 @@
         "outcome": "reject",
         "error_code": "0x0105",
         "error_name": "ERR_STALE_ROLLBACK",
-        "action": "FAIL_CLOSED_BLOCK"
+        "action": "FAIL_CLOSED_BLOCK",
+        "note": "HALT_ALERT (not merely FAIL_CLOSED_BLOCK) when the rolled-back target is this node's own pinned identity, per 0x0105 and 21-errors-iana registry"
       },
       "status": "construction-todo"
     },
