@@ -516,6 +516,14 @@
       "reason": "implementation requirement on a conformant node/client/gateway"
     },
     {
+      "section": "5.8.2",
+      "file": "05-messaging.md",
+      "title": "5.8.2 Roles & management",
+      "musts": 3,
+      "class": "IMPL",
+      "reason": "implementation requirement on a conformant node/client/gateway"
+    },
+    {
       "section": "5.8.3",
       "file": "05-messaging.md",
       "title": "5.8.3 Membership privacy (subscriber-list)",
