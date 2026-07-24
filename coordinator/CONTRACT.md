@@ -134,6 +134,23 @@ property of every intermediary.
 | **`attested`** | The role runs in a **TEE** that proves the code only forwards and holds no key. | hardware-trust |
 | **`declared`** | The operator *promises* it is blind; nothing structurally prevents cheating. | honest-trust |
 
+**`structural` requires that the *protocol* enforce the blindness, not the client's discipline
+(normative).** A role MAY declare `structural` only where nothing the client can do by accident or
+misconfiguration leaves plaintext in the role's hands. A `relay` qualifies: MOTE sealing is mandatory
+([§2](../02-mote.md)), so the relay provably has no key for any object it will ever carry. A role that
+accepts **arbitrary bytes** does **not** qualify by default — an object-store, block-volume or queue
+takes whatever the client sends, so its blindness is contingent on the client having encrypted first,
+which the operator neither controls nor can verify.
+
+For such a role the honest declaration is **conditional, and the condition MUST be stated**: the level
+is `structural` **for objects the client encrypted** and `declared` for everything else. An operator
+MUST NOT present `structural` as a blanket property of a service that will faithfully store plaintext
+if handed it. This matters because the failure is **silent and blames the wrong party**: a client whose
+SDK is misconfigured, or who copies a file in unencrypted, loses the protection entirely while the
+operator's declaration remains truthful — the user sees the strongest assurance label and has none of
+it. A deployment that wants unconditional `structural` must make client-side encryption
+non-optional on the ingest path, so that storing plaintext is not a thing a client *can* do.
+
 ### 3.4 Honest residual (normative disclosure)
 The contract can mandate the *architecture* that makes blindness possible (E2E encryption so
 the coordinator **cannot** read) and the *declaration* rules above. It **cannot**
@@ -188,7 +205,7 @@ many coordinator kinds exist" cites this table rather than re-deriving its own t
 | **relay** | Mesh reachability for NAT'd peers | `blind` / structural |
 | **media-relay** | Forwards SFrame-encrypted call/stream media (scales calls) | `blind-routing` / structural — media payload sealed by SFrame; per-frame metadata, RTP routing, size, timing, participant graph are visible to the SFU (RFC 9605) |
 | **reachability-adapter** | ngrok-style public subdomains for arbitrary box services | `blind-routing` (SNI-passthrough) preferred |
-| **infra-service** *(draft, [profiles/cloud.md](../profiles/cloud.md))* | Managed infrastructure — `box` / `bucket` / `volume` / `edge-fn` / `database` via the DEPOT service registry (`compute` is the general provisional case; DEPOT `edge-fn` is its managed-serverless profiling) | **per service** — `bucket` `blind`/structural (`blind-routing` when serving public objects), `edge-fn`/`database`/`box` `terminating` (→ `attested` in a TEE) |
+| **infra-service** *(draft, [profiles/cloud.md](../profiles/cloud.md))* | Managed infrastructure — `box` / `bucket` / `volume` / `edge-fn` / `database` via the DEPOT service registry (`compute` is the general provisional case; DEPOT `edge-fn` is its managed-serverless profiling) | **per service** — `bucket`/`volume`/`queue` `blind`, at `structural` **only for what the client encrypted** (§3.3) and `blind-routing` when a bucket serves public objects; `edge-fn`/`database`/`box` `terminating` (→ `attested` in a TEE) |
 | **indexer** | Search / discovery / global product-and-price view | corpus is public plaintext (nothing to be blind about); query-channel `terminating` unless `attested` |
 | **labeler** | Moderation labels, opt-in, subscribable | n/a (labels public objects) |
 | **matcher** | Real-time supply↔demand matching (rides, delivery) | **terminating** (default) / **attested** (TEE) |

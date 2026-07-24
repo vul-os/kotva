@@ -61,12 +61,12 @@ profile enforces. v0 registry:
 
 | `service` | Adopt (native protocol) | **Honest visibility** (DEPOT-2) | Metering unit (example — operator sets the number) | Portability (DEPOT-4) |
 |---|---|---|---|---|
-| `bucket` | S3 API / CID content-addressing; **HTTP caching** when serving public objects | **`blind` / structural** for client-encrypted objects; **`blind-routing`** when it serves *public* objects — it then sees which and when, never a private payload | GB-month + egress-GB + requests | **zero-migration** (re-pin elsewhere) |
+| `bucket` | S3 API / CID content-addressing; **HTTP caching** when serving public objects | **`blind`** — `structural` **only for objects the client actually encrypted** (S3 takes arbitrary bytes, so plaintext handed to it is readable and the declaration stays truthful — CONTRACT §3.3), else `declared`; **`blind-routing`** when it serves *public* objects, seeing which and when but never a private payload | GB-month + egress-GB + requests | **zero-migration** (re-pin elsewhere) |
 | `edge-fn` | WASI / OCI | **`terminating`** (runs your code, sees I/O) → **`attested`** in a TEE | CPU-ms + invocations | **zero-migration** (redeploy the artefact) |
 | `database` | Redis RESP / Postgres wire | **`terminating` / `declared`** — the operator sees plaintext to answer queries | GB-month + ops | **export/import** (a portable dump) |
-| `volume` | Block device (virtio-blk / NVMe-oF / iSCSI); guest-owned filesystem | **`blind`** when the guest encrypts it (LUKS/dm-crypt — the operator holds ciphertext blocks plus access patterns, never plaintext); **`terminating` / `declared`** otherwise | GB-month (+ provisioned IOPS) | **export/import** across operators; *detach/reattach* within one operator iff `attachment = detachable` |
+| `volume` | Block device (virtio-blk / NVMe-oF / iSCSI); guest-owned filesystem | **`blind`** at `structural` **only where the guest actually encrypted** (LUKS/dm-crypt — the operator then holds ciphertext blocks plus access patterns, never plaintext); an unencrypted volume is **`terminating` / `declared`**, and the operator cannot tell which it was given (CONTRACT §3.3) | GB-month (+ provisioned IOPS) | **export/import** across operators; *detach/reattach* within one operator iff `attachment = detachable` |
 | `box` | OS + node (cloud-init) | **`terminating` / `declared`** — the operator has root on the host | instance-hour | **export** (keys stay with the user; data dumps out) |
-| `queue` | AMQP-class / opaque-payload FIFO | **`blind-routing` / structural** — holds **client-encrypted** payloads; sees depth, size, rate and timing, never content | message-count + GB-month retained | **zero-migration** (drain and re-enqueue elsewhere) |
+| `queue` | AMQP-class / opaque-payload FIFO | **`blind-routing`** — `structural` **only for payloads the client encrypted**, else `declared`; sees depth, size, rate and timing, and sees content if handed plaintext (CONTRACT §3.3) | message-count + GB-month retained | **zero-migration** (drain and re-enqueue elsewhere) |
 
 ### 3.1 Declared capacity — how a small operator competes honestly
 
@@ -240,9 +240,12 @@ parent), so a leaked deploy token can publish a site and **cannot** reach mail o
 buffered in a `queue` when the target is offline). A new trigger is an enum value; it is **not** a
 spec change and **not** a new coordinator kind.
 
-Only **`bucket`** — `blind` when client-encrypted, `blind-routing` when serving public objects —
-**`queue`**, and a **guest-encrypted `volume`** (the operator holds ciphertext blocks) keep the
-payload cryptographically out of the operator's reach. **`edge-fn`, `database`, `box`, and an
+Only **`bucket`**, **`queue`** and **`volume`** keep the payload cryptographically out of the
+operator's reach — **and only for the objects the client actually encrypted.** All three accept
+arbitrary bytes, so their blindness is the *client's* property, not the operator's architecture: hand
+any of them plaintext and it is readable, while the operator's declaration remains truthful
+(CONTRACT §3.3). A deployment wanting unconditional blindness MUST make client-side encryption
+non-optional on ingest. **`edge-fn`, `database`, `box`, and an
 unencrypted `volume` are `terminating`** — the operator sees your data or computation. This is normal and honest
 (Fastmail-tier trust); it is **not** cryptographic blindness, and DEPOT-2 forbids pretending otherwise.
 
@@ -256,7 +259,8 @@ unencrypted `volume` are `terminating`** — the operator sees your data or comp
   channel (REACH-2 shape — the user's `IK` is the libp2p identity key; **no bearer token**). It mints
   no new runtime, wire object, DS-tag, or error code — reputation reuses the ATTEST claim primitive (§5).
 - **DEPOT-2 — honest visibility is load-bearing (the cliff).** Each service MUST declare **exactly**
-  the visibility its data model permits (§3): `bucket` `blind`/`structural`, or public-serving
+  the visibility its data model permits (§3): `bucket`/`volume`/`queue` `blind` — `structural` **only
+  for what the client encrypted**, `declared` otherwise (CONTRACT §3.3) — or public-serving
   `blind-routing`; `volume` `blind` when the guest encrypts it, else `terminating`/`declared`;
   `edge-fn`/`database`/`box` `terminating`/`declared`. **Advertising a `terminating`
   service as `blind`, `private`, or `sovereign` is non-conformant misrepresentation**
@@ -428,7 +432,11 @@ schema, not by wire.
 Inheriting [THREAT-MODEL.md](../THREAT-MODEL.md) (SEC-1…SEC-9); the DEPOT-specific posture is the
 **cliff of §4 DEPOT-2**, restated for clarity:
 
-- **Only `bucket`, `queue`, and a guest-encrypted `volume` are structurally private.** They hold client-encrypted,
+- **`bucket`, `queue` and `volume` are structurally private only for what the client encrypted.**
+  This is the sharpest self-deception risk in the profile: the label reads like an operator guarantee
+  and is actually a statement about the client's own discipline, and the failure is silent — a
+  misconfigured SDK or a plain `cp` loses the whole protection without the operator lying or anything
+  erroring (CONTRACT §3.3). They hold client-encrypted,
   content-addressed data — or, for `queue`, client-encrypted payloads whose depth, rate and timing are
   visible but whose content is not (SEC-4, `blind`/`structural` / `blind-routing`) — so the operator
   forwards, holds, or serves ciphertext it has no key to read.
