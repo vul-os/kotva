@@ -192,10 +192,18 @@ generally:
   recover a party.
 - **Competition and replaceability.** Operators compete on published scope and terms; a party MAY
   choose a different one per order.
-- **A verifiable record of rulings.** An operator that rules unfairly should accumulate a
+
+**Not yet a MUST — an intended guarantee with no mechanism behind it.** The four bullets above bind
+a conformant escrow role. The following does **not**, and is listed separately rather than inside
+the MUST set precisely so it is not mistaken for one:
+
+- **A verifiable record of rulings.** An operator that rules unfairly *should* accumulate a
   permanent, verifiable record, so that its conduct is legible to future counterparties. This is
-  the intended guarantee of §9.4.3; its wire representation is the §16 gap recorded there
-  (**PROVISIONAL**).
+  the intended guarantee of §9.4.3, but it has **no wire representation** — the §16 gap recorded
+  there (**PROVISIONAL**). Until that object exists, nothing obliges an operator to emit such a
+  record and no party can verify its absence, so an implementer MUST NOT rely on it as a check on
+  operator conduct. The real bound on a bad escrow operator today is §9.5's licensing and the
+  per-order choice above, not this.
 
 **Escrow is also, most likely, a *tax* facilitator.** A gateway that settles — that receives buyer
 funds and releases them, or routes payment through its own processor — is the actor most likely to
