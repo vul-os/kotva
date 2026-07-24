@@ -399,6 +399,29 @@ the querying member.
 requested `(resource, ability)`; a **domain-authoritative** act (anchor/directory-key rotation)
 requires the domain **threshold**, not one admin (§13.5.1, §3.10.1).
 
+**Rank rule (normative).** An admin capability is scoped by **namespace, not by rank** — a
+`(resource, ability)` check alone therefore does **not** stop a lower-tier admin acting on a
+higher-tier one. Accordingly:
+
+- **`offboard`, and any `provision` that would rebind an existing `name → ik`, targeting a member who
+  holds a domain role** (`domain-owner`, `domain-admin`) **is itself a domain-authoritative act** and
+  MUST satisfy the domain **threshold** (§3.10.1) — the same bar as rotating the anchor. Equivalently,
+  an actor MUST NOT act on a target whose role capability is an **ancestor of, or equal in tier to**,
+  the actor's own — mirroring the ancestor rule that already governs `revoke-capability`
+  (`CapabilityRevocation.iss`, §18.7.3). Without this a `user-admin` delegated
+  `{resource: "domain:<d>/members", ability: "offboard"}` could drop the domain-owner's own
+  `name → ik` binding and re-provision it to a key it controls — **seizing the namespace by the
+  directory/DNS path instead of by anchor rotation**, which §13.5.1's "ordinary members" wording
+  already forbids in prose but did not encode in the mechanism.
+- **Sovereign rebinding.** For a member whose custody is `sovereign` (§3.10.5), an admin MUST NOT
+  rebind an existing `name → ik` to a different key without that member's own authorisation. An org
+  MAY rebind only an `org-managed` account, where the marker already discloses that the org holds the
+  keys (`ERR_ORG_MANAGED_UNDISCLOSED`, `0x0115`).
+
+A violation of either rule is `ERR_CAPABILITY_DELEGATION_INVALID` (`0x0508`, FAIL_CLOSED_BLOCK): the
+act is refused, not merely logged. KT-logging makes such an act *detectable*; these rules make it
+*prevented*.
+
 **Procedure (normative; mirrors §3.10).**
 1. **`provision-member`** — verify `cap`; publish `member.name → member.ik` as a `_dmtap` DNS
    record (§3.2), a KT entry (§3.5), and a new `DirEntry` in the next `DomainDirectory` version
