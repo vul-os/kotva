@@ -213,7 +213,7 @@ Sections: [00 overview](profiles/wrap/00-overview.md) · [01 identity](profiles/
 | **SEARCH** | Discovery over public objects — following-graph first, indexer-optional. | PUB · PUBSUB; `indexer` | [`profiles/search.md`](profiles/search.md) |
 | **MEDIA** | The Evermesh profile — video & music; box-as-origin, CDN as swappable cache. | PUB · storage · media-relay; `indexer` | [`profiles/media.md`](profiles/media.md) |
 | **RTC** | Real-time voice / video / calling — the parallel media plane (family-level view of §27). | ID · MLS→SFrame; `media-relay` | [`profiles/rtc.md`](profiles/rtc.md) |
-| **DEPOT** *(draft)* | Managed infrastructure — box / bucket (object + public-object edge serving) / edge-fn / database; operator-defined economics, distributed ratings; honest per-service visibility. | §18.8a seam · PUB · ATTEST; `infra-service` | [`profiles/cloud.md`](profiles/cloud.md) |
+| **DEPOT** *(draft)* | Managed infrastructure — box / bucket (object + public-object edge serving) / volume / edge-fn / database; operator-defined economics, distributed ratings; honest per-service visibility. | §18.8a seam · PUB · ATTEST; `infra-service` | [`profiles/cloud.md`](profiles/cloud.md) |
 
 ---
 

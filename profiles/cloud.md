@@ -64,6 +64,7 @@ profile enforces. v0 registry:
 | `bucket` | S3 API / CID content-addressing; **HTTP caching** when serving public objects | **`blind` / structural** for client-encrypted objects; **`blind-routing`** when it serves *public* objects — it then sees which and when, never a private payload | GB-month + egress-GB + requests | **zero-migration** (re-pin elsewhere) |
 | `edge-fn` | WASI / OCI | **`terminating`** (runs your code, sees I/O) → **`attested`** in a TEE | CPU-ms + invocations | **zero-migration** (redeploy the artefact) |
 | `database` | Redis RESP / Postgres wire | **`terminating` / `declared`** — the operator sees plaintext to answer queries | GB-month + ops | **export/import** (a portable dump) |
+| `volume` | Block device (virtio-blk / NVMe-oF / iSCSI); guest-owned filesystem | **`blind`** when the guest encrypts it (LUKS/dm-crypt — the operator holds ciphertext blocks plus access patterns, never plaintext); **`terminating` / `declared`** otherwise | GB-month (+ provisioned IOPS) | **export/import** across operators; *detach/reattach* within one operator iff `attachment = detachable` |
 | `box` | OS + node (cloud-init) | **`terminating` / `declared`** — the operator has root on the host | instance-hour | **export** (keys stay with the user; data dumps out) |
 | `queue` | AMQP-class / opaque-payload FIFO | **`blind-routing` / structural** — holds **client-encrypted** payloads; sees depth, size, rate and timing, never content | message-count + GB-month retained | **zero-migration** (drain and re-enqueue elsewhere) |
 
@@ -73,6 +74,31 @@ and serve them at the edge (`bucket`), store queryable state (`database`), decou
 (`queue`) — composed with public reachability ([REACH](reachability.md)), identity and login (§13),
 messaging and wake (§2, §4.9), real-time (§27, §25), and the control plane of DEPOT-11. A capability
 that is merely a *product* built from these MUST be a product, not a registry row.
+
+**Why `volume` is a row and not a `box` attribute — and the three cases it must cover.** A `volume`
+is not a slow `bucket`; it is the **hot tier**, and the gap is physical rather than an engineering
+debt that will close. A durable commit needs an `fsync` in *tens of microseconds* on local NVMe,
+where networked storage is in *milliseconds* and object storage further still — which is why the
+most advanced diskless designs keep object storage **off** the commit path entirely and retain a
+small low-latency write-ahead tier in front of it. A profile that offered only `bucket` could not
+host a correct database at all. Two declared attributes cover the deployment shapes, and a client
+MUST NOT assume either:
+
+- **`persistence`** — `ephemeral` (dies with the box; the instance-local disk a `box` already
+  includes in its instance-hour, not separately rented) or `durable` (outlives box termination).
+- **`attachment`** — `bound` (this box only; cannot move — typically instance-local NVMe, the
+  fastest and the commit-path case), `detachable` (datacentre-style network block: may be detached
+  and reattached to **another box at the same operator**, so state outlives a dead box), or
+  `shared` (multi-attach by several boxes at once — which needs a cluster filesystem or external
+  coordination, and whose consistency is the guest's problem, never the operator's promise).
+
+**Honest limit — detachable is not portable.** `detachable` buys resilience *within* one operator: a
+box dies, the volume reattaches elsewhere in that operator's fleet. It buys **nothing** against
+operator lock-in, because a network volume is operator-local: moving it to a different operator is a
+copy, an export/import, exactly as for `box`. The services that genuinely reduce state lock-in are
+the content-addressed `bucket` (re-pin anywhere) and [SYNC](../substrate/SYNC.md) (the user's own
+devices hold the state). An operator MUST NOT present detachability as though it satisfied DEPOT-4
+swappability.
 
 **Why there is no `cdn` row — it folded into `bucket`.** A CDN and an object store are the *same
 mechanism*: retain content-addressed bytes and serve them on request. In a content-addressed system
@@ -255,10 +281,11 @@ payload cryptographically out of the operator's reach. **`edge-fn`, `database`, 
   by a gatekeeper. Because no single small provider can match a hyperscaler's availability, a client
   obtains durability and availability by **using several independent providers**, not by trusting one —
   and content-addressed services (`bucket` and `queue` payloads) replicate freely, so plurality
-  is cheap and re-pinning is zero-migration (DEPOT-4). **Honest asymmetry:** stateful `database` and
-  `box` do **NOT** replicate freely — they carry single-writer state whose portability is an
-  export/import, so for those a client's real protections are that export plus the operator's declared
-  visibility, not replication. A profile MUST NOT present multi-provider replication as though it made
+  is cheap and re-pinning is zero-migration (DEPOT-4). **Honest asymmetry:** stateful `database`,
+  `volume` and `box` do **NOT** replicate freely — they carry single-writer state whose portability is
+  an export/import, so for those a client's real protections are that export plus the operator's
+  declared visibility, not replication. A `detachable` volume is **not** a counter-example: it moves
+  between boxes of one operator, never between operators. A profile MUST NOT present multi-provider replication as though it made
   a stateful service as durable as a content-addressed one.
 
 ---
