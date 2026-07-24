@@ -73,6 +73,34 @@ centralised platform does, not to mirror a product list: run code (`edge-fn`, `b
 messaging and wake (§2, §4.9), real-time (§27, §25), and the control plane of DEPOT-11. A capability
 that is merely a *product* built from these MUST be a product, not a registry row.
 
+**`database` is a posture, not a mechanism — and often you should not rent one at all.** A managed
+database *is* a `box` running an engine over a `bucket`; that is how the centralised ones are built
+too, and a Redis is a process on a box. DEPOT therefore defines **no** query language, schema,
+replication protocol or consistency model — it adopts the existing wire protocols and stops. What
+the registry row buys is the two things composition would silently lose: the **visibility
+declaration** (a `box` operator has root, but a `database` operator *must* hold plaintext to
+evaluate a query — a different and less obvious exposure) and the **portability class** (DEPOT-4:
+`database` and `box` are export/import, never zero-migration). **The native alternative is
+[SYNC](../substrate/SYNC.md).** For application state that a user's own devices own, a local-first
+signed CRDT needs no rented database and no trusted operator: the box holds the state, SYNC
+converges it across devices, and a `bucket` backs it up under client-side encryption — so no
+operator reads it, ever. `database` is the **compatibility bridge** for software that already speaks
+SQL or RESP, bought at the price of a `terminating` operator. Reach for SYNC first; rent a
+`database` when an existing engine is the requirement.
+
+**Scaling, autoscaling and load balancing are deliberately out of scope — with one exception.** How
+many instances an operator runs, and how it spreads load across its own machines, is **operator
+policy** ([CONTRACT §6](../coordinator/CONTRACT.md)): the protocol fixes the *seam*, never the
+numbers, and a DEPOT that specified scaling policy would be prescribing an implementation. What *is*
+in scope is the decentralised form of the same need — **choosing and failing over between
+operators**: signed `CoordinatorDescriptor`s to discover them, published measurements (§5) to
+compare them, and DEPOT-4 swappability to leave. That composition, not an elastic-group API, is this
+profile's load balancer. **The honest ceiling is the stateless/stateful asymmetry**, not the absence
+of an autoscaler: `bucket`, `cdn` and `edge-fn` spread across operators freely *because* they are
+zero-migration, while `database` and `box` carry state that must be exported and re-imported to
+move. Adding providers is cheap for the former and a migration for the latter, and no protocol rule
+changes that.
+
 **Worked example — static-site / SPA hosting is a product, not a service.** A static site is already
 what PUB ([§22](../22-public-objects.md)) is: signed, content-addressed, self-verifying public objects
 servable over plain HTTPS. It composes as **PUB objects in a `bucket`, served through `cdn`, named via
