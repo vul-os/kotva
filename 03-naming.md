@@ -4,7 +4,7 @@ Your **key is your identity and the only root of trust** (01-identity.md §1); a
 **`name@domain`** is the everyday, human-facing pointer to it, and the mesh finds you by key.
 **A conformant implementation MUST NOT treat a name as the identity** (the `identity ≠ name`
 invariant, 01-identity.md §1) — DNS is *one* way to discover the pointer, never the identity and
-never the proof; §3.12 generalizes this to a **pluggable set of resolvers** of which DNS is only
+never the proof; §3.12 generalises this to a **pluggable set of resolvers** of which DNS is only
 the default. Because the key is the identity, native **delivery and verification require zero
 DNS and zero name-chain** (§3.13): a name is an optional discovery convenience layered *over* an
 identity that already exists and is already reachable by key. This section covers the **stable**
@@ -185,7 +185,7 @@ equivocation gap.
 ### 3.5.1 v0-minimal — the interoperable default (log-type `0x01`)
 
 The default profile, required at **Core** conformance (§10.3), is a **single append-only Merkle
-log** (§21.19 `0x01`): signed tree heads (STHs) + inclusion proofs + rollback defense (§3.3
+log** (§21.19 `0x01`): signed tree heads (STHs) + inclusion proofs + rollback defence (§3.3
 step 2), self-monitored by the owner's own devices (STH poll, §16.2). It is
 **tamper-evident-after-the-fact and self-monitorable, but not equivocation-proof** — a single,
 non-gossiped log can present a **split view** (different histories to different observers, §6.6
@@ -227,7 +227,7 @@ detection paths carry codes `0x0107`, `0x0110`–`0x0112` (§21.3).
   different `root_hash`**, or a consistency proof that cannot be produced between two heads of
   one log, is cryptographic proof of **equivocation** → `ERR_KT_STH_INCONSISTENT` (`0x0110`) and
   `ERR_KT_EQUIVOCATION` (`0x0107`), handled per (d).
-- **Freshness (freeze-attack defense).** Gossip MUST occur at least once per **KT gossip
+- **Freshness (freeze-attack defence).** Gossip MUST occur at least once per **KT gossip
   interval** (§16.2). A v1 log MUST publish a new STH at least every **maximum merge delay**
   (§16.2) and MUST include every accepted entry in an STH within that bound; a binding it
   accepted but did not include within the MMD is evidence of withholding/censorship. A verifier
@@ -465,8 +465,8 @@ log** (§3.5), so it is *auditable, not trusted* — it cannot silently repoint 
 detection; and be unable to **hijack existing relationships** — contacts route by the pinned key
 (§1.6), so the handle is only an introduction.
 
-**Normalization & consortium recommendation (non-normative detail).** A directory that exists
-SHOULD normalize handles (NFC, lowercase, collapse consecutive dots; dots allowed as cosmetic
+**Normalisation & consortium recommendation (non-normative detail).** A directory that exists
+SHOULD normalise handles (NFC, lowercase, collapse consecutive dots; dots allowed as cosmetic
 separators, e.g. `@this.is.my.name`) and reserve confusables/homoglyphs, and SHOULD run as a
 **federated consortium under BFT consensus** (no single owner of the namespace, no chain) rather
 than a single operator; a name-chain (§3.6) is a further option.
@@ -475,7 +475,7 @@ than a single operator; a name-chain (§3.6) is a further option.
 **reintroduces exactly the global squatting and impersonation that domain-federation avoids** —
 every desirable handle becomes a landrush and a phishing target (`@paypa1` vs `@paypal`) — *and* it
 requires someone to run the landrush. That is the unavoidable price of a flat global name, and it
-is why `name@domain` and chain names are the human-shareable forms DMTAP recognizes, while
+is why `name@domain` and chain names are the human-shareable forms DMTAP recognises, while
 `@handle` is an out-of-ladder option a deployment may take on its own account.
 
 ### 3.9.3 Petnames (local)
@@ -498,7 +498,7 @@ to the same key — and support subaddressing:
   MOTE), while you migrate. This is the practical migration path — you don't lose your old
   address; it becomes one of your DMTAP aliases.
 - **Subaddressing (plus-addressing).** `you+tag@domain` (and, for handles, `@you+tag`) is
-  supported: the `+tag` is preserved for client-side filtering/labeling but resolves to the same
+  supported: the `+tag` is preserved for client-side filtering/labelling but resolves to the same
   key. Catch-all (`*@yourdomain`) is a domain-owner option (tier C).
 - **Security — self-asserted names need forward verification (normative).** `Identity.names` is
   **self-asserted**: an identity can *list* any string, including a **victim's address**. A listed
@@ -525,7 +525,7 @@ to the same key — and support subaddressing:
   aliases **untouched and still resolvable**. A verifier **resolves any alias to the same identity**
   by the ordinary path (§3.3): resolve `name → ik`, verify the forward binding and KT inclusion,
   then fetch the `Identity` by `identity_id`; because every verified alias yields the *same*
-  `identity_id`, two addresses that resolve to the same identity are recognized as **one person, one
+  `identity_id`, two addresses that resolve to the same identity are recognised as **one person, one
   key** (a client SHOULD coalesce them, and pinning is per-key, §3.4). A binding an owner has
   **revoked** — present in a stale cache but retired in the current signed `Identity` / KT — MUST
   NOT be used to address the identity (`ERR_ALIAS_REVOKED`, `0x011D`, REJECT_NOTIFY); the sender is
@@ -550,7 +550,7 @@ it.
   OPTIONAL **content address** (`avatar.hash` = `0x1e ‖ BLAKE3-256(image_bytes)`, §18.1.5) of the
   exact image bytes the owner signed.
 
-It is **self-asserted and signed by the identity key** (`IK`, or an `IK`-authorized device key,
+It is **self-asserted and signed by the identity key** (`IK`, or an `IK`-authorised device key,
 §1.2) — exactly the authentication model of `Identity.names` (§3.9.4): the signature proves *this
 key asserts this display data*, nothing more. It carries a monotonic `version` (rollback-rejected
 like `Identity.version`, `ERR_STALE_ROLLBACK` `0x0105`) and is published and pinned the same way
@@ -701,16 +701,16 @@ throughout (§3.9.4, §3.11.5): whatever else fails, you remain nameable and rea
   optional self-sovereign name-chain (§3.6, §3.12) *over* the key-name; none of them replaces it as
   the floor.
 
-### 3.9.7 Canonical name form & confusable defenses (normative)
+### 3.9.7 Canonical name form & confusable defences (normative)
 
 Every name form above is a string a human reads and an attacker can imitate. This subsection
-fixes the **one canonical form** of a name and the two **spoofing defenses** every conformant
-implementation applies. Both defenses carry registered error codes (§21.3).
+fixes the **one canonical form** of a name and the two **spoofing defences** every conformant
+implementation applies. Both defences carry registered error codes (§21.3).
 
 **Canonical form (normative).** A `name@domain` has exactly one canonical form, and comparisons,
 pins, KT leaves, and DNS queries all use it:
 
-- the **local part** is Unicode-normalized to **NFC** and **lowercased**;
+- the **local part** is Unicode-normalised to **NFC** and **lowercased**;
 - the **domain** is processed under **UTS-46 / IDNA2008**, with the **A-label** (Punycode) form
   as the **canonical compared form**; DNS qnames (§3.2) are built from A-labels;
 - consequently the **U-label and A-label spellings of one name are ONE identity** — they
@@ -737,13 +737,13 @@ This is the local-trust-store complement of rule (a): (a) blocks names that are 
 mixed-script forgeries; (b) blocks single-script lookalikes (`paypa1`, `rn` for `m`) *relative
 to what this user already trusts*.
 
-Neither defense weakens the invariant that authenticity is the key (§3.1): they protect the
+Neither defence weakens the invariant that authenticity is the key (§3.1): they protect the
 **human comparison step** — the one place where a lookalike string, not a forged key, is the
 attack.
 
-## 3.10 Organization & domain administration
+## 3.10 Organisation & domain administration
 
-An organization that controls `@abc.com` needs the things a management console provides — add
+An organisation that controls `@abc.com` needs the things a management console provides — add
 users, run a directory, create distribution lists, assign admin roles, offboard people. DMTAP
 provides all of them by **composing primitives it already has**, not by bolting on a parallel
 system: the domain's DNS + `kt=` anchor (§3.2) is the root of authority for *names*; provisioning
@@ -801,7 +801,7 @@ Org-managed is opt-in per account, chosen deliberately for a stated compliance n
 silent default. Even org-managed does not weaken transport crypto or metadata privacy (§12.3): the
 org's access is via **holding the key, disclosed**, not via a protocol backdoor.
 
-### 3.10.3 The organization directory (GAL)
+### 3.10.3 The organisation directory (GAL)
 
 A `name@abc.com` autocomplete / global address list is a **`DomainDirectory` object (§18.4.7)**: a
 signed, versioned, KT-logged enumeration of the domain's member (and group, §3.10.4/§5.8.7)
@@ -912,7 +912,7 @@ address for signups, a tier-1 vanity address for humans, and a tier-2 own-domain
 sit on one key at once**, each an independent `name → ik` leaf sharing that key's `identity_id`
 (§3.9.4, §18.4.9). Each alias is **independently revocable** without touching the others or the key.
 A verifier resolves **any** alias to the **same identity** by the §3.3 path — every verified alias
-yields the same `identity_id`, so the client recognizes one person / one key and pins per-key
+yields the same `identity_id`, so the client recognises one person / one key and pins per-key
 (§3.4). This is the mechanism behind "keep your old address while you migrate" (§3.9.4): a legacy
 address becomes one more alias, gateway-bridged (§7), on the same key.
 
@@ -1074,7 +1074,7 @@ type among several, bound by four normative guardrails:
 
 **Honest residuals (disclosed, §6.6).** Registering a chain name **costs money and needs a wallet**;
 on-chain `name → ik` bindings are **public and typically permanent**; and you **inherit that chain's
-decentralization, governance, and fee risk** (congestion, fee spikes, a captured registrar
+decentralisation, governance, and fee risk** (congestion, fee spikes, a captured registrar
 contract, chain deprecation). These are real costs, which is exactly why the name-chain is the
 **optional** path and the **coin-free floor is key-names (§3.9.6) + DNS-provider names (§3.11)**. If
 a chain degrades or disappears, the identity is unaffected and **every other resolver — key-name,

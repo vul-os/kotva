@@ -1,4 +1,4 @@
-<div align="center">
+<div align="centre">
 
 # KOTVA
 
@@ -12,23 +12,23 @@ name, a domain, or a provider — the anchor holds.
 
 ---
 
-KOTVA is a **narrow-waist substrate** for a decentralized world: a small, shared core —
+KOTVA is a **narrow-waist substrate** for a decentralised world: a small, shared core —
 identity, signed objects, transport, publish/subscribe, sync, and infrastructure roles —
 over which many independent protocols compose as thin **profiles**. Mail, commerce, work,
 social, media, and real-time calling are profiles of the *same* waist, not separate stacks.
 
 ## The one rule
 
-> **Decentralize the substrate and the exit. Every unavoidable coordinator — e.g. gateway,
+> **Decentralise the substrate and the exit. Every unavoidable coordinator — e.g. gateway,
 > relay, indexer, labeler, arbiter, oracle (the full, canonical list is
 > [`coordinator/CONTRACT § 5`](coordinator/CONTRACT.md)) — is _accountable, swappable, and
 > self-hostable_, and _never load-bearing_. Coordinators add reach; they never gate
 > function.**
 
 This is DMTAP's legacy-mail-gateway model — one accountable operator class, swappable via a
-DNS change, with a self-host backstop — generalized from mail to the whole system. See
+DNS change, with a self-host backstop — generalised from mail to the whole system. See
 **[DIRECTION.md](DIRECTION.md)** for the full principles and
-**[coordinator/CONTRACT.md](coordinator/CONTRACT.md)** for the rules every coordinator must honor.
+**[coordinator/CONTRACT.md](coordinator/CONTRACT.md)** for the rules every coordinator must honour.
 
 ## Layout
 
@@ -52,7 +52,7 @@ live video) rides a parallel media plane that reuses the *same* identity and key
 an existing stablecoin, **never a new token**; trust is *staked existing value*, never a mint.
 Where a job genuinely needs a coordinator — matching, search, moderation, legal
 accountability — that coordinator is a **hireable, fireable, self-hostable role**, the same
-shape as DMTAP's mail gateway, generalized.
+shape as DMTAP's mail gateway, generalised.
 
 ## Profiles compose primitives
 

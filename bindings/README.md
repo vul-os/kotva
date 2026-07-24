@@ -26,7 +26,7 @@ never change ([DIRECTION §9](../DIRECTION.md), "future-proof by seams").
 | **Storage — scale** | Filecoin (+ Storj for erasure-coded speed) | Bulk durability market. | Mature; retrieval historically slow (compose with Walrus). | **adopt** |
 | **Dispute / arbitration** | Kleros-class (staked schelling-point juries) | Neutral judge for commerce/gig disputes. | Real but small/unproven at scale; re-centralizes toward pro jurors. | **adopt (ceiling)** |
 | **Media transport** | WebRTC (RFC 8825 stack) | Real-time voice/video byte transport. | Mature, ubiquitous. | **adopt** |
-| **Media E2E encryption** | SFrame (RFC 9605), keyed from the MLS epoch | End-to-end encrypted media → media relays are `blind`/structural. | Standardized; DMTAP §27 keys it from MLS. | **adopt** |
+| **Media E2E encryption** | SFrame (RFC 9605), keyed from the MLS epoch | End-to-end encrypted media → media relays are `blind`/structural. | Standardised; DMTAP §27 keys it from MLS. | **adopt** |
 | **NAT-relay for media** | TURN (RFC 5766 / 8656); coturn | Media relay when direct/STUN fails — content-blind over SFrame. | Mature standard. Served by the `media-relay` role. | **adopt** |
 | **Distributed SFU (scale calls)** | LiveKit (Pion) / Jitsi Videobridge + Octo / mediasoup | Multi-provider, cascaded media relay so the host isn't the size limit. | Mature open-source. Bound, not built. | **adopt** |
 | **Mesh reachability** | libp2p — Circuit Relay v2, DCUtR, Kademlia, Noise, QUIC | Key-addressed reachability behind CGNAT; content-blind relay. | Mature; DMTAP §4 profiles it directly. | **adopt** |

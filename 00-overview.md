@@ -6,7 +6,7 @@ DMTAP is a protocol for authenticated, encrypted, metadata-reducing messaging (w
 opt-in, research-tier path toward stronger metadata privacy, §0.6) between self-sovereign
 identities, with async (store-and-forward) delivery, no required central party, and an
 optional bridge to legacy email. One substrate carries **mail, chat, files**,
-and **decentralized identity/login** — the same keypair that receives your mail logs you in
+and **decentralised identity/login** — the same keypair that receives your mail logs you in
 across the web (§13), with no central identity provider.
 
 Concretely, DMTAP MUST provide:

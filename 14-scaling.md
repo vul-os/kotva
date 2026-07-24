@@ -90,7 +90,7 @@ Requirements:
 - **Push carries no content** — only a wake signal (the device token is itself encrypted where
   possible). Apple/Google never see plaintext. The design is **wake-and-fetch**, never
   deliver-in-push (APNs payload ≤4KB; silent push is throttled if excessive).
-- **Push is a latency optimization, not delivery.** The client MUST still poll/reconcile on
+- **Push is a latency optimisation, not delivery.** The client MUST still poll/reconcile on
   foreground; DMTAP MUST NOT treat a push as delivery confirmation. Wakes SHOULD be
   coalesced/batched to avoid iOS silent-push throttling.
 - **The relay-mailbox is a buffer, not an archive** (§14.5): short TTL (~weeks), content-blind,
@@ -111,14 +111,14 @@ optionally a third party — and treats delivery as buffered when **`n` of them 
 Holders are content-blind (they see TTL'd ciphertext addressed to a key), so `m` can be raised
 freely: adding a holder adds no trust.
 
-**Why this is structural and not a convenience.** Two measured findings from the decentralized web
+**Why this is structural and not a convenience.** Two measured findings from the decentralised web
 make the single-holder buffer indefensible, and both point the same way:
 
 - **Volunteer edge availability is poor.** In the Mastodon measurement study (Raman et al., ACM IMC
   2019, §15.5), instances had a **mean downtime of 10.95%** — against **1.25%** for 2007-era Twitter
   — and **21.3% of instances went offline permanently within 15 months**. A buffer whose durability
   is one volunteer's uptime is therefore not a rounding error away from reliable; it is roughly an
-  order of magnitude worse than the centralized service it replaces.
+  order of magnitude worse than the centralised service it replaces.
 - **Unreplicated federated state collapses.** The same study found that removing the **10** most
   popular instances erased **62.69%** of all content, whereas replication reduced the loss to
   **2.1%**. Concentration plus non-replication is the failure mode; replication is the fix, and it

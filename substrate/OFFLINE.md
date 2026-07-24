@@ -104,14 +104,14 @@ accepts custody, not when the recipient is online (§11).
   not.** Of the `challenge` proofs gating a cold MOTE (§2.2b, §9 — PoW, postage stamp, ARC token, vouch),
   only the **self-contained** ones — PoW and vouch — MUST be verifiable by the recipient **without a
   coordinator** (checkable from the envelope alone, before decryption). This is what lets anti-abuse
-  survive an internet shutdown for those two: authorization is local, so the coordinator contract's
-  *authorize-never-classify* rule (§CONTRACT 4) holds for PoW/vouch even with every coordinator
+  survive an internet shutdown for those two: authorisation is local, so the coordinator contract's
+  *authorise-never-classify* rule (§CONTRACT 4) holds for PoW/vouch even with every coordinator
   unreachable. **Postage stamp** is the opposite case: its issuer signature verifies offline, but its
   single-use/unspent check needs the issuer's redemption endpoint or signed spent-list (§9.5.1,
   normative) — offline, a recipient MUST treat a stamp as `deferred`/`blocked` for admission, MUST NOT
   accept it on signature validity alone, and MUST fall back to the PoW/vouch tier, matching §9.5.1's "no
   offline bearer acceptance of real money." **ARC token**'s per-recipient rate budget is locally
-  enforceable offline, but its issuer-level trust and revocation are not, so an offline recipient honors
+  enforceable offline, but its issuer-level trust and revocation are not, so an offline recipient honours
   only the local budget check, never a claim of un-revoked issuer standing.
 - **`deferred`/`blocked`** for reach that needs infrastructure: an outbound MOTE to a peer whose
   `LocationRecord` has expired (§3.1, TTL staleness) is `deferred` on the mailbox/relay; a **legacy-gateway
@@ -147,7 +147,7 @@ locally.
 
 - **R-ROLE-1 — Wake is `blocked` and MUST NOT be relied on offline.** Content-free push (Web Push /
   UnifiedPush, §ROLES ⑤) needs a live push service. A profile MUST NOT design a flow whose *correctness*
-  depends on a wake arriving; wake is an optimization over polling, and offline it degrades to "the peer
+  depends on a wake arriving; wake is an optimisation over polling, and offline it degrades to "the peer
   finds out on next contact." (WRAP already assumes this — it converges on reconnect, §profiles/wrap 1.4.)
 
 ---
@@ -229,7 +229,7 @@ different price:
 - **Hardware trust is a real dependency, and so is the issuer.** Strategy **A** trades operator-trust
   for chip-vendor-trust and inherits the side-channel history disclosed for every TEE binding
   ([`bindings`](../bindings/README.md), `attested` row) — and it depends on an **issuer** to load value
-  into the hardware and to honor redemption/deposit, the same coordinator-class dependency Strategy
+  into the hardware and to honour redemption/deposit, the same coordinator-class dependency Strategy
   **C**'s settlement leg carries (§5.1). The real SE/offline-CBDC constructions §9 cites additionally
   impose **offline spend/holding caps** and require **periodic online reconciliation** to reset
   double-spend counters, so offline behaviour is more constrained than online, not identical to it. It
@@ -253,11 +253,11 @@ mechanism. The two shipped profiles set the pattern:
   drop to unescrowed (tract §9.4.2 fail-closed, restated for the offline case).
 - **WRAP (work).** Already designed for it (§profiles/wrap 1.4): offer/bid/assign/progress are CRDT ops
   that converge on reconnect (`full`), issuer-assigns removes the race so no coordinator referees, and
-  wake is treated as optimization not correctness (R-ROLE-1). WRAP's offline story is the reference for
+  wake is treated as optimisation not correctness (R-ROLE-1). WRAP's offline story is the reference for
   R-SYNC-1's single-writer form: the assignment register is single-writer by the issuer-assigns rule, so
   two couriers cannot both hold the job even if both were offline when they bid.
 
-New profiles inherit these rules; a profile that cannot honor the sneakernet test for an action MUST mark
+New profiles inherit these rules; a profile that cannot honour the sneakernet test for an action MUST mark
 that action `blocked` and say why, rather than pretend it degrades.
 
 ---

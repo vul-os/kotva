@@ -22,7 +22,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   revision lineage/deprecation/forks (§24.7), the derived-index/aggregate posture (§24.8),
   public-object HTTP serving (§24.12) and privacy & security (§24.13); the CAD facet references
   these instead of restating them. Everything CAD-specific — `ArtifactMetadata`, the kind/format/
-  role registries, `Units`, the canonical-source specialization, assemblies-as-Merkle-DAGs
+  role registries, `Units`, the canonical-source specialisation, assemblies-as-Merkle-DAGs
   (pin/track, `AssemblyStructure`, BOM/dedup/cycle-rejection), workshop conventions, the `CAD-1`…
   `CAD-12` checklist, and the kerf mapping (now Appendix B) — moved intact into §24.18. `23-cad-
   artifact-profile.md` is now a stub pointing to §24.18; **the number 23 is retained as a gap and
@@ -71,14 +71,14 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (b) the reassembly-failure counter increments and — at an anomalous rate — drives
   `ERR_MIX_ACTIVE_ATTACK_SUSPECTED` exactly as a suppressed loop would.
 
-- **New `26-legacy-adapters.md` generalizes the legacy-bridging pattern §7 specifies for SMTP to
+- **New `26-legacy-adapters.md` generalises the legacy-bridging pattern §7 specifies for SMTP to
   every other rail a DMTAP user's correspondents live on** — SMS (hardware and aggregator),
   WhatsApp, Telegram, Discord, and Slack — without touching §7's own text or the single-sense
   meaning of "gateway" (§0's glossary). §7 gains one new pointer section, **§7.16**, that names the
   new document and states explicitly that nothing above it changes. The new document specifies:
   (1) **two deployment modes, one adapter** (§26.2) — node mode (own credentials, one identity, no
-  billing, no authorization layer) and gateway mode, which adds exactly four things: per-rail
-  authorization scope (generalizing §7.11.2 step 2's per-address claim check), a signed published
+  billing, no authorisation layer) and gateway mode, which adds exactly four things: per-rail
+  authorisation scope (generalizing §7.11.2 step 2's per-address claim check), a signed published
   tariff, signed usage receipts (generalizing §7.9's audit model), and a content-visibility
   disclosure (generalizing §7.15.3/§7.15.4); (2) **four fields every adapter declares** (§26.3) —
   can it initiate (freely-initiating vs. inbound-triggered), inbound transport class
@@ -92,7 +92,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   disclosure** — node-mode numbers/handles are the user's own and portable; gateway-mode ones die
   on departure and are reassignable to a stranger, worse than mail's alias residual, and a client
   MUST be able to tell a user which applies (§26.6); (5) **reply routing as gateway-mode-only
-  state** — the (rail, remote party, number/bot) → identity mapping is the per-rail generalization
+  state** — the (rail, remote party, number/bot) → identity mapping is the per-rail generalisation
   of mail's `GatewayAliasMap` (§7.10.2), corruptible and leakable, disclosed as a gateway-mode
   concern, not adapter code (§26.7); (6) **WhatsApp credentials default to bring-your-own**, with
   BSP-backed access MAY-and-labelled, and unofficial libraries / ban-evasion number rotation ruled
@@ -253,7 +253,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `"DMTAP-VID-v0/derivation"` is unchanged, the profile still defines exactly one signed structure,
   and no core section, §21 registry entry, error code or wire object is touched. Conformance: §24.15
   gains VID-16/VID-17/VID-18, carried as variants of the existing `DMTAP-VIDEO-02`/`-05` and
-  `DMTAP-VIDMIG-01` cases rather than as new case ids, so the catalog count is unchanged; the
+  `DMTAP-VIDMIG-01` cases rather than as new case ids, so the catalogue count is unchanged; the
   derivation KAT, when generated, must include an audio-only (`0xf6`-dimension) vector. The file
   name, section number, `meta["video"]` key and `VideoManifest` schema name are deliberately kept as
   historical spellings — renaming any of them breaks already-published objects, every §24
@@ -271,7 +271,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   substitute for verified pull (§25.6); and fan-out explicitly governed by §9.9's existing
   group-address rules rather than a new anti-abuse model (§25.7). Default is pull-with-push-hint,
   not true push, because a publisher tracking per-subscriber delivery state is exactly the durable
-  middle-state §0.5's architecture exists to avoid; a bounded inline-announce optimization is the
+  middle-state §0.5's architecture exists to avoid; a bounded inline-announce optimisation is the
   one deliberately-scoped exception (§25.6.3). Stated honestly: encrypted broadcast to a large open
   subscriber set remains out of scope for v1 (§25.11 item 1) — MLS gives confidentiality with known
   membership, §22/§25 give scale with plaintext, and wanting both at once is unsolved, not
@@ -283,7 +283,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (`conformance/vectors/` unchanged).
 - **Fixed a latent one-case undercount that had propagated into five prose statements.** The
   `SUITE` family's own coverage-table row (`conformance/SUITE.md`) had not been updated when
-  `DMTAP-SUITE-11` was added in the previous commit, undercounting the catalog by exactly one
+  `DMTAP-SUITE-11` was added in the previous commit, undercounting the catalogue by exactly one
   vectored case everywhere that row's total fed into: `SUITE.md`'s own `Total` row and two
   paragraphs (327/55/61/68/42/43 → 328/56/62/69/43/44), and `conformance/README.md`'s
   byte-runnable-count sentence (which additionally already disagreed with its *own* next
@@ -300,7 +300,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (§4.4.8 persistent guard sample + ASN/attested-operator diversity), `LOC` (§4.2 per-epoch
   `peer_id`, §4.2.1 resolution order), `FLOOR` (§9.7a zero-relationship delivery floor, §9.4.1
   memory-hard-PoW floor), `FAILCLASS` (§10.7.0 failure classes) and `GWROLE` (§7.11.4/§9.11
-  authorize-never-classify, §7.1b privilege separation). Partition: 46 vectored + 6 self-contained
+  authorise-never-classify, §7.1b privilege separation). Partition: 46 vectored + 6 self-contained
   + 137 construction-todo + 5 manual-attestation.
 - **§21.10 `0x070F` `ERR_POLICY_BELOW_FLOOR`** — referenced by §9.7a since the hardening pass but
   never allocated. The one code in the anti-abuse block whose fault is the recipient's *own* policy
@@ -357,9 +357,9 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   deadline timer, and report delivered for a MOTE that was never received, with no signal at either
   endpoint distinguishing this from a genuine receipt. `ack_sig` is now **MUST** (§19.3.2), verified
   by the sender before the `IN_FLIGHT`/`RETRY` → `ACKED` transition (§20.1) against a key currently
-  authorized under the recipient's pinned identity (`IK` or a non-revoked `DeviceCert`-chained
-  device key, §1.2, reusing the §5.6.1 cluster-sync authorization test rather than inventing a
-  second one); an unsigned, wrongly-signed, or unauthorized-key ack MUST be ignored — not delivery
+  authorised under the recipient's pinned identity (`IK` or a non-revoked `DeviceCert`-chained
+  device key, §1.2, reusing the §5.6.1 cluster-sync authorisation test rather than inventing a
+  second one); an unsigned, wrongly-signed, or unauthorised-key ack MUST be ignored — not delivery
   evidence, no state change. A new `tier` field additionally MUST match the tier of the acknowledged
   MOTE (a `private`-tier send MUST NOT be acked over a `fast`-tier shortcut, mirroring §4.4.9's
   no-silent-downgrade rule applied to the return path). The disclosed residual: requiring `ack_sig`
@@ -370,7 +370,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   sender anonymity (SP-3/SP-4), which this does not touch. Two changes are reported, not made here
   (this entry does not own §6/§18/§21): **§18** needs the `Ack = {id, tier, ack_sig}` CDDL and a
   `DMTAP-v0/ack` DS-tag registration (preimage `DS-tag ‖ 0x00 ‖ det_cbor({id, tier})`); **§21** needs
-  two new `0x03xx` codes for an invalid/unauthorized `ack_sig` and a tier-mismatched `ack`; **§6.9**
+  two new `0x03xx` codes for an invalid/unauthorised `ack_sig` and a tier-mismatched `ack`; **§6.9**
   SP-2's residual bullet needs the SURB-path disclosure above folded in. Conformance: two `FSM` cases
   belong in §10 — an unsigned/wrongly-keyed `ack` is ignored and the retry-queue entry stays
   `IN_FLIGHT`/`RETRY` (the H-6 proof-of-fix), and a genuinely-signed but tier-mismatched `ack` is
@@ -391,14 +391,14 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   more than the **durable seen-id horizon** (§16.10, currently 20 days) in the past, with **no**
   known-contact leniency on the past bound (unlike the future direction): freshness and dedup
   lifetime become the same bound by construction, not by cache-retention luck. The deniable 1:1
-  mode's first-message defense (§5.2.1(a)) already had an equivalent bound; the default
+  mode's first-message defence (§5.2.1(a)) already had an equivalent bound; the default
   (non-deniable) path previously had none. Reported, not made here (this entry does not own
   §16/§18/§21): **§16.1 and §16.10 need reconciling into one cited parameter** for this purpose
   (currently three figures for one cache); **§18.3.1's "used only for ordering/expiry, never for
   correctness" sentence needs amending** — `ts` now also gates a correctness/security check; **§21**
   needs a new `0x02xx` code (`ERR_TS_TOO_STALE` proposed) distinct from `0x020C`, since the past
   bound is a different failure class (likely replay, not clock drift) with a different — no-leniency
-  — disposition; and **the `0x0201`-block "Content-addressed dedup as replay defense" note (§21.4)
+  — disposition; and **the `0x0201`-block "Content-addressed dedup as replay defence" note (§21.4)
   overclaims** that dedup-by-`id` alone "absorbs" replay structurally, which was exactly the gap this
   fix closes. Conformance: two `VAL` cases belong in §10 — a `ts` older than the durable seen-id
   horizon is rejected even though `sender_sig`/`Payload.sig`/decryption all pass (the H-7
@@ -415,7 +415,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the exact "liveness failure handed a denial-of-service surface" error §10.7.0 exists to forbid.
 - `0x030D` (`ERR_MIX_PATH_UNBUILDABLE`) now names the diversity-unmet case, not only the
   empty-layer one, and is scoped to the in-force profile's bar.
-- Catalog rows that outlived their clauses: `DMTAP-PRIV-01` still declared the `{2,8,32,64}` KiB
+- Catalogue rows that outlived their clauses: `DMTAP-PRIV-01` still declared the `{2,8,32,64}` KiB
   bucket ladder (cut to `{8,64}`), `DMTAP-PRIV-02` and the §21.12 condition matrix still spoke of a
   mix "directory authority" (deleted — the fleet view is derived).
 - `conformance/README.md` stated 157 cases / 104 construction-todo, two waves behind.

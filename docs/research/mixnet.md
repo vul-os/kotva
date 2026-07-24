@@ -46,7 +46,7 @@ The `private` tier (the production default for all mail and every control MOTE, 
 **mixnet**: MOTEs travel as **Sphinx-format**, constant-length, onion-wrapped packets through a
 sequence of **mix nodes**, mixed with Poisson delays and cover traffic in the **Loopix/Nym**
 operational style. This section specifies it **normatively and by reference** — KOTVA does **not**
-invent a mix format. It **profiles** two finalized designs and pins their parameters to §16.3:
+invent a mix format. It **profiles** two finalised designs and pins their parameters to §16.3:
 
 - the **Sphinx** packet format (Danezis & Goldberg, *"Sphinx: A Compact and Provably Secure Mix
   Format,"* IEEE S&P 2009) for the on-wire onion packet (§4.4.1); and
@@ -237,7 +237,7 @@ paths — KOTVA distributes them by **reusing DNS + key transparency**, not a ne
   in §22 — *indexes are derived, rebuildable, never authoritative* — applied to the one remaining
   place where KOTVA still had a network-wide authority.
 
-  **Consequences elsewhere.** The freeze-attack defense below still applies, but its subject
+  **Consequences elsewhere.** The freeze-attack defence below still applies, but its subject
   becomes **KT freshness** (§3.5.2(a)) rather than directory freshness — one mechanism instead of
   two. `ERR_MIX_DIRECTORY_SIG_INVALID` (`0x030B`) now applies only to a **cached** directory whose
   contents fail independent verification, never to the absence of an authority signature.
@@ -260,10 +260,10 @@ but cannot make a sender encrypt to a key an honest mix does not hold — the sa
 enumeration of independently-verifiable bindings" discipline as the GAL (§3.10.3). A **cached**
 `MixDirectory` whose contents fail independent verification against the client's log quorum is
 rejected (`ERR_MIX_DIRECTORY_SIG_INVALID`, `0x030B`); an older-or-equal `version` on a cache is
-rejected (rollback defense); a derived view lacking a full stratified layer set makes path-building
+rejected (rollback defence); a derived view lacking a full stratified layer set makes path-building
 fail (`ERR_MIX_PATH_UNBUILDABLE`, `0x030D`).
 
-- **Freshness — freeze-attack defense (MUST).** Rollback defense (rejecting an
+- **Freshness — freeze-attack defence (MUST).** Rollback defence (rejecting an
   *older-or-equal* `version`) stops an adversary *rewinding* a client, but it does **not** by
   itself stop an adversary *freezing* one: an on-path adversary (or a censoring cache) that
   simply **serves the last honest view forever** presents a validly-derivable, non-rolled-back
@@ -272,7 +272,7 @@ fail (`ERR_MIX_PATH_UNBUILDABLE`, `0x030D`).
   effective diversity and anonymity set stay artificially small and adversary-favourable) even
   though nothing it can see is *invalid*. This is the exact analogue of the KT **freeze attack**
   that STH freshness defends (§3.5.2(a), `0x0112`), and the derived fleet view — being computed
-  from KT — inherits the same defense. A client therefore MUST treat a derived view (or a cached
+  from KT — inherits the same defence. A client therefore MUST treat a derived view (or a cached
   `MixDirectory`) older than the **mix-directory freshness window** (§16.3, ≤ one mix-key epoch)
   as **stale**, MUST refresh it before building any `private`-tier path, and MUST **fail closed**
   (§4.4.9 — hold, never downgrade) if it cannot obtain a fresh one — raising
@@ -333,7 +333,7 @@ survivable instead of silent.
   drawing **one mix from each layer in order** — **layer 0 from the sender's active entry guards
   (§4.4.8), NOT uniformly at random**, and layers 1..n−1 uniformly at random within the layer,
   weighted by advertised
-  capacity/reputation (§9.8). Rationale: a stratified topology (as analyzed for Loopix and
+  capacity/reputation (§9.8). Rationale: a stratified topology (as analysed for Loopix and
   deployed by Nym) gives a **well-defined anonymity-set analysis and predictable mixing** and
   spreads load evenly, versus an unconstrained free route whose anonymity is harder to reason
   about and whose load concentrates on popular nodes. Layer assignment is part of the directory,
@@ -408,7 +408,7 @@ negligible: at one 2 KiB cell per 30 s, constant-rate cover is **≈ 5.6 MB/day*
 cover remains permitted **only** for battery- or metered-constrained devices (phones, laptops,
 §14.1 intermittent class), where the tradeoff is real. Previously this was reserved to the
 High-security profile (§4.4.10); it is promoted to the default because the class of node that
-holds durable state can afford it, and a defense that is free for the node that matters should
+holds durable state can afford it, and a defence that is free for the node that matters should
 not be an opt-in.
 
 Mixing delay is applied **per hop**: each mix independently holds each packet an exp(mean 5 s,
@@ -420,7 +420,7 @@ turned into a flooding vector.
 ### 4.4.6 Active-attack resistance: replay, tagging, unlinkability, Poisson mixing (normative)
 
 These are the concrete mechanisms that make a **global *active* adversary** (inject/drop/delay,
-§6.1) expensive and, where it acts, **detectable** — not an "honest limit," a defense. Each is
+§6.1) expensive and, where it acts, **detectable** — not an "honest limit," a defence. Each is
 profiled from Sphinx/Loopix, made mandatory here.
 
 - **Per-epoch replay cache at every mix (MUST).** Each mix MUST maintain a **replay cache** of the
@@ -614,7 +614,7 @@ disclosed.
   the bond and an **adjudicator** empowered to seize it — and any party with that power is a
   central authority with more leverage over the network than anything else in this document,
   reintroduced at exactly the layer the design works hardest to keep authority-free. There is no
-  neutral, decentralized adjudicator available that does not itself become the thing to capture.
+  neutral, decentralised adjudicator available that does not itself become the thing to capture.
   An *unspecified* stake requirement is strictly worse than none, because it advertises a
   deterrent that does not exist. KOTVA therefore relies on the three mechanisms that need no
   adjudicator: **attested operator identity** (accountability), **ASN/jurisdiction diversity**
@@ -846,14 +846,14 @@ corpus of recorded traffic is **retroactive social-graph deanonymization** — a
 adversary could reconstruct *who communicated with whom, when* over all `private` traffic it
 recorded today, which is precisely the graph the mixnet exists to hide. The exposure is bounded to
 the *routing layer* (content stays sealed) but is a serious, disclosed harvest-now risk, not a
-cosmetic one. This is an **openly tracked frontier**: standardized PQ mix-packet
-formats (lattice-based / hybrid Sphinx constructions) are **active research, not yet finalized**
+cosmetic one. This is an **openly tracked frontier**: standardised PQ mix-packet
+formats (lattice-based / hybrid Sphinx constructions) are **active research, not yet finalised**
 (§11.3), and KOTVA does **not** invent one.
 
 The **agility seam** is already in place, mirroring the crypto-suite mechanism (§1.1): the
 `MixNodeDescriptor` and each `MixKeyEntry` carry a **`suite`** (§18.5.2), and the **Mix Parameters
 registry** (§21.23) is where a future PQ-Sphinx packet format + its group/KEM, delay and MAC
-primitives are registered. When a PQ mix format is standardized it is added as a **new mix suite**,
+primitives are registered. When a PQ mix format is standardised it is added as a **new mix suite**,
 advertised in descriptors, negotiated via capability announcements (§10.2), and adopted
 dual-stack — old and new packet formats coexisting until the classical format is retired, exactly
 as a new crypto suite spreads (§21.25). Classical X25519 Sphinx is the v0 baseline; PQ-Sphinx is

@@ -140,8 +140,8 @@ requirements of brief C6.
 
 | Reference | Used for |
 |---|---|
-| OpenBazaar (2016–2021) — the closest deployed relative: signed objects, content-addressed listings, keypair identity, no operator | the postmortem behind the two weakest claims — discovery re-centralizing on a default crawler, and availability bounded by publisher liveness (~22-day median listing lifetime) — and the reputation / opt-in-escrow failure modes §10 and §9.6 must state as measured, not hypothetical (§21.3, §21.5, §21.6) |
-| Beckn / ONDC — the largest deployed "decentralized commerce" network | the counter-example: it avoids OpenBazaar's failure modes only by a **central approval-gating permissioned registry** — the opposite of this specification's no-operator claim — which is why "any node MAY build an index" is not shown to prevent re-centralization (§21.4, §21.8) |
+| OpenBazaar (2016–2021) — the closest deployed relative: signed objects, content-addressed listings, keypair identity, no operator | the postmortem behind the two weakest claims — discovery re-centralising on a default crawler, and availability bounded by publisher liveness (~22-day median listing lifetime) — and the reputation / opt-in-escrow failure modes §10 and §9.6 must state as measured, not hypothetical (§21.3, §21.5, §21.6) |
+| Beckn / ONDC — the largest deployed "decentralised commerce" network | the counter-example: it avoids OpenBazaar's failure modes only by a **central approval-gating permissioned registry** — the opposite of this specification's no-operator claim — which is why "any node MAY build an index" is not shown to prevent re-centralisation (§21.4, §21.8) |
 | Nostr NIP-15 (marketplace) | the in-repo caution: NIP-15 is marked "unrecommended: too complicated" and moves checkout off the public feed; TRACT's signed-transition order model (§7) is a deliberate departure, but the complexity warning is real and not ignored (§21.7) |
 
 ## 20.6 On standards reuse

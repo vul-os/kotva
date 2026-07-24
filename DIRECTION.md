@@ -9,13 +9,13 @@ spec. The reasoning behind these rules is in [`docs/research/`](docs/research/RE
 
 ## 0. The one rule
 
-> **Decentralize the substrate and the exit. Every unavoidable coordinator is _accountable,
+> **Decentralise the substrate and the exit. Every unavoidable coordinator is _accountable,
 > swappable, and self-hostable_, and _never load-bearing_. Coordinators add reach; they never
 > gate function.**
 
 Everything below is a consequence of this one rule. It is DMTAP's legacy-mail-gateway model
 (§7 — one accountable operator class, swappable with a DNS change, with a self-host backstop)
-generalized from mail to the whole system.
+generalised from mail to the whole system.
 
 ---
 
@@ -94,7 +94,7 @@ pointer.
 
 ---
 
-## 4. Coordinators — where centralization is allowed, and fenced
+## 4. Coordinators — where centralisation is allowed, and fenced
 
 Some jobs genuinely need a party with a global view or a scarce/legal resource: matching,
 search, moderation, legal accountability, physical-world attestation. KOTVA does **not**
@@ -108,10 +108,10 @@ pretend these away. It isolates each behind the **coordinator contract**
    (`blind` / `blind-routing` / `terminating`) at an assurance level
    (`structural` / `attested` / `declared`).
 
-A coordinator **authorizes; it never classifies**: it may check *who you are and your rate*,
+A coordinator **authorises; it never classifies**: it may check *who you are and your rate*,
 never *whether your content is wanted*. That judgement is the recipient's, on the recipient's
-device. This is the rule that stops anti-abuse from re-centralizing (DMTAP §7.11.4,
-generalized).
+device. This is the rule that stops anti-abuse from re-centralising (DMTAP §7.11.4,
+generalised).
 
 Coordinator kinds are all instances of the same contract: **gateway** (legacy bridge),
 **relay** (content-blind forwarding) / **media-relay** (`blind-routing` — SFrame-sealed
@@ -123,7 +123,7 @@ Canonical, exhaustive list:
 [`coordinator/CONTRACT § 5`](coordinator/CONTRACT.md).
 
 **`indexer` and `matcher` carry the sharpest version of this risk, and it is a named open
-problem, not a solved one.** Both are "authorize, never classify" by contract — but search,
+problem, not a solved one.** Both are "authorise, never classify" by contract — but search,
 ranking, and match-assignment are exactly the functions through which real markets
 re-concentrate power even under low switching costs; a fenced role does not, on its own, prove
 the fence holds. See §8.
@@ -202,8 +202,8 @@ One further item is a **named open problem** — a candidate fix exists but is u
 the ceilings above, which have no fix even proposed (a second open problem, coordinator-funding
 sustainability, is named at §5):
 
-- **Discovery / indexer / matcher re-centralization.** `indexer` and `matcher` are
-  contractually authorize-only and swappable (§4), but that does not by itself stop the effect
+- **Discovery / indexer / matcher re-centralisation.** `indexer` and `matcher` are
+  contractually authorise-only and swappable (§4), but that does not by itself stop the effect
   real markets show repeatedly: whoever runs search, ranking, or match-assignment accrues power
   over what gets found and who gets matched, however low the switching cost. The proposed
   structural answer — **verifiable-completeness indexing**, where an index proves (not merely
@@ -213,7 +213,7 @@ sustainability, is named at §5):
   **A second mechanism, which the coordinator contract does not reach at all: client defaults.**
   Nostr is the deployed precedent — its relays are genuinely swappable and permissionless, yet every
   major client ships a hardcoded default relay list, and that alone produced real concentration
-  without any relay violating anything. The re-centralizing actor there is the *client's* choice of
+  without any relay violating anything. The re-centralising actor there is the *client's* choice of
   default, not the coordinator's conduct, so no clause binding coordinators — accountability,
   swappability, self-hostability, declared visibility — constrains it. KOTVA inherits this exposure
   wherever a client must pick an `indexer`, `matcher`, or `relay` on a user's behalf. Client
@@ -237,7 +237,7 @@ Direction for the ongoing work, so "perfect the spec" never becomes a sprawling 
 - **Future-proof by seams, not by prediction.** Every hard problem is a *pluggable slot*
   (a binding or a coordinator). When the frontier improves (better personhood, TEE matching),
   swap the filling — the substrate and profiles never change. The product converges on
-  centralized quality while keeping sovereignty, with no rearchitecture.
+  centralised quality while keeping sovereignty, with no rearchitecture.
 - **Simple by subtraction.** Prefer adopting a standard over specifying one; prefer a profile
   over a new waist capability; prefer a coordinator role over a new primitive. The smallest
   design that composes is the correct one.

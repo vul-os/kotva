@@ -54,7 +54,7 @@ and speaks the legacy protocol; the mesh/relay never decrypts; there is no centr
 | SELECT / EXAMINE (+ CONDSTORE/QRESYNC select-params) | 9051 / 7162 | ✅ |
 | CREATE / DELETE / RENAME / SUBSCRIBE / UNSUBSCRIBE | 9051 | ✅ |
 | CREATE with SPECIAL-USE `(USE (\Attr))` | 6154 | ✅ |
-| LIST / LSUB, SPECIAL-USE, LIST-EXTENDED (return/select opts: SUBSCRIBED/SPECIAL-USE, `\HasChildren`) | 9051 / 6154 / 5258 / 3348 | ✅ honored |
+| LIST / LSUB, SPECIAL-USE, LIST-EXTENDED (return/select opts: SUBSCRIBED/SPECIAL-USE, `\HasChildren`) | 9051 / 6154 / 5258 / 3348 | ✅ honoured |
 | LIST-STATUS (`RETURN (STATUS (…))` piggyback) | 5819 | ✅ |
 | STATUS (incl. SIZE, DELETED, HIGHESTMODSEQ) | 9051 | ✅ |
 | APPEND (+ flags/date/literal, APPENDUID) | 9051 / 4315 | ✅ |

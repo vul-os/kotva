@@ -195,7 +195,7 @@ fields; it MUST NOT invent a parallel attestation object (the waist adoption rul
   `PurchaseAttestation` — to a listing, so a buyer weighs the seller by verifiable claims, not by
   a platform's opaque badge. Attestation and listing are both §22 public objects.
 - **MATCH / RESERVE** may *authorise* participation on a required attestation (e.g. personhood
-  before joining an order book). This is **authorize-never-classify**
+  before joining an order book). This is **authorise-never-classify**
   ([CONTRACT §4](../coordinator/CONTRACT.md)): the gate checks *who you are*, never *whether your
   content is wanted*.
 - **ESCROW / oracle.** A dispute or release condition consumes an oracle attestation of the

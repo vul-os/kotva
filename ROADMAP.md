@@ -9,7 +9,7 @@ DS-tag generation or the DNS `v=` anchor; everything rides the §10.2 capability
 
 Motivating parity gaps (§17): public mailing-list archives, software release announcements,
 newsletters, published datasets, open-hardware part libraries. Motivating deployment: the kerf
-Workshop (decentralized CAD part sharing) as the first production application.
+Workshop (decentralised CAD part sharing) as the first production application.
 
 ## Design contract (allocations — normative for the documents below)
 

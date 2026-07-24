@@ -15,7 +15,7 @@ defaults here are what a conformance run (§10) checks. All are versioned with t
 | Sender retry deadline | 72 h | after which an undelivered MOTE fails to the user (§2.6) |
 | Sender retry backoff | exp, base 30 s, cap 1 h | exponential with jitter |
 
-Nodes MUST NOT rely on synchronized clocks for correctness — only for the skew-bounded windows
+Nodes MUST NOT rely on synchronised clocks for correctness — only for the skew-bounded windows
 above and for ordering hints.
 
 ## 16.2 Naming, KT & DHT
@@ -27,12 +27,12 @@ above and for ordering hints.
 | KT signed-tree-head poll | ≤ 6 h | client re-checks its own entry (self-monitoring) |
 | KT gossip interval (v1) | ≤ 1 h | STH gossip for equivocation detection (§3.5.2(a)) |
 | KT maximum merge delay (v1) | ≤ 24 h | a `0x02` log MUST issue a new STH, and include every accepted entry, within this bound (§3.5.2(a)) |
-| KT STH freshness window (v1) | ≤ 24 h | an STH older than this is stale (freeze-attack defense, `0x0112`); MUST be refreshed before the view is trusted (§3.5.2(a)) |
+| KT STH freshness window (v1) | ≤ 24 h | an STH older than this is stale (freeze-attack defence, `0x0112`); MUST be refreshed before the view is trusted (§3.5.2(a)) |
 | KT log-set consistency quorum (v1) | > n/2 (⌈(n+1)/2⌉ of the pinned log set) | a `name → ik` binding is accepted only on a strict-majority quorum of logs, so a minority cannot forge or suppress it (§3.5.2(b); mirrors the §16.8 committer roster quorum) |
 | DHT location-record TTL | 2 h | signed; republish before expiry (§4.2) |
 | DHT republish interval | 45 min | < TTL, with jitter |
 | DHT lookup redundancy (K) | 20 | store at K closest; S/Kademlia disjoint paths ≥ 3 |
-| Location seq-number | monotonic u64 | rollback defense; reject older-or-equal |
+| Location seq-number | monotonic u64 | rollback defence; reject older-or-equal |
 | Max names per Identity (soft) | 32 | recommended cap on `Identity.names` aliases (§3.9.4, §3.11.3) to bound Identity size; tunable by policy, not a security gate |
 
 ### 16.2.1 Adversary-proof mode (key-name rendering) — normative
@@ -88,7 +88,7 @@ the rule that identities are discriminated by key.
 | Multi-cell reassembly timeout | ≤ 15 min (≈ 3× the `private`-tier delivery latency budget) | a partial multi-cell MOTE held in the bounded reassembly cache is discarded if not completed within this window ([docs/research/mixnet.md §4.4.1](docs/research/mixnet.md) fragment reliability); bounds recipient memory against half-MOTE flooding |
 | Fragment-recovery method | per-cell SURB-ARQ **or** FEC (`n > k` erasure code) | sender's choice, capability-negotiated (§10.2); recovers missing cells at the lost-fraction cost, never full re-send ([docs/research/mixnet.md §4.4.1](docs/research/mixnet.md)). Retransmitted/parity cells are ordinary constant-length Sphinx cells |
 | Mix key epoch | 24 h | Sphinx mix-key rotation; advertise current+next, delete old key at `valid_until` ([docs/research/mixnet.md §4.4.4](docs/research/mixnet.md)) |
-| Mix-directory freshness window | ≤ 1 mix-key epoch (24 h) | a `MixDirectory` older than this is stale (freeze-attack defense, `0x0311`); MUST be refreshed before building a `private` path, else fail closed ([docs/research/mixnet.md §4.4.2](docs/research/mixnet.md), [docs/research/mixnet.md §4.4.9](docs/research/mixnet.md)). Mirrors the KT STH freshness window (§16.2) |
+| Mix-directory freshness window | ≤ 1 mix-key epoch (24 h) | a `MixDirectory` older than this is stale (freeze-attack defence, `0x0311`); MUST be refreshed before building a `private` path, else fail closed ([docs/research/mixnet.md §4.4.2](docs/research/mixnet.md), [docs/research/mixnet.md §4.4.9](docs/research/mixnet.md)). Mirrors the KT STH freshness window (§16.2) |
 | Sphinx group / `β` stream / header MAC (v0) | X25519 / ChaCha20 / Poly1305 | header DH group, `β` stream cipher, per-hop header MAC over `β` ([docs/research/mixnet.md §4.4.1](docs/research/mixnet.md)); PQ variant [docs/research/mixnet.md §4.4.12](docs/research/mixnet.md) |
 | Sphinx `δ` payload transform (v0) | LIONESS (wide-block PRP) | keyed permutation over the whole 2 KiB cell — payload tagging-resistance; NOT a stream cipher / AEAD ([docs/research/mixnet.md §4.4.1](docs/research/mixnet.md), [docs/research/mixnet.md §4.4.6](docs/research/mixnet.md)) |
 | Mix replay-cache window | lifetime of every still-usable mix key + skew (current epoch + next-key overlap, ≈ up to 2 epochs + 120 s) | per-mix Sphinx-tag replay cache; retain until each key's `valid_until` passes — **no hard flush at the epoch boundary** while the overlap key is still usable ([docs/research/mixnet.md §4.4.6](docs/research/mixnet.md), `0x030E`) |
@@ -131,7 +131,7 @@ above; inline/push/pull governs durability, normal/bulk governs metadata privacy
 | Auto-pull-to-durable threshold | ≤ 256 MiB | a client SHOULD auto-pull-and-pin a Referenced file below this on receipt, converting origin-hold → recipient-pinned (§5.5.2) |
 | Default `cluster-replicated` N | 3 | replicas across a box-cluster (§5.6, §14); tolerates N−1 holder loss (§5.5.2) |
 | Default `pinned(term)` retention | 90 days | minimum paid-pin retention term; renew before expiry (mirrors inactive-account purge §16.6); after it the host MAY GC (`0x080B`, §5.5.4) |
-| Inbound spool cap (per unproven sender) | ≤ 64 MiB aggregate | a pushed Inline/Attached file exceeding this for that sender is refused fail-closed (`0x080C`, storage-DoS / spool-fill defense, §5.5.5); tunable by operator policy, generous on self-host |
+| Inbound spool cap (per unproven sender) | ≤ 64 MiB aggregate | a pushed Inline/Attached file exceeding this for that sender is refused fail-closed (`0x080C`, storage-DoS / spool-fill defence, §5.5.5); tunable by operator policy, generous on self-host |
 
 ## 16.5 Anti-abuse
 
@@ -205,7 +205,7 @@ point, not on standing.
 | DMTAP-Auth session TTL | 24 h | key-bound session lifetime before re-auth (§13.4) |
 | DMTAP-Auth session idle-timeout | 30 min | idle expiry of a key-bound session (§13.4) |
 | RP delegation re-validation interval | ≤ 15 min | RP re-checks status endpoint / KT head (§13.4) |
-| RP re-validation grace window (unreachable status/KT) | 2× re-validation interval (≤ 30 min) | honor last-validated delegation on unreachable status/KT, then fail closed (§13.4, §20.6) |
+| RP re-validation grace window (unreachable status/KT) | 2× re-validation interval (≤ 30 min) | honour last-validated delegation on unreachable status/KT, then fail closed (§13.4, §20.6) |
 | Recovery-weakening veto window | 72 h | delay before a factor-weakening `RecoveryPolicy` change takes effect (§1.4) |
 | Recovery veto quorum | `rotate_threshold` | a veto MUST satisfy this (asymmetric; a single factor cannot veto its own eviction, §1.4) |
 | Committer-liveness timeout | 5 min | pending signed proposal unordered past this → takeover eligible (§5.1) |

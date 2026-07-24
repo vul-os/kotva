@@ -59,12 +59,12 @@ Devices form the owner's personal MLS cluster (§5.6); each runs its own client 
 syncs the mailbox/flags/labels/file-index via encrypted CRDT over the mesh. The always-on node
 anchors receipt while other devices sleep.
 
-## 8.4 Calendar & contacts (first-class, decentralized)
+## 8.4 Calendar & contacts (first-class, decentralised)
 
 Calendar and contacts are **not** separate central services — they are additional **MOTE kinds**
 stored in the same node, end-to-end encrypted, synced across the device cluster (§5.6), and
 shared/invited via the same MLS groups (§5) as everything else. They inherit the full
-decentralized model: your node holds them, no provider can read them, and — on the native path —
+decentralised model: your node holds them, no provider can read them, and — on the native path —
 there is no central server.
 
 - **Native (on the node):** calendar events and contacts are represented as **JSCalendar (RFC
@@ -83,7 +83,7 @@ there is no central server.
 The legacy DAV surfaces are **gateway** capabilities that MAY be deprecated over time like the
 mail ones; native JMAP + MOTE on the node is the forward path.
 
-## 8.5 The decentralization invariant (all data classes)
+## 8.5 The decentralisation invariant (all data classes)
 
 Every data class DMTAP carries — **mail, chat, files, calendar, contacts, identity, and login
 (§13)** — obeys the same rule on its **native** path: it lives on the **user's node**, is
@@ -100,7 +100,7 @@ authority for *everything*, uniformly, over its native surfaces. There is no dat
 quietly depends on a central service on the native path.
 
 Silent grants that would **redirect or delegate** that data — **auto-forward rules**, new
-**capability delegations** (§13.5), and new **RP-session authorizations** (§13.4) — MUST be
+**capability delegations** (§13.5), and new **RP-session authorisations** (§13.4) — MUST be
 surfaced to the owner's device cluster and logged to KT self-monitoring (§3.5), so a
 business-email-compromise-style silent redirect or delegation is owner-visible, not covert.
 
@@ -157,13 +157,13 @@ choices are normative** where cited.
   `offboard` (§19.1.5) and capability `delegate`/`revoke` (§19.6.6). It MUST render an
   **`org-managed` (escrowed-key) account honestly** — visibly distinct from a sovereign one, never
   presented as equivalent (`ERR_ORG_MANAGED_UNDISCLOSED`, `0x0115`) — and MUST show every
-  grant/revocation as an **owner/authority-visible, KT-logged event** (the BEC-defense
+  grant/revocation as an **owner/authority-visible, KT-logged event** (the BEC-defence
   self-monitoring path, §13.5), so a silently installed admin grant or auto-forward rule is
   alertable.
-- **Attestation enrollment prompts (§1.2a).** During device enrollment the client SHOULD prompt to
+- **Attestation enrolment prompts (§1.2a).** During device enrolment the client SHOULD prompt to
   generate the device key in a **hardware keystore** and attach attestation evidence
   (`attest-enroll`, §19.1.6), and SHOULD surface when a relying context **requires** attestation and
   the device lacks it (`0x0116`) or its evidence has **expired / the root retired** (`0x0118`,
   prompt to **re-attest**). The client MUST make clear attestation is **advisory hardening** — it
-  never overrides the owner's §1.4 authorization — and that verifying it trusts a **vendor
+  never overrides the owner's §1.4 authorisation — and that verifying it trusts a **vendor
   attestation root** (a disclosed TTP, §1.2a).

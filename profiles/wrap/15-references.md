@@ -24,14 +24,14 @@ substrate document cited.
 
 ## 16.2. Informative
 
-**OpenCourier** — *An Open Protocol for Building a Decentralized Ecosystem of
+**OpenCourier** — *An Open Protocol for Building a Decentralised Ecosystem of
 Community-owned Delivery Platforms*, CHI 2026 Extended Abstracts.
 `arxiv.org/abs/2511.02455`
 
 The closest prior art, and the source of the delivery vocabulary in §12.2.
 OpenCourier proposes a three-layer architecture — registry, instance-app,
 instance-requester — for worker-owned delivery platforms, and its framing of
-worker ownership as the goal rather than decentralization for its own sake
+worker ownership as the goal rather than decentralisation for its own sake
 directly informed §9.2 and §8.1.
 
 It differs from WRAP in two ways that matter. It is a position paper with
@@ -47,7 +47,7 @@ Informative for `Place` and `Window` shaping (§3.9, §3.10).
 
 **GS1 EPCIS** — supply-chain event capture (what / when / where / why).
 Informative for the append-only event model of `Progress` (§3.7). EPCIS is far
-heavier than WRAP needs and assumes centralized capture.
+heavier than WRAP needs and assumes centralised capture.
 
 **OASIS UBL** — Universal Business Language, including Despatch Advice and
 Waybill. Informative for `Compensation` (§3.11). XML and enterprise-oriented;

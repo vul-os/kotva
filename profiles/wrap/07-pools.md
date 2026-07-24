@@ -18,7 +18,7 @@ which is precisely the substrate's Infrastructure-Roles stance
 - a participant MAY use several simultaneously;
 - losing one costs *reachability*, never identity, history, or data.
 
-This is a weaker claim than "fully decentralized" and it is the honest one. It
+This is a weaker claim than "fully decentralised" and it is the honest one. It
 is also the property that actually protects participants, because it is what
 makes an operator replaceable when they start behaving badly. A WRAP **pool is a
 user of substrate roles**, not a new kind of infrastructure: it is discovered

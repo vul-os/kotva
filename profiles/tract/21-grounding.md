@@ -1,6 +1,6 @@
 # 21. Grounding — what the evidence actually supports
 
-> **Why this section exists.** Every claim in this specification about what decentralized commerce
+> **Why this section exists.** Every claim in this specification about what decentralised commerce
 > can do is a claim about the future. The claims below are about the past, and they are less
 > flattering. This section records what a 107-agent, adversarially-verified literature pass found
 > in July 2026, including the findings that **contradict** parts of this document, so that a reader
@@ -67,8 +67,8 @@ never as a live comparison.
 
 Four failure modes, each of which maps onto a section of this document:
 
-1. **Negligible economic activity** — orders of magnitude below centralized equivalents.
-2. **Discovery re-centralized first.** A content-addressed substrate offers no global index, so
+1. **Negligible economic activity** — orders of magnitude below centralised equivalents.
+2. **Discovery re-centralised first.** A content-addressed substrate offers no global index, so
    search was outsourced to crawler operators, and the default one became a content-policy
    gatekeeper. → §2.6.
 3. **Availability was bounded by publisher liveness.** Whole catalogues disappeared when a merchant
@@ -83,16 +83,16 @@ item-survival numbers conflate deliberate delisting with liveness eviction.
 
 ## 21.4 What the largest live network chose instead
 
-**Beckn / ONDC** is the biggest deployed "decentralized commerce" network, and it avoids
+**Beckn / ONDC** is the biggest deployed "decentralised commerce" network, and it avoids
 OpenBazaar's failure modes by doing the opposite of this specification:
 
 - **Registry-mediated, not self-certifying.** Participants register keys via `POST /subscribe`;
   counterparties resolve endpoints and public keys through a registry lookup — not gossip, not a
   DHT, not content addressing.
-- **Approval-gated permissioned enrollment.** Portal whitelisting (6–48h), a signed agreement,
+- **Approval-gated permissioned enrolment.** Portal whitelisting (6–48h), a signed agreement,
   certification, and probation before a participant may transact.
 - **Identity anchored to DNS/TLS domain names, not keypairs** — inheriting CA and DNS
-  centralization on top of registry centralization.
+  centralisation on top of registry centralisation.
 - **Discovery through operator-hosted, rate-limited lookup endpoints**, giving the operator a
   throttle and deny lever over network-wide discovery.
 
@@ -288,7 +288,7 @@ it is untested.
 ### 21.11.2 Where the argument does *not* reach — three corrections §11 must absorb
 
 **The escape is at the facilitator prongs, not at "marketplace".** The term is deliberately
-medium-agnostic and expressly enumerates *a catalog* and *a dedicated sales software application*.
+medium-agnostic and expressly enumerates *a catalogue* and *a dedicated sales software application*.
 TRACT's signed catalogue feed and its buyer-side cart client are **within** the definitional term
 even where no person qualifies as a facilitator. §11 may not argue "there is no marketplace"; the
 available argument is only "there is no facilitator".

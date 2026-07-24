@@ -95,7 +95,7 @@ of anything, specifically so nobody mistakes one for a real address by looking a
 **8 of 39 `SUITE.md` case ids have a supporting vector (6 full, 2 partial). 31 are not yet
 computable**, each for a stated reason — mostly because the invariant needs a substrate primitive
 (a real hash, a real signature) this corpus is not allowed to invent, or because it is a
-runtime/network behavior rather than a static byte computation, or because the §16 text available
+runtime/network behaviour rather than a static byte computation, or because the §16 text available
 does not yet name the object the case is about.
 
 | SUITE.md id | Status | Vector file | Why |
@@ -105,15 +105,15 @@ does not yet name the object the case is about.
 | TRACT-PUBSEAL-03 | **Full** | `review.json` | `Review`'s field set is fully closed in §16.5.5's CDDL (keys 1-6, no `?`-optional beyond key 5), and §16.5.5's own prose confirms `Review` **is** signed (unlike `Offer`) — so §16.2's unknown-key-rejection rule applies unambiguously. Also checks the explicit `score, 0..5` bound. |
 | TRACT-PUBSEAL-04 | Not yet computable | — | No storefront render-bundle CDDL shape exists anywhere in `16-wire-format.md` yet. |
 | TRACT-CAT-01 | **Partial** | `productrecord-canonical-byte-convergence-and-divergence-tract-cat-01-partial.json` | Covers the precondition — canonical-CBOR-byte equality is independent of a publisher's field-insertion order, and a genuine content difference produces different bytes. The content **address** itself (`multihash prefix ‖ digest`, §16.3) is substrate-defined and not computed here — no hash is invented to fill that gap. |
-| TRACT-CAT-02 | Not yet computable | — | Index-vs-feed precedence is a client trust-policy behavior, not a wire-byte computation. |
+| TRACT-CAT-02 | Not yet computable | — | Index-vs-feed precedence is a client trust-policy behaviour, not a wire-byte computation. |
 | TRACT-CAT-03 | **Full** | `offer-missing-an-axis-is-structurally-rejected-tract-cat-03.json` | §16.5.2's `Offer` CDDL has no `?` on keys 1-4 (Item/Availability/Fulfilment/Consideration) — directly checkable structurally. |
 | TRACT-CAT-04 | Not yet computable | — | "Advisory, unverified, never authority" is a client trust-weighting policy; nothing encodes differently on the wire because of it. |
-| TRACT-AVAIL-01 | Not yet computable | — | Requires re-evaluating a *live* seller signal at checkout time — a runtime/network behavior, not a static object computation. |
+| TRACT-AVAIL-01 | Not yet computable | — | Requires re-evaluating a *live* seller signal at checkout time — a runtime/network behaviour, not a static object computation. |
 | TRACT-FULF-01 | **Full** | `place-of-supply-derivation-for-all-7-fulfilment-variants-tract-fulf-01-tract-fulf-02.json` | §4.3's derivation table is transcribed and applied to all 7 `Fulfilment` variants, including the exact forcing example (event venue vs. seller/buyer countries) the case names. |
 | TRACT-FULF-02 | **Full** | (same file) | The `ship` case demonstrates the anchor binding only once the buyer's destination choice is recorded, per §4.8. |
 | TRACT-CART-01 | Not yet computable | — | Cross-replica bounded-counter inventory is a distributed/CRDT runtime invariant; §16 as read doesn't give the inventory-quota wire shape to encode a static case against. |
 | TRACT-CART-02 | Not yet computable | — | Same reason as CART-01 — an operator-visible runtime state, not a decodable object. |
-| TRACT-CART-03 | Not yet computable | — | Multi-seller checkout independence is a client behavior across multiple sealed `Order`s over time, not a single object's bytes. |
+| TRACT-CART-03 | Not yet computable | — | Multi-seller checkout independence is a client behaviour across multiple sealed `Order`s over time, not a single object's bytes. |
 | TRACT-ORDER-01 | Not yet computable | — | Needs a real signature scheme; TRACT inherits signatures from the substrate (§16.2) and none is invented here. |
 | TRACT-ORDER-02 | Not yet computable | — | The order state machine's timeout-expiry table lives in §18, which was not read for this pass; no computable content to cite yet. |
 | TRACT-ORDER-03 | Not yet computable | — | "Never observable by a third party" is a network/deployment property, not a property of one object's bytes. |
@@ -124,9 +124,9 @@ does not yet name the object the case is about.
 | TRACT-SETTLE-02 | Not yet computable | — | Rail-class substitution requiring "explicit party agreement" is a process/consent invariant across an order's history, not a single object's bytes. |
 | TRACT-SETTLE-03 | Not yet computable | — | "Never the only object standing in for a settlement event" is about what else is or isn't present in a transcript, not decodable from `PaymentAttestation`'s bytes alone (which are already exercised in `paymentattestation.json`). |
 | TRACT-SETTLE-04 | Not yet computable | — | Requires a signed escrow-ruling object whose shape is not given in the §16 text read for this pass, plus a real signature. |
-| TRACT-TRUST-01 | Not yet computable | — | Index-side acceptance policy for reviews without a purchase attestation; a client/index behavior, not a wire-byte computation (the `Review`/`PurchaseAttestation` shapes themselves are covered in `review.json`). |
+| TRACT-TRUST-01 | Not yet computable | — | Index-side acceptance policy for reviews without a purchase attestation; a client/index behaviour, not a wire-byte computation (the `Review`/`PurchaseAttestation` shapes themselves are covered in `review.json`). |
 | TRACT-TRUST-02 | Not yet computable | — | "No party computes a single network-wide score" is a prohibition on a computation *not* being performed anywhere in the network — not expressible as an input/output vector. |
-| TRACT-TRUST-03 | Not yet computable | — | Supersede-based retraction and tombstone-serving is a feed/network behavior over time, not a single object. |
+| TRACT-TRUST-03 | Not yet computable | — | Supersede-based retraction and tombstone-serving is a feed/network behaviour over time, not a single object. |
 | TRACT-JURIS-01 | Not yet computable | — | Needs §11.3's in-region-responsible-person field, not present in the §16 text read for this pass. |
 | TRACT-JURIS-02 | Not yet computable | — | **Notable gap, not just an omission**: §16.6's `Order` CDDL as currently written carries no fields at all for the four jurisdictional anchors this case requires — see this file's "discipline" section above. |
 | TRACT-GW-01 | Not yet computable | — | Origin isolation between two rendered storefronts is a deployment/runtime property, no wire object to check. |
@@ -134,9 +134,9 @@ does not yet name the object the case is about.
 | TRACT-GW-03 | Not yet computable | — | Byte-for-byte comparability of independent re-renders needs the render-bundle shape (see PUBSEAL-04) plus an actual rendering pipeline. |
 | TRACT-ABUSE-01 | Not yet computable | — | Feed-head rollback detection needs the substrate's feed-sequence mechanism (§0.3 capability ②), out of scope here. |
 | TRACT-ABUSE-02 | Not yet computable | — | Per-publisher rate/quota enforcement is a holder-side runtime policy, not a wire-byte computation. |
-| TRACT-ABUSE-03 | Not yet computable | — | Cold-contact challenge/proof-of-work gating is inherited substrate behavior triggered at delivery time, not a static object. |
-| TRACT-PROFILE-01 | Not yet computable | — | Node advertisement/rejection behavior at the point of receipt; not a property of a decoded object's bytes. |
-| TRACT-PROFILE-02 | Not yet computable | — | Same reason as PROFILE-01 — a node's own behavior, not an object. |
+| TRACT-ABUSE-03 | Not yet computable | — | Cold-contact challenge/proof-of-work gating is inherited substrate behaviour triggered at delivery time, not a static object. |
+| TRACT-PROFILE-01 | Not yet computable | — | Node advertisement/rejection behaviour at the point of receipt; not a property of a decoded object's bytes. |
+| TRACT-PROFILE-02 | Not yet computable | — | Same reason as PROFILE-01 — a node's own behaviour, not an object. |
 | TRACT-REG-01 | Not yet computable | — | §16.8 states the extension-key policy for the axis unions is itself **open** ("refuse, or preserve and refuse only on acting... needs stating here in grammar terms"). This corpus cannot cover a case whose grammar-level rule the spec says is still undecided. |
 | TRACT-SM-01 | Not yet computable | — | The full per-transition timeout-expiry table is §18 content, not read for this pass. |
 

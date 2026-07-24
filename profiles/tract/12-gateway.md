@@ -18,7 +18,7 @@
 
 The storefront role — rendering signed objects for keyless browsers, over domains, across the trust
 boundary a gateway introduces — together with its co-located settlement and escrow function, and
-the rules that confine a gateway to **authorizing** transactions without being **privileged over**
+the rules that confine a gateway to **authorising** transactions without being **privileged over**
 the content it serves. Escrow mechanics, rail classes and the payment seam are §9; the tax facts a
 settling gateway acts on are §11; the operator class itself is defined in §0.4.2, which this section
 does not re-derive.
@@ -48,15 +48,15 @@ reach legacy settlement rails. The bridge property is normative:
 - A gateway MUST NOT hold, escrow, or have any access to a party's identity keys — ever (§0.4.2,
   §12.4).
 
-## 12.2a The rendering contract — authorizes, but is not privileged over content
+## 12.2a The rendering contract — authorises, but is not privileged over content
 
 Before serving any public object, a gateway MUST verify it exactly as any node must: signature and
 content-address per §16.2, and feed-head ordering per §2 (an older signed head is never served over
 a newer one already observed). A gateway MUST refuse to serve an object that fails verification; it
 MUST NOT "repair", re-sign, or serve it anyway.
 
-A gateway **authorizes** — it may, as its own commercial and legal choice, decline to render a given
-store or decline to settle a given order — but authorizing is not authority over the content:
+A gateway **authorises** — it may, as its own commercial and legal choice, decline to render a given
+store or decline to settle a given order — but authorising is not authority over the content:
 
 - A gateway MUST NOT modify, reorder, suppress, truncate, or inject into the signed objects it
   renders. It serves what the feed says, or it refuses to serve at all. There is no third option in

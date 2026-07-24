@@ -15,13 +15,13 @@ are pointers, not fresh requirements.
 
 ## The one rule
 
-> **Decentralize the substrate and the exit. Every unavoidable coordinator is _accountable,
+> **Decentralise the substrate and the exit. Every unavoidable coordinator is _accountable,
 > swappable, and self-hostable_, and _never load-bearing_. Coordinators add reach; they never gate
 > function.**
 
 Everything else is a consequence ([`DIRECTION § 0`](DIRECTION.md)). It is DMTAP's legacy-mail-gateway
 model ([`§7`](07-gateway.md) — one accountable operator class, swappable with a DNS change, with a
-self-host backstop) generalized from mail to the whole system.
+self-host backstop) generalised from mail to the whole system.
 
 ---
 
@@ -55,7 +55,7 @@ problem is never hard-wired — it is a swappable **binding** or a fenced **coor
    genuinely new normative ground: [`substrate/README.md`](substrate/README.md).
 3. **PRIMITIVES** — the small set every service rearranges: [`primitives/`](primitives/), design
    brief [`docs/research/PRIMITIVES.md`](docs/research/PRIMITIVES.md).
-4. **COORDINATOR CONTRACT** — the keystone that makes "some centralization, done safely" a checkable
+4. **COORDINATOR CONTRACT** — the keystone that makes "some centralisation, done safely" a checkable
    property, not a hope: [`coordinator/CONTRACT.md`](coordinator/CONTRACT.md).
 5. **BINDINGS** — one thin mapping document per adopted standard; swap when the frontier improves:
    [`bindings/README.md`](bindings/README.md).
@@ -110,11 +110,11 @@ The design brief for all six is [`docs/research/PRIMITIVES.md`](docs/research/PR
 
 ---
 
-## ④ Coordinator kinds — where centralization is allowed, and fenced
+## ④ Coordinator kinds — where centralisation is allowed, and fenced
 
 Every coordinator is one instance of [`coordinator/CONTRACT.md`](coordinator/CONTRACT.md): it is
 **accountable** (§2.1), **swappable** (§2.2), **self-hostable** (§2.3), **declares one
-content-visibility class** (§2.4/§3), and **authorizes but never classifies** (§4). It mints no token
+content-visibility class** (§2.4/§3), and **authorises but never classifies** (§4). It mints no token
 (§6). `gateway` ([`§7`](07-gateway.md)) and the legacy `adapter`s ([`§26`](26-legacy-adapters.md)) are
 the first fully-worked instances; every kind inherits the four clauses unchanged.
 
@@ -171,7 +171,7 @@ mixnet privacy tier (non-normative, [`DIRECTION § 9`](DIRECTION.md)) — and th
 | [10](10-conformance.md) | Versioning, Conformance, Governance | [24](24-video-profile.md) | Published-Artifact Profile (media + engineering) |
 | [11](11-grounding-and-references.md) | Grounding & References | [25](25-pubsub.md) | DMTAP-PUBSUB: Feed Subscriptions |
 | [12](12-operators.md) | Operators, the Seam & User Protection | [26](26-legacy-adapters.md) | Legacy Adapters — beyond SMTP |
-| [13](13-identity-auth.md) | DMTAP-Auth — Decentralized Login | [27](27-realtime-media.md) | Real-Time Media Profile |
+| [13](13-identity-auth.md) | DMTAP-Auth — Decentralised Login | [27](27-realtime-media.md) | Real-Time Media Profile |
 
 ### TRACT — the commerce profile ([`profiles/tract/`](profiles/tract/README.md))
 
@@ -262,7 +262,7 @@ Every hard problem is a **pluggable slot** — a binding or a coordinator behind
 improves the fix slots in as a version bump and nothing above it changes: a better personhood method
 is a REPUTATION binding swap; a TEE global matcher is a MATCH coordinator swap; a TEE search index is
 an `indexer` swap; TEE anti-abuse with a global view but no plaintext is a `labeler` upgrade. The
-product **converges on centralized quality while keeping sovereignty, with no rearchitecture.** What
+product **converges on centralised quality while keeping sovereignty, with no rearchitecture.** What
 does *not* converge is the small structural set (§below) — because those are not technical problems.
 
 ### Apocalypse-proof by graceful degradation + reconcile
@@ -281,8 +281,8 @@ where offline safety is paid entirely in liveness; the offline-money hard case i
 profile is an instance of: **fail closed** on any security-relevant uncertainty; **intrinsic
 authenticity** (verify the object, never trust the server, [`§22.5.1`](22-public-objects.md));
 **identity ≠ name** ([`§1`](01-identity.md)); **no silent downgrade** blind→terminating or
-encrypted→plaintext ([`CONTRACT § 3.2`](coordinator/CONTRACT.md)); **authorize, never classify**, so
-anti-abuse cannot re-centralize ([`CONTRACT § 4`](coordinator/CONTRACT.md)); **content-visibility
+encrypted→plaintext ([`CONTRACT § 3.2`](coordinator/CONTRACT.md)); **authorise, never classify**, so
+anti-abuse cannot re-centralise ([`CONTRACT § 4`](coordinator/CONTRACT.md)); **content-visibility
 declared** by every intermediary at a stated assurance level (`structural` provable / `attested`
 TEE / `declared` honest-trust); **no protocol token, ever** ([`DIRECTION § 5`](DIRECTION.md)).
 
@@ -297,7 +297,7 @@ TEE / `declared` honest-trust); **no protocol token, ever** ([`DIRECTION § 5`](
   near lat/lng"* needs a geo-index binding / coordinator; (4) **sealed-bid / second-price auctions** —
   need a commit-reveal convention over SYNC; (5) **cross-party calendar negotiation** — composes over
   SYNC + RESERVE but is unspecified ([`coverage-matrix`](docs/research/coverage-matrix.md)).
-- **This is a map, not a proof.** Reduction to the primitives is shown; deployment at centralized
+- **This is a map, not a proof.** Reduction to the primitives is shown; deployment at centralised
   scale is not. A `✔` above means "composes from the primitives," never "shipped and measured." Global
   cross-publisher product identity, unpaid pinning of a departed node's catalogue, and an Uber-quality
   global matcher are all mechanism-present and demonstration-absent
@@ -306,8 +306,8 @@ TEE / `declared` honest-trust); **no protocol token, ever** ([`DIRECTION § 5`](
   **physical-event oracle**, **legal / authoritative-issuer**, or **editorial governance**
   ([`DIRECTION § 8`](DIRECTION.md)). They are consequences of not being a single surveilling company —
   disclosed, not solved; several are the point.
-- **Discovery / indexer / matcher re-centralization is a named open problem, not a solved one.**
-  A swappable, authorize-only `indexer`/`matcher` (CONTRACT §4) does not by itself prove search,
+- **Discovery / indexer / matcher re-centralisation is a named open problem, not a solved one.**
+  A swappable, authorise-only `indexer`/`matcher` (CONTRACT §4) does not by itself prove search,
   ranking, and match-assignment avoid re-concentrating the way real markets do; the proposed fix —
   verifiable-completeness indexing — has **no deployed precedent** ([`DIRECTION § 8`](DIRECTION.md)).
 - **Two things are refused, not missing.** Coercion-resistant public-election voting (harder than

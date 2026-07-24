@@ -52,7 +52,7 @@ Envelope {
 - **`id`** — content address = a 1-byte **hash-algorithm prefix** (multihash-style, for
   agility) followed by the digest. v0 default is **BLAKE3-256** (128-bit collision resistance,
   equal to SHA-256; fast Merkle/XOF structure ideal for chunking). BLAKE3 is cryptographically
-  sound but **not FIPS/IETF-standardized** (the IETF draft expired); the agility prefix lets an
+  sound but **not FIPS/IETF-standardised** (the IETF draft expired); the agility prefix lets an
   implementation migrate to SHA-256/SHA-3 where compliance requires it without changing the
   address format. Pin the exact BLAKE3 mode + 256-bit output. Content addressing gives
   deduplication, integrity, and cacheability for free; identical ciphertext shares an `id`.
@@ -82,7 +82,7 @@ Envelope {
 - a **blinded delivery tag** — a per-contact value `BT = HKDF-SHA256(shared_secret, …)` derived
   from a secret established at first contact (`epoch_day` is the **day-counter epoch**, §0.8 —
   distinct from an MLS group epoch or a mix-key epoch) — the KDF, inputs, and 16-byte length are
-  pinned in [§18.3.2](18-wire-format.md) — which the recipient's node recognizes but which is
+  pinned in [§18.3.2](18-wire-format.md) — which the recipient's node recognises but which is
   **unlinkable across time and across observers** to the recipient's persistent key.
 
 Blinded tags are RECOMMENDED for the `private` tier. **Honest limit (reconciled with §6.4):**
@@ -254,10 +254,10 @@ ack(id)               → recipient confirms receipt of MOTE `id`.
   **small signed control MOTE** (kind `system`, §2.3) — or, on a live direct/`fast` connection, a
   transport-level ack over the same channel — carrying `id`, and it **MUST** be signed (§19.3.2:
   this was previously an OPTIONAL implementation hardening, which is corrected here) by a key
-  currently authorized under the recipient's pinned identity: the `IK` itself, or a non-revoked
-  `DeviceCert`-chained device key (§1.2) — the identical authorization test §5.6.1 already applies
+  currently authorised under the recipient's pinned identity: the `IK` itself, or a non-revoked
+  `DeviceCert`-chained device key (§1.2) — the identical authorisation test §5.6.1 already applies
   to cluster-sync peers. The sender's retry queue (§4.7) MUST verify this signature before
-  transitioning to `ACKED` (§20.1); an unsigned, wrongly-signed, or unauthorized-key ack MUST be
+  transitioning to `ACKED` (§20.1); an unsigned, wrongly-signed, or unauthorised-key ack MUST be
   ignored — it is not delivery evidence. An `ack` **MUST travel at the same privacy tier as the
   MOTE it acknowledges** (a `private`-tier MOTE's ack MUST NOT be downgraded to `fast` for
   convenience — the same no-silent-downgrade discipline as
@@ -280,7 +280,7 @@ ack(id)               → recipient confirms receipt of MOTE `id`.
 ## 2.7 Validation (recipient MUST)
 
 Validation is ordered **cheapest-and-anonymous first**, so a flood of cold junk is rejected
-*before* any expensive asymmetric decryption (a decryption-DoS defense). On receipt a node MUST,
+*before* any expensive asymmetric decryption (a decryption-DoS defence). On receipt a node MUST,
 in order:
 
 1. Reject unknown `v`/`suite` (fail closed).
@@ -324,14 +324,14 @@ in order:
      into a single cited parameter for this purpose, and §18.3.1's claim that `ts` is "used only
      for ordering/expiry, never for correctness" needs amending — `ts` now also gates a
      correctness/security check. Both are reported to their owning sections, not made here.**
-   - **Deniable-mode parity.** The deniable 1:1 mode's first-message replay defense (§5.2.1(a))
+   - **Deniable-mode parity.** The deniable 1:1 mode's first-message replay defence (§5.2.1(a))
      already enforces an equivalent bound for `DeniableInit`. This step brings the **default**
      (non-deniable) path to parity; the default path previously had none at all.
 4. **Resolve `to`** to this node (or a group it belongs to). If `to` does not resolve, drop.
 5. **Classify the sender** by `to`/pinning state: a **known contact** (fast path) vs an
    **unknown/cold sender**.
    **What `to` can and cannot tell you (normative).** Classification happens *before* decryption —
-   that ordering is the whole decryption-DoS defense — so the only relationship signal available is
+   that ordering is the whole decryption-DoS defence — so the only relationship signal available is
    `to`. A **`BlindedTag`** identifies the sender, because it is derived from a per-contact secret
    established at first contact (§2.2a); a **`GroupTag`** identifies the group. A **`KeyTag` does
    not**: it is the *recipient's own* identity key, and `sender_key` is a fresh ephemeral (§2.2), so
@@ -436,13 +436,13 @@ in order:
    own act — it is the *reactor's* own annotation on someone else's message — so it carries no
    authorship claim to impersonate, and this gate binds `edit`/`redact` only.
 
-Known contacts MAY skip step 6 (they are pre-authorized). Only known-contact MOTEs reach
+Known contacts MAY skip step 6 (they are pre-authorised). Only known-contact MOTEs reach
 decryption on the fast path; unknown senders must pass the anonymous abuse gate first.
 
 **Dedup ordering (normative).** Deduplication by `id` (§2.6) runs **after** classification
 (step 5), never before, and its effect is **conditioned on that classification**:
 
-- **Known contact** (pre-authorized, the step-5 fast path): a duplicate of a previously **acked**
+- **Known contact** (pre-authorised, the step-5 fast path): a duplicate of a previously **acked**
   `id` is re-acked immediately without further processing — idempotent redelivery, and no oracle,
   because the sender is already authenticated.
 - **Unknown/cold sender:** a duplicate MUST NOT be acked before the **step-6** abuse gate is

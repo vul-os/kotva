@@ -52,19 +52,19 @@ published score or a protocol token** ([DIRECTION §5](../../DIRECTION.md),
     byte-holder that kept the old bytes is not violating anything (§22.6, TRACT §10.2d).
   - An OFFER's availability is a **signal, not a hold** — reading it as a reservation is a category
     error; the hold lives in RESERVE (TRACT §3.9).
-  - **No canonical catalog.** Indexes over public offers are *derived, rebuildable, and never
+  - **No canonical catalogue.** Indexes over public offers are *derived, rebuildable, and never
     authoritative* (§22.4.3); different indexes reaching different sets is the design.
 - **Small scale / offline:** an offer sent point-to-point (`mode = direct`, WRAP §8.2) needs no
   infrastructure at all and covers most real relationships. **Global:** an `indexer` coordinator
   makes offers discoverable.
 - **Honest ceiling:** *there is no open discovery without infrastructure* (WRAP §8.1) — global reach
-  requires an indexer, which can re-rank/omit (fenced by swappability + "authorize, never classify",
+  requires an indexer, which can re-rank/omit (fenced by swappability + "authorise, never classify",
   CONTRACT §4). Freshness is bounded only by feed-poll cadence (TRACT §3.8). Listing spam/Sybil is
   unsolved at the protocol layer and is index-local policy.
 
 ## 2. MATCH — the one engine, differing only in the assignment rule
 
-- **Bind to:** nothing standardized cleanly maps (order books and auction engines are venue-internal),
+- **Bind to:** nothing standardised cleanly maps (order books and auction engines are venue-internal),
   so MATCH is a **`matcher` coordinator** under the contract, not a new primitive. Its only variation
   across services is the **assignment rule** — nearest (rides), highest-bid (auctions), best-fit
   (freelance) — which is *matcher policy*, not protocol (DIRECTION §2, §6). Prefer a **TEE-`attested`**
@@ -73,7 +73,7 @@ published score or a protocol token** ([DIRECTION §5](../../DIRECTION.md),
   **signed Assignment out** (WRAP `Assignment`), authored by the matcher and delivered to the
   matched parties as a MOTE. The matcher holds only rebuildable operational state.
 - **Normative rules:**
-  - The matcher **authorizes, never classifies** (CONTRACT §4): it checks *who and rate*, never
+  - The matcher **authorises, never classifies** (CONTRACT §4): it checks *who and rate*, never
     *whether content is wanted*.
   - **Swappable + self-hostable** — the local fallback is a *dumb local order book* the parties run
     themselves; the assignment rule and the party set MUST survive dropping the matcher (CONTRACT
@@ -84,7 +84,7 @@ published score or a protocol token** ([DIRECTION §5](../../DIRECTION.md),
   *not* content-blind unless run in a TEE (WRAP §8.5). It MUST declare `terminating` (or `attested`
   if TEE), and clients MUST surface that (CONTRACT §3). Mitigations: coarse offers (area/window/range)
   with exact detail only in the sealed Assignment.
-- **Honest ceiling:** global-view optimization is exactly where centralization regrows; the contract
+- **Honest ceiling:** global-view optimisation is exactly where centralisation regrows; the contract
   confines but does not remove it. Blind matching needs a TEE (chip-vendor trust, side-channel
   history — `attested`, never trustless, bindings note). Offline, MATCH degrades to a local order
   book with no global optimality.
@@ -207,9 +207,9 @@ published score or a protocol token** ([DIRECTION §5](../../DIRECTION.md),
   global anti-Sybil (caps REPUTATION and offer-spam), the physical-event oracle (caps ATTEST and the
   ESCROW dispute), the legal/authoritative-issuer burden (the ESCROW operator absorbs it for pay — the
   burden moves, it does not vanish), and editorial governance (which OFFER/REPUTATION indexes decline
-  to centralize, at the cost of one authoritative answer).
+  to centralise, at the cost of one authoritative answer).
 - **What is genuinely future-proofed vs. genuinely fundamental.** *Technical* gaps converge on
-  centralized quality as the frontier improves — a better personhood method is a REPUTATION binding
+  centralised quality as the frontier improves — a better personhood method is a REPUTATION binding
   swap, a TEE matcher is a MATCH coordinator swap, a TEE index is an OFFER/REPUTATION indexer swap —
   with no rearchitecture (research/README §4). The *structural* residuals (opt-in escrow declined,
   self-dealing attestations, Sybil-cost floor, non-custodial dispute deadlock) are consequences of not

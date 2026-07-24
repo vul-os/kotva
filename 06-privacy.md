@@ -170,7 +170,7 @@ retrieval ceremony that would remove it — this is the priced-in cost of not pa
 
 1. **Global active adversary — undefended by default; the irreducible residual *after* the
    mechanisms of the opt-in mixnet.** On the **default `fast` tier there is no active-adversary
-   defense at all** — no replay cache, no cover traffic, no entry guards; a global active
+   defence at all** — no replay cache, no cover traffic, no entry guards; a global active
    adversary correlates trivially, and this is simply the cost of the default tier's honest scope
    (§6.1). The rest of this item describes what the **opt-in, research-tier mixnet**
    ([docs/research/mixnet.md](docs/research/mixnet.md)) adds for an implementation and user that
@@ -195,7 +195,7 @@ retrieval ceremony that would remove it — this is the priced-in cost of not pa
    mathematical floor as the high-security profile's latency/overhead grows; it does **not**
    pretend to defeat an omnipotent adversary at zero cost, and none of this applies at all to the
    default `fast` tier, which makes no such attempt. This is the honest floor *after* the maximal
-   opt-in defense, not a substitute for it.
+   opt-in defence, not a substitute for it.
    One concrete edge of that residual: **sub-threshold selective dropping** — an adversary dropping
    fewer than the loop-loss detection threshold (< 20%, §16.3) of a target's packets — stays under
    the [docs/research/mixnet.md §4.4.7](docs/research/mixnet.md) detector, so it is **bounded, not
@@ -213,7 +213,7 @@ retrieval ceremony that would remove it — this is the priced-in cost of not pa
    blobs MUST NOT traverse the mixnet at all (§4.5), so the fact and approximate volume of a
    large transfer remain observable to a network/global adversary regardless of tier.
 3. **Endpoint compromise — the irreducible residual *after* the mechanisms.** DMTAP does not
-   treat endpoint compromise as an unaddressed limit; it specifies concrete, normative defenses
+   treat endpoint compromise as an unaddressed limit; it specifies concrete, normative defences
    that shrink the blast radius to a single floor:
    - **Offline seizure is defended.** The local MOTE store is encrypted with a key **released
      only on device unlock** (biometric/PIN, §6.7), so a powered-off / locked stolen phone yields
@@ -233,10 +233,10 @@ retrieval ceremony that would remove it — this is the priced-in cost of not pa
 
    **After all of that**, one residual is irreducible: a device **actively compromised while
    unlocked and in use** sees exactly what the *user* sees — it can read decrypted content and
-   exercise the (hardware-held) key in real time. **No protocol can prevent an authorized,
+   exercise the (hardware-held) key in real time. **No protocol can prevent an authorised,
    unlocked endpoint from reading its own screen.** DMTAP shrinks endpoint compromise to precisely
    this floor — live, unlocked, in-use — rather than the old "any seized cluster member leaks the
-   whole history." That is the honest boundary *after* the maximal defense, not in place of it.
+   whole history." That is the honest boundary *after* the maximal defence, not in place of it.
 4. **First-contact MITM.** Before KT/OOB verification, the *first* name→key resolution can be
    MITM'd; DMTAP fails closed if KT is unreachable at first contact (§3.3, §3.4).
 5. **Metadata privacy is weakest-link.** One leaky component (a bad lookup, a client bug, a
@@ -278,7 +278,7 @@ retrieval ceremony that would remove it — this is the priced-in cost of not pa
    APNs**: a background app cannot be woken except through Apple's push service, so on iOS **Apple
    sees timing metadata** — that *this device* was pinged at time *T* — even though the wake carries
    no sender, no subject, and no content (it is opaque ciphertext, §4.9.1), and even though the node
-   MAY jitter/batch wakes to blunt correlation (§4.9.1). This residual is **disclosed and minimized,
+   MAY jitter/batch wakes to blunt correlation (§4.9.1). This residual is **disclosed and minimised,
    not hidden**: DMTAP strips the payload and the social graph from the wake, but it cannot remove
    Apple from the loop on a platform that forbids any other wake path. It is the push analogue of the
    global-active-adversary residual (item 1) — the maximal open mechanism is applied first, and the
@@ -313,7 +313,7 @@ retrieval ceremony that would remove it — this is the priced-in cost of not pa
     (item 5.5, §5.5.3) and cannot inspect it; a DMTAP-PUB holder serves **plaintext** it can read.
     Serving public content therefore shifts an operator's moderation/liability posture in a way
     serving sealed chunks does not — hence public-object serving is a **per-operator opt-in**,
-    never a default-on behavior of a conformant node; the owning requirement is §22, negotiated
+    never a default-on behaviour of a conformant node; the owning requirement is §22, negotiated
     as the `pub-1` capability (§10.2).
 13. **The opt-in mixnet's volunteer infrastructure may simply never materialise — and that is now
     the honest starting assumption, not a fallback case.** DMTAP has no commercial engine behind
@@ -439,7 +439,7 @@ anonymous."
   a **live, unlocked, in-use** device can read what the user reads (**the residual**, §6.6
   item 3). Implementations MUST NOT keep the at-rest key resident indefinitely across a locked
   device.
-- **`sensitive` / non-cached messages (normative, MAY-send / MUST-honor).** A sender MAY mark a
+- **`sensitive` / non-cached messages (normative, MAY-send / MUST-honour).** A sender MAY mark a
   message `sensitive` (a `Headers` flag, §18.3.6): the receiving client **MUST NOT persist it at
   rest** — it is held in memory for an ephemeral view and dropped, never written to the durable
   MOTE store — so a *later* seizure reveals nothing of it. Like `redact`/`expires` (§6.6 item 8)
@@ -594,7 +594,7 @@ to the opt-in `private` mixnet only.**
 - *Claim (research-tier, not a default guarantee):* **IF** the opt-in `private` mixnet is in use,
   a global *active* adversary (inject/drop/delay at will) is intended to be forced to pay latency
   and/or bandwidth to correlate, with its drop/delay/flooding **detected and responded to** — but
-  **not fully defeated**. On the default `fast` tier there is **no** active-adversary defense of
+  **not fully defeated**. On the default `fast` tier there is **no** active-adversary defence of
   any kind (§6.6 item 1) — this claim does not apply there at all.
 - *Would hold by (research-tier mechanism):* per-epoch replay caches, tagging-resistant Sphinx
   (header MAC `γ` + wide-block LIONESS payload PRP), memoryless Poisson mixing
@@ -615,7 +615,7 @@ to the opt-in `private` mixnet only.**
   profile's latency/overhead grows; it does not claim to defeat an omnipotent active adversary, and
   none of it applies to a party that has not opted in. The mechanism-model simulation
   corroborating this shape (chance-floor convergence, 20%-loss detection, ≈ *f*² collusion,
-  hops-≠-collusion-defense) is reported — with its honest caveats, as research-tier corroboration,
+  hops-≠-collusion-defence) is reported — with its honest caveats, as research-tier corroboration,
   not deployment evidence — in §6.10.
 
 **SP-5 — Recipient unlinkability (blinded delivery tags) — scoped to established contact.**
@@ -625,7 +625,7 @@ to the opt-in `private` mixnet only.**
   first-contact/cold delivery**, which is a distinct case addressed in the residual below, not a
   weaker instance of this one.
 - *Holds by:* blinded delivery tag `BT = HKDF-SHA256(shared_secret, …)` — the KDF, inputs, and
-  16-byte length pinned in [§18.3.2](18-wire-format.md) — recognized by the recipient but
+  16-byte length pinned in [§18.3.2](18-wire-format.md) — recognised by the recipient but
   unlinkable across time and across observers (§2.2a); network/human identity decoupling and
   recipient-side cover (§6.4).
 - *Against:* a global passive adversary / final mix, for the *tag-linkage* property, on the
@@ -714,7 +714,7 @@ to the opt-in `private` mixnet only.**
 - *Against:* a global active adversary (DoS-to-downgrade) and an on-path MITM.
 - *Residual:* enforcement is per-recipient and local, so it is only as good as the implementation —
   "metadata privacy is weakest-link" (§6.6 item 5); a suite high-water-mark lowers **only** through
-  an explicit `IK`-authorized retirement the owner performs (§1.3), never via an inbound message.
+  an explicit `IK`-authorised retirement the owner performs (§1.3), never via an inbound message.
 
 **SP-9 — Key transparency / equivocation detection (profile-dependent — stated honestly).**
 - *Claim:* Under **v1-hardening KT** (log-type `0x02`, §3.5.2) a log that shows different
@@ -783,7 +783,7 @@ excluded, not covered.**
 | SP-1 | Message confidentiality (E2E) | normative, default | §2.4, §5.1 | passive **+ active** | endpoint floor §6.6 item 3; gateway leg §7; first-contact §6.6 item 4; harvest-now §5.1 |
 | SP-2 | Content authenticity / integrity | normative, default | §2.7 step 8, §2.2, §18.9 | passive **+ active** | binding = KT profile SP-9 / §6.6 item 6; deniable = MAC not sig §5.2.1(c) |
 | SP-3 | Sender anonymity vs global **passive** | **research-tier, OPT-IN mixnet only — not default** | §2.2 (sealed sender, default); [docs/research/mixnet.md §4.4.5–6](docs/research/mixnet.md), §6.3, §3.7 (opt-in) | global passive, **only within the opt-in mixnet** | reduction not elimination §6.2, §6.4, §6.6 item 5, [docs/research/mixnet.md §4.4.11–12](docs/research/mixnet.md); **no claim at all on the default `fast` tier** |
-| SP-4 | Sender anonymity vs global **active** | **research-tier, OPT-IN mixnet only — not default** | [docs/research/mixnet.md §4.4.6–§4.4.10](docs/research/mixnet.md) | global active, **only within the opt-in mixnet** | Trilemma floor §6.6 item 1; sub-threshold drop §16.3; **no defense at all on the default `fast` tier** |
+| SP-4 | Sender anonymity vs global **active** | **research-tier, OPT-IN mixnet only — not default** | [docs/research/mixnet.md §4.4.6–§4.4.10](docs/research/mixnet.md) | global active, **only within the opt-in mixnet** | Trilemma floor §6.6 item 1; sub-threshold drop §16.3; **no defence at all on the default `fast` tier** |
 | SP-5 | Recipient unlinkability (blinded tags) — **established contact only** | normative, default (mixnet-only mitigation is opt-in) | §2.2a, §6.4 | passive / final mix | last-hop observability remains §6.4 item 1, §2.2a; **cold path: no claim at all** — `to`=`KeyTag` + challenge fields (`origin`/`audience`/`epoch_nonce`) leak recipient §6.6 item 18 |
 | SP-6 | Forward secrecy + PCS — **established session only** | normative, default (mix-key FS is opt-in mixnet extra) | §5.2, [docs/research/mixnet.md §4.4.4](docs/research/mixnet.md), §6.7, §5.2.1(b) | later seizure / revoked compromise | per-epoch coarser §5.2; send-only = FS only §5.2.1(b); **pre-session HPKE MOTEs: no FS at all**, `epoch` absent, `fs_ratchet` removed as undefined |
 | SP-7 | Deniability / repudiation (1:1 opt-in) | normative, default | §5.2.1 | cryptographic-transcript judge | default non-repudiable §5.2; not endpoint §6.6 item 3; X3DH online bound §5.2.1(e) |
@@ -801,7 +801,7 @@ filed as such (§10.4). That is the point of stating them falsifiably.
 the SP-*n* claims are maintained in the **reference implementation's `formal/` directory** (the
 Envoir monorepo), not in this spec repo. They are versioned against the mechanisms cited above and
 are the executable counterpart to this falsifiable-claims table; a divergence between a model and
-this text is resolved in favor of the **spec** (§10.4).
+this text is resolved in favour of the **spec** (§10.4).
 
 ## 6.10 Measured anonymity evidence (mechanism-model simulation — research-tier, non-normative, supporting the opt-in mixnet only)
 

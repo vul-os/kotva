@@ -23,7 +23,7 @@ identity (§1), readable by anyone, globally deduplicated.** Here the publisher'
 
 This is exactly the substrate a product needs when it wants to **publish signed, verifiable, public
 data** — a software release feed, a mailing-list archive, an open-hardware part library, a CAD artifact
-catalog (§24.18), a public changelog — without any of the sealed-messaging machinery. It subsumes two
+catalogue (§24.18), a public changelog — without any of the sealed-messaging machinery. It subsumes two
 niches that today require separate ecosystems, using **one** object model:
 
 - a **signed public event stream** keyed to a self-sovereign identity — the niche served by Nostr-style
@@ -188,7 +188,7 @@ A `PubAnnounce` is a **bare, unsealed, signed CBOR object** — not a MOTE. It c
 identity **in the clear** (`pub` = the root `IK`; `signer` = the operational key, chained to `pub` by a
 `DeviceCert`) and is fetched by content address. Its `announce_id = 0x1e ‖ BLAKE3-256(det_cbor(PubAnnounce))`
 (the fully-signed object). Verification (§22.3.3) is **offline, zero-DNS**: reject unknown `v`/`suite`;
-recompute and check `announce_id`; verify `sig` under `signer`; verify `signer` is authorized by `pub`
+recompute and check `announce_id`; verify `sig` under `signer`; verify `signer` is authorised by `pub`
 (`signer == pub`, or a valid non-revoked `DeviceCert` chain); if `supersedes` is present, require the
 predecessor's `pub` to match (a publisher may only supersede its own announcements). A name is needed
 only to *display* who `pub` is — verification never needs a name lookup (§3.13, and see
@@ -296,7 +296,7 @@ collision resistance, §5.5.3). **A server is a convenience, not a trust root.**
 ### 5.2 Mesh is an optional second transport (§22.5.2–§22.5.3)
 
 The same five operations are served over the mesh (§4.5 bulk path, §5.5 swarm). Public objects are **not**
-routed through the mixnet — there is no metadata to protect. Swarm behavior is inherited from §5.5.3
+routed through the mixnet — there is no metadata to protect. Swarm behaviour is inherited from §5.5.3
 (chunks self-verify; a mismatch is `ERR_PUB_CHUNK_HASH_MISMATCH`, `0x090A`, rotate to another holder),
 with the one difference being **global cross-user dedup** (§3.2). Mesh serving **adds** swarming and
 NAT-traversal on top of HTTPS; it is never a prerequisite to speak the capability.
@@ -344,7 +344,7 @@ GET /.well-known/dmtap-pub/manifest/{id}/proof?chunk=i   → [ i, [ sibling_hash
   `size`, and `chunk_sz` (keys `1`–`3`) precede `chunks` (key `4`) in the encoded object; a client that
   wants to avoid the `chunks` array's transfer cost too, not just its verification cost, MAY stream-decode
   or range-fetch the manifest response and stop once it has read keys `1`–`3`, though this is an
-  implementation optimization, not new normative machinery. With that in hand, the O(log n) property
+  implementation optimisation, not new normative machinery. With that in hand, the O(log n) property
   holds as stated: **two small header fields, not the chunk list.**
   - **Chosen resolution: (a) — document the requirement, do not change the encoding.** vulos-relay's
     `tunnel/pubcache` already ships this endpoint decoding `[index, path]` and taking `nChunks` from the

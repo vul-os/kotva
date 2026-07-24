@@ -33,7 +33,7 @@ ingress exists **only** for legacy clients.
 - **Inbound** (legacy → DMTAP): act as MX for a domain, receive SMTP, translate to a MOTE,
   attest it, and deliver into the mesh.
 - **Outbound** (DMTAP → legacy): accept a `mail` MOTE marked for a legacy address, verify the
-  submitting identity is authorized to claim the address it is about to sign and send as
+  submitting identity is authorised to claim the address it is about to sign and send as
   (§7.11.2 step 2), translate to RFC 5322, DKIM-sign as the sender's domain via **delegated
   selectors**, and send via SMTP.
 - **Legacy client surfaces and legacy addressing** (§7.15, §7.10).
@@ -56,7 +56,7 @@ gateway's scarce-resource requirement and turn an adapter into infrastructure:
 
 **Two DMTAP users never need a gateway — not once.** Native delivery is key-addressed over the
 mesh (§4, §7.7): no gateway is in the path, nothing is decrypted by a third party, and no operator
-is present to authorize, meter, or bill anything (§12.3).
+is present to authorise, meter, or bill anything (§12.3).
 
 The gateway holds **no message queue and no mailbox of record**: message durability is punted to
 the edges (§7.4). It MAY hold *non-message* operational state — random-alias maps (§7.10.2) and
@@ -109,7 +109,7 @@ for the worst memory-safety exposure in the system sitting next to `IK`. Therefo
   material** — not the user's/mailbox-node's `IK`, not device private keys, not recovery material
   — and **MUST NOT have read access to the local MOTE store**. This prohibition is about the
   *user's* keys, not the gateway's own: the gateway node's own attestation `IK` (§7.2a), and any
-  IK-authorized gateway device key used to sign an injected MOTE (§7.2 step 4), live in a
+  IK-authorised gateway device key used to sign an injected MOTE (§7.2 step 4), live in a
   **separate trusted signer process** that the parser process may request a signature from but
   never reads the key material out of — the same process boundary this section requires
   elsewhere, not an exception to it. Its DKIM signing key is its own (§7.3), which is exactly why
@@ -193,7 +193,7 @@ be refused (SMTP `4xx`, `ERR_GATEWAY_TLS_POLICY_UNMET`, `0x0608`), never served 
 ### 7.2a Attestation key binding (normative)
 
 An attestation is worthless unless its signing key is provably bound to a gateway the domain
-actually authorized — otherwise any operator could forge "legitimate legacy origin" for a domain
+actually authorised — otherwise any operator could forge "legitimate legacy origin" for a domain
 it does not serve. Therefore the domain MUST publish the gateway's **attestation public key**,
 analogous to DKIM's selector, in DNS (and MAY anchor it in KT):
 
@@ -205,13 +205,13 @@ analogous to DKIM's selector, in DNS (and MAY anchor it in KT):
 other (§0.2.3) and holds an identity key under §1.2; the key published here is *that* `IK`, not a
 second signing key invented only for attestation. This is what makes §7.2 step 4's `Payload`
 construction well-defined: a gateway-injected inbound MOTE's `Payload.from` MUST equal this same
-`IK`, and its `sig` MUST verify under it (or under an IK-authorized gateway device key, §18.3.5) —
+`IK`, and its `sig` MUST verify under it (or under an IK-authorised gateway device key, §18.3.5) —
 there is no separate, looser `Payload` shape for gateway traffic. A recipient MUST reject an
 inbound MOTE whose `provenance` (§18.3.5 key 9) is present but whose `Payload.from` is not the
 `IK` published under the attesting domain's `_dmtap-gw` record — this is the **same** check as an
 untrusted attestation key (`ERR_GATEWAY_ATTESTATION_KEY_UNTRUSTED`, `0x0602`), because binding the
 attestation key to the gateway's `IK` makes the two comparisons one comparison: whatever wrapped
-the message is not the domain's authorized gateway, whatever `provenance` claims.
+the message is not the domain's authorised gateway, whatever `provenance` claims.
 
 **Algorithm identifier (normative for the DNS record).** The record's `suite=` parameter names
 the §1.1 algorithm suite `k=` is published under, using the same registry every other signed
@@ -380,7 +380,7 @@ subject of the rule below).
 coordinator kinds, and this descriptor is the general `CoordinatorDescriptor` (§18.8a.1) with
 `kind = "gateway"`, `identity = gateway_ik`, and `domain`/`modes`/`operator_mode`/`region`/
 `attestation selector` carried in the opaque `policy` field (key 4) — the same relationship §26.3.1
-draws for the generalized adapter descriptor. A published tariff (below, §7.9, §7.13) is the
+draws for the generalised adapter descriptor. A published tariff (below, §7.9, §7.13) is the
 descriptor's OPTIONAL `tariff` field (a `Tariff`, §18.8a.1), and a usage receipt (§7.9) is a
 `UsageReceipt` (§18.8a.2).
 
@@ -441,7 +441,7 @@ compliance.
 
 A protocol rule "every gateway MUST accept all traffic" is:
 
-1. **Unenforceable** — no authority can compel a sovereign operator in a decentralized system;
+1. **Unenforceable** — no authority can compel a sovereign operator in a decentralised system;
    refusal or silent degradation cannot be prevented.
 2. **Economically self-defeating** — a gateway forced to accept all traffic inherits the abuse
    that destroys its IP reputation, degrading the service for everyone. This is precisely why
@@ -552,9 +552,9 @@ pricing model.
   or export (§12.3). Exactly the messages that carry (outbound) or receive (inbound) a §7.2a
   attestation are the ones a charge could reference; a pure-mesh message (§7.8.1(b)) is by
   construction **not** a gateway operation.
-- **How a self-hoster is authorized by a third-party gateway.** Using someone else's gateway is a
+- **How a self-hoster is authorised by a third-party gateway.** Using someone else's gateway is a
   **relationship the gateway operator's policy governs** (`GatewayAuthz`, §12.2), not a protocol
-  entitlement: the operator authorizes the self-hoster's identity (per-identity accountable token,
+  entitlement: the operator authorises the self-hoster's identity (per-identity accountable token,
   §9), the self-hoster **delegates a DKIM selector** to that gateway for outbound (§7.3, §3.8) and
   points **inbound MX** at it for legacy receipt (§7.2). Because DKIM delegation is a DNS change
   with **zero lock-in** (§7.7), a self-hoster can switch or drop the gateway at any time and fall
@@ -633,7 +633,7 @@ native address from an ambiguous local-part). A gateway MAY instead use a strict
 packing of `det_cbor([localpart, nativedomain])`; the escaping form above is the normative default so
 two gateways interoperate on encoded aliases.
 
-**IDN / EAI (normative).** `nativedomain` MUST be normalized to its **A-label** form (RFC 5890)
+**IDN / EAI (normative).** `nativedomain` MUST be normalised to its **A-label** form (RFC 5890)
 before encoding, so an encoded local-part is always ASCII. A `localpart` containing non-ASCII
 octets (an EAI local-part, §7.2b) cannot be carried by the encoded form: it MUST be carried
 under the **random** alias form or rejected with `ERR_GATEWAY_ALIAS_ENCODING_INVALID`
@@ -659,7 +659,7 @@ RFC 5322 message to a **signed MOTE**, stamps a gateway-touched `GatewayAttestat
 ### 7.10.3a Bounces and delivery status notifications (normative)
 
 A DSN/NDR (RFC 3464; SMTP envelope `MAIL FROM:<>`) inbound to a gateway alias MUST be
-recognized as such and exempted from the SPF/DMARC hard-fail and cold-sender gates of §7.11.1
+recognised as such and exempted from the SPF/DMARC hard-fail and cold-sender gates of §7.11.1
 PROVIDED the gateway can correlate it — via `Original-Recipient` and/or the referenced
 `Message-ID` — to an outbound message this gateway relayed for that identity within the node's
 retry window (§7.4). A null-return-path message the gateway cannot correlate is still gated like
@@ -869,18 +869,18 @@ laundering legacy spam into the accountable mesh.
 
 Before it relays a mesh MOTE to a legacy address (§7.3), a gateway MUST:
 
-1. Relay **only for authenticated senders** — one it has an established authorization relationship
+1. Relay **only for authenticated senders** — one it has an established authorisation relationship
    with (`GatewayAuthz`, §12.2; **open** or **key-registered**, §7.12) **or** one presenting valid
    postage (§9.5) redeemable by this gateway. An outbound attempt from a sender the gateway has
    **neither authenticated nor been paid by** MUST be refused, fail-closed, with
    `ERR_GATEWAY_SENDER_UNAUTHENTICATED` (`0x0607`, §21.8). A valid mesh `sender_sig` proves *who
    signed*, **not** *who may relay* — anyone can sign a MOTE — so signature-validity is necessary but
-   **not sufficient** to authorize egress. This is the open-relay-prevention floor whose absence
+   **not sufficient** to authorise egress. This is the open-relay-prevention floor whose absence
    killed SMTP's open relays (§7.7).
 2. **Verify the submitter may claim the address it is about to sign and send as.** Authenticating
-   *who is sending* (step 1) and authorizing *which address they may send as* are different
+   *who is sending* (step 1) and authorising *which address they may send as* are different
    facts, and the gateway MUST check both before it DKIM-signs and relays. The authenticated
-   submitter MUST be authorized for the RFC 5322 `From:` address (and the SMTP envelope
+   submitter MUST be authorised for the RFC 5322 `From:` address (and the SMTP envelope
    `MAIL FROM`) the outbound message carries, established by **one** of:
    - resolving the `From:`/`MAIL FROM` domain per §3.3 to an `IK` **equal to the submitter's own
      `IK`** — the ordinary case, where the sender already holds the `name@domain` binding it is
@@ -892,8 +892,8 @@ Before it relays a mesh MOTE to a legacy address (§7.3), a gateway MUST:
 
    A submitter that clears step 1 (authenticated to *this gateway*) but clears neither bullet for
    *this address* MUST be refused, fail-closed, with `ERR_GATEWAY_SENDER_ADDRESS_UNAUTHORIZED`
-   (`0x060A`, §21.8). **A delegated DKIM selector (§7.3) authorizes the
-   *gateway* to sign for a domain; it never authorizes any *submitter* to claim any address within
+   (`0x060A`, §21.8). **A delegated DKIM selector (§7.3) authorises the
+   *gateway* to sign for a domain; it never authorises any *submitter* to claim any address within
    that domain.** These are different facts about different parties: a check that the gateway
    itself holds a delegation for the domain (§7.3, §19.7.2 precondition 2) tests only the first,
    never the second. Conflating them is what would let any identity registered at a gateway send
@@ -912,9 +912,9 @@ authenticated-sender + rate/volume outbound). The **specific values** — DMARC 
 choice, challenge thresholds, egress rates, volume caps, and any pricing — are **operator policy and
 out of scope** (§7.13). A gateway MUST implement the floor; it chooses the numbers.
 
-### 7.11.4 The gateway authorizes; it never classifies (normative)
+### 7.11.4 The gateway authorises; it never classifies (normative)
 
-The gates of §7.11 are all **authorization** questions — *is this sender who they claim to be, and
+The gates of §7.11 are all **authorisation** questions — *is this sender who they claim to be, and
 are they permitted to send this much?* — and every one of them is answered from **sender identity
 and rate**, never from message content:
 
@@ -928,14 +928,14 @@ and rate**, never from message content:
   corpus** (§9.11, §0.7). "Wanted" is a property of a relationship, not of a string, and only the
   recipient holds both sides of the relationship.
 - **A gateway MUST NOT be required to decrypt for anti-abuse purposes**, and MUST NOT present its
-  authorization checks as a spam filter to users.
+  authorisation checks as a spam filter to users.
 
 **Why this is a structural rule and not a preference.** A gateway that classifies content becomes
 **permanent by construction**. Classification improves with corpus size, so it centralizes; it is
 never "finished," so it never self-extinguishes the way an adapter does (§7.1c); and it makes every
 user's mail depend on a judgement only the operator can make, which is exactly the power the rest
 of this document is arranged to prevent anyone from holding. The measured evidence that this is how
-mail centralization actually happens — a second, independently-growing centralized tier made of
+mail centralisation actually happens — a second, independently-growing centralised tier made of
 anti-abuse vendors — is set out in §9.11, together with the observation that **native DMTAP mail
 needs no filter at all**: §9.1's authenticated-by-default model means there is no anonymous
 injection to filter.
@@ -947,7 +947,7 @@ and what remains after that is the recipient's to judge.
 ## 7.12 Optional key-authenticated gateway registration (capability-negotiated)
 
 §7.11.2 requires a gateway to relay outbound only for **authenticated** senders, and §7.7 requires
-that access never become lock-in. A gateway MAY be **open** (it authorizes senders by some
+that access never become lock-in. A gateway MAY be **open** (it authorises senders by some
 operator-chosen means — postage alone, or an out-of-band account) or **key-registered** (a sender
 authenticates with their **DMTAP identity key**, interoperably, with no operator-specific account
 system). This section specifies the OPTIONAL key-registered handshake so a client can register with
@@ -980,14 +980,14 @@ mechanism is **negotiated, never mandated**; the handshake is OPTIONAL on both s
 
 Because it **is** the §13.3 ceremony, it inherits its properties verbatim: origin-binding and
 intent-matching (§13.3.1) so a relayed challenge cannot be replayed to register a victim; a **key-bound
-(not bearer)** authorization (§13.4); and revocation without rotating `IK` (§13.4). The gateway learns
+(not bearer)** authorisation (§13.4); and revocation without rotating `IK` (§13.4). The gateway learns
 **which key** registered — it must, for accountability (§9.6) — which is the same deliberate,
 per-relationship identity disclosure as any DMTAP-Auth login (§13.7 limit 7), disclosed and **not** a
 metadata-privacy regression for the mesh (native mesh delivery never touches a gateway, §7.7).
 
-### 7.12.3 What registration authorizes (and what it does not)
+### 7.12.3 What registration authorises (and what it does not)
 
-A successful registration authorizes the key for **outbound legacy egress** through this gateway
+A successful registration authorises the key for **outbound legacy egress** through this gateway
 (satisfying §7.11.2 step 1) and MAY anchor inbound MX/DKIM delegation (§7.2, §7.3, §7.10). It is a
 **per-gateway** relationship: it grants nothing on any other gateway, carries **zero lock-in** (drop or
 switch it with a DNS/DKIM change, §7.7), and confers **no** entitlement to unlimited or unpriced relay
@@ -1000,9 +1000,9 @@ DMTAP draws the same in-spec-contract / out-of-scope-policy line for the gateway
 naming providers: the **interoperable mechanism and the security floor are in-spec**; the
 **operational knobs are operator policy**. State it explicitly so neither side is over-claimed.
 
-**In scope (normative — every conformant gateway MUST honor these, or interop/security breaks):**
+**In scope (normative — every conformant gateway MUST honour these, or interop/security breaks):**
 
-- the **authorization *mechanism*** — the authenticated-sender requirement, the per-address claim
+- the **authorisation *mechanism*** — the authenticated-sender requirement, the per-address claim
   binding that keeps an authenticated sender from claiming an address it was never granted
   (§7.11.2 step 2), and the OPTIONAL key-auth handshake (§7.12);
 - the **address mapping** — native↔legacy aliasing and its two encodings (§7.10);
@@ -1055,7 +1055,7 @@ Everything else on a hosting bill — storage, relaying, buffering, "the node" �
 this specification therefore refuses to model as a service. A third party MAY run those roles for
 someone; it MUST NOT be the case that anyone *must* buy them (§12.3).
 
-**The seams.** Whatever an operator conditions rides the two surfaces of §12.2: an **authorization
+**The seams.** Whatever an operator conditions rides the two surfaces of §12.2: an **authorisation
 decision** (`GatewayAuthz`/`Policy`) and, if the operator wants one, an **optional usage meter**.
 Both are **out of scope for interop** (§7.13): two operators need not agree on anything to
 interoperate, and a user switches — or self-hosts — **without changing identity or keys**. Payment
@@ -1149,9 +1149,9 @@ adoption grows**. A node with only native (JMAP) clients needs no gateway at all
 support is **not required for node conformance**; it is a RECOMMENDED **gateway** capability for
 adoption (§10).
 
-## 7.16 Beyond SMTP: the legacy-adapter pattern generalizes (normative pointer)
+## 7.16 Beyond SMTP: the legacy-adapter pattern generalises (normative pointer)
 
-Everything above is mail-specific. **[`26-legacy-adapters.md`](26-legacy-adapters.md)** generalizes
+Everything above is mail-specific. **[`26-legacy-adapters.md`](26-legacy-adapters.md)** generalises
 the same pattern — a pluggable, optional, honestly-accounted bridge to a network DMTAP does not
 control — to the other rails a user's correspondents may be reachable only on (SMS, WhatsApp,
 Telegram, Discord, Slack), naming the SMTP/mail bridge specified above as the in-tree,

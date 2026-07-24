@@ -18,7 +18,7 @@ this section, and all of §3, is written to hold this invariant.
 This section defines keys, the key hierarchy, the recovery policy (and how recovery
 methods are themselves rotated), key rotation, and name/identity migration. All of these
 are **signed, versioned objects** published to the key-transparency log (§3), so every
-change is authenticated and every unauthorized change is *detectable*.
+change is authenticated and every unauthorised change is *detectable*.
 
 ## 1.1 Algorithm suites & crypto-agility
 
@@ -133,7 +133,7 @@ flowchart TD
   IK -->|"defines recovery"| RP
 ```
 
-- **Device keys** authorize a specific device (phone, laptop, the always-on box). Each is a
+- **Device keys** authorise a specific device (phone, laptop, the always-on box). Each is a
   signing subkey signed by `IK` (a `DeviceCert`), with a `label`, `created`, and optional
   `expires`. Devices form the owner's **personal cluster** and share the mailbox via the
   encrypted CRDT sync of §5.
@@ -186,13 +186,13 @@ platform supports them, all three are buildable from this text:
   provisioning, §3.10) MAY **require** an attested `key_protection` and reject a device whose
   attestation is absent or invalid (`ERR_DEVICE_ATTESTATION_INVALID`, `0x0116`). Attestation is an
   **advisory hardening hook**, never a substitute for the KT/quorum authority of §1.4 — a device
-  the owner did not authorize is rejected regardless of how well-attested its keystore is.
+  the owner did not authorise is rejected regardless of how well-attested its keystore is.
   **Trust dependency (disclosed).** Verifying key-attestation evidence trusts the platform
   **attestation root** — a **vendor certificate authority** (Google/Apple/a TPM manufacturer / a
   FIDO metadata service). This is a genuine **trusted-third-party dependency**, honestly the same
   class of TTP as a CA in the WebPKI: a context that requires attestation trusts that root to
   vouch that the keystore is genuine. DMTAP confines the dependency to the *advisory* attestation
-  gate — it never lets a vendor root override the owner's §1.4 authorization — but the dependency
+  gate — it never lets a vendor root override the owner's §1.4 authorisation — but the dependency
   exists and is disclosed, not hidden.
   **Attestation lifecycle (normative).** Attestation evidence is **not** verify-once-forever. A
   `DeviceCert.attestation` carries or references the platform evidence's validity window; a
@@ -203,7 +203,7 @@ platform supports them, all three are buildable from this text:
   context. **Attestation-root rotation** is handled like any trust-anchor change: the accepted set
   of platform roots is configuration a deployment MAY update additively; a `DeviceCert` whose
   evidence chains only to a **retired** root is treated as expired (re-attest under a current
-  root), never silently accepted. Re-attestation changes **no** authorization — the device's §1.4
+  root), never silently accepted. Re-attestation changes **no** authorisation — the device's §1.4
   authority is unaffected; only the advisory hardware-backing claim is refreshed.
 - **Per-device decryption isolation / compartmentalization (MUST — cross-cluster /
   post-removal session isolation; "per-device sealing" is a deprecated name for this rule —
@@ -222,7 +222,7 @@ platform supports them, all three are buildable from this text:
   (§5.2.1) are per-device-pair, so a seized device exposes only its own pairwise ratchets — and
   those are torn down and re-established on eviction (§5.2.1(f), §6.7).
 - **Compromise healing via revocation (MUST, PCS).** Removing/rotating a compromised device
-  **heals the cluster forward**: an MLS Remove + `IK`-authorized device-key rotation (§1.5)
+  **heals the cluster forward**: an MLS Remove + `IK`-authorised device-key rotation (§1.5)
   advances every group's epoch so the evicted key decrypts nothing further (post-compromise
   security), and revokes all that device's auth sessions at once (§13.4). The "lost/stolen
   device" flow is exactly this path — see §6.7 for the operational sequence.
@@ -255,7 +255,7 @@ so an identity can hold classical and PQ keys simultaneously during migration. R
 - A **sender MUST use the highest suite both parties support** (intersection of the sender's
   supported suites and the recipient's `Identity.suites`); if the intersection is empty, delivery
   fails closed (no silent downgrade).
-- **Recipient-side downgrade defense — the suite ratchet (normative).** The sender rule above is
+- **Recipient-side downgrade defence — the suite ratchet (normative).** The sender rule above is
   not self-enforcing: a recipient that still publishes a weaker suite would otherwise accept a
   MOTE encrypted/signed under it even after both parties can do better, so a future break of the
   weaker primitive (e.g. quantum against a classical suite) would defeat the migration. A
@@ -264,7 +264,7 @@ so an identity can hold classical and PQ keys simultaneously during migration. R
   A subsequent MOTE from that contact using a suite **below** the high-water-mark MUST be rejected
   (`ERR_SUITE_DOWNGRADE`, §21.4) — routed to the requests area with a security warning, never
   silently accepted. The high-water-mark only ratchets **up**; it lowers solely through an
-  explicit, `IK`-authorized rotation the owner performs (a genuine suite retirement, §1.5), never
+  explicit, `IK`-authorised rotation the owner performs (a genuine suite retirement, §1.5), never
   through an inbound message. An owner MAY additionally publish a signed **`classical_retired`**
   marker in `Identity` that makes rejection of the retired suite unconditional (not merely
   below-high-water-mark). This is the analogue of TLS's downgrade-sentinel: migration to a PQ
@@ -438,7 +438,7 @@ Rules:
    phrase-holder recovers but cannot rotate — safe under this rule's own rationale). A deployment
    wanting stricter cross-kind guarantees expresses them by choosing kinds deliberately, not by
    relying on this check.
-3. **Weakening changes need the quorum, not `IK` alone (compromise defense).** A policy change
+3. **Weakening changes need the quorum, not `IK` alone (compromise defence).** A policy change
    classified **weakening** by §1.4a Table D — it drops a method, lowers a threshold, evicts a
    guardian/device, **or re-admits a factor identity currently flagged evicted anywhere in the
    policy's hash chain** — MUST satisfy `rotate_threshold` **even when signed by `IK`**: `IK`
@@ -471,7 +471,7 @@ Rules:
 
    Because rule 3 already requires *every* weakening change to satisfy `rotate_threshold`, a
    rule-conforming weakening is inherently quorum-backed and thus veto-proof; the veto window is
-   therefore **defense-in-depth** — it exists to detect and block a *non-conforming* (lesser-bar)
+   therefore **defence-in-depth** — it exists to detect and block a *non-conforming* (lesser-bar)
    weakening that slipped through a buggy/malicious implementation, not to gate normal recovery.
    A weakening change MUST NOT take effect instantly; non-weakening changes are not delayed.
 5. **Real revocation.** Rotating a method out MUST re-key the underlying secret, not merely
@@ -493,7 +493,7 @@ Rules:
    - Prefer **SLIP-0039** for the mnemonic⊕Shamir encoding (purpose-built: two-level groups,
      checksums, passphrase) over hand-rolling BIP39 + Shamir.
    - **FROST (RFC 9591) threshold Ed25519 is REQUIRED for `SocialMethod` recovery.** Guardians
-     MUST *authorize* recovery — by collectively producing a threshold signature (e.g. over a
+     MUST *authorise* recovery — by collectively producing a threshold signature (e.g. over a
      `KeyRotation` to a fresh `IK`, §1.5) — **without ever reassembling the secret key in one
      place**, eliminating the single-point-of-compromise moment that Shamir reconstruction
      creates. A `SocialMethod` whose `recover_threshold` path can materialize a full, standalone,
@@ -714,7 +714,7 @@ flagged as a natural next step, not a substitute for this section's decidable de
 - **Proactive rotation** (owner has access): publish `version+1` signed by `IK`. Routine
   hygiene; do it whenever a factor is suspected compromised.
 - **Reactive recovery** (owner lost access): satisfy `recover_threshold` to reconstruct
-  `IK` (or a fresh `IK` authorized by the old under `rotate_threshold`), then immediately
+  `IK` (or a fresh `IK` authorised by the old under `rotate_threshold`), then immediately
   publish a new policy that invalidates the compromised factor.
 
 ### The bottom turtle
@@ -753,7 +753,7 @@ To rotate `IK` (compromise, or scheduled PQ migration):
 
 1. Generate `IK'`.
 2. Publish an `Identity` version whose `sig` is by the **old** `IK` and whose body
-   authorizes `IK'` (a cross-signed `KeyRotation` record: `old_ik` signs `new_ik` +
+   authorises `IK'` (a cross-signed `KeyRotation` record: `old_ik` signs `new_ik` +
    `reason` + `ts`).
 3. From then on `IK'` is authoritative; the transparency log's chain proves continuity.
 4. Re-issue device certs and KeyPackages under `IK'`. Correspondents update the pin by following
@@ -762,7 +762,7 @@ To rotate `IK` (compromise, or scheduled PQ migration):
 A verifier MUST accept `IK'` only via a valid chain from a previously-pinned `IK`, or via an
 explicit out-of-band re-verification.
 
-**Authorization of the new authoritative key (stolen-`IK` takeover defense, normative).** A
+**Authorization of the new authoritative key (stolen-`IK` takeover defence, normative).** A
 `KeyRotation` installs a **new authoritative key** — an act at least as powerful as a
 recovery-*weakening* change (§1.4 rule 3), and in fact stronger, since the new key can subsequently
 rewrite recovery outright. An `old_ik`-alone rotation therefore reopens exactly the takeover §1.4
@@ -853,7 +853,7 @@ layer.
 | `KeyRotation` | old IK → new IK | via Identity chain | yes |
 | `MoveRecord` | IK | yes | yes |
 | `DeniablePrekeyBundle` | device key (+ `spk_sig`) | via Identity (`deniable_prekeys`) | no (like `keypkgs`) |
-| `Profile` | IK or IK-authorized device key | yes (`prev`) | yes (KT-audited, §3.9.5) |
+| `Profile` | IK or IK-authorised device key | yes (`prev`) | yes (KT-audited, §3.9.5) |
 
 All identity-lifecycle operations share one machinery: **signed, versioned objects,
 threshold-gated changes, and the transparency log as the audit trail** (§3).

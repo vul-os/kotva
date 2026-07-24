@@ -4,7 +4,7 @@ This section is **informative**; where it restates requirements, the owning sect
 
 This section is a **sense-check**, not a pitch. For every feature a working email/calendar/
 contacts user expects, it states how DMTAP provides it (or doesn't), whether the mapping is
-sound in a decentralized/E2E system, and how the security properties compare to legacy. A
+sound in a decentralised/E2E system, and how the security properties compare to legacy. A
 "doesn't map / genuinely harder" verdict is treated as a valid, useful outcome — this document
 exists to surface exactly those, not to hide them.
 
@@ -33,8 +33,8 @@ survive translation, and that is correct, not a bug).
 - **How:** JMAP `Mailbox` semantics over the MOTE store (§8.1); mailbox assignment is part of
   the replicated per-account state kept in sync across the device cluster as an encrypted CRDT
   (§5.6: "the mailbox, read/flag state, labels, and file index are replicated across devices").
-- **Sense-check:** Folders are pure client/account-local organization over an already-decrypted
-  store; nothing about decentralization touches this.
+- **Sense-check:** Folders are pure client/account-local organisation over an already-decrypted
+  store; nothing about decentralisation touches this.
 - **Security:** Same as legacy, but the folder structure itself is encrypted at rest (§6.7) and
   never visible to any intermediary — legacy IMAP folder names/counts are visible to the
   provider by construction; here they are not.
@@ -71,7 +71,7 @@ survive translation, and that is correct, not a bug).
   **not** a pending `Headers.ext`/protocol registration.
 
 #### 4. Search (on-device, no server-side index) — **Different**
-- **How:** Explicitly a non-goal to centralize (§0.7: "no server-side search"); each node
+- **How:** Explicitly a non-goal to centralise (§0.7: "no server-side search"); each node
   indexes its own plaintext mailbox locally. A thin client (phone) either queries its home
   node live or searches its local cache (§14.1: thin clients hold "cache only").
 - **Sense-check:** Correct outcome for an E2E system — a searchable *shared* server-side index
@@ -124,7 +124,7 @@ survive translation, and that is correct, not a bug).
 
 #### 8. Rich text/HTML — **Clean**
 - **How:** `Headers.mime` + `Body` (tstr/bytes, §2.4) carries the content type and body exactly
-  as MIME does today; nothing about encryption or decentralization constrains body format.
+  as MIME does today; nothing about encryption or decentralisation constrains body format.
 - **Sense-check:** Non-issue; purely a client-rendering concern.
 - **Security:** Same as legacy for content (the usual HTML-mail render-time risks — remote
   image beacons, tracking pixels — are a **client** hygiene concern, unchanged by DMTAP). One
@@ -184,17 +184,17 @@ survive translation, and that is correct, not a bug).
 - **Security:** Same residual risk as legacy for the pure *node-compromise* case (an attacker
   with node/admin access can add a rule — a node-compromise consequence, not a protocol flaw),
   but DMTAP closes the *silent-injection* half that makes the legacy attack covert. Because a
-  forwarding rule is device-cluster state (§5.6) authored by an `IK`-authorized device key, its
+  forwarding rule is device-cluster state (§5.6) authored by an `IK`-authorised device key, its
   creation or modification is a normative owner-visible, logged event: **§8.5 and §13.5 require
   every auto-forward / redirection-rule change to be routed through the device-cluster
   notification + KT self-monitoring path (§3.5)** — exactly like an identity, recovery-policy,
   or capability-delegation change — and **silent, unlogged installation is prohibited** (§13.5).
   The covert-exfiltration variant that plagues legacy Gmail/Exchange is therefore alertable here.
 - **Open issue:** **Resolved.** Auto-forward rule-change auditing is now normative: §8.5 (the
-  all-data-classes decentralization invariant) and §13.5 (owner-visible grants / BEC defense)
+  all-data-classes decentralisation invariant) and §13.5 (owner-visible grants / BEC defence)
   make every auto-forward/redirection-rule change replicate to the owner's device cluster (§5.6)
   and log to KT self-monitoring (§3.5), with silent, unlogged installation prohibited. No new
-  wire object is needed — a forwarding rule is node-local CRDT state signed by an `IK`-authorized
+  wire object is needed — a forwarding rule is node-local CRDT state signed by an `IK`-authorised
   device key. (The only residual §17.6 item near this is the *cosmetic* delegate-attribution
   `Headers.ext` marker of items 23/43, a deliberately-deferred future registration, §21.20 —
   a separate concern from this auditing guarantee, tracked as §19.10 gap 5 / §17.6 #4.)
@@ -217,8 +217,8 @@ survive translation, and that is correct, not a bug).
 #### 14. Read receipts — **Clean**
 - **How:** `kind=0x07 receipt`, explicitly **opt-in**, ephemeral, off by default (§2.3, §5.4,
   §6.2).
-- **Sense-check:** Correctly modeled as metadata-sensitive rather than a free default — read
-  receipts leak exactly the kind of fine-grained timing/behavior signal the rest of the spec
+- **Sense-check:** Correctly modelled as metadata-sensitive rather than a free default — read
+  receipts leak exactly the kind of fine-grained timing/behaviour signal the rest of the spec
   works hard to hide (the intersection / statistical-disclosure concern of §6.4 (residual
   exposure 3) and §11.3 applies at the small scale of "did they read it and when" too), so
   opt-in-only is the right call, not an oversight.
@@ -286,7 +286,7 @@ survive translation, and that is correct, not a bug).
   requests-area defer, §2.7a) rather than a binary accept/reject.
 - **Sense-check:** This is the correct re-architecture for a sealed-sender, no-central-scanner
   system: since no third party ever sees plaintext to run ML classification against, the
-  defense has to move to a place that doesn't need content — cryptographic cost-to-reach
+  defence has to move to a place that doesn't need content — cryptographic cost-to-reach
   (challenge/PoW/postage/vouch, §9.3–9.7) substitutes for content filtering at the point where
   content filtering is architecturally unavailable.
 - **Security:** Mixed, disclosed honestly. **Better:** spam that never gets a valid challenge
@@ -329,7 +329,7 @@ survive translation, and that is correct, not a bug).
 - **How:** Two real mechanisms, neither identical to legacy "delegate access": (a)
   `DeviceCert.caps` (§1.2) includes a `send` capability — an assistant's device can be issued a
   narrowly-scoped device certificate signed by `IK`, letting it send *as the identity* without
-  holding the root key; (b) capability delegation (§13.5, UCAN-style) generalizes further —
+  holding the root key; (b) capability delegation (§13.5, UCAN-style) generalises further —
   "let this app/person act on my behalf" for a specific, time-bound, attenuable right, which
   extends naturally from login-delegation to mail-send-delegation.
 - **Sense-check:** Sound mechanically, but note a real semantic gap from legacy Exchange-style
@@ -352,7 +352,7 @@ survive translation, and that is correct, not a bug).
   identity with its own address; every member of the MLS group receives posts to the shared
   address.
 - **Sense-check:** Direct hit — "a group with an address" (§5.8) is exactly the shared-mailbox
-  primitive, generalized.
+  primitive, generalised.
 - **Security:** Better — membership, roles (owner/admin/member/poster/reader, §5.8.2), and
   every add/remove/role change are signed and appear in an auditable hash-chained log
   (§5.8.2), unlike a legacy shared mailbox whose access-grant history is usually just an
@@ -385,7 +385,7 @@ survive translation, and that is correct, not a bug).
 - **How:** No dedicated field in v0. Could be carried in `Headers.ext` (§2.4's extension-header
   mechanism, formalized in §10) exactly like any other MIME-era header that isn't
   security-relevant.
-- **Sense-check:** Not a decentralization-relevant feature at all — it's cosmetic metadata that
+- **Sense-check:** Not a decentralisation-relevant feature at all — it's cosmetic metadata that
   legacy clients themselves rarely enforce meaningfully (X-Priority is famously ignored/abused
   by spammers to fake urgency).
 - **Security:** No change either way; note that letting a *sender* self-declare "urgent" is
@@ -408,7 +408,7 @@ survive translation, and that is correct, not a bug).
 - **Security:** Arguably *more* honest than legacy, which is worse in one specific way: because
   DMTAP is E2E, there is no provider-side copy a "recall" could plausibly reach into even in
   principle (legacy recall's occasional partial success stems from the message often still
-  sitting in a shared Exchange store the sender's organization controls) — so DMTAP recall is
+  sitting in a shared Exchange store the sender's organisation controls) — so DMTAP recall is
   unambiguously cooperative-only, with no false hope of provider-side deletion.
 - **Open issue:** None — this is a disclosed, irreducible limit (§6.6 item 8), not a gap to close.
 
@@ -446,10 +446,10 @@ survive translation, and that is correct, not a bug).
 - **How:** Two distinct things get conflated under one legacy name, and DMTAP correctly
   separates them: (a) a *reachable* group with its own address and MLS roster is the
   groups-as-address primitive (§5.8) — full distribution-list semantics; (b) a plain
-  *organizational* tag ("Family", "Work") with no address of its own is just local metadata on
+  *organisational* tag ("Family", "Work") with no address of its own is just local metadata on
   contact MOTEs, needing no group entity at all.
 - **Sense-check:** This separation is actually clearer than legacy, which uses "contact group"
-  for both an address-able mailing list and a purely-local organizational label under one
+  for both an address-able mailing list and a purely-local organisational label under one
   confusing UI concept.
 - **Security:** Local-tag groups: no change, purely local. Addressable groups: same
   improvements as distribution lists (item 25) — hidden membership option, auditable
@@ -457,7 +457,7 @@ survive translation, and that is correct, not a bug).
 - **Open issue:** None; flagged only so implementers don't collapse the two into one object.
 
 #### 32. Shared address books — **Different** (extrapolated, not verbatim spec'd)
-- **How:** The spec explicitly generalizes the "MLS group over a set of manifests" pattern to
+- **How:** The spec explicitly generalises the "MLS group over a set of manifests" pattern to
   shared file folders (§5.1, §5.7); a shared contacts collection is the same pattern applied to
   contact MOTEs instead of file manifests — consistent with §8.4's framing that contacts share
   "the same MLS groups (§5) as everything else."
@@ -549,7 +549,7 @@ survive translation, and that is correct, not a bug).
   the **gateway** CalDAV/iCalendar projection (§7.15, §8.4) exposes the legacy RRULE form
   unchanged for compatible clients.
 - **Sense-check:** Direct hit; recurrence expansion/exceptions are an ordinary client
-  responsibility, unaffected by decentralization.
+  responsibility, unaffected by decentralisation.
 - **Security:** No change; note RFC 8984 was itself designed specifically to fix long-standing
   `VTIMEZONE`/RRULE ambiguity bugs in iCalendar — an incidental improvement DMTAP inherits by
   choosing JSCalendar as the native form rather than legacy iCalendar.
@@ -660,7 +660,7 @@ survive translation, and that is correct, not a bug).
 - **Open issue:** **Minor gap.** No reference automation-policy language for such "bot
   identities" (auto-accept rules, conflict resolution) is specified anywhere in the document —
   purely an implementation/client concern, but worth flagging as unwritten territory for a
-  future client-behavior appendix.
+  future client-behaviour appendix.
 
 ---
 
@@ -700,9 +700,9 @@ survive translation, and that is correct, not a bug).
 #### 50. Push/notifications — **Clean, and a genuine privacy improvement**
 - **How:** Wake-and-fetch (§14.3): push carries no content, only a wake signal (≤4 KiB,
   content-free, §16.6), through APNs/FCM via a notification proxy; the device wakes, opens its
-  own authenticated connection, and drains/decrypts locally. "Push is a latency optimization,
+  own authenticated connection, and drains/decrypts locally. "Push is a latency optimisation,
   not delivery" — §14.3 requires the client to still reconcile on foreground.
-- **Sense-check:** Correctly modeled as the *only* architecture that works for a no-always-on-
+- **Sense-check:** Correctly modelled as the *only* architecture that works for a no-always-on-
   box user (§14.3), matching deployed precedent (Delta Chat/Chatmail, Signal, Matrix/Sygnal).
 - **Security:** A real, stated improvement: Apple/Google's push infrastructure never sees
   plaintext or even a content preview — unlike many legacy mail providers whose push payloads
@@ -739,7 +739,7 @@ survive translation, and that is correct, not a bug).
   and (ii) whatever the node operator does at the infra layer — self-hosters own this
   entirely; where someone else runs the box (§12.1) they presumably back up its storage, but
   this is an operator/infra choice, not a protocol guarantee.
-- **Sense-check:** The identity half is exactly the right thing for a decentralized protocol
+- **Sense-check:** The identity half is exactly the right thing for a decentralised protocol
   to specify rigorously (§1.4 does). The *content*-backup half is legitimately a node/infra
   concern more than a protocol concern in a self-sovereign model (there is no central server
   whose backup policy the protocol could mandate) — but that also means there is currently no
@@ -831,7 +831,7 @@ Ranked by how load-bearing the gap is:
 1. **Full-fidelity backup/restore export** (item 52) — no client-level "export everything,
    encrypted, portable" primitive is specified. Identity recovery (§1.4) is solved; mailbox/
    calendar/contacts disaster-recovery for self-hosters is not. Recommend a §8 addition.
-2. **Auto-complete/organizational directory** (item 33) — **resolved.** §3.10.3 specifies a
+2. **Auto-complete/organisational directory** (item 33) — **resolved.** §3.10.3 specifies a
    first-class **`DomainDirectory`** (GAL) object (§18.4.7) — admin-curated, domain-authority-signed,
    KT-logged, and forward-verified per entry (§3.9.4) — and §3.10 gives the org-admin provisioning
    and onboarding flow. The only residual difference from a legacy GAL is that it is opt-in
@@ -848,11 +848,11 @@ Ranked by how load-bearing the gap is:
    name the delegated capability from there; this is the same open item tracked as §19.10 gap 5.
 5. **Auto-forward rule-change auditing** (item 12) — **resolved.** Silent forwarding-rule
    injection is a live real-world account-takeover technique; **§8.5** (all-data-classes
-   decentralization invariant) and **§13.5** (owner-visible grants / BEC defense) now make every
+   decentralisation invariant) and **§13.5** (owner-visible grants / BEC defence) now make every
    auto-forward/redirection-rule change a normative MUST-log, owner-visible event — replicated to
    the owner's device cluster (§5.6) and surfaced through the KT self-monitoring path (§3.5), with
    silent, unlogged installation prohibited. This needs no new cryptography or wire object: a
-   forwarding rule is node-local CRDT state signed by an `IK`-authorized device key. (The
+   forwarding rule is node-local CRDT state signed by an `IK`-authorised device key. (The
    *cosmetic* delegate-attribution `Headers.ext` marker once bundled with this item is a separate,
    deliberately-deferred future registration — see item 4 and §21.20.)
 6. **Explicit naming of "shared address book" / "shared calendar" as named constructs** (items
@@ -885,9 +885,9 @@ cases a net security improvement, not a parity failure. A smaller number are **g
 resolvable gaps** (§17.6) — none load-bearing enough to block adoption, all closeable with
 documentation, an extension header, or an onboarding pattern rather than new protocol design.
 
-And a few features are not just preserved but **substantively upgraded** by the decentralized
+And a few features are not just preserved but **substantively upgraded** by the decentralised
 model: verified contact identity (item 36) eliminates a whole class of impersonation/spoofing
-attacks legacy contacts have no defense against; account migration (item 51) gives continuity
+attacks legacy contacts have no defence against; account migration (item 51) gives continuity
 of address and relationships that legacy providers cannot; content-free push (item 50) closes
 a real historical leak surface; auto-responders (item 13) structurally cannot backscatter; and
 aliases (item 10) cannot be used to impersonate, unlike legacy plus-addressing.

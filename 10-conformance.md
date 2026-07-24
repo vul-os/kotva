@@ -66,11 +66,11 @@
   log-type, forcing a downgrade). Every capability announcement MUST therefore carry a
   **monotonic `caps_version` (`u64`)**, and a receiver MUST **reject any announcement whose
   `caps_version` is older-than-or-equal-to** the last one it has accepted from that peer
-  (`ERR_CAPABILITY_ANNOUNCE_ROLLBACK`, `0x030A`, §21.5) — the identical rollback-defense rule
+  (`ERR_CAPABILITY_ANNOUNCE_ROLLBACK`, `0x030A`, §21.5) — the identical rollback-defence rule
   the spec applies to `Identity.version` (§1.3), `LocationRecord.seq` (§4.2, §16.2), and
   `GroupState.version` (§5.8.2). A receiver retains the highest `caps_version` seen per peer;
   capabilities are only ever added or upgraded across increasing versions, never silently rolled
-  back by a stale replay. Absence of a recognized capability token in the *current* (highest)
+  back by a stale replay. Absence of a recognised capability token in the *current* (highest)
   announcement is still inconclusive, not a negative assertion (§21.22).
 - **Structural extension of signed objects rides capability negotiation.** Because a decoder of
   a **signed** object fails closed on any unknown integer key (§18.1.2, so the signing preimage
@@ -111,10 +111,10 @@ harness) can interoperate on the message spine — and so, equally, can a full-f
 has simply chosen not to offer the opt-in mixnet.
 
 The **conformance test suite** is the *operational definition* of compatibility. "DMTAP-compatible"
-means "passes the suite," not "resembles the reference." This is the primary defense against
+means "passes the suite," not "resembles the reference." This is the primary defence against
 fragmentation. The suite lives in `conformance/` as three coupled artifacts:
 
-- **`conformance/SUITE.md`** — the normative test-case catalog: 358 numbered cases
+- **`conformance/SUITE.md`** — the normative test-case catalogue: 358 numbered cases
   (`DMTAP-<category>-<NN>`) grouped by the levels above, each pinning its spec clause, input,
   expected result (accept / reject + the §21 error code), and MUST/SHOULD.
 - **`conformance/suite.json`** — the machine-readable mirror of those cases, so a runner in **any
@@ -270,12 +270,12 @@ collects **every** downgrade and fail-closed invariant into one table so the pro
 *silently* accepts a weaker security posture" is checkable as a **set**, not rule-by-rule.
 
 **Reading the table.** Each row is an invariant, the clause that defines it (authoritative — this
-table indexes, it does not restate), the trigger that fires it, and the required behavior/error on
+table indexes, it does not restate), the trigger that fires it, and the required behaviour/error on
 violation. Codes are the §21 registry values. Where a row has no code, the failure is a
-signature/decoder rejection with no dedicated status. Every "behavior" is a **MUST** unless the
+signature/decoder rejection with no dedicated status. Every "behaviour" is a **MUST** unless the
 owning clause says otherwise.
 
-### 10.7.0 Failure classes — "fail closed" names three different behaviors (normative)
+### 10.7.0 Failure classes — "fail closed" names three different behaviours (normative)
 
 "Fail closed" has been used above as though it were one rule. It is three, and conflating them
 produces a protocol that is secure and unusable. Every invariant in this section MUST be
@@ -306,11 +306,11 @@ available.
 
 ### 10.7.1 Version, suite & capability downgrades
 
-| Invariant | Clause | Trigger | Behavior / error on violation |
+| Invariant | Clause | Trigger | Behaviour / error on violation |
 |-----------|--------|---------|-------------------------------|
 | Unknown `v`/`suite` → reject | §10.1, §2.7 step 1, §1.1 | any object decoded under an unknown format version or algorithm suite | fail closed — reject, **never guess**; a signed object's DS-tag/`suite` mismatch simply fails verification |
 | Highest-mutual-suite send | §1.3 | empty suite intersection with recipient | delivery fails closed — no silent weak-suite fallback |
-| **Suite high-water-mark ratchet** | §1.3, §2.7 step 8 | inbound `Envelope.suite` **below** the pinned contact's high-water-mark | reject to requests + security warning, `0x020F`; the mark ratchets **up** only, lowered solely by an `IK`-authorized retirement (§1.5) |
+| **Suite high-water-mark ratchet** | §1.3, §2.7 step 8 | inbound `Envelope.suite` **below** the pinned contact's high-water-mark | reject to requests + security warning, `0x020F`; the mark ratchets **up** only, lowered solely by an `IK`-authorised retirement (§1.5) |
 | **Hybrid suite: no intra-suite strip** | §1.3, §16.7 | a hybrid-suite object (`0x02`) whose PQ signature component is missing/fails while only the classical component validates, presented to a verifier that **supports** the hybrid suite | reject as incomplete/downgraded hybrid, `0x0210`; a hybrid verifier MUST require **every** component signature (AND-composition) and MUST use the X-Wing KEM combiner — single-component acceptance is for a genuinely legacy verifier only, at that component's lower assurance |
 | **Hybrid components are non-separable** | §1.3, §18.1.6 | a hybrid `sig-val` whose components were signed over the single-algorithm preimage rather than the suite-bound composite representative `M'`, or a component lifted out of a `0x02` object and presented as an `0x01` signature | verification fails: the two forms of the representative are distinct preimages, so a stripped or promoted component simply does not verify. An implementation that signs `M' = DS-tag ‖ 0x00 ‖ body` under a hybrid suite is non-conformant (§18.1.6) |
 | **Hash prefix does not select — the suite does** | §18.1.5, §18.1.4 | a `hash` whose §18.1.5 multihash prefix disagrees with the content-hash the object's `suite` selects | reject, `0x0127` — MUST NOT verify under the algorithm the prefix names and MUST NOT try both. The prefix is self-description for suite-less objects and a redundancy check elsewhere; leaving it as an independent selector puts a downgrade channel **inside** the agility mechanism |
@@ -326,7 +326,7 @@ Every invariant below governs the **opt-in, research-tier** `private`/mixnet lay
 `private` (the default tier is `fast`, §4.6) has nothing here to satisfy. For an implementation
 that *does* offer `private`, these remain the correct invariants once offered:
 
-| Invariant | Clause | Trigger | Behavior / error on violation |
+| Invariant | Clause | Trigger | Behaviour / error on violation |
 |-----------|--------|---------|-------------------------------|
 | **No `private → fast` / in-force-profile floor** | [docs/research/mixnet.md §4.4.9](docs/research/mixnet.md) | no path meeting the **in-force profile's** bar (Bootstrap ≥ 3 hops/best-effort ≥ 2 ASNs; Standard ≥ 3 hops/≥ 3 operators; High-security ≥ 5/≥ 5) is buildable | hold in the retry queue; **never** silently route over `fast`, fewer hops, fewer operators, or a lower profile's bar; `0x0310`; surface to user past the retry deadline |
 | **Bootstrap profile ratchets up only** | [docs/research/mixnet.md §4.4.10a](docs/research/mixnet.md) | a contact whose relationship has already run at Standard (or above) is offered a **Bootstrap**-tier path | fail closed, `0x0310` — the profile ratchets **per contact** like the §1.3 suite high-water-mark; auto-upgrade is mandatory and fallback is forbidden, else DoSing mixes forces the whole network onto the degraded profile (the [docs/research/mixnet.md §4.4.9](docs/research/mixnet.md) attack under a friendlier name) |
@@ -335,31 +335,31 @@ that *does* offer `private`, these remain the correct invariants once offered:
 | Per-epoch mix replay drop | [docs/research/mixnet.md §4.4.6](docs/research/mixnet.md) | a Sphinx per-hop tag already in the epoch replay cache | `DROP_SILENT`, `0x030E` (cache spans every still-usable key, no hard epoch-boundary flush) |
 | Mix operator-diversity **MUST be attested** | [docs/research/mixnet.md §4.4.8](docs/research/mixnet.md) | a mix whose `operator` is absent/un-attested is counted as fresh diversity | it MUST NOT count as its own operator — excluded or counted shared; keeps the ≈ *a*² compromised-path bound (else one Sybil operator collapses it to ≈ *a*) |
 | Mix fleet view is **derived**, cache verified + rollback | [docs/research/mixnet.md §4.4.2](docs/research/mixnet.md) | a **cached** `MixDirectory` containing a descriptor the client cannot independently verify against its KT log quorum, or an older-or-equal `version` | reject, `0x030B` — a cache is a convenience, never an authority; a log split-view over the mix set is a KT equivocation, `0x0107` |
-| **Mix fleet-view freshness (freeze defense)** | [docs/research/mixnet.md §4.4.2](docs/research/mixnet.md) | a derived view or cache older than the freshness window (§16.3, ≤ one mix-key epoch) — an adversary freezing the client on a stale, adversary-favourable fleet view | **FAIL-QUEUED** (§10.7.0): treat as stale; MUST refresh before building any `private` path; if none is obtainable the sender **queues and retries**, `0x0311` — it MUST NOT downgrade the tier and MUST NOT refuse to enqueue. A directory outage delays mail; it must never stop it. Withheld fresh descriptors are KT-detectable (no new current-epoch entry within the window), and with the authority removed no single party's silence achieves this network-wide |
+| **Mix fleet-view freshness (freeze defence)** | [docs/research/mixnet.md §4.4.2](docs/research/mixnet.md) | a derived view or cache older than the freshness window (§16.3, ≤ one mix-key epoch) — an adversary freezing the client on a stale, adversary-favourable fleet view | **FAIL-QUEUED** (§10.7.0): treat as stale; MUST refresh before building any `private` path; if none is obtainable the sender **queues and retries**, `0x0311` — it MUST NOT downgrade the tier and MUST NOT refuse to enqueue. A directory outage delays mail; it must never stop it. Withheld fresh descriptors are KT-detectable (no new current-epoch entry within the window), and with the authority removed no single party's silence achieves this network-wide |
 | Cover traffic is not optional | [docs/research/mixnet.md §4.4.5](docs/research/mixnet.md), §6.2 | (posture) a `private`-tier node omitting loop/drop/recipient cover | non-conformant for a `private`-offering implementation — cover is load-bearing, MUST be emitted |
 
 ### 10.7.3 Trust-binding (KT / identity / group) fail-closed
 
-| Invariant | Clause | Trigger | Behavior / error on violation |
+| Invariant | Clause | Trigger | Behaviour / error on violation |
 |-----------|--------|---------|-------------------------------|
 | KT fail-closed on unreachable | §3.3, §3.5.1 | KT log unreachable/partitioned/censored at first-contact pinning | MUST NOT silently TOFU-pin — block or hard-warn + explicit acceptance, `0x0106` |
 | KT equivocation → HALT | §3.5.2(d) | split view / append-only violation / stale-frozen head / sub-quorum | `HALT_ALERT`, publish evidence, evict the log, fail closed below quorum — `0x0107` / `0x0110` / `0x0111` / `0x0112` |
 | Committer / co-committer fork → HALT | §5.1, §5.1.1 | two Commits at one log position with the same predecessor | `HALT_ALERT`; out-of-band fork recovery on the `> n/2` (or 2-party) quorum, `0x0404` |
 | `from`-pin mismatch | §2.7 step 8, §3.4 | decrypted `Payload.from` ≠ the pinned identity for a known contact | `HALT_ALERT`, **never silently re-pin**, `0x0209` |
 | Keyset-change re-verification | §3.4.1 | a verified pin's `iks`/`Identity` content-address changes | downgrade the pin to **unverified**, prompt OOB re-verify — never carry verified status across the change |
-| Device attestation freshness (gated only) | §1.2a | attestation absent/invalid/expired/retired-root in an **attestation-gated** context | `FAIL_CLOSED_BLOCK` for that context, `0x0116` / `0x0118`; advisory — **never** overrides §1.4 authorization |
+| Device attestation freshness (gated only) | §1.2a | attestation absent/invalid/expired/retired-root in an **attestation-gated** context | `FAIL_CLOSED_BLOCK` for that context, `0x0116` / `0x0118`; advisory — **never** overrides §1.4 authorisation |
 | **Org-managed-undisclosed** fail-closed | §3.10.2, §18.4.7 | an escrowed-key account presented **without** its `custody = "org-managed"` marker | `HALT_ALERT`; MUST NOT present as a sovereign identity, `0x0115` |
 | **Recovery-weakening quorum + veto** | §1.4 rules 3–4 | a `RecoveryPolicy` change that drops/weakens a factor | requires `rotate_threshold` **even when signed by `IK`**; takes effect only after the **72 h** asymmetric veto window (§16); a non-conforming weakening is vetoable |
-| **Auth: bare-node-signed login FORBIDDEN** | §13.3.1 | a login assertion presented as node-signed / from an unattributable channel | reject outright, `0x0507`; a node MUST NOT sign a login on a user's behalf (consent-farming defense) |
+| **Auth: bare-node-signed login FORBIDDEN** | §13.3.1 | a login assertion presented as node-signed / from an unattributable channel | reject outright, `0x0507`; a node MUST NOT sign a login on a user's behalf (consent-farming defence) |
 | **Auth: login scope is signed** | §13.3, §18.7.2, §18.9.8 | RP would grant a scope broader than the assertion's signed `scope` | fail closed — the broader-scope preimage fails signature verification; RP MUST NOT grant beyond the signed scope (`0x0508` if surfaced as over-attenuated) |
-| **Auth: delegation re-chains through recovery** | §13.4, §1.4 | a live RP session whose authorizing delegation predates an `Identity.version` bump (IK rotation / recovery) | terminate at next re-validation; the revocation-list-epoch option MUST be keyed to `Identity.version`, else the recovery-invalidation guarantee silently fails to reach that RP |
-| **Auth: unreachable status/KT ⇒ bounded grace, then fail closed** | §13.4 | RP's status/KT head unreachable at re-validation | honor the last-validated delegation only to a **2× grace window** (§16), then fail closed — never honor indefinitely (bounds post-revocation persistence) |
+| **Auth: delegation re-chains through recovery** | §13.4, §1.4 | a live RP session whose authorising delegation predates an `Identity.version` bump (IK rotation / recovery) | terminate at next re-validation; the revocation-list-epoch option MUST be keyed to `Identity.version`, else the recovery-invalidation guarantee silently fails to reach that RP |
+| **Auth: unreachable status/KT ⇒ bounded grace, then fail closed** | §13.4 | RP's status/KT head unreachable at re-validation | honour the last-validated delegation only to a **2× grace window** (§16), then fail closed — never honour indefinitely (bounds post-revocation persistence) |
 | **Auth: high-value RP multi-log / OOB** | §13.7 item 6 | high-value login against v0 single-KT-log | MUST require multi-log consistency or an OOB-verified pin — a single log can equivocate, `0x0111`/`0x0107` |
 | **Auth bridge: per-RP audience** | §13.6 | bridge embeds a login assertion audienced to the bridge, reused across its RPs | the bridge MUST run a per-RP §13.3 ceremony (`aud` = target RP, fresh per-RP `cnf`); an RP verifying the key directly MUST check `assertion.aud == own identifier`, `0x0501` on mismatch |
 
 ### 10.7.4 Delivery, gateway & anti-abuse fail-closed
 
-| Invariant | Clause | Trigger | Behavior / error on violation |
+| Invariant | Clause | Trigger | Behaviour / error on violation |
 |-----------|--------|---------|-------------------------------|
 | **Deferred cold MOTE = no-ack** | §2.7a, §19.3.1 step 9 | cold sender with absent/below-threshold challenge | hold in the rate-limited **requests** area, never the inbox, never silent-drop, and **not acked** (an ack would confirm existence + falsely signal delivered) |
 | Invalid/forged proof or bad `sender_sig`/`id` | §2.7, §2.7a | forged challenge, failed ephemeral signature, or `id` mismatch | discard **silently**, do not ack (except a duplicate `id`, which is acked) |
@@ -385,7 +385,7 @@ the substrate (not a profile of an existing numbered section); its fail-closed r
 apply only to a replica that advertises `sync-1` (§21.22, §21.24c) — the identical scoping as `pub-1`'s
 optional-capability posture (§10.3).
 
-| Invariant | Clause | Trigger | Behavior / error on violation |
+| Invariant | Clause | Trigger | Behaviour / error on violation |
 |-----------|--------|---------|-------------------------------|
 | Author admission + op signature mandatory | `SYNC.md` §4.1, §8, §9 | op author not admitted by the namespace policy, or its `COSE_Sign1` fails / `DeviceCert` chain broken | FAIL_CLOSED_BLOCK, `0x0A01` / `0x0A02` |
 | Op value / causal-integrity validity | `SYNC.md` §4.1, §4.3, §8 | non-`ext-value` value, a `set-remove` citing a future add-tag, an embedded deniable payload, or any malformed op | FAIL_CLOSED_BLOCK, `0x0A03` — never merge on a guess |

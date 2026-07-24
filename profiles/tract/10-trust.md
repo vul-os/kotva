@@ -91,7 +91,7 @@ shape is frozen at §16.5.5 and an implementation MUST encode exactly that shape
   records that the address itself is not nothing).
 - **Timestamp** (`PurchaseAttestation[4]`). `ts`, display and ordering only.
 
-An attestation is verifiable by anyone who can check the issuer's signature — unlike a centralized
+An attestation is verifiable by anyone who can check the issuer's signature — unlike a centralised
 platform's "verified purchase" badge, which is an assertion only that platform can make. Because a
 review's attestation binds it to a real transaction, ballot-stuffing costs actual trades rather
 than free key generation.
@@ -229,7 +229,7 @@ support for any trust claim — trust/dispute research returned nothing verified
 
 ## 10.5 Prior art
 
-Sybil, whitewashing and ballot-stuffing literature on decentralized reputation; web-of-trust and
+Sybil, whitewashing and ballot-stuffing literature on decentralised reputation; web-of-trust and
 locally-measured reputation as the alternatives to a global score. The load-bearing postmortem is
 OpenBazaar's (§21.3, §21.6); the cautionary scope note is Nostr's own NIP-15 "unrecommended: too
 complicated" (§21.7). None of this literature was reached with verified findings for trust

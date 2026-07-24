@@ -72,7 +72,7 @@ an untrusted third party can transcode a video and sign accountability for the r
 reuses the core's signing discipline unchanged — and *unchanged* means the whole of §18.1.6: the
 DS-tag with its `0x00` separator, the suite byte inside the composite representative on every hybrid
 suite, and the §18.1.5-prefixed digest wherever a signature is taken over a digest (§24.4.4) — and it
-is verified by exactly the same `IK`/`DeviceCert` authorization chain as a `pub_announce` signer
+is verified by exactly the same `IK`/`DeviceCert` authorisation chain as a `pub_announce` signer
 (§22.3.3); it is a *profile-scoped* signing context (`"DMTAP-VID-v0/derivation"`), not a new core
 primitive. It does allocate **one** identifier in the core registries: that DS-tag string, registered
 in **§21.24e** together with the `vid-live-1` capability token (§24.10). §24.4.4 states why a
@@ -140,7 +140,7 @@ the vidmesh kind each converges from:
 | **LiveManifest** (§24.10) | `meta["live"]` | `live.manifest` (112) | rolling series of `pub_announce`s; optional `vid-live-1` |
 | **LiveChat** (§24.10) | `meta["live_chat"]` | `live.chat` (113) | `pub_announce`; `subject` = stream id; MAY be expired aggressively |
 | **RightsClaim** (§24.11) | `meta["claim"]` | `claim.*` (48–51) | `pub_announce` asserting a claim; presented with provenance, never as truth |
-| **Delegate grant** (§24.4.4) | `meta["delegate"]` | `delegate` (3) | a `pub_announce` authorizing a `rendition` producer; revoked by successor |
+| **Delegate grant** (§24.4.4) | `meta["delegate"]` | `delegate` (3) | a `pub_announce` authorising a `rendition` producer; revoked by successor |
 
 Two structural notes that hold throughout:
 
@@ -197,7 +197,7 @@ rejected on three grounds:
   (§18.4.2), and §1.2.0 explicitly contemplates an anchor suite that differs from the operational
   suite. Wherever they differ the recomputation yields a different digest, so a verifier would have to
   fetch the producer's whole `Identity` to obtain `iks[anchor_suite]` before it could decide
-  authorization — converting a zero-DNS, zero-lookup check (§22.3.3, §3.13) into an online one, for a
+  authorisation — converting a zero-DNS, zero-lookup check (§22.3.3, §3.13) into an online one, for a
   third party the verifier may never have heard of. §24.4.4 designs `produced_by` to be exactly such a
   third party, so this is the common case, not the edge.
 - **The stability the digest was argued for does not survive §18.9.17's own text.** §18.9.17 states
@@ -220,7 +220,7 @@ and relating them requires that identity's `Identity` object. Therefore:
 - A verifier that **already holds** the referenced `Identity` MAY additionally accept a cross-suite
   match (`produced_by == Identity.iks[Rendition.suite]` for the `Identity` anchored by `pub`), but
   MUST NOT **fetch** one in order to do so. A verifier that does not hold it MUST fall through to
-  §24.4.4's third-party outcome — a validly-signed but unauthorized rendition, labeled as such — and
+  §24.4.4's third-party outcome — a validly-signed but unauthorised rendition, labelled as such — and
   MUST NOT reject the manifest on that ground.
 - An index MUST NOT merge two `Follow` objects naming the same identity under different suites unless
   it holds that identity's `Identity`. Left unmerged they are two edges, which over-counts one
@@ -266,7 +266,7 @@ is now the normative one:
 - **What the announce signs is a `bytes` string, not a map.** `PubAnnounce.sig` and `announce_id`
   (§22.3.1) are computed over `det_cbor(PubAnnounce)`, in which `meta["video"]` is a single opaque
   CBOR byte string. The profile map inside it has **no signing preimage of its own**, and nothing
-  about the announce's preimage becomes ambiguous when a client fails to recognize a key inside that
+  about the announce's preimage becomes ambiguous when a client fails to recognise a key inside that
   string. §18.1.2's fail-closed rule exists to keep a preimage unambiguous; here the preimage is the
   byte string, and its length and content are already fixed by the signature that covers it.
 - **Preservation is byte-retention, never decode-and-re-encode (MUST).** A client that re-serializes,
@@ -279,10 +279,10 @@ is now the normative one:
   (VID-21).
 - **The §18.1.1 deterministic-CBOR bans do cross the `bytes` boundary (MUST).** This section requires
   the embedded value to be deterministically encoded (§18.1.1, §18.1.2), and that requirement is
-  **not** relaxed for keys a given client does not recognize. Floating-point values, CBOR tags,
+  **not** relaxed for keys a given client does not recognise. Floating-point values, CBOR tags,
   `undefined`, NaN/Infinity, indefinite-length items, non-shortest-form arguments, out-of-order map
   keys and duplicate map keys MUST NOT appear anywhere inside the embedded map, at any depth, under a
-  recognized key or an unrecognized one. A profile-aware client that decodes the embedded map and
+  recognised key or an unrecognized one. A profile-aware client that decodes the embedded map and
   finds one MUST reject **the profile object** — the enclosing `pub_announce` is unaffected and
   remains verifiable, and a generic §22 reader that never decodes the value is unaffected in both
   directions (VID-21). Without this rule the preceding bullet would be unenforceable in practice: a
@@ -439,9 +439,9 @@ mesh-is-never-canonical guarantee (§24.18.4). Concretely:
   highest-fidelity source can always find it at `original.blob`, never only a lossy transcode.
 - Every `Rendition` MUST carry `produced_by` (key 8), `suite` (key 11) and a valid `derivation_sig`
   (key 9) over the derivation statement (§24.4.4). A `Rendition` missing any of the three, or whose
-  signature does not verify under the representative its `suite` selects, is **not an authorized
+  signature does not verify under the representative its `suite` selects, is **not an authorised
   rendition**: a conformant client MUST NOT present it as an equivalent encoding of the video (it MAY
-  be shown, clearly labeled, as an unverified third-party encoding, or dropped).
+  be shown, clearly labelled, as an unverified third-party encoding, or dropped).
 - `derived_from` (key 10), when present, is the `manifest_root` the rendition was produced from; when
   absent it defaults to `original.blob`. A rendition MAY be derived from another rendition (a
   transcode chain), but the derivation statement always names the concrete input it was produced from,
@@ -479,7 +479,7 @@ to `PubAnnounce.suite`, because the producer is by design not the publisher; and
 two ways is the same defect as an absent field — it would let a producer sign under one suite while a
 verifier reconstructs under another, which is the precise divergence §18.1.6's composite
 representative exists to make impossible. A `suite` value the verifier does not implement is rejected
-fail-closed (§1.1, §18.1.4): the rendition is not authorized and MUST NOT be presented as an
+fail-closed (§1.1, §18.1.4): the rendition is not authorised and MUST NOT be presented as an
 equivalent encoding, while the manifest and every other rendition in it are unaffected.
 
 ### 24.4.4 The rendition-derivation statement (the one profile-local signed structure)
@@ -530,13 +530,13 @@ derivation_sig = Sign( producer_device_key, M or M' as Rendition.suite selects )
   `DeviceCert`** exactly as a `pub_announce` signer chains to its `pub` (§22.3.3 step 4), with
   `DeviceCert.ik` compared to `produced_by` bytewise (§24.3.1). No new algorithm and no new core
   primitive; the one identifier this profile allocates is the DS-tag string, registered in §21.24e.
-- **Authorization.** A rendition is *authorized* iff `produced_by` is the manifest's author, **or** an
+- **Authorization.** A rendition is *authorised* iff `produced_by` is the manifest's author, **or** an
   identity holding an unrevoked, unexpired **`rendition` delegate grant** from the author (§24.4.6).
   Both limbs are the bytewise `ik-pub` comparisons of §24.3.1 — `produced_by` against
   `PubAnnounce.pub`, or `produced_by` against `Delegate.grantee` — never a comparison of a key against
-  a digest. A client MUST verify both the derivation signature *and* the authorization before treating
-  a rendition as an equivalent encoding; an unauthorized-but-validly-signed rendition is a labeled
-  third-party encoding (the signature still names *who* asserts it), not an authorized one.
+  a digest. A client MUST verify both the derivation signature *and* the authorisation before treating
+  a rendition as an equivalent encoding; an unauthorised-but-validly-signed rendition is a labelled
+  third-party encoding (the signature still names *who* asserts it), not an authorised one.
 
 **Suite binding — both representatives, stated in full (normative).** §18.1.6 fixes, for the composite
 suites `0x02`/`0x03`/`0x04`/`0x05`, a message representative `M' = DS-tag ‖ 0x00 ‖ suite ‖ body` with
@@ -574,7 +574,7 @@ full rather than delegating them, and `Rendition` carries `suite` (key 11, §24.
   single-component suite `0x01` the suite byte is outside the representative, which is one more reason
   `0x01` MUST NOT be originated. On every originatable suite the byte is inside what both components
   sign, so a third party that rewrites `Rendition.suite` in a manifest it relays produces a signature
-  that no longer verifies and therefore a rendition that is *unauthorized* — a fail-closed outcome,
+  that no longer verifies and therefore a rendition that is *unauthorised* — a fail-closed outcome,
   never a silent reinterpretation of what the producer signed.
 
 **The DS-tag is registered, because construction separates it from what exists and only a registry
@@ -617,7 +617,7 @@ class a domain-separated preimage exists to close. Therefore, normatively:
 - Because §24.4.2 requires `width` and `height` to be both present or both absent, the fourth and
   fifth elements are either **both** integers or **both** `0xf6`. A `Rendition` carrying exactly one
   of them is malformed (§24.4.2, VID-16) and MUST be rejected as malformed *before* signature
-  verification, not treated as a merely-unauthorized rendition.
+  verification, not treated as a merely-unauthorised rendition.
 
 *Why `null`, and why not the alternatives (rationale, normative-by-consequence).*
 
@@ -641,7 +641,7 @@ class a domain-separated preimage exists to close. Therefore, normatively:
   disjoint by construction.
 - **Nothing else in `stmt` changes, and no video statement's `stmt` changes.** The DS-tag string
   remains `"DMTAP-VID-v0/derivation"`, the element order, the hash function, the signature algorithm
-  and the authorization rule are unchanged, and this profile still defines **exactly one** signed
+  and the authorisation rule are unchanged, and this profile still defines **exactly one** signed
   structure (§24.1). Since `width`/`height` were previously REQUIRED, **every `stmt` that was valid
   under the previous revision of this section is byte-identical under this one** — only the previously
   unrepresentable audio-only case gains an encoding (§24.17, C-03). The *representative* built over
@@ -673,7 +673,7 @@ New transports are new hint types; unrecognized types MUST be ignored, never rej
 ### 24.4.6 `Delegate` grant for `rendition` producers
 
 A `Delegate` object (`meta["delegate"]`) grants the `rendition` capability from the video author to a
-producer identity, so a transcoding service can publish *authorized* renditions on the author's behalf.
+producer identity, so a transcoding service can publish *authorised* renditions on the author's behalf.
 
 ```cddl
 Delegate = {
@@ -691,7 +691,7 @@ A grant is a `pub_announce` with `Delegate.revoked` absent. A revocation is a **
 `pub_announce`** whose `supersedes` names the grant and whose `Delegate.revoked = true`, with
 `grantee`, `capability` **and `suite`** matching the grant (irrevocability + supersede-only, §22.3.4);
 a revocation that changes `suite` names a different identity reference and revokes nothing. Delegation
-never transfers identity; it authorizes exactly the `rendition` action §24.4.4 consults. A grant
+never transfers identity; it authorises exactly the `rendition` action §24.4.4 consults. A grant
 matches a `Rendition` iff `Delegate.suite == Rendition.suite` **and**
 `Delegate.grantee == Rendition.produced_by`, byte-for-byte (§24.3.1) — the same bytewise `ik-pub`
 comparison §22.3.3 already performs, never a key-against-digest comparison. This maps vidmesh's
@@ -868,7 +868,7 @@ All four map onto §22's **existing** lineage mechanics; the profile adds no new
   id. This is **self-asserted provenance, not permission or endorsement**: publishing a
   `pub_announce` needs no consent from the original publisher (the video is public), so `derived_from`
   exists only so provenance is *discoverable*, never so it can be gated. A client MUST NOT interpret it
-  as authorization. (Note the distinction from `mirror`: a mirror serves the *same* bytes under the
+  as authorisation. (Note the distinction from `mirror`: a mirror serves the *same* bytes under the
   *same* manifest; a `derived_from` remix is *new* bytes by a *new* author citing an ancestor.)
 
 ## 24.8 Aggregates are claims, never truth
@@ -995,7 +995,7 @@ illustrative, not a closed enum, since `license` is free-text SPDX and any valid
 | Documentation / content | `CC0-1.0`, `CC-BY-4.0`, `CC-BY-SA-4.0` |
 | Software (firmware, scripts, generator code shipped alongside an artifact) | `MIT`, `Apache-2.0`, `BSD-3-Clause`, `GPL-3.0-only` |
 
-The field **enforces nothing** — it makes violations legible and gives compliant nodes something to honor
+The field **enforces nothing** — it makes violations legible and gives compliant nodes something to honour
 automatically (e.g. a node auto-pinning only `mirror-freely` content, §24.7 mirror). `license` is
 metadata of the **whole revision** and is **immutable for that revision**: it rides inside the signed
 announce, so it cannot be edited after publication any more than a manifest root can, and a **license
@@ -1182,7 +1182,7 @@ corrected — this was previously mis-stated as free; see the erratum in §24.17
    mirror holds) **cannot** produce a valid `pub_announce` for it, because it does not hold the signing
    key. Concretely: **there is no automatic, bulk, third-party migration of existing vidmesh records to
    §22 bytes.** Migration to §22 is necessarily **per-author and consensual** — each identity re-publishes
-   its own catalog (item 7 makes this cheap on the key side; item 4 is what makes it expensive on the I/O
+   its own catalogue (item 7 makes this cheap on the key side; item 4 is what makes it expensive on the I/O
    side) — never a batch job an operator runs unilaterally over records it merely stores on someone
    else's behalf.
 
@@ -1217,7 +1217,7 @@ referenced by the `bundle` hint type (§24.4.5) and is not a normative part of t
 | VID-1 | Every `VideoManifest` carries a `license` field (SPDX expression or a profile consent token) | §24.11 |
 | VID-2 | `original` (key 5) is present and is the canonical rendition — a `Rendition` is never the artifact of record | §24.4.3 |
 | VID-3 | Every `Rendition` carries `produced_by` (`ik-pub`), `suite` and a `derivation_sig` (`sig-val`) that verifies over the derivation statement under the representative that `suite` selects | §24.4.3, §24.4.4 |
-| VID-4 | A rendition is treated as an *authorized* encoding only if `produced_by` **byte-for-byte equals** the manifest author's `pub` at the same suite, or byte-for-byte equals the `grantee` of an unrevoked, unexpired `rendition` delegate grant at the same suite | §24.3.1, §24.4.4, §24.4.6 |
+| VID-4 | A rendition is treated as an *authorised* encoding only if `produced_by` **byte-for-byte equals** the manifest author's `pub` at the same suite, or byte-for-byte equals the `grantee` of an unrevoked, unexpired `rendition` delegate grant at the same suite | §24.3.1, §24.4.4, §24.4.6 |
 | VID-5 | The derivation statement binds `derived_from`→`rendition.blob` + codec/width/height/bitrate, signed under the `"DMTAP-VID-v0/derivation"` DS-tag (registered §21.24e) by a device key whose `DeviceCert.ik` equals `produced_by` | §24.4.4, §21.24e |
 | VID-6 | A video's `channel` reference resolves to an announce with the same `pub` as the video's author | §24.5 |
 | VID-7 | `retracted = true` is always accompanied by `retract_reason` | §24.4.1 |
@@ -1234,7 +1234,7 @@ referenced by the `bundle` hint type (§24.4.5) and is not a normative part of t
 | VID-18 | An unrecognized `Caption.format` token (beyond `"vtt"`/`"srt"`/`"lrc"`) does not cause rejection of the manifest or of any other track — the track is skipped or handed to an external handler | §24.4.2 |
 | VID-19 | Every field naming an identity — `Rendition.produced_by`, `Delegate.grantee`, `Follow.subject` — is an `ik-pub` accompanied by the `suite` governing its length, never a `hash`; identity equality is bytewise equality of those key bytes at one suite, and a verifier MUST NOT fetch an `Identity` in order to compare across suites | §24.3.1 |
 | VID-20 | `derivation_sig` verifies against exactly one representative — `DS-tag ‖ 0x00 ‖ stmt_digest` on a single-component suite, `DS-tag ‖ 0x00 ‖ suite ‖ stmt_digest` on a composite one — where `stmt_digest` is the §18.1.5 **prefixed** digest of `stmt`, never a bare digest, and both components of a composite `sig-val` MUST verify. A verifier MUST NOT try the other form | §24.4.4, §18.1.6 |
-| VID-21 | The embedded `meta["video"]` value is preserved as **bytes**: a relay/mirror/cache MUST carry it through byte-for-byte and MUST NOT decode-and-re-encode it. §18.1.1's deterministic-CBOR bans (no floats, tags, `undefined`, indefinite lengths, non-shortest form, duplicate or out-of-order keys) apply inside the embedded map at every depth, under recognized and unrecognized keys alike; a violation makes the *profile object* malformed, never the announce | §24.4 |
+| VID-21 | The embedded `meta["video"]` value is preserved as **bytes**: a relay/mirror/cache MUST carry it through byte-for-byte and MUST NOT decode-and-re-encode it. §18.1.1's deterministic-CBOR bans (no floats, tags, `undefined`, indefinite lengths, non-shortest form, duplicate or out-of-order keys) apply inside the embedded map at every depth, under recognised and unrecognized keys alike; a violation makes the *profile object* malformed, never the announce | §24.4 |
 
 > **Conformance-suite note.** These MUSTs are catalogued as the `VIDEO` category in
 > [`conformance/SUITE.md`](conformance/SUITE.md) / [`conformance/suite.json`](conformance/suite.json)
@@ -1268,10 +1268,10 @@ up where they belong so any product — not only video — can use them:
    whole chunks against the full manifest. Proposed in [`substrate/FEEDS.md`](substrate/FEEDS.md) and
    [`substrate/ROLES.md`](substrate/ROLES.md) as `GET …/manifest/{id}/proof?chunk=i`.
 2. **Fetch-hint types registry** — the advisory `Hint` type registry of §24.4.5
-   (`https`/`torrent-v2`/`relay-blob`/`bundle`) generalized as a waist-wide advisory registry in
+   (`https`/`torrent-v2`/`relay-blob`/`bundle`) generalised as a waist-wide advisory registry in
    [`substrate/FEEDS.md`](substrate/FEEDS.md); hints are never authoritative over the content address.
 3. **Rotation-log contest-window finality** — vidmesh's deterministic theft-recovery rule
-   (recovery-authorized rotation beats a signing-key rotation until it is *final*, i.e. first-observed
+   (recovery-authorised rotation beats a signing-key rotation until it is *final*, i.e. first-observed
    more than `contest_window` seconds ago, then a bytewise record-id tiebreak) is proposed as an
    informative note in [`substrate/IDENTITY.md`](substrate/IDENTITY.md) for the **zero-DNS / zero-KT
    key-name floor**, where no transparency log exists to anchor rotation ordering.
@@ -1287,12 +1287,12 @@ text, cost estimates, operational advice — no bytes on the wire change), and h
 | # | Change | Class | Found by |
 |---|--------|-------|----------|
 | **C-01** | **§24.14 item 4 corrected: migrating a vidmesh blob to §22 is an I/O-bound re-read of the media bytes, not a metadata-only tree recompute.** The prior text claimed "the chunk leaf hashes are identical (bare-chunk BLAKE3); only the tree's domain separation differs, so re-derivation is a tree recompute over the existing chunk hashes, not a re-read of the media bytes." That is false: vidmesh's stored leaf value is `BLAKE3-256(0x00 ‖ chunk)` — the `0x00` domain tag is folded *into* the hash, not applied one level above it — while §22's `PubManifest.chunks` needs the *undecorated* `BLAKE3-256(chunk)` at that position. There is no operation that recovers the untagged hash from the tagged one, and vidmesh does not even retain a per-chunk list to begin with (`Media.chunk_root` is the single tree root). Migration therefore requires re-reading and re-hashing every stored media byte — for a video platform, the difference between a cost proportional to record count and a cost proportional to total stored bytes. Item 4's text is corrected to state this plainly; a new item 3 scope note prevents the adjacent (and correct) multihash-prefix transform from being mistaken for a solution to the same problem. | **INFORMATIVE — migration-cost/mechanism correction.** §24.14 is non-normative migration guidance, not the §22 wire format; no CDDL, DS-tag, or `PubManifest`/chunk-hash rule changes, and no conformance vector changes (§22's `pub_vectors.json` and this profile's construction-todo KATs are both unaffected). An implementation planning a vidmesh→§22 migration around the old text would under-provision I/O capacity and timeline by the gap between "recompute a tree" and "re-read every video file." | The vidmesh phase-1 `dmtap-core` adoption (`docs/DMTAP-CONVERGENCE.md`, commits `fa646f2`/`aa27b6a`/`09b5fc1`): its `dmtap_pub` bridge module computes both digests for the same chunk and asserts them unequal (`stored_vidmesh_leaf_is_not_the_pub_chunk_address`), with the §22 side checked byte-for-byte against the frozen `pub_manifest_single_chunk` vector — so the correction is corpus-anchored, not merely argued. |
-| **C-02** | **§24.14 gains items 7–8 and a dual-format/attestation paragraph: no key migration is needed, but no bulk record migration is possible either, and old records stay dual-format.** The prior six items described byte-level transforms but never stated the two facts that most affect a migration plan's shape: (a) a vidmesh `Keypair` and a §22 `IdentityKey` are both Ed25519 seeds with a bit-identical public key, so an author needs **no new key** to publish under this profile; (b) precisely because items 1/2/4 change the signed pre-image, re-signing an *existing* record needs the **author's** key, which a PUB server, archive, or migration tool holding only plaintext never has for a self-custodied identity — so migration is **per-author and consensual, never a bulk operator-run rewrite**. The new closing paragraph adds the guidance this implies: pre-migration history remains valid and permanent in its original vidmesh bytes (irrevocability applies per-record, to whichever substrate it was actually published under, not retroactively), and a PUB server that chooses to re-attest old content under its own key MUST render that attestation with a visibly weaker verification badge than an author signature — presenting the two identically is a security misrepresentation (the creator did not sign these bytes; the server is vouching for them). | **Guidance addition, not a semantics change.** Items 1–6 and every §22/§24 normative rule are unchanged. This states a **new consequence** of already-normative rules (§1.2 key structure, §22.3.3 signer authorization, §22.7/§24.7 irrevocability, §24.8's "attestation is worth exactly the attester's reputation") that §24.14 previously left the reader to infer, and one new expectation (the visibly-weaker attestation badge) stated here because its absence is a legible security failure mode a product would otherwise ship by default. | Same vidmesh phase-1 adoption: `keypair_to_identity_key`'s round-trip test (`identity_key_material_is_shared`) established (a); the same investigation, reasoning forward from what its bridge module can and cannot construct without the author's private key, established (b) and the attestation-wrapper risk this closing paragraph now warns against for the whole profile, not just one product's design doc. |
+| **C-02** | **§24.14 gains items 7–8 and a dual-format/attestation paragraph: no key migration is needed, but no bulk record migration is possible either, and old records stay dual-format.** The prior six items described byte-level transforms but never stated the two facts that most affect a migration plan's shape: (a) a vidmesh `Keypair` and a §22 `IdentityKey` are both Ed25519 seeds with a bit-identical public key, so an author needs **no new key** to publish under this profile; (b) precisely because items 1/2/4 change the signed pre-image, re-signing an *existing* record needs the **author's** key, which a PUB server, archive, or migration tool holding only plaintext never has for a self-custodied identity — so migration is **per-author and consensual, never a bulk operator-run rewrite**. The new closing paragraph adds the guidance this implies: pre-migration history remains valid and permanent in its original vidmesh bytes (irrevocability applies per-record, to whichever substrate it was actually published under, not retroactively), and a PUB server that chooses to re-attest old content under its own key MUST render that attestation with a visibly weaker verification badge than an author signature — presenting the two identically is a security misrepresentation (the creator did not sign these bytes; the server is vouching for them). | **Guidance addition, not a semantics change.** Items 1–6 and every §22/§24 normative rule are unchanged. This states a **new consequence** of already-normative rules (§1.2 key structure, §22.3.3 signer authorisation, §22.7/§24.7 irrevocability, §24.8's "attestation is worth exactly the attester's reputation") that §24.14 previously left the reader to infer, and one new expectation (the visibly-weaker attestation badge) stated here because its absence is a legible security failure mode a product would otherwise ship by default. | Same vidmesh phase-1 adoption: `keypair_to_identity_key`'s round-trip test (`identity_key_material_is_shared`) established (a); the same investigation, reasoning forward from what its bridge module can and cannot construct without the author's private key, established (b) and the attestation-wrapper risk this closing paragraph now warns against for the whole profile, not just one product's design doc. |
 | **C-03** | **The profile is rescoped from video to time-based media (video *and* audio), and the derivation statement gains an unambiguous encoding for absent dimensions.** Audio was previously *unrepresentable*: `Media` (§24.4.2) and `Rendition` (§24.4.3) both required `width` (key 5) and `height` (key 6), so a song, a podcast episode or an audio-only rendition of a video could not be described at all. Five coupled changes: (a) keys 5 and 6 become OPTIONAL in both maps, with a **both-or-neither** rule — exactly one of them is malformed — and **absence is the audio-only signal** (VID-16); (b) the profile deliberately adds **no media-kind discriminator**, because it would duplicate a fact the dimensions already carry (and could therefore contradict it), because the correct granularity is per-encoding rather than per-work (a video work carries audio-only renditions), and because the both-or-neither rule already makes the inference total; (c) the **signed** derivation statement of §24.4.4 is pinned to a **fixed six-element array** with an absent dimension encoded as CBOR `null` (`0xf6`) at its fixed position — never omitted, never `0` (VID-17); (d) `Caption.format` gains `"lrc"` and the rule that an unrecognized token is skipped rather than fatal, so **lyrics are captions** and need no structure of their own (VID-18); (e) a **release (album/EP/single) is a `Playlist`**, which gains one OPTIONAL `cover` key (key 4) and an explicit statement that no album/playlist type token is defined — no protocol behaviour depends on the distinction, and a self-declared one would be an unverifiable claim (§24.8). The document title and §24.1 are rescoped to match; the file name, the section number, the `meta["video"]` key and the `VideoManifest` schema name are **kept** as historical spellings, because renaming any of them breaks already-published objects, every §24 cross-reference and the conformance catalogue for no protocol gain. | **NORMATIVE — CDDL shape + signed-preimage rule; strictly widening for the existing (video) case.** `Media`/`Rendition` keys 5/6 change from REQUIRED to OPTIONAL, `Playlist` gains OPTIONAL key 4, and §24.15 gains VID-16/VID-17/VID-18. **No previously valid object becomes invalid and no previously valid signature changes:** because `width`/`height` were REQUIRED before, every derivation statement that could have been produced under the previous revision has integers in both positions and is byte-identical under this one. The **DS-tag `"DMTAP-VID-v0/derivation"` is unchanged**, this profile still defines exactly one signed structure, and no core §21 registry entry, error code, DS-tag or wire object is touched. What *is* newly constrained: a producer that would have invented its own encoding for an absent dimension (a shortened array, a `0` sentinel) is now non-conformant, and an existing implementation that hard-requires keys 5/6 will reject audio-only media until it is updated. §24 has no byte-runnable vectors yet, so no committed KAT changes; the audio-only derivation vector required by §24.15's suite note is new work. | Reading §24 against the audio/music case it claims to cover in §24.1 ("video and time-based media") while §24.4.2/§24.4.3 hard-required pixel dimensions — the scope sentence and the schema had disagreed since the profile was written. The signed-preimage consequence (an OPTIONAL field inside a signed statement is a signature-ambiguity bug unless its absence has exactly one encoding) was found by following that change into §24.4.4 rather than stopping at the CDDL, and is resolved by reusing §18.1.1's existing preimage-`null` convention rather than inventing a second one. |
 | **C-04** | **Identity references are retyped from `hash` to `ik-pub` + `suite`.** `Rendition.produced_by` (key 8), `Delegate.grantee` (key 1) and `Follow.subject` (key 1) were typed `hash`, which **cannot hold an identity key**: §18.1.7 fixes `hash = bytes .size (33..129)` (a 1-byte §18.1.5 prefix ‖ a digest), while an `ik-pub` is 32 B under suite `0x01` and 1 984 B under suite `0x02` (§18.2) — outside that range at both ends. Three encoders would have resolved the impossibility three ways (the raw key, `0x1e ‖ BLAKE3-256(IK)`, `0x1e ‖ IK`), yielding three `VideoManifest` byte strings, three `meta["video"]` values, three `announce_id`s for one logical work, and three mutually unresolvable follow graphs. It also left **VID-4 unimplementable**, since that MUST compares `produced_by` against the manifest's author and the author is `PubAnnounce.pub`, an `ik-pub`. All three fields are now `ik-pub`, each accompanied by a REQUIRED `suite` (`Rendition` key 11, `Delegate` key 5, `Follow` key 3) governing its §18.2 length; §24.3 gains an explicit carve-out from "`subject` is always a content address," and the new §24.3.1 states the typing, the bytewise same-suite comparison, the bounded cross-suite allowance (a verifier MAY use an `Identity` it already holds, MUST NOT fetch one), and why the digest alternative was rejected. **The digest alternative was rejected on the merits, not for convenience:** §18.9.17's key-name digest is taken over `Identity.iks[anchor_suite]` while a `DeviceCert.ik` is `Identity.iks[cert.suite]`, and §1.2.0 explicitly contemplates those differing — so the proposed "recompute the digest over `DeviceCert.ik` and compare" chaining rule fails whenever they do, forcing a verifier to fetch the producer's whole `Identity` and converting §22.3.3's zero-DNS offline check into an online one for an untrusted third party. Its claimed stability does not survive §18.9.17 either, which states that an anchor-suite migration changes every key-name digest with no key-rotation event to signal it. | **NORMATIVE — CDDL shape; not backward-compatible for any implementation that already emitted these fields.** Three maps change type at one key each and gain one REQUIRED key each. Because the previous typing was *unrepresentable*, no conformant object could have carried these fields correctly, so nothing valid is invalidated — but an implementation that chose one of the three ad-hoc encodings must re-emit its manifests, and re-emitting a manifest is a new `pub_announce` with a new `announce_id` (§22.3.4), not an edit. The **derivation statement `stmt` is unchanged** (it never contained `produced_by`). No core §21 error code, message kind or wire object is touched. | Adversarial audit of §24 against §18.1.7's `hash` production and §18.2's suite-governed lengths: the two audits agreed the field was unrepresentable and split on the remedy, and the split was resolved against §22.3.3's offline-verification guarantee and §18.9.17's own stability disclosure. |
 | **C-05** | **The derivation signature gains its suite binding and its digest prefix; `derivation_sig` is retyped `bytes` → `sig-val`.** §24.4.4 asserted it reused "the core signing discipline unchanged … a DS-tag prefix with the `0x00` separator (§18.1.6)" and then showed `Sign(k, "DMTAP-VID-v0/derivation" ‖ 0x00 ‖ BLAKE3-256(stmt))` — which is neither of the two forms §18.1.6 defines. §18.1.6 requires, for suites `0x02`/`0x03`/`0x04`/`0x05`, the composite representative `M' = DS-tag ‖ 0x00 ‖ suite ‖ body` with the suite byte inside what both components sign ("this is what makes the composite non-separable"), and separately requires a signature taken over a **digest** to carry that digest in §18.1.5 prefixed form, never bare. `Rendition` had **no suite field at all**, so a verifier could not even select a representative. On suite `0x02` — the v0 REQUIRED originating suite — two conformant implementations therefore built different representatives and every hybrid rendition failed across the pair; worse, the published form was the **separable** one §18.1.6 exists to forbid, in which an Ed25519 component can be stripped from a composite signature and replayed as a standalone `0x01` signature. Fixed by: adding REQUIRED `Rendition.suite` (key 11, with an explicit statement of what it does and does not govern — notably that it does **not** displace `PubAnnounce.suite` as the §18.1.5 authority for the `hash`-typed fields); retyping key 9 to `sig-val` so §18.2's length governance applies; defining `stmt_digest = H_prefix ‖ H(stmt)` under the producer's suite; and stating **both** representatives in §24.4.4 in full, mirroring §18.1.6's wording, rather than delegating to it. The six-element `0xf6` fixed-arity rule of C-03 is untouched and layered under this change. | **NORMATIVE — signed representative; wire-visible.** `stmt` is byte-identical to C-03's; the bytes actually signed are not — every `derivation_sig` produced under the previous text is invalid under this one, on every suite, because the digest is now prefixed. This is a deliberate break of an unshippable construction: the previous form had no interoperable definition on the v0 originating suite and was cross-suite forgeable, so there is no correct implementation to preserve. `Rendition` gains one REQUIRED key and one retyped key. No core §21 error code, message kind or wire object is touched, and the profile still defines **exactly one** signed structure. §24 still has no committed KATs; §24.15's suite note now requires the derivation vector to include a composite-suite (`0x02`) case as well as an audio-only one. | Adversarial audit of §24.4.4 against §18.1.6 in full. The missing digest prefix was found by following the same section's second rule ("a signature over a digest MUST label the digest") rather than stopping at the composite-representative rule that prompted the review. |
 | **C-06** | **The profile's DS-tag is registered in §21.24e; §24 stops claiming registration is unnecessary.** §24.4.4 held that the profile needed "no §21 registry entry — a profile-scoped DS-tag string is the only new byte, and it is domain-separated from every core context by construction." The construction argument is sound *and is now stated explicitly as a strength*: DS-tags are ASCII strings terminated by a single `0x00` (§18.1.6) and contain no `0x00` themselves, so the tag set is **prefix-free** and no signature under one tag can be reinterpreted under another. But that separates the tag only from tags that **already exist**. Separation from **future** tags is a property of the allocation process, not of the construction — the identical argument would be available to a future extension choosing the same string — and every prior extension registered its tags for exactly this reason (§21.24b, §21.24c, §21.24d). §24 was the first to opt out. §24.1, §24.4.4 and §24.14 item 2 are corrected, and §24.15's VID-5 now cites the registration. | **Registry/process, no bytes.** Nothing signed, hashed or encoded changes: the DS-tag string is the same string it always was, and every existing (or, per C-05, future) derivation signature is unaffected. What changes is that the identifier is reserved against future allocation, and that this document no longer asserts a guarantee a registry provides. **This entry depends on a companion change to §21** (a §21.24e block reserving `"DMTAP-VID-v0/derivation"` and recording `vid-live-1`); until that lands, §24's citation of §21.24e is a forward reference. | Adversarial audit noting that §21.24b/c/d each registered their DS-tags and §24 was the sole extension asserting it need not. |
-| **C-07** | **§24.4's unknown-key rule is reconciled with §18.1.2, and "preserve" is defined as byte-retention.** §24.4 required clients to ignore and preserve unrecognized integer keys "because these are *unsigned* application maps," which contradicts the adjacent sentence of the same section — "the embedded bytes ride inside the signed announce body, so they are covered by the announce's signature" — and §18.1.2, which requires a decoder processing a **signed** object to reject unknown keys fail-closed and confines ignore-and-preserve to unsigned objects and the text-keyed `Headers.ext` map. The rule is kept, on a narrower and correct premise: what the announce signs is a `bytes` string, and the profile map inside it has **no signing preimage of its own**, so no announce preimage becomes ambiguous when a key inside that string is unrecognized. Three normative consequences are now stated rather than left to inference: preservation MUST be byte-retention of the whole embedded `bytes` value and MUST NOT be decode-and-re-encode (a re-encode is a different `announce_id` for an announce whose signature was over the old bytes); §18.1.1's float/tag/`undefined`/indefinite-length/duplicate-key bans **do** cross the `bytes` boundary and apply inside the embedded map under unrecognized keys as well as recognized ones, with a violation making the *profile object* malformed and never the announce; and an unrecognized `Rendition` key is outside the derivation statement by construction, so it can never alter what a `derivation_sig` attests. | **NORMATIVE — clarification; no encoding changes, one new prohibition.** No CDDL, DS-tag or preimage changes and no previously valid object becomes invalid. What is newly non-conformant is a relay/mirror/cache that "preserves" the embedded map by decoding and re-encoding it — a practice that was already producing broken signatures, now named as the fault — and an emitter that puts a float or a CBOR tag under an unrecognized key. §24.15 gains VID-21. | Adversarial audit of §24.4 against §18.1.2. The float/`bytes`-boundary question was raised as ambiguous and is resolved here in the direction that makes the byte-retention rule enforceable, since a float has no byte-stable decode/re-encode. |
+| **C-07** | **§24.4's unknown-key rule is reconciled with §18.1.2, and "preserve" is defined as byte-retention.** §24.4 required clients to ignore and preserve unrecognized integer keys "because these are *unsigned* application maps," which contradicts the adjacent sentence of the same section — "the embedded bytes ride inside the signed announce body, so they are covered by the announce's signature" — and §18.1.2, which requires a decoder processing a **signed** object to reject unknown keys fail-closed and confines ignore-and-preserve to unsigned objects and the text-keyed `Headers.ext` map. The rule is kept, on a narrower and correct premise: what the announce signs is a `bytes` string, and the profile map inside it has **no signing preimage of its own**, so no announce preimage becomes ambiguous when a key inside that string is unrecognized. Three normative consequences are now stated rather than left to inference: preservation MUST be byte-retention of the whole embedded `bytes` value and MUST NOT be decode-and-re-encode (a re-encode is a different `announce_id` for an announce whose signature was over the old bytes); §18.1.1's float/tag/`undefined`/indefinite-length/duplicate-key bans **do** cross the `bytes` boundary and apply inside the embedded map under unrecognized keys as well as recognised ones, with a violation making the *profile object* malformed and never the announce; and an unrecognized `Rendition` key is outside the derivation statement by construction, so it can never alter what a `derivation_sig` attests. | **NORMATIVE — clarification; no encoding changes, one new prohibition.** No CDDL, DS-tag or preimage changes and no previously valid object becomes invalid. What is newly non-conformant is a relay/mirror/cache that "preserves" the embedded map by decoding and re-encoding it — a practice that was already producing broken signatures, now named as the fault — and an emitter that puts a float or a CBOR tag under an unrecognized key. §24.15 gains VID-21. | Adversarial audit of §24.4 against §18.1.2. The float/`bytes`-boundary question was raised as ambiguous and is resolved here in the direction that makes the byte-retention rule enforceable, since a float has no byte-stable decode/re-encode. |
 
 **Standing rule.** A defect between this document and an implementation is resolved by deciding **which
 side is right on the merits** and correcting the other in the open, exactly as [`substrate/SYNC.md`](substrate/SYNC.md)
@@ -1316,7 +1316,7 @@ principle (§24.4.3), licensing (§24.11), revision lineage / deprecation / fork
 aggregates are derived, never authoritative" posture (§24.8), public-object HTTP serving (§24.12), and
 privacy & security (§24.13) are the profile's **generic core** and govern this facet by reference. This
 section adds only what is specific to engineering artifacts: the `ArtifactMetadata` schema (§24.18.1), the
-kind/format/role registries (§24.18.2), units (§24.18.3), the CAD specialization of the canonical-source
+kind/format/role registries (§24.18.2), units (§24.18.3), the CAD specialisation of the canonical-source
 rule (§24.18.4), assemblies as Merkle DAGs (§24.18.5–§24.18.8), workshop conventions (§24.18.9), and the
 facet conformance checklist (§24.18.10).
 
@@ -1359,7 +1359,7 @@ bytes ride inside the signed announce body and are covered by its signature, "pr
 **byte-retention of the whole embedded `bytes` value, never decode-and-re-encode** (any round-trip yields a
 new byte string — a broken signature and a different `announce_id`), and §18.1.1's deterministic-CBOR bans
 (no floats, CBOR tags, `undefined`, NaN/Infinity, indefinite lengths, non-shortest-form arguments,
-duplicate or out-of-order map keys) apply inside the embedded map at every depth, under recognized and
+duplicate or out-of-order map keys) apply inside the embedded map at every depth, under recognised and
 unrecognized keys alike — a violation makes a facet-aware client reject the *profile object*, never the
 announce, and a generic §22 reader that never decodes the value is unaffected (§24.18.10, CAD-12). §24.4
 states the full rule and its rationale once; it is not restated here.
@@ -1467,7 +1467,7 @@ informational — it declares the unit in which masses carried in the artifact's
 payload are to be read. This facet defines no mass field and no mass aggregation: §24.18.8's BOM
 walk multiplies `quantity` only.
 
-### 24.18.4 `ArtifactFormat` and the canonical-source specialization (normative)
+### 24.18.4 `ArtifactFormat` and the canonical-source specialisation (normative)
 
 This subsection specializes the profile's **generic canonical-source principle** (§24.4.3 — one canonical
 source of record; a derived rendition is never authoritative; a lossy/derived form MUST NOT be the
@@ -1525,7 +1525,7 @@ wherever they recur (within one assembly or across many), and BOM extraction ove
 ordinary tree/DAG walk over already-content-addressed, already-integrity-checked (§22.2) references. A
 `track` child is a different kind of edge: it is **not** content-addressed — it names a `pub_announce` id
 whose current head is resolved by the feed-based procedure defined in §24.18.6, which can legitimately yield
-different bytes on different days. A BOM containing any `track` child MUST be labeled **non-reproducible** by
+different bytes on different days. A BOM containing any `track` child MUST be labelled **non-reproducible** by
 a conformant client (§24.18.6).
 
 ### 24.18.6 Reference modes: pin vs track (normative)
@@ -1673,7 +1673,7 @@ its contents.
 | CAD-9 | Assembly children reference exclusively by `pin` (manifest root) or `track` (announce id) | §24.18.6 |
 | CAD-10 | A BOM-walking client MUST detect and reject a cycle in an assembly's resolved DAG rather than recurse indefinitely or silently drop it | §24.18.8 |
 | CAD-11 | No client treats any single index (category/search/workshop) as authoritative over the signed announces it was derived from | §24.18.9, §24.8 |
-| CAD-12 | The embedded `meta["artifact"]` value is preserved as **bytes**: a relay/mirror/cache MUST carry it through byte-for-byte and MUST NOT decode-and-re-encode it. §18.1.1's deterministic-CBOR bans apply inside the embedded map at every depth, under recognized and unrecognized keys alike; a violation makes the *profile object* malformed, never the announce | §24.18.1, §24.4 |
+| CAD-12 | The embedded `meta["artifact"]` value is preserved as **bytes**: a relay/mirror/cache MUST carry it through byte-for-byte and MUST NOT decode-and-re-encode it. §18.1.1's deterministic-CBOR bans apply inside the embedded map at every depth, under recognised and unrecognized keys alike; a violation makes the *profile object* malformed, never the announce | §24.18.1, §24.4 |
 
 > **Conformance-suite note.** The `format_id = 7` (opaque dataset/document blob) admissibility in
 > §24.18.2/§24.18.4 widens the admissible canonical-source formats for `dataset`/`doc` kinds, which touches
@@ -1693,7 +1693,7 @@ profile bytes.
 |--------------|---:|--------------|
 | `rotation` | 1 | core Identity — the identity's rotation log ([`substrate/IDENTITY.md`](substrate/IDENTITY.md), §1); genesis id = identity id |
 | `profile` | 2 | a `pub_announce` carrying profile display data (name/avatar/payment); latest-wins by chain order |
-| `delegate` | 3 | `Delegate` grant (§24.4.6) — authorizes `rendition` producers |
+| `delegate` | 3 | `Delegate` grant (§24.4.6) — authorises `rendition` producers |
 | `manifest` | 16 | **`VideoManifest`** (§24.4) |
 | `supersede` | 17 | §22 same-author `supersedes` (§24.7) |
 | `retract` | 18 | deprecation-as-successor: `retracted = true` (§24.7) |
@@ -1718,7 +1718,7 @@ profile bytes.
 ## Appendix B: Mapping to the kerf Workshop (informative)
 
 This appendix illustrates, non-normatively, how the motivating deployment of the engineering-artifact
-facet (§24.18, ROADMAP) uses it. It does not define new protocol behavior.
+facet (§24.18, ROADMAP) uses it. It does not define new protocol behaviour.
 
 kerf's Workshop publish flow maps onto this facet as follows:
 
@@ -1726,7 +1726,7 @@ kerf's Workshop publish flow maps onto this facet as follows:
    objects, keyed by SHA-256. DMTAP's hash-agility prefix (§18.1.5) is a multihash-style byte in front of
    the digest, but it is not a free per-object choice: §18.1.5's precedence rule requires every `hash` inside
    an object that carries a `suite` field to use that suite's prefix, and to **reject** the object
-   (`ERR_HASH_ALG_MISMATCH`, `0x0127`) rather than honor the prefix in place of the suite. No v0 suite selects
+   (`ERR_HASH_ALG_MISMATCH`, `0x0127`) rather than honour the prefix in place of the suite. No v0 suite selects
    SHA2-256, and §22.2.2's `leaf()`/`node()` tree functions are defined only for BLAKE3. **Stated honestly**:
    a §22 public manifest that addresses its chunks under the SHA-256 prefix (`0x12`) using the LFS objects'
    existing digests directly is a **rejected object, not an interoperability surface** — every conformant

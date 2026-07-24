@@ -20,7 +20,7 @@ calendar slot, a table sitting, a room-night, a ticket, an appointment. It is th
 service that needs **no matcher** ([`DIRECTION § 2`](../DIRECTION.md)): there is nothing to match,
 because the resource has exactly **one owner**, and the owner's box is the **only writer** of the
 hold. This collapses the hardest distributed-systems problem in booking — *two parties must not both
-get the last seat* — into a non-problem: a contended write with a **single authorized author** is
+get the last seat* — into a non-problem: a contended write with a **single authorised author** is
 not a consensus question (the WRAP [`§ 3.6`](../profiles/wrap/02-objects.md) argument, restated for
 holds). Double-booking is therefore **structurally impossible under honest single-writer operation**
 (§9 bounds "impossible" precisely). A reservation resolves on the owner's `placed → accepted /
@@ -60,10 +60,10 @@ Reservable = {
 slot is claimed whole by one hold; a capacity interval is shared by many holds up to `cap`. A
 `Reservable` MUST carry exactly one grain.
 
-`Reservable` carries no separate owner field: the sole authorized writer of holds/receipts against it
+`Reservable` carries no separate owner field: the sole authorised writer of holds/receipts against it
 is its own common-header `author` (key 4). A `Receipt`'s `author` MUST equal that same key (§3.1);
 RESERVE has no delegated-authoring mode — the same key that lists the resource is the only key ever
-authorized to write a `Receipt` against it.
+authorised to write a `Receipt` against it.
 
 ### 2.2 `ReservationRequest` — the intent (requester-authored)
 
@@ -114,7 +114,7 @@ A `Receipt` whose `author` is **not** the `Reservable`'s common-header `author` 
 rejected (`ERR_NOT_OWNER`-class, FAIL_CLOSED). No party but the owner may author a hold, an
 acceptance, a decline, or a release.
 A requester MUST NOT self-issue any object in state `accepted`. This is the whole primitive: the
-contended write has one authorized author, so *"two conflicting accepted holds on one unit"* is not a
+contended write has one authorised author, so *"two conflicting accepted holds on one unit"* is not a
 state the protocol can reach **between honest participants** (§8).
 
 ### 3.2 The hold is a bounded counter across the owner's own devices
@@ -147,7 +147,7 @@ delivery has happened yet.
 ### 3.4 Receipts bind to exactly one request/slot
 A `Receipt` MUST cite the `request` content-address and the `slot` it grants; a verifier MUST treat a
 `Receipt` as authoritative **only** for that `(reservable, slot, request)` triple. A `Receipt` MUST
-NOT be honored against a different slot, request, or `Reservable` (§7 replay-inertness).
+NOT be honoured against a different slot, request, or `Reservable` (§7 replay-inertness).
 
 ### 3.5 Expiry and release
 An `accepted` hold not confirmed/consumed within `hold_ttl` (or `policy` default) SHOULD be released
@@ -177,7 +177,7 @@ assignment authority — and MUST NOT depend on any coordinator to produce a hol
   existing rail ([`bindings`](../bindings/README.md), x402/stablecoin). The hold and the payment are
   **separate legs**; substituting one for the other, or presenting an unpaid hold as paid, is the
   rail-class-substitution defect ([`OFFLINE § 5.2`](../substrate/OFFLINE.md)).
-- **DISPUTE / ORACLE** — "was the reservation honored?" is the physical-event ceiling
+- **DISPUTE / ORACLE** — "was the reservation honoured?" is the physical-event ceiling
   ([`DIRECTION § 8`](../DIRECTION.md)): confirm-plus-dispute via a staked `arbiter`, never provable
   by the protocol.
 
@@ -219,7 +219,7 @@ billion independent single-writer registers, and they never need to agree on any
 
 ---
 
-## 7. Offline / apocalypse behavior + reconcile
+## 7. Offline / apocalypse behaviour + reconcile
 
 RESERVE passes the sneakernet test ([`OFFLINE § 1`](../substrate/OFFLINE.md)); it is the reference
 case for **R-SYNC-1** (single-writer authority enforces the cross-replica invariant, never the
@@ -304,7 +304,7 @@ Inherits the family posture of [`THREAT-MODEL.md`](../THREAT-MODEL.md); each MUS
   its double-issue failure mode are normative in §3.2; violating it is what breaks this guarantee. It
   shields an owner from its own concurrency; it makes **no** promise to a buyer
   about a dishonest owner. Documentation MUST NOT present it as trust between the parties.
-- **The hold does not prove the resource is honored.** Whether the reserved table, room, or slot is
+- **The hold does not prove the resource is honoured.** Whether the reserved table, room, or slot is
   actually delivered reduces to confirm-plus-dispute — the physical-event oracle ceiling
   ([`DIRECTION § 8`](../DIRECTION.md)) — and is *more* exposed offline, where the oracle is
   unreachable ([`OFFLINE § 5.3`](../substrate/OFFLINE.md)).

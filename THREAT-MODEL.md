@@ -5,7 +5,7 @@
 (the coordinator keystone). It is not a wire spec and defines no new bytes: it states the
 **cross-cutting security invariants** that every waist capability ([`substrate/`](substrate/README.md)),
 every binding ([`bindings/README.md`](bindings/README.md)), every coordinator, and every profile
-([`profiles/`](profiles/)) MUST honor, and names each one's **honest residual** so a profile author
+([`profiles/`](profiles/)) MUST honour, and names each one's **honest residual** so a profile author
 cannot quietly weaken the floor. Where a numbered section already owns the normative bytes, it
 governs; this document is the checklist those sections are all instances of.
 
@@ -48,7 +48,7 @@ Profiles narrow this; none may widen a defended cell into an undefended one with
 | **Network eavesdropper** | reads links near a node | **defeated** — everything on the wire is signed and end-to-end encrypted (§3, SEC-1/SEC-3). |
 | **Content-blind intermediary** (relay, media-relay, mailbox, SNI ingress) | forwards/holds ciphertext it cannot read | **contained by contract** — holds no decrypting key; visibility class declared and surfaced (SEC-4, [CONTRACT §3](coordinator/CONTRACT.md)). |
 | **`terminating` intermediary** (legacy gateway, TLS-terminating ingress) | sees plaintext at a disclosed boundary | **bounded, never silent** — declared `terminating`, no downgrade into it (SEC-4, SEC-8). |
-| **Malicious coordinator** (indexer, matcher, labeler, arbiter, oracle) | withholds, favours, mis-orders, or lies about its own operation | **hired, not depended-on** — authorizes but never classifies; swappable with zero migration; audit is one-directional (SEC-6). |
+| **Malicious coordinator** (indexer, matcher, labeler, arbiter, oracle) | withholds, favours, mis-orders, or lies about its own operation | **hired, not depended-on** — authorises but never classifies; swappable with zero migration; audit is one-directional (SEC-6). |
 | **Sybil / flooding peer** | mints unlimited identities, floods well-formed objects | **raised, not closed** — cost-for-cold-contact + local web-of-trust + bounded pending state (SEC-7); a disclosed ceiling globally (R-7). |
 | **Compromised endpoint** | reads/keys one seized, unlocked device | **hardened then bounded** — hardware-backed non-exportable keys, fast revocation, recovery heals all cases *except* a device actively compromised while unlocked (SEC-5, R-5). |
 | **Metadata / traffic-analysis adversary** | observes who talks to whom, when, how much | **reduced where a profile buys it, disclosed where it does not** — sealed sender hides the sender from intermediaries; it is a reduction, not elimination; strong graph privacy against a global passive adversary is a **research-tier** profile property, non-normative here (SEC-9, R-9). |
@@ -80,7 +80,7 @@ nothing (the HTTP test, [`substrate/README.md §4.2`](substrate/README.md); §22
 preimage MUST be **domain-separated** by a DS-tag ([§18.1.6](18-wire-format.md)) so a signature
 minted for one object kind can never verify as another. Authorization for mutable state MUST chain
 to an identity key via a non-revoked `DeviceCert` ([`substrate/IDENTITY.md §2.2`](substrate/IDENTITY.md),
-SYNC §9) — the substrate never re-invents authorization, it checks a cert chain. Names confer
+SYNC §9) — the substrate never re-invents authorisation, it checks a cert chain. Names confer
 **discovery, never authority**: a name resolves to a key; the key is the identity; the ladder is
 never inverted ([`substrate/README.md §3` rule 6](substrate/README.md)). *Residual: R-2.*
 
@@ -108,13 +108,13 @@ abstraction (ERC-4337 / EIP-7702), passkey backup, or MPC shares behind the reco
 ([`bindings/README.md`](bindings/README.md), [DIRECTION §3](DIRECTION.md)). The root `IK` SHOULD be
 held cold / in recovery custody and used rarely; day-to-day signing uses `DeviceCert` subkeys
 ([`substrate/IDENTITY.md §2`](substrate/IDENTITY.md)). Compromise MUST be **healable**: a
-`DeviceCert` is revocable and revocation MUST fail closed at every authorization check. **No single
+`DeviceCert` is revocable and revocation MUST fail closed at every authorisation check. **No single
 device — not even `admin` — may unilaterally rewrite recovery policy or re-key the identity**; that
 requires `IK` or the `rotate_threshold` quorum ([`substrate/IDENTITY.md §2.2`](substrate/IDENTITY.md),
 §1.4). Keys SHOULD be hardware-backed and non-exportable where the platform allows (§1.2a). A
 profile MUST NOT expose an API that lets one device silently take over the identity. *Residual: R-5.*
 
-### SEC-6 — Coordinators authorize; they never classify, gate, or lock in
+### SEC-6 — Coordinators authorise; they never classify, gate, or lock in
 Every coordinator MUST satisfy all four [CONTRACT](coordinator/CONTRACT.md) clauses — accountable,
 swappable (zero data migration, zero identity change), self-hostable, visibility-declared — and
 MUST be **never load-bearing**: removing it degrades reach, never function — with **one disclosed
@@ -122,7 +122,7 @@ exception**, the **custodial escrow operator**, which holds the float for a trad
 therefore structurally load-bearing by design, not oversight ([CONTRACT §1](coordinator/CONTRACT.md);
 [ESCROW §10](primitives/ESCROW.md)), bounded by bonding/staking sized to the float and by per-order
 swappability, never eliminated. A coordinator's every
-gate MUST be an **authorization** answered from *sender identity + rate* — never a content
+gate MUST be an **authorisation** answered from *sender identity + rate* — never a content
 classification (no spam scoring, no ML filter, no content-basis drop/re-rank/annotate)
 ([CONTRACT §4](coordinator/CONTRACT.md)). "Wanted" is judged by the recipient, on the recipient's
 device. Moderation is a **market of opt-in labelers**, each itself a coordinator you can leave. If a
@@ -159,7 +159,7 @@ a coordinator that can run `blind` MUST NOT run `terminating` without disclosure
 ([CONTRACT §3.2](coordinator/CONTRACT.md)); a TLS/mesh path MUST NOT fall back to plaintext
 unannounced. *Residual: R-8.*
 
-### SEC-9 — Metadata exposure is minimized where bought, and disclosed where not
+### SEC-9 — Metadata exposure is minimised where bought, and disclosed where not
 Where a profile carries it, the sender's identity and authenticating signature MUST live **inside**
 the encrypted payload (**sealed sender**), so intermediaries see only ciphertext to an opaque
 destination (§6.2). Honest scope, which a profile MUST state and MUST NOT overstate: sealed sender
@@ -193,14 +193,14 @@ degraded mode. Graceful offline degradation plus reconcile-on-reconnect is the t
 | # | Every primitive / binding / coordinator / profile… | Anchor |
 |---|---|---|
 | SEC-1 | fails **closed** — refuse or explicit choice, never silent unauthenticated/unencrypted fallback | §10.7; substrate README §3 rule 5 |
-| SEC-2 | ships **self-authenticating**, domain-separated, cert-chained objects; names point, never authorize | §18.1.6; IDENTITY §2 |
+| SEC-2 | ships **self-authenticating**, domain-separated, cert-chained objects; names point, never authorise | §18.1.6; IDENTITY §2 |
 | SEC-3 | encrypts payloads **end-to-end** with adopted crypto (MLS/HPKE/SFrame), deterministic encoding | bindings; DIRECTION §7 |
 | SEC-4 | **declares** one visibility class + assurance level, surfaces it, never misrepresents | CONTRACT §2.4, §3 |
 | SEC-5 | makes key-loss/compromise **recoverable** (adopted); no single device rewrites recovery | IDENTITY §2.2; bindings |
-| SEC-6 | is a coordinator that **authorizes, never classifies**; swappable, never load-bearing (except custodial escrow, disclosed — R-6); no token | CONTRACT §2, §4, §6 |
+| SEC-6 | is a coordinator that **authorises, never classifies**; swappable, never load-bearing (except custodial escrow, disclosed — R-6); no token | CONTRACT §2, §4, §6 |
 | SEC-7 | prices **cold contact**, binds proofs to the envelope, never central-filters or deanonymizes | §9, §9.2a |
 | SEC-8 | makes replay **inert** and downgrade **impossible** (suite/visibility/TLS no-downgrade) | SYNC §2.2, §3; CONTRACT §3.2 |
-| SEC-9 | **minimizes** metadata (sealed sender where bought), **discloses** what it does not hide | §6.2; DIRECTION §9 |
+| SEC-9 | **minimises** metadata (sealed sender where bought), **discloses** what it does not hide | §6.2; DIRECTION §9 |
 | SEC-A | preserves every property above **offline**, reconciling on reconnect | §4 above; DIRECTION §6 |
 
 ---

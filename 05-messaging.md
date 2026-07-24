@@ -20,7 +20,7 @@ RFC 9750). Its abstract roles map onto DMTAP:
 
 - **Delivery Service (DS)** → the DMTAP mesh/mixnet (§4).
 - **Authentication Service (AS)** → DMTAP identity + KT (§1, §3). KT realizes the AS while
-  *reducing* the trust placed in it — a good fit for a decentralized design.
+  *reducing* the trust placed in it — a good fit for a decentralised design.
 
 MLS provides group forward secrecy and post-compromise security via the TreeKEM ratchet
 tree, with O(log n) member changes. v0 uses ciphersuites `0x0001`
@@ -92,7 +92,7 @@ node that serializes handshake messages into an append-only, hash-chained per-gr
   log makes a **fork detectable**: two Commits at the same log position with the same predecessor
   is proof of committer misbehavior; members MUST halt and alert (analogous to KT equivocation,
   §3.5) and recover per the fork-recovery path below.
-- **Commit-confirmation quorum & committer self-suspend (partition-fork defense, normative):** a
+- **Commit-confirmation quorum & committer self-suspend (partition-fork defence, normative):** a
   live but **partitioned incumbent** committer that keeps serializing Commits for a **minority** of
   members would deterministically build a divergent log branch — healing later into a fork, group
   HALT, and manual recovery. To bound this, a committer's Commit is **`confirmed`** only once a
@@ -124,7 +124,7 @@ when it carries the same **> n/2 member-signature quorum** as a takeover. This r
 single canonical head that a strict majority endorsed, not one admin's choice. Members that
 applied the losing fork **roll back to the last common epoch** and re-apply from the recovery
 Commit; application messages committed only on the abandoned fork are re-submitted by their
-senders (sender retry, §2.6). This manual reconciliation is the v0 stopgap; **Decentralized MLS
+senders (sender retry, §2.6). This manual reconciliation is the v0 stopgap; **Decentralised MLS
 (`draft-kohbrok-mls-dmls`) is the eventual leaderless fix** that removes the single-orderer fork
 surface entirely — though as of this writing it is an **expired, individual (non-WG-adopted)
 Internet-Draft** (rev-03, 2025-10), a materially weaker standing than the WG-adopted MLS drafts
@@ -139,7 +139,7 @@ opt-in research-tier mixnet where a group has selected it. Groups needing strong
 protection SHOULD rotate committer frequently (and, if available to them, elect the opt-in
 mixnet).
 
-Track `draft-kohbrok-mls-dmls` (Decentralized MLS) for a fully leaderless replacement; until it
+Track `draft-kohbrok-mls-dmls` (Decentralised MLS) for a fully leaderless replacement; until it
 lands, the committer model above is v0.
 
 ### 5.1.1 Lighter ordering for n = 2 (1:1) — symmetric co-committers (normative)
@@ -241,7 +241,7 @@ Session setup reuses **X3DH** (Marlinspike & Perrin, 2016) for `suite = 0x01` an
 - **Dedicated long-term identity DH key (NOT `IK`).** X3DH mixes the parties' *long-term identity
   DH keys*. DMTAP's `IK` is an **Ed25519 signing** key; rather than derive an X25519 key from it by
   XEdDSA, an identity that offers the mode provisions a **dedicated long-term X25519
-  "deniable-identity DH key" `idk`**, **certified once by an `IK`-authorized device key**
+  "deniable-identity DH key" `idk`**, **certified once by an `IK`-authorised device key**
   (`idk_sig`, DS-tag `DMTAP-v0/deniable-idk`, §18.9.10). `idk` — not `IK` — is the X3DH long-term
   DH input on both sides. This is a deliberate change from earlier drafts: it (i) keeps **`IK`
   cold** — `IK` never performs Diffie–Hellman, only certifies — so `IK` can live in a **usage-fixed
@@ -264,7 +264,7 @@ Session setup reuses **X3DH** (Marlinspike & Perrin, 2016) for `suite = 0x01` an
   (§5.2.1(a)). Because a prekey is consumed during `DeniableInit` processing — at §2.7 step 7,
   *before* step 8 authenticates anyone — an unauthenticated cold sender could otherwise drain the
   bundle deliberately and force every subsequent legitimate first contact onto that weaker path.
-  The defense is **reserve-then-commit** plus a cold-sender consumption cap (§19.3.1, §16.5):
+  The defence is **reserve-then-commit** plus a cold-sender consumption cap (§19.3.1, §16.5):
   the prekey is reserved at step 7 keyed by `ek_a`, committed only after step 8 succeeds, and
   released otherwise. The initiator carries **its own** `idk_a` + `idk_a_cert`
   inline in `DeniableInit` (§18.3.9) so an offline responder can complete the async handshake
@@ -278,10 +278,10 @@ Session setup reuses **X3DH** (Marlinspike & Perrin, 2016) for `suite = 0x01` an
   Double Ratchet AEAD tag under a per-message key derived from the shared secret), which **both**
   parties can compute ⇒ **participation + message repudiation**.
 
-- **First-message replay defense (last-resort / signed-prekey-only init, normative).** A
+- **First-message replay defence (last-resort / signed-prekey-only init, normative).** A
   `DeniableInit` that consumes **no one-time prekey** (`opk_ref` absent and, under PQXDH, `kem_ref`
   absent — the last-resort / signed-prekey-only path) is **replayable**: an attacker can resend the
-  captured first message and, absent a defense, the responder re-derives the same session and
+  captured first message and, absent a defence, the responder re-derives the same session and
   re-accepts it. A responder MUST maintain a **replay cache of consumed initiator `ek_a` (and
   `idk_a`) values** for the lifetime of the signed prekey plus its overlap window (§16), drop a
   repeat, **and** require a **post-X3DH key-confirmation** round before the session is treated as
@@ -360,7 +360,7 @@ turns around.
   fanning out to each of the recipient's devices — trading MLS's efficient single-tree cluster
   sync for pairwise deniability. This cost is disclosed; clients SHOULD show that deniable
   threads sync per-device rather than through the shared MLS tree. **Deniable-thread content MUST
-  be synchronized across the owner's own cluster ONLY via these per-device-pair Double-Ratchet
+  be synchronised across the owner's own cluster ONLY via these per-device-pair Double-Ratchet
   sessions (MAC-authenticated), and MUST NOT be placed into — or referenced by plaintext in — the
   cluster MLS-group CRDT (§5.6).** The cluster CRDT wraps every application entry in a
   member-**signed** `FramedContent` (§5.2); routing deniable plaintext through it would manufacture
@@ -371,7 +371,7 @@ turns around.
   guard).
 - **Identity verification unchanged.** The counterpart's `IK` is still bound to its name via
   KT / OOB safety numbers (§3.4–§3.5); deniability repudiates *authorship of messages*, not the
-  *key agreement*. Downgrade defense (§1.3 suite ratchet) and cold-sender anti-abuse (§9) apply
+  *key agreement*. Downgrade defence (§1.3 suite ratchet) and cold-sender anti-abuse (§9) apply
   as for any MOTE.
 
 #### (e) The residual (honest, after the mechanism)
@@ -414,9 +414,9 @@ explicit lost-/stolen-device flow, tied into §6.7 and recovery §1.4:
   (and PQ KEM key) the revoked device generated or could have exfiltrated**, and — if the revoked
   device could have used the `idk` private key — **rotate `idk`**: provision a fresh dedicated
   identity DH key, certify it with a surviving device key (`idk_sig`), and let the old `idk`
-  version age out (rollback defense rejects the withdrawn bundle, `0x040B`). New sessions then
+  version age out (rollback defence rejects the withdrawn bundle, `0x040B`). New sessions then
   cannot be initiated against the revoked material.
-  - **KT-anchored bundle version (MUST) — first-contact rollback defense.** The simple
+  - **KT-anchored bundle version (MUST) — first-contact rollback defence.** The simple
     "reject the older `version`" rule only protects a fetcher that already holds the current
     version; on **first contact** an initiator has no prior high-water-mark, and the withdrawn
     bundle's `idk_sig`/`spk_sig`/`opk`s were all validly signed *before* revocation, so they still
@@ -442,7 +442,7 @@ explicit lost-/stolen-device flow, tied into §6.7 and recovery §1.4:
 - **Recovery interaction.** After a full identity recovery (§1.4), all prior deniable sessions and
   prekeys are treated as revoked by the same rule — the recovered identity republishes a fresh
   `idk`/bundle and re-establishes sessions, consistent with the "recovery invalidates prior
-  authorizations" posture of §13.4 (`0x050A`). This is the deniable-mode entry in the §6.7
+  authorisations" posture of §13.4 (`0x050A`). This is the deniable-mode entry in the §6.7
   lost-/stolen-device sequence; it introduces no new revocation protocol, only the pairwise
   teardown+re-establish the ratchet already implies.
 
@@ -617,7 +617,7 @@ Normative rules:
 ### 5.5.5 Storage-DoS & spool overflow (normative)
 
 Because **Attached** files are *pushed* into the recipient's store, a sender can attempt to
-**fill a victim's spool** (a storage-based DoS). Defenses:
+**fill a victim's spool** (a storage-based DoS). Defences:
 
 - **Inbound spool cap (fail-closed).** A pushed Inline/Attached file that would exceed the
   recipient's inbound spool cap for that sender (§16.4) is **refused**, not silently accepted or
@@ -661,7 +661,7 @@ same of its peer before exchanging any object or op. A peer that cannot present 
 presents a revoked one — is refused (`ERR_CLUSTER_DEVICE_UNAUTHORIZED`, `0x0410`,
 FAIL_CLOSED_BLOCK). Because the sync channel is the devices' **MLS cluster group**, membership
 changes are ordinary MLS Add/Remove Commits (§5.8.2): a removed device is cryptographically cut
-off from future epochs, and a joining device is admitted only via a Welcome authorized by an
+off from future epochs, and a joining device is admitted only via a Welcome authorised by an
 existing member. There is **no primary**; every member is an equal replica.
 
 ### 5.6.2 Live replication (immutable objects gossip leaderless)
@@ -732,7 +732,7 @@ converge **byte-identically**:
   tombstone** — so a concurrent re-label *wins over* a remove that did not see it, and the result is
   order-independent. This **add-wins** bias is correct **only** for benign, many-valued labels,
   where a spuriously-resurrected tag is harmless; **folder placement and durable deletions are
-  deliberately NOT modeled this way** (next two bullets).
+  deliberately NOT modelled this way** (next two bullets).
 - **Per-field flags & the single current folder** are a **Last-Writer-Wins Register per field**,
   keyed by a **hybrid logical clock (HLC)** (Kulkarni et al., §15.5): `HLC = {wall, counter,
   device_id}` (§18.6.3). read/unread, starred, **and the one folder a message currently sits in**
@@ -764,7 +764,7 @@ converge **byte-identically**:
   certificate. A "deleted" object is thus one whose `deleted` flag is set (durable path) or whose
   add-tags are all tombstoned (benign path), and the two never race to the object's advantage.
 
-  **Durability is not authorization (normative cross-reference).** A `redact`/`edit` reaches this
+  **Durability is not authorisation (normative cross-reference).** A `redact`/`edit` reaches this
   CRDT layer only after passing the same-author gate of §2.7 step 9; everything above governs
   **merge order**, not admission.
 
@@ -801,7 +801,7 @@ store. The cut is therefore computed over **live** members only: a device that h
 timescale)** is treated as **stale** and **excluded from the cut**. A device excluded this way
 SHOULD additionally be proposed for MLS **Remove** from the cluster group (§5.6.1) — re-admitted by
 a fresh Welcome if it returns — so membership converges to the actually-live replica set. Exclusion
-affects **only *when* tombstones may be reclaimed**, never **whether an op is authorized** (§5.6.1
+affects **only *when* tombstones may be reclaimed**, never **whether an op is authorised** (§5.6.1
 authentication is unchanged): a returning device re-syncs via backfill (§5.6.3), pulling current
 state (including any `deleted` flags, §5.6.4) *before* it can push, so it cannot resurrect a
 GC'd deletion; and the tombstone-retention floor (§16.10) plus the durable seen-id horizon (§16.10)
@@ -848,7 +848,7 @@ channels, shared folders, and team inboxes — "a group with an address."
 
 ### 5.8.1 Two posting models
 
-| Model | Behavior | Membership visibility |
+| Model | Behaviour | Membership visibility |
 |-------|----------|-----------------------|
 | **Broadcast / list** | post to the address → every member receives a copy (distribution list, announce, team inbox) | typically hidden (subscribers don't see each other) |
 | **Collaborative / channel** | shared, ordered conversation + shared state (chat channel, shared folder) | typically member-visible |
@@ -860,7 +860,7 @@ which are fields of the group state. A group MAY switch models by policy change 
 
 Group state carries **roles**: `owner` (≥1), `admin`, `member`, and optional `poster` (may send)
 vs `reader`. Management operations are **MLS Commits** ordered by the group committer (§5.1),
-authorized by role:
+authorised by role:
 
 - **Add / remove member** — Add uses the invitee's KeyPackage (§5.3) + Welcome; Remove triggers
   file-key rotation for shared folders (§6.7). Requires `admin`. **Forward-only bound (normative):**
@@ -958,17 +958,17 @@ key can unilaterally hijack `team@company.com`.
   admin device cannot rewrite group recovery or evict co-owners.
 - **KT-logged group key events.** Group `Identity` / `KeyRotation` / `RecoveryPolicy` events MUST
   appear in key transparency (§3.5) exactly like personal ones, so members and the wider network
-  detect an unauthorized group-key change. The committer (§5.1) orders *handshakes*; it is
-  **not** authorized to change the group's identity key — that is a threshold act above the
+  detect an unauthorised group-key change. The committer (§5.1) orders *handshakes*; it is
+  **not** authorised to change the group's identity key — that is a threshold act above the
   committer role.
 
-### 5.8.7 Organization groups & distribution lists (normative)
+### 5.8.7 Organisation groups & distribution lists (normative)
 
 An org's `team@abc.com`, `all@abc.com`, `support@abc.com` are ordinary **group identities (§5.8)**
 whose group *name* is a domain address under the org's domain authority (§3.10.1). Nothing new is
 needed; the org-administration layer only adds **who may provision and administer them**:
 
-- **Provisioning.** A `group-admin` or `domain-admin` capability (§13.5.1, §3.10.4) authorizes
+- **Provisioning.** A `group-admin` or `domain-admin` capability (§13.5.1, §3.10.4) authorises
   creating a group identity and binding its `team@abc.com` name under the domain (§3.2 record +
   directory entry, §3.10.3) — exactly as a member is provisioned (§3.10.2). A group is "a member
   that has members" (§5.8).

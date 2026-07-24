@@ -33,7 +33,7 @@ This is why §21 exists and why it is allowed to contradict the rest of the docu
 
 ## Evidence
 
-Claims about what decentralized commerce achieves in the field belong in §21 with their sources and
+Claims about what decentralised commerce achieves in the field belong in §21 with their sources and
 their coverage caveats. A claim that has not been verified is marked unverified rather than
 softened into something that reads as established.
 

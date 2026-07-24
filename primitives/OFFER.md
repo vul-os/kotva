@@ -161,7 +161,7 @@ rather than invents:
 - **Discovery coordinator** — the `indexer` role ([coordinator/CONTRACT §5](../coordinator/CONTRACT.md)):
   corpus `public` (offers are public objects; indexing them reads nothing secret) and query-channel
   `terminating` unless `attested` (TEE-preferred), so a searcher's own query need not be read in the
-  clear. An indexer **authorizes, never classifies** (CONTRACT §4): it may rank and filter its *own*
+  clear. An indexer **authorises, never classifies** (CONTRACT §4): it may rank and filter its *own*
   view, never revoke or delist from the network.
 - **Reputation / settlement / dispute** — bound out to REPUTATION (OpenRank), PAY (x402 +
   stablecoins), ESCROW (multisig / HTLC / smart-contract, or a licensed custodial operator),
@@ -226,8 +226,8 @@ Inheriting [THREAT-MODEL.md](../THREAT-MODEL.md) (SEC-1…SEC-9); the OFFER-spec
   origination floor and monotonic-`seq` anti-rollback ([§22.3.3 step 1a, §22.4.2/§22.4.5](../22-public-objects.md)):
   a stale or below-floor `FeedHead` MUST NOT suppress an offer a seller has since published, nor
   displace the genuine feed.
-- **OFR-S3 (SEC-6, authorize-never-classify).** An indexer over offers MUST NOT run content
-  classification as a network gate; it authorizes from identity + rate only, and any moderation is an
+- **OFR-S3 (SEC-6, authorise-never-classify).** An indexer over offers MUST NOT run content
+  classification as a network gate; it authorises from identity + rate only, and any moderation is an
   opt-in labeler the reader chooses ([coordinator/CONTRACT §4](../coordinator/CONTRACT.md)). Its
   visibility class MUST be declared (SEC-4).
 - **OFR-S4 (SEC-7, Sybil priced-and-localized).** Spam/Sybil resistance for listings is **index-local**
@@ -243,7 +243,7 @@ Inheriting [THREAT-MODEL.md](../THREAT-MODEL.md) (SEC-1…SEC-9); the OFFER-spec
 ## 9. Honest residual
 
 - **No discovery without an indexer.** A content-addressed substrate offers no global index, so
-  discovery is the *first* function to re-centralize: whichever indexer becomes economically dominant
+  discovery is the *first* function to re-centralise: whichever indexer becomes economically dominant
   becomes a de-facto content-policy gatekeeper *regardless of what OFR-7 permits*. Multiple competing
   indexers with verifiable completeness is the candidate answer and has **no deployed precedent**
   ([tract §2.6/§21](../profiles/tract/02-catalogue.md), [DIRECTION §8.4](../DIRECTION.md) editorial

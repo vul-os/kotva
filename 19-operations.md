@@ -22,7 +22,7 @@ governs (§10.4) and the conflict is a bug in this appendix.
   §2.7 or elsewhere keeps that section's step numbering visible in parentheses.
 - **Success result** — the observable outcome and what state changes.
 - **Failure modes** — every defined error condition and its response. No condition is left
-  without an outcome (§2.7a's rule — "no undefined behavior" — is applied to every operation in
+  without an outcome (§2.7a's rule — "no undefined behaviour" — is applied to every operation in
   this appendix, not only delivery).
 - **Idempotency / retry** — whether re-invoking with the same parameters is safe, and what a
   retrying caller should expect.
@@ -57,7 +57,7 @@ registered code and says so — no unregistered wire codes are minted in this ap
 | Class | Meaning | Caller-visible? | Retryable? |
 |-------|---------|------------------|------------|
 | **Reject (fail-closed)** | Malformed, unauthenticated, or policy-violating input. The operation MUST NOT proceed and MUST NOT silently half-apply. | Yes, an explicit error | Only after the caller fixes the cause |
-| **Defer** | Input is well-formed but cannot be authorized/decided yet (offline peer, unreachable issuer, pending quorum). | Yes, a pending/deferred state | Yes, per the operation's backoff |
+| **Defer** | Input is well-formed but cannot be authorised/decided yet (offline peer, unreachable issuer, pending quorum). | Yes, a pending/deferred state | Yes, per the operation's backoff |
 | **Silent drop** | Reserved for the narrow, explicitly-listed cases where surfacing the failure to the sender would itself leak information the protocol is designed to hide (e.g. a forged envelope, §2.7a). Never the default. | No | N/A (sender's own retry logic, unaware, eventually expires it — §16.1) |
 
 An operation's Failure-modes table classifies every listed condition into one of these three.
@@ -165,7 +165,7 @@ device addition/removal, suite migration, or any field change — to the transpa
 mesh, making it discoverable and auditable.
 
 **Initiator / Responder.** Initiator: the identity owner's node holding `IK` (or a device
-authorized per §1.2/§1.4). Responder: the KT log (append) and the mesh DHT/content store
+authorised per §1.2/§1.4). Responder: the KT log (append) and the mesh DHT/content store
 (publish by content address).
 
 **Parameters.**
@@ -179,12 +179,12 @@ authorized per §1.2/§1.4). Responder: the KT log (append) and the mesh DHT/con
 2. `identity.prev` = hash of the previous published `Identity` (or absent, only for `version=1`).
 3. `identity.sig` contains a valid signature under **every** suite listed in `identity.suites`
    (§1.3's multi-suite rule) — a partial signature set is invalid, not partially accepted.
-4. For a `RecoveryPolicy` change carried transitively via `identity.recovery`: the *authorizing*
+4. For a `RecoveryPolicy` change carried transitively via `identity.recovery`: the *authorising*
    principal is `IK` (proactive) or a satisfied `rotate_threshold` quorum (reactive) — never a
    single `admin`-capable device alone (§1.2, §1.4 rule 1–2).
 5. If that `RecoveryPolicy` change **removes or weakens** any recovery factor (drops a method,
    lowers a threshold, evicts a guardian/device), it MUST satisfy `rotate_threshold` **even when
-   signed by `IK` alone** (§1.4 rule 3, compromise defense) and MUST NOT take effect until its
+   signed by `IK` alone** (§1.4 rule 3, compromise defence) and MUST NOT take effect until its
    **veto/delay window** (72 h, §16.8) has elapsed (§1.4 rule 4). Additive, non-weakening changes
    are exempt from both. A veto/abort published within the window MUST itself satisfy
    `rotate_threshold` (asymmetric — a single prior factor cannot veto its own eviction, §1.4
@@ -220,8 +220,8 @@ discoverable on the mesh by content hash; existing contacts notified if `announc
 | `version` is not exactly previous+1 | Reject | `ERR_STALE_ROLLBACK` (`0x0105`, closest registered code — the non-monotonic version); caller MUST re-fetch the current head and rebuild |
 | `prev` does not match the hash of the currently-published object | Reject | `ERR_IDENTITY_CHAIN_BROKEN` (`0x0104`) (concurrent-publish race — see idempotency below) |
 | Signature set does not cover every suite in `suites` | Reject | `ERR_IDENTITY_SIG_INVALID` (`0x0103` — a partial signature set is invalid); publication refused, not partially accepted |
-| `RecoveryPolicy` change authorized by less than `rotate_threshold` | Reject | `ERR_RECOVERY_POLICY_UNAUTHENTICATED` (`0x010B`); §1.4 rule 1 |
-| Factor-**weakening** `RecoveryPolicy` change signed by `IK` alone (no `rotate_threshold` quorum) | Reject | `ERR_RECOVERY_WEAKENING_UNQUORUMED`; §1.4 rule 3 — `IK` alone MUST NOT weaken recovery (stolen-`IK` takeover defense) |
+| `RecoveryPolicy` change authorised by less than `rotate_threshold` | Reject | `ERR_RECOVERY_POLICY_UNAUTHENTICATED` (`0x010B`); §1.4 rule 1 |
+| Factor-**weakening** `RecoveryPolicy` change signed by `IK` alone (no `rotate_threshold` quorum) | Reject | `ERR_RECOVERY_WEAKENING_UNQUORUMED`; §1.4 rule 3 — `IK` alone MUST NOT weaken recovery (stolen-`IK` takeover defence) |
 | Weakening change attempts to take effect before its 72 h veto window elapses, or a lesser-bar weakening is detected within the window | Reject / hold | `ERR_RECOVERY_VETO_WINDOW`; §1.4 rule 4, §16.8 — hold until the window elapses; a `rotate_threshold`-backed veto aborts it |
 | KT log operator unreachable | Defer | Publication is queued/retried; the DNS pointer (step 4) MUST NOT be updated until KT append succeeds, preserving the "never point past the log" invariant |
 | DHT publish fails (no reachable peers to store at) | Defer | Retry with backoff; KT entry already exists so the object is still eventually fetchable once any one peer re-publishes it from the owner's own copy |
@@ -378,7 +378,7 @@ append-only-consistent view; or a **detected, attributable, responded-to** equiv
 is safe and returns the same conclusion for the same heads. Gossip is idempotent (a peer re-seeing
 a head it holds is a no-op).
 
-### 19.1.5 Organization administration (§3.10) — `provision-member` / `publish-directory` / `query-directory` / `offboard`
+### 19.1.5 Organisation administration (§3.10) — `provision-member` / `publish-directory` / `query-directory` / `offboard`
 
 **Purpose.** The domain-administration operations of §3.10: create/remove a member binding under a
 domain, publish and query the `DomainDirectory` GAL, and offboard. Admin *authority* is a §13.5
@@ -392,7 +392,7 @@ the querying member.
 **Parameters.**
 - `member` (`{name, ik, custody}`, MUST for `provision`/`offboard`) — the member binding;
   `custody ∈ {sovereign, org-managed}` (§3.10.2).
-- `cap` (`CapabilityToken`, MUST) — the admin capability authorizing the act (§18.7.3).
+- `cap` (`CapabilityToken`, MUST) — the admin capability authorising the act (§18.7.3).
 - `directory` (`DomainDirectory`, MUST for `publish`) — the new signed directory version.
 
 **Preconditions.** `cap` validates (chain + attenuation + not revoked, §18.7.3) and covers the
@@ -449,7 +449,7 @@ forward-verifiable GAL.
 |---|---|---|
 | `cap` invalid / over-attenuated / expired | Reject | `ERR_CAPABILITY_DELEGATION_INVALID` (`0x0508`), DENY_POLICY |
 | `cap` revoked | Reject | `ERR_CAPABILITY_REVOKED` (`0x050B`), DENY_POLICY |
-| Domain-authoritative act without threshold | Reject | Treated as unauthorized (`0x0508`) — no unilateral super-admin (§13.5.1) |
+| Domain-authoritative act without threshold | Reject | Treated as unauthorised (`0x0508`) — no unilateral super-admin (§13.5.1) |
 | Directory not authority-signed / stale version | Reject | `ERR_DOMAIN_DIRECTORY_SIG_INVALID` (`0x0113`) / rollback reject |
 | `DirEntry` fails forward-verify | Reject | `ERR_DIRECTORY_ENTRY_UNVERIFIED` (`0x0114`), unverified render |
 | Org-managed custody undisclosed | Reject | `ERR_ORG_MANAGED_UNDISCLOSED` (`0x0115`), HALT_ALERT |
@@ -473,8 +473,8 @@ attestation-gated context (§1.2a). Advisory hardening only — never overrides 
   quote / FIDO), carried in `DeviceCert.attestation` (§18.4.2).
 - `key_protection` (`key-protection`, MUST) — the keystore class.
 
-**Preconditions.** `device_key` is (or is being) authorized by a valid `DeviceCert` under the
-owner's `Identity` (§1.2) — attestation never substitutes for that authorization.
+**Preconditions.** `device_key` is (or is being) authorised by a valid `DeviceCert` under the
+owner's `Identity` (§1.2) — attestation never substitutes for that authorisation.
 
 **Procedure (normative).**
 1. **`attest-enroll`** — generate `device_key` inside the hardware keystore (§1.2a), obtain
@@ -496,7 +496,7 @@ with the owner's §1.4 authority unchanged either way.
 |---|---|---|
 | Attestation absent/invalid in a gated context | Reject | `ERR_DEVICE_ATTESTATION_INVALID` (`0x0116`), FAIL_CLOSED_BLOCK |
 | Attestation evidence expired / root retired | Reject | `ERR_DEVICE_ATTESTATION_EXPIRED` (`0x0118`), FAIL_CLOSED_BLOCK → re-attest |
-| Device not §1.4-authorized (however well-attested) | Reject | Rejected on authorization grounds (`ERR_DEVICE_UNAUTHORIZED`, `0x0124`), regardless of attestation |
+| Device not §1.4-authorised (however well-attested) | Reject | Rejected on authorisation grounds (`ERR_DEVICE_UNAUTHORIZED`, `0x0124`), regardless of attestation |
 
 **Idempotency / retry.** `attest-verify` is a pure read over the cert; re-verifying is safe.
 `attest-enroll` re-issued for the same key updates the `DeviceCert` (higher version supersedes).
@@ -518,7 +518,7 @@ no third party publishes on a node's behalf). Responder: the DHT (the K closest 
 - `addrs` (`[* multiaddr]`, MUST) — current reachability hints: direct addresses, relay
   circuits, mix addresses (§4.3).
 - `ttl` (`u64`, MUST) — record lifetime; v0 default 2 h (§16.2).
-- `seq` (`u64`, MUST) — monotonically increasing sequence number (rollback defense).
+- `seq` (`u64`, MUST) — monotonically increasing sequence number (rollback defence).
 - `sig` (`bytes`, MUST) — signature by a device key over the above.
 
 **Preconditions.**
@@ -579,7 +579,7 @@ closest peers to `hash(ik)`), or a non-DHT path (cached address, rendezvous) tri
 **Parameters.**
 - `ik` (`bytes`, MUST) — the target identity key.
 - `allow_dht` (`bool`, OPTIONAL, default `true`) — whether to fall back to the public DHT if
-  non-DHT paths fail; a closed/organizational deployment MAY set this `false` and use only its
+  non-DHT paths fail; a closed/organisational deployment MAY set this `false` and use only its
   private DHT (§4.2).
 
 **Preconditions.** None (this is itself the discovery step); however per §4.2, a node SHOULD
@@ -593,7 +593,7 @@ attempt non-DHT paths first regardless of whether it has ever contacted `ik` bef
    fresh contact is not 100% dependent on a hostile public-DHT lookup (§4.2).
 3. **DHT fallback** (only if `allow_dht`): query the K closest peers to `hash(ik)` via
    S/Kademlia disjoint-path lookups; among returned candidate records, accept only the one with
-   the **highest `seq`** (rollback defense) whose `sig` validates under a current device key of
+   the **highest `seq`** (rollback defence) whose `sig` validates under a current device key of
    `ik`'s pinned `Identity`. Discard any record with `seq` ≤ a previously-seen `seq` for this
    `ik` (replay/rollback).
 4. If multiple returned records disagree (different peers return different "highest" records) —
@@ -718,7 +718,7 @@ directory authority (`publish-directory`), or a sender (`fetch-directory`, `buil
   ([docs/research/mixnet.md §4.4.10](docs/research/mixnet.md)).
 
 **Preconditions.** The sender has the pinned directory-authority key ([docs/research/mixnet.md §4.4.2](docs/research/mixnet.md)) and a fresh
-`MixDirectory` for the current epoch; a mix has an IK-authorized identity ([docs/research/mixnet.md §4.4.2](docs/research/mixnet.md)).
+`MixDirectory` for the current epoch; a mix has an IK-authorised identity ([docs/research/mixnet.md §4.4.2](docs/research/mixnet.md)).
 
 **Procedure (mirrors [docs/research/mixnet.md §4.4](docs/research/mixnet.md); binding only on an
 implementation that offers the opt-in mixnet tier — the tier itself is non-normative and not
@@ -775,7 +775,7 @@ monotonic-version publishes (older-or-equal rejected).
 **Purpose.** The recipient-side procedure that receives a MOTE off the wire, validates it in the
 cheapest-first order (§2.7), and either stores it for the user, defers it to the requests area
 (§2.7a), or silently drops it. This is the single most security-critical operation in the
-protocol: every failure path is defined, matching §2.7's decryption-DoS defense.
+protocol: every failure path is defined, matching §2.7's decryption-DoS defence.
 
 **Initiator / Responder.** Initiator: the sending node (over whatever transport rung §19.2.3
 established, or, if elected, via the opt-in mixnet,
@@ -816,7 +816,7 @@ definition, which is exactly why its ordering is normatively fixed (§2.7).
    MUST NOT be relaxed for anyone — leniency here is exactly the replay window this step exists to
    close. See §2.7 step 3a for the full rationale and the §16/§18/§21 reconciliation it requires.
 4. **Resolve `to`** to this node's own key, or a group this node belongs to (`DeliveryTag`
-   resolution, §2.2a: identity key, group id, or blinded tag recognized via the node's own
+   resolution, §2.2a: identity key, group id, or blinded tag recognised via the node's own
    per-contact secret). If `to` does not resolve to anything this node holds, drop (this node is
    not a valid recipient — do not guess or forward).
 5. **Classify the sender**: known contact (pinned `to`/blinded-tag state matches an existing
@@ -844,12 +844,12 @@ definition, which is exactly why its ordering is normatively fixed (§2.7).
    lacking a `Payload`). A `DeniableInit` runs X3DH/PQXDH — verifying `idk_a_cert` over `idk_a`
    (`0x040C` on failure), **reserving** — not yet spending — the referenced responder prekey
    (see the reserve-then-commit rule below), and applying the §5.2.1(a) first-message replay
-   defense for a last-resort-only init —
+   defence for a last-resort-only init —
    then decrypts the embedded first `DeniableMessage`; a subsequent `DeniableMessage` advances the
    ratchet. A ratchet decrypt/skip failure is `ERR_DENIABLE_RATCHET_AUTH_FAILED` (`0x040D`); an
    unknown/exhausted prekey is `0x040B`.
 
-   **Reserve-then-commit for one-time prekeys (normative — exhaustion defense).** A one-time
+   **Reserve-then-commit for one-time prekeys (normative — exhaustion defence).** A one-time
    prekey is a **finite, exhaustible** resource, and step 7 runs **before** step 8 authenticates
    anyone. The only identity check available here is `idk_a_cert` over the initiator's *own*
    self-asserted `idk_a` — which an attacker mints freely — so an unauthenticated cold sender
@@ -865,7 +865,7 @@ definition, which is exactly why its ordering is normatively fixed (§2.7).
    - **Reserve** the prekey at step 7, keyed by the initiator's ephemeral `ek_a`, and **commit**
      (mark it permanently spent) only at step 9, once step 8 has succeeded. On any step-8 failure
      the reservation is **released**. Keying the reservation by `ek_a` preserves the §5.2.1(a)
-     replay defense unchanged: a replay of the *identical* init meets its own existing
+     replay defence unchanged: a replay of the *identical* init meets its own existing
      reservation rather than consuming a second prekey, so replay is still refused without the
      bundle draining.
    - Bound **cold-sender** prekey consumption per window (§16.5). Beyond that bound a cold
@@ -1002,9 +1002,9 @@ sender-side retry loop (§4.7).
   this section ("an implementation hardening, not specified further at the object-format level in
   v0"). That was wrong, not merely permissive, and is corrected here (H-6). Signature over the
   DS-tagged preimage `DMTAP-v0/ack ‖ 0x00 ‖ det_cbor({id, tier})` (§18.9; exact CDDL and registry
-  entry owed to that section, reported below), by a key **currently authorized under the
+  entry owed to that section, reported below), by a key **currently authorised under the
   recipient's own pinned identity**: the `IK` itself, or a non-revoked `DeviceCert`-chained device
-  key (§1.2) — the identical authorization test §5.6.1 already applies to cluster-sync peers, reused
+  key (§1.2) — the identical authorisation test §5.6.1 already applies to cluster-sync peers, reused
   here rather than inventing a second one.
 
   **Why OPTIONAL was a defect, not a hardening.** The envelope `id` an `ack` carries travels in the
@@ -1026,11 +1026,11 @@ sender-side retry loop (§4.7).
   this `ack` travels — e.g. a SURB (single-use reply block,
   [docs/research/mixnet.md §4.4](docs/research/mixnet.md)) holder, or an exit mix on the return
   leg —
-  learns, from the mere presence of a valid device-authorized signature, that *some device of the
+  learns, from the mere presence of a valid device-authorised signature, that *some device of the
   pinned recipient identity* produced this reply, which is strictly more identity commitment than a
   bare, unauthenticated confirmation carried. This is a real, narrow reduction in the recipient's
   deniability on the **return** path only (it does not touch sender anonymity, SP-3/SP-4, and it
-  does not identify *which* device among the identity's cluster, since any authorized device key
+  does not identify *which* device among the identity's cluster, since any authorised device key
   qualifies) — it is not eliminated by picking a different mechanism, because *some* durable
   authentication of "delivery actually happened" is precisely what an unforgeable ack requires. It
   is disclosed, not hidden: the canonical residual statement belongs in §6.9 SP-2 (reported below;
@@ -1056,7 +1056,7 @@ load-bearing for §6.4 and §6.6 recipient exposure, not an implementation detai
 1. Construct a minimal `ack{id, tier}` message, `tier` set to the tier `deliver` received this
    `id` at.
 2. Sign it: `ack_sig = Sign(sk, DS-tag "DMTAP-v0/ack" ‖ 0x00 ‖ det_cbor({id, tier}))` under an `IK`
-   or `DeviceCert`-chained device key currently authorized for this identity (§1.2, §5.6.1). A node
+   or `DeviceCert`-chained device key currently authorised for this identity (§1.2, §5.6.1). A node
    MUST NOT emit an `ack` it cannot sign under such a key.
 3. Send it back over the same channel/rung the `Envelope` arrived on if still open, or via a
    fresh `deliver`-style send addressed to the original sender's key if the channel has since
@@ -1065,7 +1065,7 @@ load-bearing for §6.4 and §6.6 recipient exposure, not an implementation detai
    beyond `{id, tier, ack_sig}`).
 
 **Success result.** The sender's retry-queue entry for `id` transitions to `ACKED` (§4.7) **only
-after** `ack_sig` verifies under a key currently authorized for the recipient's pinned identity
+after** `ack_sig` verifies under a key currently authorised for the recipient's pinned identity
 (§20.1); on success the entry is removed from the retry schedule.
 
 **Failure modes.**
@@ -1073,8 +1073,8 @@ after** `ack_sig` verifies under a key currently authorized for the recipient's 
 | Condition | Class | Response |
 |---|---|---|
 | Ack is sent but never reaches the sender (network loss) | Defer (at the sender) | The sender's retry queue does not learn of the ack and re-sends; the recipient's `deliver` dedup (§2.6, §19.3.1 step 9) absorbs the duplicate and re-acks — eventually consistent, never a correctness problem, only a bandwidth cost |
-| Recipient tries to ack an `id` it silently dropped (implementation bug) | Reject (protocol-level should-never-happen) | MUST NOT occur per §2.7a; if it does, the sender incorrectly believes a forged/invalid message was delivered — implementations MUST guard this invariant in code, since the spec provides no wire-level defense against a buggy recipient acking garbage |
-| `ack_sig` is absent, fails to verify, or verifies under a key not currently authorized for the recipient's pinned identity — **including a relay/mix/buffer holder synthesizing `ack(id)` from the cleartext `id` alone (H-6)** | Reject (at the sender) | The sender MUST ignore the ack: it is **not delivery evidence**. The retry-queue entry MUST remain in its current state (`IN_FLIGHT`/`RETRY`, §20.1) and continue its ordinary backoff toward `EXPIRED` — this is the entire point of making `ack_sig` MUST rather than OPTIONAL, and it is the intended, non-exceptional disposition for a forged ack, not an error condition an implementation needs to surface specially |
+| Recipient tries to ack an `id` it silently dropped (implementation bug) | Reject (protocol-level should-never-happen) | MUST NOT occur per §2.7a; if it does, the sender incorrectly believes a forged/invalid message was delivered — implementations MUST guard this invariant in code, since the spec provides no wire-level defence against a buggy recipient acking garbage |
+| `ack_sig` is absent, fails to verify, or verifies under a key not currently authorised for the recipient's pinned identity — **including a relay/mix/buffer holder synthesizing `ack(id)` from the cleartext `id` alone (H-6)** | Reject (at the sender) | The sender MUST ignore the ack: it is **not delivery evidence**. The retry-queue entry MUST remain in its current state (`IN_FLIGHT`/`RETRY`, §20.1) and continue its ordinary backoff toward `EXPIRED` — this is the entire point of making `ack_sig` MUST rather than OPTIONAL, and it is the intended, non-exceptional disposition for a forged ack, not an error condition an implementation needs to surface specially |
 | A genuinely-signed `ack` arrives at the sender via a different tier than the acknowledged MOTE was sent at (e.g. a `private`-tier send acked over a `fast` shortcut) | Reject (at the sender) | Treated identically to a signature failure: ignored, not delivery evidence, no state change. A tier-mismatched ack is either a downgrade attempt or an implementation bug; neither is grounds to short-circuit the mixnet-carried delivery the sender actually requested |
 
 **Idempotency / retry.** Sending the same `ack(id)` multiple times is harmless — the sender's
@@ -1107,9 +1107,9 @@ the `QUEUED`/draft state, §4.7).
    `SEALED`.
 2. `SEALED` → an in-flight send attempt is made (mixnet path for `private`, direct/reachability-
    ladder for `fast`) → `IN_FLIGHT`.
-3. On `ack(id)` received **and its `ack_sig` verified** under a key currently authorized for the
+3. On `ack(id)` received **and its `ack_sig` verified** under a key currently authorised for the
    recipient's pinned identity (§19.3.2) → `ACKED`. Terminal; remove from the retry queue. An
-   `ack` that fails this check (unsigned, wrongly signed, unauthorized key, or wrong `tier`) MUST
+   `ack` that fails this check (unsigned, wrongly signed, unauthorised key, or wrong `tier`) MUST
    be ignored — no transition, no state change; the queue entry continues exactly as if no ack
    had arrived (§19.3.2, H-6).
 4. On send failure or no valid `ack` within the current backoff window → `RETRY`: re-attempt with
@@ -1130,7 +1130,7 @@ left in indefinite limbo; every entry reaches one of exactly two terminal states
 | `expires` requested shorter than the default retry deadline | Defer, bounded | The smaller of the two governs — a MOTE MUST NOT be retried past its own requested expiry even if the default deadline is longer |
 | Sender's own node restarts mid-retry | Defer | The retry queue MUST be durable across restart (it is the sole durability mechanism, §0.5) — an implementation that loses queued-but-unacked MOTEs on restart violates the "durability lives entirely in this sender-side queue" invariant (§4.7) |
 | A duplicate `ack` arrives for an already-`ACKED`/removed entry | N/A | Ignored; no state change (idempotent, §19.3.2) |
-| An unsigned, wrongly-signed, or unauthorized-key `ack` arrives (forged, e.g. by a mixnet relay/exit mix/buffer holder reading the cleartext `id`, H-6) | Reject | Ignored — not delivery evidence; state remains `IN_FLIGHT`/`RETRY` and backoff continues unaffected toward `EXPIRED` if no genuine ack ever arrives (§19.3.2) |
+| An unsigned, wrongly-signed, or unauthorised-key `ack` arrives (forged, e.g. by a mixnet relay/exit mix/buffer holder reading the cleartext `id`, H-6) | Reject | Ignored — not delivery evidence; state remains `IN_FLIGHT`/`RETRY` and backoff continues unaffected toward `EXPIRED` if no genuine ack ever arrives (§19.3.2) |
 
 **Idempotency / retry.** The entire point of this operation is retry-safety: every re-attempt at
 step 2 is a fresh, idempotent send of the same immutable `Envelope` (same `id`), relying on the
@@ -1374,7 +1374,7 @@ selected the mode (never a silent default). The counterpart's `IK` is pinned (§
 
 **Procedure (normative; mirrors §5.2.1).**
 1. **`publish-deniable-prekeys`** — provision the long-term **`idk`** (a dedicated X25519 DH key,
-   **not** derived from `IK`), certify it with an IK-authorized device key (`idk_sig`), and publish
+   **not** derived from `IK`), certify it with an IK-authorised device key (`idk_sig`), and publish
    a `DeniablePrekeyBundle` (with `spk`/`opks`/KEM keys) located via `Identity.deniable_prekeys`.
    Replenish before exhaustion (≤ 20 OPKs remaining, §16.9). An invalid/exhausted bundle intake ⇒
    `ERR_DENIABLE_PREKEY_INVALID_OR_EXHAUSTED` (`0x040B`).
@@ -1384,7 +1384,7 @@ selected the mode (never a silent default). The counterpart's `IK` is pinned (§
    `idk_a_cert` inline in `DeniableInit`, references a consumed responder `spk`/`opk`(/KEM), and
    mixes `DH(idk_a, spk_b)`, `DH(ek_a, idk_b)`, `DH(ek_a, spk_b)`(, `DH(ek_a, opk_b)`) — `idk`, not
    `IK`, on both sides. For a **last-resort / signed-prekey-only** init (no OPK), apply the
-   first-message replay defense (§5.2.1(a)): prefer an OPK when available, else the responder caches
+   first-message replay defence (§5.2.1(a)): prefer an OPK when available, else the responder caches
    consumed `ek_a`/`idk_a` and requires key-confirmation. Handshake/cert failure ⇒
    `ERR_DENIABLE_X3DH_FAILED` (`0x040C`).
 4. **`deniable-send`** — Double-Ratchet-encrypt the `DeniablePayload` (which carries **no** `sig`)
@@ -1457,12 +1457,12 @@ initial member set via `add-member`, §19.4.2, applied after creation).
    as admins are added the key becomes threshold-held. The group publishes its own
    `RecoveryPolicy` (§1.4); changes to the group `Identity`, its key, or its recovery MUST satisfy
    the group's `rotate_threshold` (weakening-quorum + veto rules of §1.4 apply) and MUST appear in
-   KT (§3.5). The committer orders *handshakes* only and is **not** authorized to change the
+   KT (§3.5). The committer orders *handshakes* only and is **not** authorised to change the
    group's identity key — that is a threshold act above the committer role.
 
 **Procedure (normative).**
 1. Generate `group_keypair` (threshold-held per precondition 3).
-2. Initialize MLS group state with the creator as the sole member, role `owner`, and the
+2. Initialise MLS group state with the creator as the sole member, role `owner`, and the
    requested `posting_model`/`visibility`/`join_policy` as signed fields of the group state
    (§5.8.2: "all membership/role/policy changes are signed and appear in the group's
    hash-chained handshake log").
@@ -1855,7 +1855,7 @@ requiring member/administrator intervention.
 |---|---|---|
 | A fork is detected but a member's implementation does not halt (bug) | Reject (implementation MUST prevent) | Would silently diverge group state across members — an explicit MUST-NOT; the spec provides the detection signal but relies on conformant implementations to act on it |
 | Fork is actually a **stale duplicate** delivery of the *same* Commit (not a true fork) | N/A | Distinguished by comparing full Commit content, not just position+prev: identical Commits at the same position are a duplicate (dedup, harmless); only *differing* Commits at the same position+prev constitute a fork |
-| No resolution convention is agreed by the group after halting | Defer, until a quorum-backed recovery Commit | The group remains halted for handshake purposes until members run the §5.1 "Fork recovery (out of HALT)" procedure — roll back to the **last common epoch** and re-apply from an `admin`/`owner` recovery Commit carrying a **`> n/2` member-signature quorum**. This is the v0 out-of-band stopgap (Decentralized MLS is the eventual leaderless fix); already-decrypted messages under the last-agreed epoch keep rendering meanwhile |
+| No resolution convention is agreed by the group after halting | Defer, until a quorum-backed recovery Commit | The group remains halted for handshake purposes until members run the §5.1 "Fork recovery (out of HALT)" procedure — roll back to the **last common epoch** and re-apply from an `admin`/`owner` recovery Commit carrying a **`> n/2` member-signature quorum**. This is the v0 out-of-band stopgap (Decentralised MLS is the eventual leaderless fix); already-decrypted messages under the last-agreed epoch keep rendering meanwhile |
 
 **Idempotency / retry.** N/A — this is a detection-and-halt procedure, not an invokable operation
 with retry semantics; it re-triggers identically every time a member re-observes the same
@@ -1879,7 +1879,7 @@ bob: continues rendering already-decrypted application messages under epoch 9 (l
 > hardened requirements**; where an op block below is less specific, §13 governs. In particular:
 > (a) the client MUST generate the session keypair *before* signing and include
 > `cnf = H(session_pubkey)` in the signed challenge, and the RP MUST bind the session **only** to
-> `cnf` (§13.3, session-hijack defense); (b) a **bare node-signed mode is FORBIDDEN** for remote
+> `cnf` (§13.3, session-hijack defence); (b) a **bare node-signed mode is FORBIDDEN** for remote
 > nodes — signing requires a passkey *or* an authenticated paired companion client enforcing
 > intent-matching, and the node signs only a challenge matching a **node-minted, user-initiated
 > pending intent** (§13.3.1); (c) the OIDC bridge (`oidc-bridge-issue`) MUST embed the user's own
@@ -1981,7 +1981,7 @@ design). Responder: the RP, which verifies the result.
    `cnf = H(session_pubkey)` (§13.3 step 4).
 4. Sign `H(rp_origin ‖ nonce ‖ issued_at ‖ exp ‖ aud ‖ scope ‖ cnf)` (canonical hash, §2; `scope`
    defaults to the empty array `[]` when the Challenge omits it, §18.9.8) under the user's
-   **`IK`-authorized device key** (the identity-revealing login signer, `Assertion.from`) — **not**
+   **`IK`-authorised device key** (the identity-revealing login signer, `Assertion.from`) — **not**
    the session key (which `cnf` commits) and not a bare relayed challenge. Because `scope` is inside
    the signed preimage, the RP MUST NOT grant a scope broader than the signed value (§13.3 step 6).
 5. Return the `SignedAssertion{challenge, cnf, sig}` to the RP, which binds the session **only** to
@@ -1996,7 +1996,7 @@ design). Responder: the RP, which verifies the result.
 |---|---|---|
 | Client-observed origin ≠ any origin the ceremony would sign for (a phishing relay presenting a look-alike origin) | Reject | The trusted client (WebAuthn/CTAP2) itself refuses — an assertion produced at `alice-yourdomain.evil.com` structurally cannot validate for `yourdomain` (§13.3.1); this is enforced by the client/authenticator, not by this operation's logic alone |
 | `challenge.nonce` already used, or `exp` elapsed | Reject | `ERR_NONCE_REPLAYED` (`0x0502`) / `ERR_CHALLENGE_EXPIRED` (`0x0503`); RP MUST NOT authenticate on a stale/reused challenge |
-| Remote-node ceremony: node cannot attribute the relayed challenge to an authenticated request channel (§13.3.1 hazard) | Reject | The node MUST refuse to sign; this is the specific defense against a phisher relaying a real challenge to a remote node for blind signing |
+| Remote-node ceremony: node cannot attribute the relayed challenge to an authenticated request channel (§13.3.1 hazard) | Reject | The node MUST refuse to sign; this is the specific defence against a phisher relaying a real challenge to a remote node for blind signing |
 | User declines the user-verification/approval step | Reject | No assertion produced — a local, deliberate deny with no dedicated registry code; what the RP eventually observes is the challenge lapsing unanswered (`ERR_CHALLENGE_EXPIRED`, `0x0503`, the closest registered code) |
 | Node in an "approve any challenge" mode | Reject (of the mode itself) | §13.3.1: "Nodes MUST NOT offer 'approve any challenge' modes" — an implementation offering this is non-conformant; this operation's procedure assumes per-login explicit approval is the only conformant mode |
 
@@ -2021,13 +2021,13 @@ trusted_client → RP: SignedAssertion{ challenge, cnf, sig: Ed25519(...) }   # 
 §13.4, using DPoP or GNAP so a leaked token alone is useless to a thief.
 
 **Initiator / Responder.** Initiator: the RP (having verified the assertion). Responder: the
-client, which holds the newly-authorized session key.
+client, which holds the newly-authorised session key.
 
 **Parameters.**
 - `assertion` (`SignedAssertion`, MUST) — from `auth-assert` (§19.6.2), already verified by the
   RP (signature validates against the pinned key, `rp_origin` matches the RP's own origin,
   `nonce` unused, not expired — §13.3 step 6).
-- `session_key` (generated, MUST) — a fresh, **per-RP, per-device** ephemeral key, authorized by
+- `session_key` (generated, MUST) — a fresh, **per-RP, per-device** ephemeral key, authorised by
   a device key (§1.2), not `IK` itself.
 - `mechanism` (`"dpop" | "gnap"`, MUST) — §13.4.
 
@@ -2036,7 +2036,7 @@ client, which holds the newly-authorized session key.
 **Procedure (normative, §13.4).**
 1. Generate `session_key`, scoped to this RP and this device only.
 2. Authorize `session_key` under a current device key (a signed statement: "this device key
-   authorizes this session key for this RP").
+   authorises this session key for this RP").
 3. Establish the session using the chosen `mechanism`:
    - **DPoP (RFC 9449):** every subsequent request carries a fresh proof-of-possession JWT signed
      by `session_key`.
@@ -2052,7 +2052,7 @@ proof of possession of `session_key`.
 | Condition | Class | Response |
 |---|---|---|
 | `assertion` fails RP-side verification (shouldn't reach this operation, but defensively) | Reject | `session-establish` MUST NOT be invoked on an unverified assertion; if it is, treat as the underlying §21.7 failure per cause (`ERR_ORIGIN_MISMATCH`/`ERR_NONCE_REPLAYED`/`ERR_CHALLENGE_EXPIRED`, `0x0501`/`0x0502`/`0x0503`) |
-| `session_key` generation/authorization fails (device key unavailable) | Reject | `ERR_DEVICE_CERT_INVALID` (`0x010D`, closest registered code — no current device key/cert is available to authorize the session key); retry once a device key is available |
+| `session_key` generation/authorisation fails (device key unavailable) | Reject | `ERR_DEVICE_CERT_INVALID` (`0x010D`, closest registered code — no current device key/cert is available to authorise the session key); retry once a device key is available |
 | A stolen bearer-style token is replayed without the matching `session_key` proof | Reject | DPoP/GNAP proof-of-possession check fails at the RP for every subsequent request — this is the entire point of §13.4, restated as this operation's ongoing per-request postcondition, not a one-time check |
 
 **Idempotency / retry.** Each successful login SHOULD mint a fresh `session_key` (not reuse one
@@ -2084,20 +2084,20 @@ status endpoint the RP checks.
   `device_key` reference (revoking all sessions issued under that device at once).
 - `reason` (`tstr`, OPTIONAL).
 
-**Preconditions.** The revoking principal is the identity owner (any authorized device) or,
+**Preconditions.** The revoking principal is the identity owner (any authorised device) or,
 transitively, the outcome of a full recovery event (§1.4), which per §13.4 MUST invalidate **all**
-prior session authorizations regardless of explicit per-session revocation.
+prior session authorisations regardless of explicit per-session revocation.
 
 **Procedure (normative, §13.4).**
 1. Publish a revocation record for `session_ref` to the transparency log and/or a short-lived
    status endpoint.
 2. If `session_ref` is a `device_key`, this revokes every session key that device key ever
-   authorized, in one action (§13.4: "rotating a device key revokes all its sessions at once").
+   authorised, in one action (§13.4: "rotating a device key revokes all its sessions at once").
 3. RPs consulting the status endpoint/log (directly, or via a cached revocation list with a
    bounded freshness window) MUST reject DPoP/GNAP proofs from a revoked `session_key` going
    forward.
 4. **Full recovery event** (§1.4 reactive recovery, distinct trigger): on completing recovery
-   under a new or reauthorized `IK`, **all** prior session authorizations are invalidated as a
+   under a new or reauthorized `IK`, **all** prior session authorisations are invalidated as a
    blanket consequence — not a per-session enumeration, since the owner may not even know every
    session that existed.
 
@@ -2154,7 +2154,7 @@ as an OIDC IdP for the legacy RP). Responder: the legacy RP, which consumes a st
    already knows how to verify; expressing the binding as `did:web:yourdomain:users:alice`,
    §13.6, is available to any consumer sophisticated enough to check it, but the common case is
    plain OIDC verification against the bridge's own JWKS).
-3. Bridge returns the ID Token via the standard OIDC authorization-code or implicit flow the
+3. Bridge returns the ID Token via the standard OIDC authorisation-code or implicit flow the
    legacy RP already implements.
 
 **Success result.** The legacy RP receives a standard-shaped ID Token it can verify with its
@@ -2207,7 +2207,7 @@ verifier, and the KT log / status endpoint (revocation).
 **Preconditions.** For a delegation, the delegator actually holds (or roots) the `caps`; a
 domain-authoritative capability requires the domain **threshold** (§13.5.1). Both delegation and
 revocation MUST be routed through the owner's/domain's **KT self-monitoring path** (§3.5) so a silent
-grant/revoke is owner-visible (§13.5, BEC defense).
+grant/revoke is owner-visible (§13.5, BEC defence).
 
 **Procedure (normative).**
 1. **`delegate-capability`** — construct a `CapabilityToken` with `iss` = the delegator, `aud`,
@@ -2237,7 +2237,7 @@ verifier can check **offline**; or a KT-logged revocation that thereafter denies
 | Invoked right exceeds what was granted | Reject | `0x0508`, DENY_POLICY |
 | Token (or ancestor) covered by a valid revocation | Reject | `ERR_CAPABILITY_REVOKED` (`0x050B`), DENY_POLICY |
 | Domain-authoritative capability minted without threshold | Reject | Unauthorized (`0x0508`) — no unilateral super-admin (§13.5.1) |
-| Grant/revoke not routed through the KT/owner-visible path | Reject | Prohibited (§13.5) — silent authorization is not honored |
+| Grant/revoke not routed through the KT/owner-visible path | Reject | Prohibited (§13.5) — silent authorisation is not honoured |
 
 **Idempotency / retry.** `delegate-capability` with identical parameters (and `nonce`) yields the
 same token content-address — idempotent. `revoke-capability` is idempotent (re-publishing the same
@@ -2307,7 +2307,7 @@ can be silently lost, because `250` is emitted only after that `ack`.
 | Condition | Class | Response |
 |---|---|---|
 | Spam signals present pre-`DATA` (RBL/DNSBL hit, SPF/DMARC fail, rate-limit exceeded) | Reject | SMTP-level rejection before `DATA` (standard SMTP `5xx`), per §9 — never wrapped into a MOTE at all |
-| `RCPT TO` does not resolve to any known DMTAP recipient key | Reject | SMTP `550` (no such user), standard MX behavior |
+| `RCPT TO` does not resolve to any known DMTAP recipient key | Reject | SMTP `550` (no such user), standard MX behaviour |
 | Recipient node unreachable (all reachability-ladder rungs + buffering exhausted) | Defer | SMTP **`451`**; sending server retries per its own SMTP retry schedule — this is the *entire* durability mechanism for this path, since the gateway is stateless (§7.4) |
 | Recipient node reachable but does **not** durably `ack` within the transaction window (or only a best-effort buffer accepted the packet) | Defer | SMTP **`451`** — the gateway MUST NOT return `250` on mere hand-off; without a durable `ack` a later mesh-side `EXPIRED` (§19.3.3) would silently lose the message after the SMTP transaction closed. Deferring keeps durability in the legacy sender's queue (step 6, silent-loss avoidance) |
 | Attestation key not yet published for this domain (misconfiguration) | Reject (operational) | The gateway MUST NOT deliver an unattestable MOTE as if it were attested; implementations SHOULD refuse to accept mail for a domain whose own attestation key isn't configured, surfaced as an operator-side configuration error, not a per-message SMTP failure |
@@ -2572,14 +2572,14 @@ invoke.
 | `Email/set` (update = flag/label/move) | Local CRDT state change (§5.6), replicated across the device cluster | No wire MOTE is produced; this is why "mark read" has no protocol object (§17.1 item 18) |
 | `Email/set` (destroy) | Local deletion; optionally a cooperative `kind=0x04 redact` MOTE (§2.3) sent to original correspondents, which is itself an ordinary `deliver`/`ack` exchange, non-enforceable at the recipient (§6.6 item 8) | `Email/set destroy` is local-authoritative; the `redact` MOTE is a hint, not a guarantee |
 | `Email/changes` | CRDT delta query since a client-held state token (§5.6) | Sync primitive, no new MOTE operation |
-| `Mailbox/query`, `Mailbox/get`, `Mailbox/set`, `Mailbox/changes` | Same as `Email/*` but over the folder/label CRDT namespace (§5.6) rather than message content | Folders are pure organizational metadata, §17.1 item 1 |
+| `Mailbox/query`, `Mailbox/get`, `Mailbox/set`, `Mailbox/changes` | Same as `Email/*` but over the folder/label CRDT namespace (§5.6) rather than message content | Folders are pure organisational metadata, §17.1 item 1 |
 | `Thread/get`, `Thread/changes` | Derived view over `Headers.thread` + `Payload.refs` (§2.4) across already-stored MOTEs | No independent storage — a thread is a read-time reconstruction |
 | `EmailSubmission/set` (create) | Identical to `Email/set` create — constructs and queues a `mail`-kind MOTE via §19.3.3; for a legacy destination, hands off to `smtp-outbound` (§19.7.2) instead of native `deliver` | JMAP's separate submission object exists to track delivery status distinctly from the message object itself; DMTAP surfaces the sender-retry state machine's states (`QUEUED/SEALED/IN_FLIGHT/ACKED/RETRY/EXPIRED`, §4.7) through `EmailSubmission`'s status field |
 | `EmailSubmission/get` | Read of the current sender-retry state (§4.7/§19.3.3) for a given submission | Direct exposure of the internal state machine to the client |
 | Calendars/Contacts `query`/`get`/`set`/`changes` (§8.4) | Identical pattern to `Email/*`/`Mailbox/*`, but over `kind`-equivalent JSCalendar/JSContact MOTEs (carried as MOTE payload content, not new `kind` values beyond what §2.3 already reserves for structured content types) and their own CRDT-replicated metadata | Calendar invitations additionally route through ordinary `deliver`/`ack` between participants (§8.4: "invitations... ride as MOTEs"), i.e. no separate scheduling-server operation exists — `post-to-group`-style fan-out applies if the invitation goes to a group address (§19.5.3) |
 | Push (`EventSource`/WebSocket) | Server-sent notification on any local state change from `deliver` (§19.3.1), CRDT sync (§5.6), or submission-state transition (§19.3.3) | Not a distinct MOTE operation — a transport-level notification of state this appendix already defines |
 
-## 19.10 Gaps flagged (undefined behavior surfaced, not left implicit)
+## 19.10 Gaps flagged (undefined behaviour surfaced, not left implicit)
 
 Per this appendix's own rule ("every failure path must have a defined outcome"), the following
 points were surfaced. **Update — five of the original six are now RESOLVED** by the
@@ -2596,7 +2596,7 @@ still reads "see §19.10," it now inherits the pinned §16.8/§5.1 values descri
    proposes a recovery Commit on top of it, and that Commit is canonical only with the same
    **`> n/2` member-signature quorum** as a takeover (denying any single admin unilateral
    fork-selection); losing-fork members roll back to the last common epoch and re-apply, with
-   abandoned-fork application messages re-sent by sender retry (§2.6). Decentralized MLS
+   abandoned-fork application messages re-sent by sender retry (§2.6). Decentralised MLS
    (`draft-kohbrok-mls-dmls`) remains the eventual leaderless fix.
 3. **Join-request expiry** (§19.5.4, §5.8.2). **RESOLVED.** §16.8 now fixes **Group join-request
    expiry = 30 days** (mirroring the requests-area retention of §16.5), so a `request`-mode join
@@ -2613,14 +2613,14 @@ still reads "see §19.10," it now inherits the pinned §16.8/§5.1 values descri
    is now separately **RESOLVED** — normative in §8.5 and §13.5: every forwarding/redirection-rule
    change replicates to the owner's device cluster (§5.6) and is logged to KT self-monitoring
    (§3.5), with silent, unlogged installation prohibited. It needs no operation or wire object of
-   its own, being node-local CRDT state signed by an `IK`-authorized device key.)*
+   its own, being node-local CRDT state signed by an `IK`-authorised device key.)*
 6. **Node liveness timeout that triggers committer failover** (§19.5.5 precondition 2, §5.1).
    **RESOLVED.** §16.8 now fixes the **committer-liveness timeout = 5 min** plus a
    **takeover hysteresis of 2 consecutive misses** (avoiding churn on transient NAT/relay blips),
    so rotation no longer depends on an unstated implementation timeout.
 
 Five of these six gaps are now closed by pinned §16.8 parameters and §5.1 procedure (none of
-which required inventing operation *behavior*); item 5 alone remains, awaiting the `Headers.ext`
+which required inventing operation *behaviour*); item 5 alone remains, awaiting the `Headers.ext`
 extension convention, and its operation still has a fully-defined "defer, pending the convention"
 outcome rather than silence — per this appendix's own normative charter.
 

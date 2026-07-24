@@ -17,7 +17,7 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHOULD**, **SHO
 ## 1. What this profile is
 
 SEARCH is the answer to *"how do I find things?"* computed **without an authority that owns the
-index**. A centralized search engine bundles three things a user cannot separate: the crawl (what
+index**. A centralised search engine bundles three things a user cannot separate: the crawl (what
 exists), the rank (what surfaces first), and the query log (what you looked for) — and it owns all
 three, so it can hide, promote, or sell any of them. SEARCH unbundles them and keeps discovery on the
 same slide as the rest of KOTVA ([DIRECTION §6](../DIRECTION.md)): the primitives are identical at
@@ -54,7 +54,7 @@ one coordinator kind.
 | **OFFER** ([`OFFER.md`](../primitives/OFFER.md)) | The primary indexed object. OFFER's **OFR-7** — *indexes are derived, never authoritative* — is the rule SEARCH is built around; on any disagreement between an index and a seller's signed feed, the feed governs. |
 | **REPUTATION** ([`REPUTATION.md`](../primitives/REPUTATION.md)) | A ranking *input*, not a stored number. An indexer MAY weight results by reputation computed over public feeds, but **REP-3** forbids a published score, so ranking is derived and disclosed (SRCH-4), never a figure baked into a result. |
 | **ATTEST** ([`ATTEST.md`](../primitives/ATTEST.md)) | The anchor an index MAY use to discount unanchored authors (anti-spam, §7) — personhood (World ID / Human Passport) or staked value, never a token. |
-| **`indexer`** coordinator ([CONTRACT §5](../coordinator/CONTRACT.md)) | The one coordinator SEARCH adds: a global-view crawl + rank service, `blind`/`attested` (TEE) preferred. It **authorizes, never classifies** (CONTRACT §4): it ranks and filters its *own* view; it cannot delist an author from the network. |
+| **`indexer`** coordinator ([CONTRACT §5](../coordinator/CONTRACT.md)) | The one coordinator SEARCH adds: a global-view crawl + rank service, `blind`/`attested` (TEE) preferred. It **authorises, never classifies** (CONTRACT §4): it ranks and filters its *own* view; it cannot delist an author from the network. |
 | **`labeler`** coordinator ([CONTRACT §5](../coordinator/CONTRACT.md)) | OPTIONAL. Moderation of *results* is an opt-in labeler the reader subscribes to and can leave — never a classification gate the indexer applies for everyone (§7). |
 
 **Bindings adopted** ([DIRECTION §3](../DIRECTION.md), [`bindings/README.md`](../bindings/README.md)):
@@ -126,10 +126,10 @@ outside the substrate object model. Its confidentiality is a declared content-vi
 - **SRCH-5 — no ranking token; paid rank is disclosed operator policy, never protocol.** Rank MUST
   NOT be purchasable through any protocol token; none exists and none will be added
   ([DIRECTION §5](../DIRECTION.md)). An indexer MAY offer paid placement as *operator policy*, but it
-  MUST be disclosed in the descriptor and **visibly labeled distinct from organic results** at
+  MUST be disclosed in the descriptor and **visibly labelled distinct from organic results** at
   display; it is escapable by switching indexers or self-hosting, and it is never a network-wide
   authority over what surfaces.
-- **SRCH-6 — authorize, never classify.** An indexer MUST NOT act as a network content gate. It MAY
+- **SRCH-6 — authorise, never classify.** An indexer MUST NOT act as a network content gate. It MAY
   rank and filter *its own* view; it MUST NOT drop, quarantine, or annotate on a content basis as if
   removing an object from the network ([CONTRACT §4](../coordinator/CONTRACT.md)). Result moderation
   is an **opt-in labeler** the reader chooses (§7), not a filter the indexer imposes on everyone.
@@ -213,8 +213,8 @@ SEARCH inherits [`THREAT-MODEL.md`](../THREAT-MODEL.md) (SEC-1…SEC-9). The inv
   convenience, never a trust root. A malicious index can **withhold, re-order, or stall** (SRCH-7,
   detectable at `attested` level; undetectable at `declared`) but can **never forge** a signed object
   or make an unsigned string appear authored.
-- **SEC-6 (authorize, never classify).** An `indexer` is hired, swappable, self-hostable, never
-  load-bearing, and it authorizes from identity + rate only — it does not classify content as a
+- **SEC-6 (authorise, never classify).** An `indexer` is hired, swappable, self-hostable, never
+  load-bearing, and it authorises from identity + rate only — it does not classify content as a
   network gate (SRCH-6). An index that "finishes" and centralizes by out-classifying rivals is the
   failure mode CONTRACT §4 exists to forbid.
 - **SEC-7 (Sybil priced and localized, not solved).** Spam and index-poisoning resistance is

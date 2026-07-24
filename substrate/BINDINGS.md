@@ -6,7 +6,7 @@
 > document states the *engineering* plan for getting from "five products, five hand-rolled
 > implementations" to "one compiled core, many thin surfaces" — which crate is the core, which language
 > surfaces consume it and how, and what it honestly costs. Where this document and a substrate capability
-> document disagree about bytes or behavior, the capability document governs; this document only governs
+> document disagree about bytes or behaviour, the capability document governs; this document only governs
 > which binary produces those bytes.
 
 The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are used here in their plain
@@ -28,7 +28,7 @@ moment two implementations encode a float, sort a map, or fold a hash differentl
 [`SYNC.md § 2.2`](SYNC.md#22-determinism-is-the-contract) makes canonical encoding a MUST.
 
 The fix is not "rewrite five products in Rust." It is: **write the algebra once, in one audited crate,
-and give every product a thin binding to that same compiled artifact** — so that byte-identical behavior
+and give every product a thin binding to that same compiled artifact** — so that byte-identical behaviour
 is a property of the toolchain, not of five teams independently re-reading a spec correctly. This is the
 same logic that made SQLite, BoringSSL, and libsodium single-core-many-language projects rather than
 five-language-five-implementations projects: the hard, security-relevant part gets built once and pinned
@@ -45,7 +45,7 @@ workspace (not assumed):
 |---|---|---|---|
 | `dmtap-core` | `crates/dmtap-core` | **Identity** (①), **Feeds & Blobs** (②) | `identity` module: `IdentityKey`, `Identity`, `DeviceCert`, `RecoveryPolicy`, `KeyRotation`, `MoveRecord`. `keyname` module: the 8-word key-name encode/verify. `kt` module: RFC 6962 key-transparency objects. `pubobj` module: `PubManifest`, `PubAnnounce`, `FeedEntry`, `FeedHead`, `verify_feed_chain`, `check_anti_rollback`. Also `cbor`, `id::ContentId`, `capability::CapabilityToken`, `mote`, `cad`, `pq` (X-Wing hybrid). Deps: `ed25519-dalek`, `x25519-dalek`, `hpke`, `blake3`, `ciborium`, `hkdf`, `sha2`, `chacha20poly1305`, `ml-dsa` — pure-Rust crypto, no tokio, no filesystem, no native TLS. |
 | `dmtap-clustersync` | `crates/dmtap-clustersync` | **Sync** (③) — §5.6 single-owner profile | `Cluster`, `Replica`, `ClusterState`, `OrSet`, `LwwMap`, `DeathReg`, `validate_op`, `Journal`, `range_fingerprint`/`reconcile`/`verify_range`. Depends on **`dmtap-core` and `std` only** — zero third-party crates, `#![forbid(unsafe_code)]`. The cleanest possible binding target in the whole workspace. |
-| `dmtap-sync` | `crates/dmtap-sync` | **Sync** (③) — the substrate's multi-author generalization | The six-kind op algebra (OR-Set/LWW/death-cert/PN-counter/RGA/movable-tree), `COSE_Sign1`-signed ops, HLC total order, snapshots, range-Merkle. Depends on `dmtap-core` only (dev-dep on `dmtap-clustersync` for cross-checking parity). This is the crate [`SYNC.md § 13`](SYNC.md#13-grounding) grounds itself in. |
+| `dmtap-sync` | `crates/dmtap-sync` | **Sync** (③) — the substrate's multi-author generalisation | The six-kind op algebra (OR-Set/LWW/death-cert/PN-counter/RGA/movable-tree), `COSE_Sign1`-signed ops, HLC total order, snapshots, range-Merkle. Depends on `dmtap-core` only (dev-dep on `dmtap-clustersync` for cross-checking parity). This is the crate [`SYNC.md § 13`](SYNC.md#13-grounding) grounds itself in. |
 | `dmtap-p2p` | `crates/dmtap-p2p` | **Roles** (④), partial | Real libp2p mesh transport: Kademlia (announce/resolve), Circuit Relay v2 + DCUtR (circuit relay, signaling). MSRV 1.83, depends on `tokio` + `libp2p` 0.56 — the heaviest, least binding-portable crate that still touches a substrate capability. Mailbox and cache/pin surfaces were not confirmed to exist as a standalone servable role in this survey. |
 | `node` (lib name `dmtap`) | `node/` | consumer, not core | The full client daemon; depends on the above plus `tokio`. Not a binding target itself — it is what a *native Rust* product looks like when it just depends on the crates directly. |
 
@@ -62,7 +62,7 @@ declares `crate-type = ["staticlib", "cdylib", "rlib"]` for its Tauri wrapper cr
 this "keeps the door open for `tauri android`/`ios` later" — a placeholder, not working bindings. The
 top-level `README.md` states the intent outright: *"a real client compiles the Rust core to WASM and
 speaks to a real mesh; today's web client simulates the network."* This document is the plan for making
-that sentence true, generalized past the web client to every product in the suite.
+that sentence true, generalised past the web client to every product in the suite.
 
 **Design rule: bindings live in wrapper crates, not in the core.** `dmtap-clustersync`'s zero-dependency,
 `forbid(unsafe_code)` posture is valuable on its own terms (it is the easiest crate in the tree to audit
@@ -120,7 +120,7 @@ against its own binding path before it ships**, not just against the native Rust
 **kerf-pub already proves this discipline works cross-language, today.** kerf-pub's Python
 implementation vendors `pub_vectors.json` verbatim from this repository and its test suite diffs
 byte-identical against it (confirmed: `tests/vectors/pub_vectors.json` in kerf-pub is byte-identical to
-`conformance/vectors/pub_vectors.json` here). That is the exact pattern this plan generalizes: a vector
+`conformance/vectors/pub_vectors.json` here). That is the exact pattern this plan generalises: a vector
 suite frozen once in the spec repo, reproduced byte-for-byte by every consuming implementation, in
 whatever language it's written in — whether that implementation is an independent rewrite (kerf-pub today)
 or a thin binding over the compiled core (the plan for Go/WASM going forward). One honest gap to close
@@ -193,7 +193,7 @@ through a core binding, per the current state recorded in [`ADOPTION.md`](ADOPTI
   `GET/POST /api/sync/*` HTTP handlers as thin wrappers that marshal into/out of `dmtap-sync`/
   `dmtap-clustersync` calls. Binding: cgo (option 1, §5) or a sidecar (option 2) — flowstock carries no
   pure-Go constraint of its own, so cgo is the lower-effort path. Gains: COSE-signed CBOR ops, the full
-  six-kind CRDT algebra (it currently has 2 of 6), DeviceCert-based multi-device authorization in place of
+  six-kind CRDT algebra (it currently has 2 of 6), DeviceCert-based multi-device authorisation in place of
   its bearer-secret-primary transport auth.
 - **vulos OS/control-plane "fabric"** (Go, Sync only, if adopted). Replaces: `internal/fabric/fabric.go`'s
   LAN-only mDNS+JSON transport and `internal/multiinstance/appsync.go`'s single-table LWW+OR-set logic.
@@ -217,7 +217,7 @@ through a core binding, per the current state recorded in [`ADOPTION.md`](ADOPTI
   binding exercise, it's a rewrite of the editor's data model, and is **out of scope** for this plan. The
   realistic adoption path is narrower and still valuable: wrap Yjs's binary update as an opaque payload
   inside a `dmtap-sync` `COSE_Sign1` envelope via the WASM surface (§3), gaining per-op author attribution
-  and DeviceCert-based authorization at the transport layer without touching Yjs's merge algorithm. This is
+  and DeviceCert-based authorisation at the transport layer without touching Yjs's merge algorithm. This is
   adopting Sync's *authenticity envelope*, not its *algebra* — a legitimate, disclosed partial adoption, not
   a stepping-stone to full conformance.
 - **kerf-pub** (Python, Feeds & Blobs). Deliberately **not** a binding consumer (§3) — it stays an

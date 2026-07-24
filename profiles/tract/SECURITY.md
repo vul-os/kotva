@@ -36,7 +36,7 @@ These are design consequences, not bugs, and they are documented rather than fix
 - **Reputation is manipulable at a cost.** Purchase attestation raises the price of ballot-stuffing
   and leaves a trail; it does not establish counterparty independence. The achievable Sybil-cost
   floor on this substrate is an open question (§21.8).
-- **Discovery may re-centralize.** No protocol rule prevents one index becoming dominant, and this
+- **Discovery may re-centralise.** No protocol rule prevents one index becoming dominant, and this
   happened to the closest deployed relative of this design (§21.3).
 
 ## Cryptography

@@ -6,7 +6,7 @@ Every platform that coordinates work — delivery apps, gig marketplaces, trade
 directories, field-service dispatchers — solves the same problem the same way:
 put one company in the middle, let it hold every identity, every job record and
 every reputation, and let it take a cut for the privilege. The coordination is
-not the hard part. The *centralization* is not a technical necessity; it is a
+not the hard part. The *centralisation* is not a technical necessity; it is a
 business model that arrived wearing the costume of an architecture.
 
 Look at what actually forces a central operator, and it comes down to one

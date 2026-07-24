@@ -1,7 +1,7 @@
 # Research & rationale behind KOTVA
 
 This is the reasoning the design rests on: the coverage audit (what the substrate covers and
-what it doesn't), the drawback analysis versus centralized products, the 2026 tooling survey,
+what it doesn't), the drawback analysis versus centralised products, the 2026 tooling survey,
 and the future-proofing argument. It exists so the [DIRECTION](../../DIRECTION.md) rules are
 *derived*, not asserted.
 
@@ -50,7 +50,7 @@ voting** and **surveillance ad markets**.
 
 ---
 
-## 3. Drawbacks vs. centralized products — and which are real
+## 3. Drawbacks vs. centralised products — and which are real
 
 We catalogued the honest disadvantages, then re-graded them against 2026 tooling.
 
@@ -67,7 +67,7 @@ read plaintext); search → TEE index (DeSearch); reputation → OpenRank; micro
 feature velocity (protocols evolve slower than a company ships); the ad-subsidized free tier
 (no surveillance engine, by choice); legal liability sink; cold-start coordination.
 
-**The reframe that resolves the fundamentals:** they are *jobs*, not walls. A centralized
+**The reframe that resolves the fundamentals:** they are *jobs*, not walls. A centralised
 company bundles them, makes them mandatory, and pays for them by owning you. KOTVA unbundles
 them into **paid coordinator roles** that compete and that you can fire or self-host. You
 re-buy the same services à la carte, from operators who cannot trap you. The only thing
@@ -79,7 +79,7 @@ level, never sold as trustless ([coordinator/CONTRACT §3](../../coordinator/CON
 
 ---
 
-## 4. Future-proofing — why the design converges on centralized quality
+## 4. Future-proofing — why the design converges on centralised quality
 
 Every hard problem is a **swappable slot** — a binding or a coordinator behind a stable
 interface. As the frontier improves, the fix slots in as a version bump, and nothing above it
@@ -87,12 +87,12 @@ changes:
 
 | As this improves… | It enters as… | Product moves toward |
 |---|---|---|
-| Better proof-of-personhood | a REPUTATION binding swap | centralized-grade Sybil resistance |
+| Better proof-of-personhood | a REPUTATION binding swap | centralised-grade Sybil resistance |
 | TEE global matcher | a MATCH coordinator swap | Uber-grade matching |
 | TEE search index | an indexer coordinator swap | Google-grade discovery |
 | TEE anti-abuse (global view, no plaintext) | a labeler upgrade | platform-grade T&S, privately |
 
-So the **technical** gaps are future-proofed — they converge on centralized quality without
+So the **technical** gaps are future-proofed — they converge on centralised quality without
 rearchitecture, while keeping sovereignty. What remains is the small **structural** set
 (§3, fundamental), which no seam fixes because they aren't technical problems — they're
 consequences of not being a single surveilling company, and several are the point.
@@ -105,7 +105,7 @@ KOTVA's novelty is **composition and the coordinator contract**, not new cryptog
 profiles libp2p (it does *not* reinvent P2P), applies MLS, adopts SFrame/TURN/WebRTC for
 media, and binds identity/reputation/payments/storage/dispute to existing standards
 ([bindings](../../bindings/README.md)). The genuinely original writing is: the **substrate
-waist**, the **coordinator contract** (safe centralization as a checkable property), and thin
+waist**, the **coordinator contract** (safe centralisation as a checkable property), and thin
 **profiles**. Far-future cryptographic research (mixnet/Sphinx, VDF, PQ envelope tuning) is
 **quarantined to `docs/research/` as non-normative** — its assurance is not yet deployment-grade,
 and keeping it out of the normative surface stops the spec overclaiming.

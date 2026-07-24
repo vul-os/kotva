@@ -153,7 +153,7 @@ carries a strictly different amount of authority, and an index MUST treat them a
    **UNVERIFIED**: anyone MAY assert any external identifier for any record. An index MUST treat it
    as an **advisory join key only** and MUST NOT treat it as authority (§16.5.1, §2.6). Squatting is
    **expected rather than prevented** — GS1 issuance is gated and fee-bearing, so depending on it as
-   authority would import exactly the centralization point and cost barrier TRACT refuses to require.
+   authority would import exactly the centralisation point and cost barrier TRACT refuses to require.
 3. **`ManufacturerSignedRung` — authority is the brand.** This rung names the brand's own `IK`
    (substrate `IDENTITY.md`). Its weight is exactly the weight a verifier assigns that key: a
    consumer of the record verifies the manufacturer's signature against the named `IK` and decides
@@ -204,7 +204,7 @@ A bundle `ProductRecord` remains a public object and MUST NOT carry personal dat
 schema.org product vocabulary (`Product`, `Offer`, `ProductGroup`, `hasVariant`, `variesBy`) for
 the data model, so existing merchant feeds map in by translation. GS1 identifiers (GTIN, MPN) are
 supported as **claims only** (§2.3c) — issuance is gated and fee-bearing, so a spec that depended on
-them would import a centralization point and a cost barrier. **BCP 47** (RFC 5646) language tags for
+them would import a centralisation point and a cost barrier. **BCP 47** (RFC 5646) language tags for
 all human-facing text (§2.3a), UTF-8 throughout, and **ISO 4217** for currency (§5.3) — so language,
 region, and currency are all carried by boring existing standards rather than TRACT vocabulary.
 
@@ -245,10 +245,10 @@ catalogue. It is **never authoritative**:
 **The gap (honest, marked — do not read as defended).** "Any node MAY build an index" does not mean
 many will, and this is the weakest load-bearing claim in the specification alongside cross-publisher
 identity (§2.2a). A content-addressed substrate offers no global index, so discovery is the *first*
-function to re-centralize: whichever index becomes economically dominant becomes a de facto
+function to re-centralise: whichever index becomes economically dominant becomes a de facto
 content-policy gatekeeper **regardless of what this document permits**. That is precisely what
 happened to the closest deployed relative of this design — OpenBazaar's default crawler became the
-gatekeeper (§21.3) — and the largest live decentralized-commerce network avoided it only by adopting
+gatekeeper (§21.3) — and the largest live decentralised-commerce network avoided it only by adopting
 a central approval-gating registry (§21.4). **No rule in this document prevents it.** Multiple
 competing indexers with verifiable completeness or censorship proofs is the candidate answer, and it
 has **no deployed precedent** (§21.8). This is marked as the weakest claim rather than defended

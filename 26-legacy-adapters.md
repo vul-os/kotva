@@ -17,7 +17,7 @@ SMTP/mail bridge, the **only** legacy protocol the node ships in-tree and the **
 DMTAP requiring a scarce, non-self-provisionable resource (an IP with sending reputation and
 unblocked port 25, §7.1a, §0.2.3). This document does **not** redefine, rename, or extend the
 **gateway role** of §7/§0.2.3 — that term keeps its single sense (§0's glossary: the legacy-**mail**
-adapter role) unchanged. Instead it generalizes the *pattern* §7 already establishes for mail — a
+adapter role) unchanged. Instead it generalises the *pattern* §7 already establishes for mail — a
 pluggable bridge to a network DMTAP does not control, with an honest accounting of cost, exposure,
 and survivability — to every **other** legacy rail a user's correspondents live on. Nothing in §7.1–
 §7.15 is altered, weakened, or superseded by this document; every cross-reference below into §7 is
@@ -31,7 +31,7 @@ out-of-tree** (§26.9). Two further terms are reused **by analogy, not by redefi
 
 - **node mode** and **gateway mode** name a deployment property any adapter can have (§26.2) — the
   same self-host/third-party-operator split §12.1 already draws for the whole protocol, and the
-  same private/public split §7.15.4 already draws for legacy mail-client access, generalized here
+  same private/public split §7.15.4 already draws for legacy mail-client access, generalised here
   to apply uniformly across rails. Writing "gateway mode" never means "is the §7 gateway role";
   an adapter running in gateway mode for, say, WhatsApp is not thereby a gateway in the §0.2.3
   sense, has no scarce resource requirement, and belongs to no new operator class (§26.9, §26.10).
@@ -56,12 +56,12 @@ the mode is a **property of the deployment**, never of the adapter's code:
 | Credentials | the user's own (their WABA, their bot token, their modem, their own aggregator account) | the operator's own, serving identities that are not the operator |
 | Identities served | exactly one | many |
 | Billing | none — nothing to charge, nobody positioned to charge it (§12.3) | MAY be metered where the underlying rail has genuine marginal cost (§26.10) |
-| Authorization layer | none — there is only one identity, so there is nothing to authorize between | REQUIRED (§26.2.1) |
+| Authorization layer | none — there is only one identity, so there is nothing to authorise between | REQUIRED (§26.2.1) |
 
 **The same adapter code runs both modes.** An implementation MUST NOT require a separate build,
 fork, or reimplementation to move an adapter from node mode to gateway mode or back; the two modes
 differ only in configuration and in the four additions below. This is the same requirement §7.1b
-already states for the mail gateway (one binary, mode selected at deployment) generalized to every
+already states for the mail gateway (one binary, mode selected at deployment) generalised to every
 adapter.
 
 **Precedent, not invention.** This two-mode split is not new to DMTAP: §12.1 already draws it for
@@ -72,28 +72,28 @@ out-of-tree adapter reinventing — or, worse, omitting — it.
 
 ### 26.2.1 What gateway mode adds — exactly four things (normative)
 
-Node mode needs no authorization layer because there is only one identity and no one to
+Node mode needs no authorisation layer because there is only one identity and no one to
 distinguish it from. The moment an adapter serves more than one identity, four things become
 necessary, and are the **entire** list — gateway mode MUST provide all four and MUST NOT be
 represented as providing less:
 
-1. **Authorization scope** — which identity may send as what. This generalizes §7.11.2 step 2 (the
+1. **Authorization scope** — which identity may send as what. This generalises §7.11.2 step 2 (the
    per-address claim check that closed GW-7's open-relay gap for mail) to any rail: an operator
    running an adapter in gateway mode MUST know, for every outbound message it relays, which of its
-   served identities is authorized to present as which remote-facing number/handle/account, and
-   MUST refuse an unauthorized claim exactly as §7.11.2 requires for mail. The mechanism is
+   served identities is authorised to present as which remote-facing number/handle/account, and
+   MUST refuse an unauthorised claim exactly as §7.11.2 requires for mail. The mechanism is
    `GatewayAuthz` (§12.2, §18.8a.3): a per-rail grant is a `CapabilityToken` (§18.7.3) with
    `Capability.resource = "gw-rail:"+rail+":"+remote_id` and `Capability.ability = "send-as"`,
    referenced from the served identity's `GatewayAuthz.grants` — the same construction §7.11.2
-   step 2's per-address grant uses for mail, generalized by the resource string alone. Refusing an
-   unauthorized claim fails closed with `ERR_ADAPTER_CREDENTIAL_UNAUTHORIZED` (`0x0B03`, §21.11a).
+   step 2's per-address grant uses for mail, generalised by the resource string alone. Refusing an
+   unauthorised claim fails closed with `ERR_ADAPTER_CREDENTIAL_UNAUTHORIZED` (`0x0B03`, §21.11a).
 2. **A signed published tariff** (§26.10) — what this adapter charges, if anything, signed by the
    operator's own key, so a client can compare operators before routing through one.
 3. **Signed usage receipts** (§26.10) — so a claimed charge is auditable by the paying user, not
    merely asserted, generalizing the audit model §7.9 already gives mail-gateway usage to every
    metered rail.
 4. **A content-visibility disclosure** — which parties see plaintext on this rail, under this
-   deployment, disclosed to the user before they rely on it. This generalizes §7.15.3/§7.15.4's
+   deployment, disclosed to the user before they rely on it. This generalises §7.15.3/§7.15.4's
    honest-privacy consequence (which today covers only legacy mail-client access) to every adapter:
    a gateway-mode operator MUST disclose the same class of fact — "here is who can read what you
    send through me" — for whichever rail it bridges.
@@ -148,7 +148,7 @@ A gateway-mode adapter operator MAY publish a self-signed **`AdapterDescriptor`*
 identity, carrying: `{ adapter_ik, rail, mode, initiation_class, inbound_transport_class,
 price_shape, exposure, credential_model (§26.8, where applicable), tariff_ref (§26.10), region }`.
 This is the same object §7.5 already specifies for the mail gateway (`{ gateway_ik, domain, modes,
-operator_mode, region, attestation selector }`), generalized field-for-field to any rail, and it
+operator_mode, region, attestation selector }`), generalised field-for-field to any rail, and it
 inherits §7.5's rule **unchanged**: it is **discovery-only, self-asserted, and carries no
 reputation field, no price ranking, and no stake** — the same three reasons §7.5 gives for
 excluding each (an adjudicator to seize a stake, price being operator policy, reputation being
@@ -173,7 +173,7 @@ signed fact anyone should be able to discover — an ordinary DMTAP-PUB `pub_ann
 the operator's own author feed (§22.4) is a natural, already-built transport requiring **zero new
 wire mechanism**, following the same reuse §24.18 already makes of §22 for artifact metadata. This is
 a MAY, not a MUST: an implementation that publishes an `AdapterDescriptor` some other way is not
-thereby non-conformant, provided the object's content and the rules above are honored.
+thereby non-conformant, provided the object's content and the rules above are honoured.
 
 ## 26.4 Per-rail properties (the four-field table)
 
@@ -213,7 +213,7 @@ to date; it does not assert any specific number.
 Unlike WhatsApp, these three rails have no outbound-cold path whatsoever: a Telegram bot cannot
 message a user who has not started a chat with it; a Discord bot can only reach a user inside a
 guild both are members of; a Slack app can only reach a workspace that installed it. There is no
-tier, template, or price that unlocks freely-initiating behavior on any of the three — this is a
+tier, template, or price that unlocks freely-initiating behaviour on any of the three — this is a
 platform-imposed ceiling on field 1 (§26.3), not an adapter limitation, and a conformant adapter
 MUST NOT imply otherwise (e.g. by offering a "premium outreach" feature that does not exist on
 these platforms).
@@ -236,7 +236,7 @@ anyone but the signing domain.
 
 Without a distinct value for "platform-asserted," a Discord-bridged message and a DKIM-verified
 one look identical to the recipient — exactly the failure §7.2c's client-presentation rule exists
-to prevent for `legacy_from`, now generalized:
+to prevent for `legacy_from`, now generalised:
 
 - The `AuthResults` map (§7.2c) MUST carry a structurally distinct entry for a platform-asserted
   claim — informally, `{ platform_asserted: { rail, claim } }` — never a value that overloads or
@@ -273,7 +273,7 @@ mail's tier-3 alias residual (§7.10.6) and MUST be disclosed with the same blun
 **Normative client rule.** A client MUST be able to tell a user which of the two describes a given
 conversation — node-mode (theirs, portable, survives departure) or gateway-mode (borrowed, dies on
 departure, and hands the next correspondent to whoever the operator assigns the number to next).
-This is the direct generalization of §7.10.6's alias-provenance labelling rule ("legacy alias,
+This is the direct generalisation of §7.10.6's alias-provenance labelling rule ("legacy alias,
 issued by `gw.example.net`, not portable") to every rail: a client that lets a user treat a
 gateway-mode WhatsApp number as "their number" has recreated the exact lock-in §7.10.6 exists to
 prevent for mail, on a rail where the failure mode is worse.
@@ -287,7 +287,7 @@ by construction.
 **In gateway mode**, the operator holds a mapping from **(rail, remote party, which
 number/bot/account)** to a DMTAP identity — state that decides which of the operator's served
 identities a given inbound message belongs to. This is exactly the same shape as mail's
-`GatewayAliasMap` (§7.10.2, §18.3.12: `alias → native`), generalized to a three-part key because a
+`GatewayAliasMap` (§7.10.2, §18.3.12: `alias → native`), generalised to a three-part key because a
 gateway-mode operator may run several numbers/bots across several platforms for many identities at
 once, where mail's alias map needs only a local-part.
 
@@ -405,13 +405,13 @@ operation, delivered directly to that identity (a `system` MOTE, `kind = 0x0A`, 
 receipt — the same transport already used for a correlated bounce/DSN, §7.10.3a — never a publicly
 discoverable object, since a receipt is evidence between two parties, not a public claim). A
 `UsageReceipt` that fails to verify fails closed with `ERR_ADAPTER_RECEIPT_INVALID` (`0x0B02`,
-§21.11a). This generalizes to
+§21.11a). This generalises to
 every metered adapter the audit model §7.9 already gives mail: "this operation happened because
 *this* message used the adapter" becomes checkable against a receipt the user actually holds,
 rather than trusted on the operator's invoice alone. The one-directional limit §7.9 already
 discloses for mail applies here too and is not weakened by extending the mechanism: a receipt lets
 a user confirm a claimed usage was real, never disconfirm a usage the operator fabricated
-end-to-end (§7.9's honest residual, generalized without amendment).
+end-to-end (§7.9's honest residual, generalised without amendment).
 
 **Free adapters still carry the exposure statement.** A tariff of zero does not remove a
 content-visible intermediary: Telegram, Discord, and Slack cost nothing and still put the
@@ -437,7 +437,7 @@ any of them is out of scope for this document.
 This section records the wire-format status of §26's objects; nothing in this section is itself
 normative on the wire (§18/§21 are), and everything normative above holds regardless.
 
-- **Resolved — `GatewayAuthz` per-rail authorization scope** (§26.2.1 item 1). No longer a grant-
+- **Resolved — `GatewayAuthz` per-rail authorisation scope** (§26.2.1 item 1). No longer a grant-
   type addition awaiting definition: `GatewayAuthz` (§12.2, §18.8a.3) is defined, and a per-rail
   grant is a `CapabilityToken` (§18.7.3) with `Capability.resource = "gw-rail:"+rail+":"+remote_id`
   — the same construction used for mail's per-address grant (`"gw-addr:"+address`), differing only
@@ -504,7 +504,7 @@ normative on the wire (§18/§21 are), and everything normative above holds rega
 
 | # | Requirement | Ref |
 |---|-------------|-----|
-| ADAPT-1 | An adapter serving more than one identity (gateway mode) provides all four of: authorization scope, signed tariff, signed usage receipts, content-visibility disclosure — never fewer | §26.2.1 |
+| ADAPT-1 | An adapter serving more than one identity (gateway mode) provides all four of: authorisation scope, signed tariff, signed usage receipts, content-visibility disclosure — never fewer | §26.2.1 |
 | ADAPT-2 | Every adapter declares all four fields (initiation class, inbound transport class, price shape, exposure); an asymmetric rail (WhatsApp) declares them per direction, not as one row | §26.3, §26.4.1 |
 | ADAPT-3 | A template-restricted outbound-cold path is presented as a functional wall (cannot carry arbitrary text at any price), never merely as a higher price tier | §26.4.1 |
 | ADAPT-4 | `AuthResults` carries a structurally distinct entry for a platform-asserted claim, never overloading the email-verdict shape | §26.5.1 |

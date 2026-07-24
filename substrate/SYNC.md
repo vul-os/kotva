@@ -8,7 +8,7 @@
 > (the `dmtap-clustersync` reference), and its **wire shape is grounded in** the flowstock stateless
 > sync protocol (`GET /sync/vector` · `POST /sync/pull` · `POST /sync/ops`). Where this document and
 > §5.6 agree, §5.6 remains the normative home of the *single-owner device-cluster* profile and governs
-> it; this document is the normative home of the **multi-author generalization** and everything below
+> it; this document is the normative home of the **multi-author generalisation** and everything below
 > that §5.6 does not specify.
 
 The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHOULD**, **SHOULD NOT**,
@@ -31,7 +31,7 @@ state. That is a CRDT. DMTAP already has one (§5.6), but §5.6 is scoped to **a
 cluster**, where all writers are devices of one identity and authenticity is supplied by an ambient MLS
 group (ops ride *unsigned* inside an encrypted, membership-authenticated group).
 
-The substrate generalizes this to **multi-author** sync — any set of independent identities converging on
+The substrate generalises this to **multi-author** sync — any set of independent identities converging on
 shared state — by making the **operation itself the unit of authenticity**: each op is **COSE-signed**
 (RFC 9052) by an author key that chains, via a `DeviceCert`, to an `IK` ([`IDENTITY.md`](IDENTITY.md)).
 No shared secret group is required, so two products built by different parties can converge on any
@@ -186,7 +186,7 @@ have to ship all six to be conformant.
   (`SYNC-PN-*`, `SYNC-RGA-*`, `SYNC-TREE-01`) — there is no partial-credit implementation of a primitive.
 - **Negotiation reuses the existing value-profile mechanism — no new surface.** Which extension
   primitives a peer accepts is exactly the kind of fact §4.1.2 exists to make askable: a peer advertises
-  what it supports rather than a caller guessing or assuming. §4.2.1 already generalizes that mechanism
+  what it supports rather than a caller guessing or assuming. §4.2.1 already generalises that mechanism
   to op kinds via the advisory `sync-1/kind-max-N` sub-token (governed by the §4.1.2 rules: carried the
   same way, never a gate, absence means "unknown," and a producer's one conformant use is deciding
   whether it is safe to mint an op of a given `kind`). A node that omits an extension primitive simply
@@ -336,7 +336,7 @@ unchanged**, and accept that the substrate is then blind to it by design.
   payload is `det_cbor(SyncOp)` and whose protected header binds the signer's author key; the DS-tag
   `DMTAP-SYNC-v0/op ‖ 0x00` domain-separates the signing preimage (§18.1.6). The signature MUST verify
   under the `hlc.author` key, and that key MUST chain to an admitted `IK` via a non-revoked `DeviceCert`
-  (§9). A failure is `ERR_SYNC_OP_SIG_INVALID` (`0x0A02`, FAIL_CLOSED_BLOCK); an unauthorized author is
+  (§9). A failure is `ERR_SYNC_OP_SIG_INVALID` (`0x0A02`, FAIL_CLOSED_BLOCK); an unauthorised author is
   `ERR_SYNC_AUTHOR_UNAUTHORIZED` (`0x0A01`).
   - **The `COSE_Sign1` envelope (normative, frozen — `SYNC-OP-02`).** The wire object is the RFC 9052
     `COSE_Sign1` four-element array `[protected, unprotected, payload, signature]`, itself encoded as
@@ -403,7 +403,7 @@ It is carried in either or both of:
 - the **`GET /sync/vector` response**, which gains an OPTIONAL `profiles` member — key `4`, an array
   of sub-token `tstr`s — alongside `node`/`ns`/`vector`. This response is unsigned and is the one
   unauthenticated-shaped surface both peers already call, so a node MUST ignore members it does not
-  recognize here rather than reject them (§2.2's unknown-key rejection governs **signed** objects,
+  recognise here rather than reject them (§2.2's unknown-key rejection governs **signed** objects,
   and this is not one). Adding key `4` changes no existing key and no frozen byte.
 
 **It is an observation, not a gate — this is the load-bearing part.** A conformant node:
@@ -443,7 +443,7 @@ this sub-token is how a node makes its own half of that statement checkable inst
 | `6` | `seq-insert` | RGA sequence | `target`, `value`=atom, `ref`=left origin, `hlc`=element id |
 | `7` | `seq-remove` | RGA sequence | `target`, `ref`=element to tombstone |
 | `8` | `tree-move` | movable tree | `target`=node, `ref`=new parent, `field`=ordering key, `hlc` |
-| `9` | `counter-aggregate` | PN-counter (compacted, §4.6) | `target`, `field`, `subject`=the summarized author, `value`=`[P_cut,N_cut]`, `hlc`=the cut point |
+| `9` | `counter-aggregate` | PN-counter (compacted, §4.6) | `target`, `field`, `subject`=the summarised author, `value`=`[P_cut,N_cut]`, `hlc`=the cut point |
 
 `SyncOp` gains one field, used only by `kind 9`:
 
@@ -467,11 +467,11 @@ undesirable.
   uniformly, by every conformant engine.
 - **This is still a divergence hazard, and a disclosed one.** A uniform rejection rule does not make a
   mixed deployment safe by itself: an engine on an older profile of this document that does not yet
-  recognize `kind 9` (or a future `kind 10`) refuses an op a newer engine accepts and applies, and the two
+  recognise `kind 9` (or a future `kind 10`) refuses an op a newer engine accepts and applies, and the two
   replicas' observable states differ with an error raised on only one side — precisely the §4.1.2
   divergence-by-rejection shape C-08 named, not a new one.
 - **The missing handle, closed the same way C-08's was (§4.1.2).** A node whose engine's apply layer
-  recognizes `kind` values through some maximum MAY advertise that fact as an additional `sync-1`
+  recognises `kind` values through some maximum MAY advertise that fact as an additional `sync-1`
   sub-token, `sync-1/kind-max-N` (e.g. `sync-1/kind-max-9`), governed by **exactly** the §4.1.2 rules:
   carried in the capability token and/or `GET /sync/vector`'s `profiles` member; **MUST NOT** be used to
   refuse, downgrade, or gate a peer that does not advertise it (absence means "unknown," never "kind ≤
@@ -626,7 +626,7 @@ No §5.6 analogue exists; specified here for products that count (inventory on-h
     whoever computed it — it cannot be serialized as a member of `SnapshotBody = [ * (COSE_Sign1(SyncOp)
     / SyncFrame) ]` (§6.1.2) as originally described. **`kind 9`, `counter-aggregate`** (§4.2) is the
     signed form: `target`, `field` name the counter as usual; **`subject`** (the new envelope field,
-    §4.2) names the summarized author `a`; `value = [P_cut, N_cut]` (an `ext-value` array of two
+    §4.2) names the summarised author `a`; `value = [P_cut, N_cut]` (an `ext-value` array of two
     non-negative integers, §4.1); `hlc` is the cut point, whose **`author` is the compacting replica
     doing the folding — not `subject`.** This is a deliberate, disclosed asymmetry: every other kind's
     signer *is* the party whose state the op changes, and its signature is therefore proof the change is
@@ -832,7 +832,7 @@ GET  /sync/state/<root>          → det_cbor(SnapshotBody)                     
   current `VersionVector`. (flowstock: `{node_id, vector}`.) It carries an OPTIONAL fourth member,
   `profiles` (key `4`, `[* tstr]`) — the `sync-1` sub-tokens this node's engine implements, of which
   `sync-1/ext-value-2` (§4.1.2) is the first. The response is unsigned, so a reader MUST ignore
-  members it does not recognize rather than reject them, and MUST NOT treat an absent or unfamiliar
+  members it does not recognise rather than reject them, and MUST NOT treat an absent or unfamiliar
   `profiles` as grounds to refuse the peer (§4.1.2: observational, never a gate).
 - **`POST /sync/pull`** sends the caller's vector (+ requested namespaces); the responder returns, oldest
   HLC first, up to a batch limit, every op it holds whose `hlc` exceeds the caller's vector entry for that
@@ -959,7 +959,7 @@ keeps a complete journal.
   peer fast-joining to the same `covers`. The cost is honest and small: one extra round trip, on a path
   taken only when a peer has fallen behind a truncation cut — a rare, already-expensive event — never on
   the steady-state sync round.
-- **Inline is retained as a bounded optimization** (key `3`, OPTIONAL). A responder MAY include the body
+- **Inline is retained as a bounded optimisation** (key `3`, OPTIONAL). A responder MAY include the body
   bytes when they are small (a deployment-set ceiling; `64 KiB` is the RECOMMENDED default), collapsing
   the common small-namespace case back to one round trip. A caller **MUST** verify key `3` exactly as it
   would a fetched body — by folding it and recomputing `root` (§6.1.2) — and **MUST** discard it and fetch
@@ -1082,7 +1082,7 @@ POST /sync/fingerprint { ns, ranges: [ { lo: Hlc, hi: Hlc, fp: hash, count: u64 
   unambiguous across a range boundary. The `count` guards the degenerate empty-vs-empty and duplicate
   cases the digest alone could not distinguish. The DS-tag `DMTAP-SYNC-v0/recon-fp` keeps a fingerprint
   from ever colliding with an `op-id`, a `snapshot-state` root, or any other DMTAP hash.
-- Range-Merkle is a **discovery optimization only** — every op it surfaces is applied through the same
+- Range-Merkle is a **discovery optimisation only** — every op it surfaces is applied through the same
   §4 verify+merge path; it changes *how the difference is found*, never *what converges*. A node
   advertises it as a `sync-1` sub-token; a peer that lacks it falls back to §5.2 baseline `pull`.
 
@@ -1124,7 +1124,7 @@ Snapshot = {
   state of the namespace — present OR-Set members, sorted LWW cells, PN-counter totals per object,
   live RGA sequences, the acyclic tree — as the canonical deterministic CBOR of **§6.1.1** and hashes it
   with the DS-tag `DMTAP-SYNC-v0/snapshot-state ‖ 0x00`: `root = 0x1e ‖ BLAKE3-256("DMTAP-SYNC-v0/`
-  `snapshot-state" ‖ 0x00 ‖ det_cbor(ObservableState))` (a §18.1.5 v0 `hash`). This generalizes the §5.6
+  `snapshot-state" ‖ 0x00 ‖ det_cbor(ObservableState))` (a §18.1.5 v0 `hash`). This generalises the §5.6
   `ClusterState::snapshot()` canonical form across all six CRDT types. The **snapshot signature** (key
   `8`) uses the distinct DS-tag `DMTAP-SYNC-v0/snapshot` over `det_cbor(Snapshot ∖ {8})` (§18.1.6) — two
   DS-tags, one for the state-root hash preimage and one for the signature preimage, so the two can never
@@ -1417,10 +1417,10 @@ own branch.
 
 ---
 
-## 8. Multi-author capability (the generalization over §5.6)
+## 8. Multi-author capability (the generalisation over §5.6)
 
-§5.6 authorizes an op by **ambient MLS group membership** — every writer is a device of one owner, and
-the op rides unsigned inside the encrypted group. The substrate authorizes an op by its **own COSE
+§5.6 authorises an op by **ambient MLS group membership** — every writer is a device of one owner, and
+the op rides unsigned inside the encrypted group. The substrate authorises an op by its **own COSE
 signature** (§4.1), which decouples authorship from any shared secret and yields three deployment shapes
 from one spec:
 
@@ -1435,7 +1435,7 @@ from one spec:
    ([`FEEDS.md § 7`](FEEDS.md)). Conflict resolution is unchanged — determinism comes from the CRDT
    algebra and the HLC total order, not from who is allowed to write.
 
-In all three, the **authorization check is the same**: an op is applied iff its signature verifies under
+In all three, the **authorisation check is the same**: an op is applied iff its signature verifies under
 `hlc.author` (§4.1) **and** that author is admitted by the namespace's policy — `ERR_SYNC_AUTHOR_
 UNAUTHORIZED` (`0x0A01`) otherwise. Because the author key is the HLC tiebreak (§3), determinism holds
 across any author set: distinct authors never tie, so the merged state is identical everywhere regardless
@@ -1634,7 +1634,7 @@ mirrored into §10.7.
 - **Range-based reconciliation** — the §5.6 `recon` module and the standard range-based set-reconciliation
   algorithm, operating over the HLC total order.
 - **Snapshots & sparse sync** — new to the substrate; grounded in the §5.6 canonical-snapshot form and
-  stability-cut, generalized to signed portable checkpoints and per-namespace scoping.
+  stability-cut, generalised to signed portable checkpoints and per-namespace scoping.
 
 Independent implementations MUST be buildable from this document and [`IDENTITY.md`](IDENTITY.md) alone
 (the flowstock test); the reference code above is an existence proof, not the standard, and where it and
@@ -1674,9 +1674,9 @@ and how it was found.
 
 | **C-16** | **§6.2's OR-Set body-retention rule licensed "at least one uncancelled `set-add`" per present element; §5.2 then blessed two producers choosing *different* ones as equally conformant. Both are wrong one op past snapshot time.** §4.3 presence is *some* uncancelled tag existing, so any single retained tag reproduces the same `ObservableState` and `root` **at the snapshot** — the reasoning §6.2 gave ("folds identically, since presence is add-wins over tags") is correct exactly there and nowhere else. It fails the instant a `set-remove` cancels **specific** tags (§4.3), not presence in the abstract: a replica that only ever observed the add now missing from a thinned body emits a legitimate `set-remove` citing the tag it *did* see; a full replayer (holding every tag) finds the *other* tag still uncancelled and keeps the element present, while a fast-joiner from the thinned body has no surviving tag and drops it. Worked failure: element `"widget"` added twice, tag T1 by A and T2 by B, both uncancelled at snapshot time; body **P** retains only T1, body **Q** retains only T2; both fold to the identical `ObservableState` and `root`, both pass every check. A replica that only saw A's add later sends `set-remove("widget", observed=[T1])` — conformant under §4.3. Full replayer: T1 cancelled, T2 survives ⇒ present. Fast-joiner from P: no surviving tag ⇒ absent. Fast-joiner from Q ⇒ present. Three replicas, three individually-verified op sets, two permanently different observable states, and no signature or `root` check ever flags it, because the retained-tag set is invisible in §6.1.1's projection — this is the same class §2.3 names and the same shape as C-10 (a spec-encouraged optimisation that silently deletes converged data), found here in retention rather than in primitive choice. §6.2 now requires retaining **every** uncancelled add-tag of every present element, not "at least one"; §5.2's blessing of non-unique snapshot bodies (the "MAY serialize different (equally valid) bodies … e.g. choosing different uncancelled add-tags" bullet) is deleted outright rather than reworded, since the case it was written to license is exactly the one that loses data. | **NORMATIVE — a MAY-retain tightened to a MUST-retain-every, and a removed blessing.** A truncating replica that retains only one uncancelled add-tag per present OR-Set element is now non-conformant and can silently strand or resurrect elements for a peer whose subsequent `set-remove` cites a different tag than the one it kept; the failure is undetectable by `root` comparison at the time it is introduced. An implementation that already retains every uncancelled tag (the "simpler superset" the old text offered as an equally-valid alternative) needs no change — this correction removes the cheaper, unsound option, not the sound one. | Found by adversarial specification audit — reading §6.2's retention list against §4.3's tag-specific (not presence-specific) cancellation rule and §5.2's non-uniqueness blessing together; not surfaced by an implementation or a conformance vector. |
 | **C-17** | **§3's skew bound stated explicitly as one-sided (fail-closed).** An op whose `wall` is more than the §16-class skew window (default 120 s) *ahead* of the receiver's clock is rejected (`ERR_SYNC_HLC_SKEW`, `0x0A05`) — bounding only how far a malicious or misconfigured author can push ordering into the future, the one direction a fabricated `wall` can attack (§3's total order). **A past-dated `wall`, however old, is never grounds for rejection on skew grounds alone**: the §5.6.4 grounding this bound is drawn from is itself one-sided, and a two-sided reading would reject the entire legitimate backlog an ordinary terminal produces after reconnecting from an offline period longer than the skew window — directly contradicting §2.2's "no merge ever depends on wall-clock accuracy or on arrival order" and §1/§11 item 1's offline-edit guarantee. A deployment wanting to bound *staleness* (a policy/retention concern, not clock forgery) MUST implement it as a separate, disclosed check, never by widening this one. | **NORMATIVE — a fail-closed bound clarified as one-sided, not two-sided.** An implementation that also rejects a far-past-dated `wall` is non-conformant and strands legitimate offline edits. | Specification self-audit: reading §5.6.4's one-sided grounding against §2.2's wall-clock-independence rule and the offline-edit guarantee together. |
-| **C-23** | **§4.6's aggregate merge corrected to avoid a double-count, and its wire form specified.** "Join aggregates by max, join above-cut deltas by union" did not say *above which side's cut* — so a delta above one side's (lower) cut but at-or-below the other side's (higher, winning) cut was folded into the winning aggregate **and** re-added as a loose entry, counted twice (worked example: true total `15`, naive merge yields `18`). The corrected procedure: take the aggregate at the highest cut among the sides being merged; **discard**, from every side's loose entries, any at or below that cut; union only the survivors. Separately, an aggregate `(P_cut, N_cut)` has no `kind` or per-op signature of its own and could not be serialized as a `SnapshotBody` member as originally described; new **`kind 9`, `counter-aggregate`** (§4.2) is its signed wire form, with a new `subject` envelope field naming the summarized author (distinct from the signer, which is the compacting replica). | **NORMATIVE — corrects a double-count in merge semantics, plus an additive op kind.** An implementation merging aggregates without discarding at-or-below-cut loose entries overcounts a compacted author's total; one lacking `kind 9` cannot represent a compacted counter in a snapshot body. | Specification self-audit: working the aggregate-merge procedure against §4.6's own associativity requirement and finding the counted-twice case. |
+| **C-23** | **§4.6's aggregate merge corrected to avoid a double-count, and its wire form specified.** "Join aggregates by max, join above-cut deltas by union" did not say *above which side's cut* — so a delta above one side's (lower) cut but at-or-below the other side's (higher, winning) cut was folded into the winning aggregate **and** re-added as a loose entry, counted twice (worked example: true total `15`, naive merge yields `18`). The corrected procedure: take the aggregate at the highest cut among the sides being merged; **discard**, from every side's loose entries, any at or below that cut; union only the survivors. Separately, an aggregate `(P_cut, N_cut)` has no `kind` or per-op signature of its own and could not be serialized as a `SnapshotBody` member as originally described; new **`kind 9`, `counter-aggregate`** (§4.2) is its signed wire form, with a new `subject` envelope field naming the summarised author (distinct from the signer, which is the compacting replica). | **NORMATIVE — corrects a double-count in merge semantics, plus an additive op kind.** An implementation merging aggregates without discarding at-or-below-cut loose entries overcounts a compacted author's total; one lacking `kind 9` cannot represent a compacted counter in a snapshot body. | Specification self-audit: working the aggregate-merge procedure against §4.6's own associativity requirement and finding the counted-twice case. |
 | **C-25** | **Counter overflow in the HLC spills into `wall`, never wraps — a MUST for both local `Tick` and remote `Observe`.** When `counter` reaches its `u32` maximum (`0xFFFFFFFF`), the next increment MUST advance `wall` by one and reset `counter` to `0` — the same branch the ordinary `now > wall` case already takes — never land at `(wall, 0)`, which is a **wrap** that sorts *before* the op that caused it, retroactively inverting causal order. Because `Observe` folds a peer's counter forward unconditionally, this is **remotely triggerable** — any peer can send `counter = 0xFFFFFFFF` — so an engine whose counter silently wraps is non-conformant. | **NORMATIVE — fail-safe MUST, closes a remotely-triggerable ordering-inversion.** An implementation relying on its language's default integer-overflow behaviour for `counter` is non-conformant. | Specification self-audit: reading `Observe`'s unconditional forward-fold of a remote counter against §3's total order. |
-| **C-28** | **§4.2.1 states the missing rule for an unrecognized `SyncOp.kind`.** No prior text said what a replica does with a `kind` outside the §4.2 table — the same shape as C-08's unrecognized-value gap, now for the op discriminator. An unrecognized `kind` MUST be rejected as `ERR_SYNC_OP_INVALID` (`0x0A03`) at the point it would be applied — never silently ignored, applied on a best-effort guess, or relayed onward without being counted as rejected locally. Because this is still a divergence-by-rejection hazard across profiles (an older engine that does not yet recognize `kind 9` refuses what a newer one accepts), §4.2.1 adds the advisory sub-token `sync-1/kind-max-N`, governed by the same §4.1.2 rules — never a gate; a producer's one conformant use is deciding whether it is safe to mint an op of a newly-added `kind`. | **NORMATIVE — closes an unspecified-behaviour gap, plus an additive advisory sub-token.** An implementation with no rule for an unrecognized `kind` is non-conformant; the sub-token is optional and gates nothing. | Specification self-audit: `kind 9` (`counter-aggregate`, C-23) exercised exactly the unrecognized-kind case C-08 had already named for values, with no rule governing it. |
+| **C-28** | **§4.2.1 states the missing rule for an unrecognized `SyncOp.kind`.** No prior text said what a replica does with a `kind` outside the §4.2 table — the same shape as C-08's unrecognized-value gap, now for the op discriminator. An unrecognized `kind` MUST be rejected as `ERR_SYNC_OP_INVALID` (`0x0A03`) at the point it would be applied — never silently ignored, applied on a best-effort guess, or relayed onward without being counted as rejected locally. Because this is still a divergence-by-rejection hazard across profiles (an older engine that does not yet recognise `kind 9` refuses what a newer one accepts), §4.2.1 adds the advisory sub-token `sync-1/kind-max-N`, governed by the same §4.1.2 rules — never a gate; a producer's one conformant use is deciding whether it is safe to mint an op of a newly-added `kind`. | **NORMATIVE — closes an unspecified-behaviour gap, plus an additive advisory sub-token.** An implementation with no rule for an unrecognized `kind` is non-conformant; the sub-token is optional and gates nothing. | Specification self-audit: `kind 9` (`counter-aggregate`, C-23) exercised exactly the unrecognized-kind case C-08 had already named for values, with no rule governing it. |
 | **C-29** | **§4.5 clarifies that `death`'s `class` token carries no semantic order among classes.** Earlier text called `class` "an ordered enum," which described only `Live < Deleted`, not an ordering *among* `redact`/`expires`/`sensitive` — no such ordering exists or is needed, since the D3 domination rule cares only whether the state is `Deleted` at all. An exact-HLC tie between two `Deleted` certificates of different classes is resolved the same way any other exact tie is: the §2.2 general tiebreak, applied to the encoded `field` bytes (where `death` carries its class). | **Editorial — clarification, no semantics change.** No class-comparison table exists or is required. | Specification self-audit: reading "ordered enum" against the D3 domination rule, which requires no such ordering. |
 | **C-30** | **§6.2's stability cut conflated `max_applied` with the completeness watermark it actually needs — the same defect class C-15 closed for the `pull` vector and `Snapshot.covers`, missed here.** §6.2 defined the cut as "the minimum, across every live subscribed replica, of that replica's max-applied HLC," directly contradicting §2.3's own recurring-defect framing (which already listed "a stability cut" among the fields needing a completeness watermark, not a maximum) and §5.1's rule that `max_applied` has no wire representation. §4.6's aggregate compaction then relies on "below the stability cut every live replica is known to hold the *complete* prefix of every author's deltas" to license discarding, at step 2, any loose delta with `hlc ≤ cut` — a claim that is false under a min-of-`max_applied` cut whenever gapped delivery (§4.6's own blessed mode) is in play. **Worked failure:** replica R1 holds `A@(W,9)` but not `A@(W,1)`; R1's `max_applied[a]` is `(W,9)` while its `contiguous_below[a]` sits below `(W,1)`. If R1's `max_applied` is network-minimal, the cut lands at `(W,9)`; R1 folds an aggregate that is missing `A@(W,1)`'s delta; when `A@(W,1)` later backfills, §4.6 step 2 discards it (`hlc ≤ (W,9)`) as "already accounted for" — it was not — and R1 converges to a total lower than every complete replica, with no signature failure and, in general, no `root` comparison ever run against a replica that would catch it. `contiguous_below` does not have this gap: by definition a replica cannot claim it below an author's first missing op, so a min-of-`contiguous_below` cut is the strongest bound every live replica has actually proven complete, and §4.6's "complete prefix" claim is sound under it. The stability cut is now specified as the minimum, across every live subscribed replica, of that replica's `contiguous_below` (§5.1); a `StabilityMark`'s `hlc` MUST be `contiguous_below`, never a bare `max_applied` HLC, mirroring §5.1's rule for `covers`; the wire shape `StabilityMark { author, hlc }` is unchanged, only the value the `hlc` field is permitted to carry. §4.6 needed no further change — its "complete prefix" premise was already stated as depending on §6.2, and correcting §6.2 makes that premise true rather than requiring new text there. | **NORMATIVE — a redefinition of the stability cut plus a new MUST, extending §14 C-15's rule to a third site.** An implementation whose `StabilityMark` carries a bare per-replica maximum (rather than a proven-complete watermark) is non-conformant and can converge to a permanently lower PN-counter total than every fully-delivered replica, under ordinary gapped delivery this document already blesses elsewhere (§4.6) — a silent lost write, not an error. An implementation that has never delivered gapped already computes `contiguous_below` whenever it computes `max_applied` (the two coincide with no gaps), so it needs no code change, only the corrected reading of the field it already publishes. | Specification self-audit: reading §6.2's stability-cut definition against §2.3's own completeness-watermark framing, §5.1's `contiguous_below`/`max_applied` split, and §4.6's step-2 discard rule together — the same §2.3 checklist C-15 introduced, applied to the one site C-15 did not reach. |
 

@@ -72,16 +72,16 @@ DeviceCert {
 ```
 
 For a non-mail product, `DeviceCert` is exactly the seam that makes **multi-device sync safe** (see
-[`SYNC.md`](SYNC.md)): a Sync replica authorizes an incoming op iff its origin device presents a
+[`SYNC.md`](SYNC.md)): a Sync replica authorises an incoming op iff its origin device presents a
 `DeviceCert` chaining to the pinned `IK` and is not revoked. That is *the* interoperation point between
-Identity and Sync — the Sync layer never re-invents authorization, it checks a `DeviceCert` chain.
+Identity and Sync — the Sync layer never re-invents authorisation, it checks a `DeviceCert` chain.
 
 **`caps` and non-mail products (normative).** The `caps` token list gates *what a device may participate
 in*. The tokens `send`/`recv`/`gateway`/`mix` are mail/mesh roles; a non-mail product **MAY** ignore
 tokens it does not implement and **MUST NOT** treat an unrecognized cap token as a parse failure
 (the same forward-compat discipline as §10.2 capability tokens). A product that defines a new
 device-scoped capability **SHOULD** register a `caps` token rather than inventing a parallel
-authorization field, so one `DeviceCert` serves every capability the device holds.
+authorisation field, so one `DeviceCert` serves every capability the device holds.
 
 **No single device rewrites recovery (inherited invariant).** Even an `admin` device cannot
 unilaterally change the recovery policy; that always requires `IK` or the `rotate_threshold` quorum
@@ -96,11 +96,11 @@ user device:
 - **Non-exportable hardware-backed keys** (Secure Enclave / TPM 2.0 / StrongBox / TEE), recorded in
   `key_protection`, optionally attested via `attestation` — a compromise can *use* the key only while
   unlocked, never exfiltrate it (§1.2a). Attestation is advisory; it never overrides the owner's §1.4
-  authorization, and it expires (re-attest ≤ 90 days, `ERR_DEVICE_ATTESTATION_EXPIRED`, `0x0118`).
+  authorisation, and it expires (re-attest ≤ 90 days, `ERR_DEVICE_ATTESTATION_EXPIRED`, `0x0118`).
 - **Compromise healing via revocation (MUST, PCS).** Removing/rotating a compromised device
-  (`IK`-authorized rotation, §1.5) heals every capability forward: an evicted device key verifies
+  (`IK`-authorised rotation, §1.5) heals every capability forward: an evicted device key verifies
   nothing further. For a Sync-adopting product this is what makes device eviction safe — the revoked
-  device drops out of the authorized member set and its future ops are rejected (`ERR_DEVICE_
+  device drops out of the authorised member set and its future ops are rejected (`ERR_DEVICE_
   UNAUTHORIZED`-class, see [`SYNC.md`](SYNC.md)).
 
 ---
@@ -110,7 +110,7 @@ user device:
 The current public identity is a signed, versioned `Identity` object (§1.3) whose hash is the anchor
 everyone pins. Its `version` is monotonic and guards against stale-replay (the same anti-rollback family
 as feed `seq`, §22.4.2, and Sync watermarks). For a non-mail product the load-bearing fields are `iks`
-(the key per suite), `version`, `devices` (the `DeviceCert` set — the authorized signer set), and `prev`
+(the key per suite), `version`, `devices` (the `DeviceCert` set — the authorised signer set), and `prev`
 (the hash chain that carries rotations and migrations). Fields specific to messaging (`keypkgs`,
 `deniable_prekeys`) are **OPTIONAL to a non-mail product** and MAY be absent — a product that does no
 MLS messaging simply does not publish KeyPackage references. The `Identity` object's authenticity and
@@ -156,9 +156,9 @@ verification** (§3.4.1) closes it immediately for high-value contacts. A produc
 to users SHOULD offer the safety-number comparison, which compares the **key**, not the name, and is the
 strongest trust upgrade.
 
-### 4.4 Confusable-name defenses (inherited, §3.9.7)
+### 4.4 Confusable-name defences (inherited, §3.9.7)
 
-Any product that displays or accepts human names inherits the two §3.9.7 spoofing defenses, both
+Any product that displays or accepts human names inherits the two §3.9.7 spoofing defences, both
 fail-closed: the **single-script-per-label rule** at registration/parse/pin
 (`ERR_NAME_LABEL_MIXED_SCRIPT`, `0x0122`) and the **pin-time confusable-skeleton check** against
 existing pins (`ERR_NAME_CONFUSABLE_WITH_PIN`, `0x0123`). These protect the human comparison step; they
@@ -221,16 +221,16 @@ key, while the legitimate owner rotates using a **recovery key**, §1.4), it nee
 **The rule (as an option, not a mandate).** Evaluate the held rotations as a tree rooted at genesis and
 select the active branch:
 
-1. **Validity.** Discard any rotation not authorized under the chain state at its parent (§1.5 rules).
+1. **Validity.** Discard any rotation not authorised under the chain state at its parent (§1.5 rules).
 2. **Recovery-over-signing, until finality.** Where a parent has multiple valid children, a
-   **recovery-key-authorized** child supersedes a **signing-key-authorized** child — *unless* the
+   **recovery-key-authorised** child supersedes a **signing-key-authorised** child — *unless* the
    signing-key child is already **final**. A signing-key rotation becomes **final** once the resolver has
    held it (first observed it) for longer than a declared **contest window** (a per-identity duration
    published in the rotation itself). Before finality it is provisional and a recovery-key sibling
    displaces it; after finality it stands. This is the **theft-recovery** property: a thief holding a
    stolen signing key cannot outrun the legitimate recovery-key holder within the window, while the
    recovery key cannot rewrite history that has already outlived the window.
-3. **Deterministic tiebreak.** Between two children of the **same** authorization class, the one with the
+3. **Deterministic tiebreak.** Between two children of the **same** authorisation class, the one with the
    **bytewise-lower record id** wins — arbitrary but deterministic and partition-safe.
 4. **Depth.** Along the selected edges, the deepest node is the current state.
 
@@ -285,7 +285,7 @@ to them durably:
    `DeviceCert` chains to a pinned `IK` and is not revoked.
 3. Derive and display the **key-name** (§3.9.6) as the durable identifier — no DNS, no registry.
 4. **Optionally** add DNS + KT (§3.2, §3.5) when human `name@domain` discovery is wanted, fail-closed on
-   unreachable KT at first contact, with confusable defenses (§3.9.7) on display.
+   unreachable KT at first contact, with confusable defences (§3.9.7) on display.
 
 Rungs 1–3 require **no network at all**; rung 4 is opt-in. This is the flowstock/HTTP-test posture from
 [`README.md § 4`](README.md): identity works offline, over any transport, verified from the key alone.
@@ -306,11 +306,11 @@ Each is inherited from §1/§3 and re-stated for the substrate reader; none is n
 3. **Attestation trusts a vendor root (disclosed TTP).** Verifying key-attestation evidence trusts a
    platform attestation root — the same class of trusted third party as a WebPKI CA (§1.2a). DMTAP
    confines the dependency to the *advisory* gate and never lets a vendor root override the owner's §1.4
-   authorization; the dependency is disclosed, not hidden.
+   authorisation; the dependency is disclosed, not hidden.
 4. **Key-name rotates with `IK`.** Disclosed in §5; the durable identifier is stable only as long as
    `IK` is, and `IK` rotation is a deliberate migration, not a routine event.
 5. **Name confusables.** The human comparison step is the attack surface for lookalike strings, not the
-   key; §3.9.7's two fail-closed defenses (mixed-script block, confusable-skeleton check) apply wherever
+   key; §3.9.7's two fail-closed defences (mixed-script block, confusable-skeleton check) apply wherever
    a name enters the system.
 
 ---
@@ -319,7 +319,7 @@ Each is inherited from §1/§3 and re-stated for the substrate reader; none is n
 
 Mirrored into the core auditable set (§10.7); the owning clause governs.
 
-| Invariant | Clause | Trigger | Behavior on violation |
+| Invariant | Clause | Trigger | Behaviour on violation |
 |-----------|--------|---------|-----------------------|
 | Unknown suite rejected | §1.1 | a signed object carries a `suite` the implementation does not support | reject, never guess — `ERR_UNKNOWN_SUITE` `0x0101`, FAIL_CLOSED_BLOCK |
 | KT unreachable at first contact | §3.3 | first-contact resolve with KT partitioned/censored | MUST NOT silent-TOFU; block or hard-warn + OOB — `0x0106` |

@@ -188,7 +188,7 @@ current registry this has no practical bite — v0's suites `0x01`–`0x04` all 
 hash, BLAKE3-256 (§18.1.4) — but the floor exists for the suite the registry already reserves for
 the day that stops being true: `0x05` is registered precisely as the hash-diverse **emergency
 target**, "RESERVED (hash-diverse emergency target, §1.1, §16.7, §21.15)" (§18.1.4), i.e. the
-fallback if BLAKE3-256 is ever found weak. If BLAKE3-256 is retired in favor of `0x05`'s SHA3-256, a
+fallback if BLAKE3-256 is ever found weak. If BLAKE3-256 is retired in favour of `0x05`'s SHA3-256, a
 `PubManifest` still carrying a BLAKE3-only suite is exactly the below-floor case step 1a defends
 against, for the identical underlying reason: an adversary who has broken the retired hash can
 construct a **second**, adversary-chosen `chunks` list whose recomputed root collides with an `id` a
@@ -236,10 +236,10 @@ PubAnnounce = {
 | `suite` | 2 | `suite` | MUST | Algorithm suite for `sig` and for the `roots` digests. Unknown ⇒ reject fail-closed (`0x0901`; the extension analogue of `ERR_UNKNOWN_SUITE` §1.1/`0x0101`). |
 | `pub` | 3 | `ik-pub` | MUST | The **publisher's root identity key** `IK`. Carried in the clear — authenticity, not anonymity. A reader binds `pub` to a human name only if it wants to *display* one, via ordinary pinning/KT (§3.4/§3.5); verification itself needs no name (§22.3.3). |
 | `roots` | 4 | `[+ hash]` | MUST | One or more `PubManifest.id` content addresses (§22.2). At least one; an announce with an empty `roots` is malformed. Multiple roots let one announce publish a set (e.g. an artifact in several formats, §24.18). |
-| `meta` | 5 | `{* tstr => ext-value}` | MUST (MAY be empty) | Structured metadata (title, kind, license, etc.), text-keyed and restricted to the deterministic-safe `ext-value` subset (§18.3.6) because it rides inside the signed body. Concrete schemas are **profile-defined** (§24); a reader MUST ignore keys it does not recognize (forward-compat, §21.20). A profile MAY carry a compact integer-keyed schema by embedding it as deterministic CBOR (§18.1.1) in a `bytes` value under a single profile-named key (e.g. `"artifact"`, §24.18.1) — opaque to a generic reader, which ignores the key like any other unrecognized one; the embedded bytes are covered by `sig` like every other `meta` value. |
+| `meta` | 5 | `{* tstr => ext-value}` | MUST (MAY be empty) | Structured metadata (title, kind, license, etc.), text-keyed and restricted to the deterministic-safe `ext-value` subset (§18.3.6) because it rides inside the signed body. Concrete schemas are **profile-defined** (§24); a reader MUST ignore keys it does not recognise (forward-compat, §21.20). A profile MAY carry a compact integer-keyed schema by embedding it as deterministic CBOR (§18.1.1) in a `bytes` value under a single profile-named key (e.g. `"artifact"`, §24.18.1) — opaque to a generic reader, which ignores the key like any other unrecognized one; the embedded bytes are covered by `sig` like every other `meta` value. |
 | `supersedes` | 6 | `hash` | OPTIONAL | Content address of a prior `PubAnnounce` this one revises, borrowing `edit` (`0x03`, §2.3/§5.4) semantics: a successor supersedes a predecessor by id, forming a revision chain (§22.3.4). The referenced announce MUST have the **same** `pub`, else `ERR_PUB_SUPERSEDE_INVALID` (`0x090B`). Absent ⇒ this is an original announcement. |
 | `ts` | 7 | `ts` | MUST | Publish wall-clock time (ms epoch), subject to clock-skew tolerance (§16.1). Used for display/ordering; feed `seq` (§22.4) is authoritative for order, never `ts`. |
-| `signer` | 8 | `ik-pub` | MUST | The **operational (device) key** that produced `sig`. It MUST be authorized by `pub` via a `DeviceCert` (§1.2) that the verifier checks (§22.3.3); `signer` MAY equal `pub` when `IK` signs directly. Keeping `IK` cold (§1.2a) is RECOMMENDED — an operational key signs day-to-day publishes. |
+| `signer` | 8 | `ik-pub` | MUST | The **operational (device) key** that produced `sig`. It MUST be authorised by `pub` via a `DeviceCert` (§1.2) that the verifier checks (§22.3.3); `signer` MAY equal `pub` when `IK` signs directly. Keeping `IK` cold (§1.2a) is RECOMMENDED — an operational key signs day-to-day publishes. |
 | `sig` | 9 | `sig-val` | MUST | Signature by `signer` over `DMTAP-PUB-v0/announce ‖ 0x00 ‖ det_cbor(PubAnnounce ∖ {9})` (§18.1.6). A failure is `ERR_PUB_ANNOUNCE_SIG_INVALID` (`0x0904`). For `suite = 0x02` the AND-composition rule of §18.1.6 applies (both component signatures MUST verify). |
 
 **Content address — the signature (key 9) is EXCLUDED (normative, corrected).** A `PubAnnounce`
@@ -304,8 +304,8 @@ A verifier presented with a `PubAnnounce` MUST, in order:
 2. Recompute `announce_id = 0x1e ‖ BLAKE3-256(det_cbor(PubAnnounce ∖ {9}))` (key 9, `sig`, EXCLUDED
    — §22.3.1) and reject on mismatch against the address it was fetched by (`0x0905`).
 3. Verify `sig` under `signer` over the DS-tagged preimage (§22.3.1); drop on failure (`0x0904`).
-4. Verify `signer` is authorized by `pub` — either `signer == pub`, or a `DeviceCert` (§1.2) signed
-   by `pub` (or an `IK`-authorized chain) covers `signer` and is not revoked (§1.5). A broken chain
+4. Verify `signer` is authorised by `pub` — either `signer == pub`, or a `DeviceCert` (§1.2) signed
+   by `pub` (or an `IK`-authorised chain) covers `signer` and is not revoked (§1.5). A broken chain
    is `ERR_PUB_ANNOUNCE_SIG_INVALID` (`0x0904`).
 5. If `supersedes` is present, require the referenced announce's `pub` to equal this `pub`
    (`0x090B` on mismatch) — a publisher may only supersede its *own* announcements.
@@ -321,7 +321,7 @@ what a harvest-now-decrypt-later adversary with a quantum computer eventually do
 what §1.1's PQ-hybrid floor exists to anticipate — mints a **fresh** `PubAnnounce` at suite `0x01`,
 self-asserts any `ts` it likes, points `supersedes` at the author's genuine final announcement, and
 it **verifies**. Steps 2–5 are all satisfied: the address recomputes, the signature is valid under a
-key the chain really authorized, and the supersede is same-author. Under §22.7 irrevocability the
+key the chain really authorised, and the supersede is same-author. Under §22.7 irrevocability the
 forgery is then **permanent**, and the author — whose classical key is exactly the one that broke —
 has no way to publish a correction that a reader can prefer.
 
@@ -432,7 +432,7 @@ FeedHead = {
 | | `seq` | 4 | `u64` | MUST | The tip's `seq` — the highest position this head commits to. |
 | | `tip` | 5 | `hash` | MUST | Content address of the `FeedEntry` at `seq`. Because each entry chains `prev` to its predecessor, `tip` **transitively commits to the entire log** (RFC 6962 discipline); signing the head therefore authenticates every entry reachable from it, so `FeedEntry` needs **no** per-entry signature (as with cluster journal entries, §5.6.3(b), and KT leaves, §3.5). |
 | | `ts` | 6 | `ts` | MUST | Head time. |
-| | `signer` | 7 | `ik-pub` | MUST | Operational key; authorized by `pub` via `DeviceCert` (§1.2), checked as in §22.3.3 step 4. |
+| | `signer` | 7 | `ik-pub` | MUST | Operational key; authorised by `pub` via `DeviceCert` (§1.2), checked as in §22.3.3 step 4. |
 | | `sig` | 8 | `sig-val` | MUST | Signature by `signer` over `DMTAP-PUB-v0/feed ‖ 0x00 ‖ det_cbor(FeedHead ∖ {8})`. Failure ⇒ `ERR_PUB_FEED_SIG_INVALID` (`0x0906`). |
 
 **`FeedEntry` content address (normative).** A `FeedEntry` carries no signature of its own; the
@@ -626,11 +626,11 @@ the protocol level.** Reasoning:
 
 - The entire §9 "cost for cold contact" apparatus exists because a MOTE is **pushed** into a
   recipient's inbox: an unsolicited sender spends the *recipient's* storage and attention, so §9
-  makes the sender pay (ARC token / PoW / postage) before that push is honored (§2.7 step 6, §9.1).
+  makes the sender pay (ARC token / PoW / postage) before that push is honoured (§2.7 step 6, §9.1).
 - A `pub_announce` is **pulled, never pushed**. It is appended to the **publisher's own** feed
   (§22.4) and fetched only by readers/holders who **chose** to follow or serve that publisher
   (§22.5). No one receives an announcement they did not ask for; there is no cold inbox to protect.
-  A sender-paid challenge would therefore protect **no recipient** — it is a push-model defense
+  A sender-paid challenge would therefore protect **no recipient** — it is a push-model defence
   misapplied to a pull model.
 - A challenge is also **structurally incompatible** with a public, cached, content-addressed object:
   a §2.2b proof is per-recipient-scoped and ephemeral (bound to an envelope's `sender_key`, §9.2a),
@@ -652,7 +652,7 @@ reader — and it is bounded structurally:
   hole.
 
 **Rejected alternative: require a §2.2b challenge (ARC / PoW / postage) on every `pub_announce`.**
-Rejected because (a) it misapplies a push-model defense to a pull-model object — with no recipient
+Rejected because (a) it misapplies a push-model defence to a pull-model object — with no recipient
 being force-fed, "cost for cold contact" defends nobody; (b) it would destroy global dedup and
 cache-friendliness (a per-recipient, ephemeral proof cannot live inside a shared, immutable content
 address, §22.5.1); and (c) it would deanonymize or gate the anonymous public read that is a design
@@ -683,14 +683,14 @@ DMTAP-PUB adds the following invariants to the auditable fail-closed set (§10.7
 the owning clause here is authoritative and this table indexes it, in the §10.7 format. A conformant
 implementation of `pub-1` enforces every row.
 
-| Invariant | Clause | Trigger | Behavior / error on violation |
+| Invariant | Clause | Trigger | Behaviour / error on violation |
 |-----------|--------|---------|-------------------------------|
 | **Manifest DS-tag confusion (sealed ↔ public)** | §22.2.3 | a public `PubManifest` supplied where a sealed §5.5 `Manifest` is required, or a sealed manifest where a public one is required | reject — recomputed content address cannot match across the DS-tag/hash-input boundary; `ERR_PUB_MANIFEST_TYPE_MISMATCH` `0x0903`, FAIL_CLOSED_BLOCK; never "try both ways" |
 | **Public manifest carries a key field** | §22.2.1 | a `PubManifest` carrying the forbidden key `5` | reject as leaked/malformed; `ERR_PUB_MANIFEST_KEY_PRESENT` `0x0902`, FAIL_CLOSED_BLOCK — mirrors `ERR_MANIFEST_KEY_PRESENT` (`0x0808`) |
 | **Public manifest self-verification** | §22.2.2 | recomputed DS-tagged Merkle root ≠ `PubManifest.id` | reject before fetch; `ERR_PUB_MANIFEST_HASH_MISMATCH` `0x0909`, DROP_SILENT |
 | **Public chunk self-verification** | §22.2.2, §5.5.3 | a fetched plaintext chunk ≠ its listed `h_i` | rotate to another holder; `ERR_PUB_CHUNK_HASH_MISMATCH` `0x090A`, ROTATE_RETRY |
 | **Announce content-address bind** | §22.3.1, §22.3.3 | recomputed `announce_id` ≠ the address it was fetched by | reject; `ERR_PUB_ANNOUNCE_ID_MISMATCH` `0x0905`, DROP_SILENT |
-| **Announce signature + IK chain** | §22.3.1, §22.3.3 | `sig` fails under `signer`, or `signer` is not authorized by `pub` (DeviceCert chain, §1.2) | reject; `ERR_PUB_ANNOUNCE_SIG_INVALID` `0x0904`, FAIL_CLOSED_BLOCK |
+| **Announce signature + IK chain** | §22.3.1, §22.3.3 | `sig` fails under `signer`, or `signer` is not authorised by `pub` (DeviceCert chain, §1.2) | reject; `ERR_PUB_ANNOUNCE_SIG_INVALID` `0x0904`, FAIL_CLOSED_BLOCK |
 | **Supersede is same-author** | §22.3.4 | `supersedes` references an announce whose `pub` differs from this one | reject the revision link; `ERR_PUB_SUPERSEDE_INVALID` `0x090B`, FAIL_CLOSED_BLOCK — a publisher may only supersede its own announcements |
 | **Feed entry is same-author** | §22.4.1 | a `FeedEntry.announce` resolves to a `PubAnnounce` whose `pub` differs from the enclosing `FeedHead.pub` | reject the feed; `ERR_PUB_FEED_CHAIN_BROKEN` `0x0908`, FAIL_CLOSED_BLOCK — a feed lists only its own author's announcements, so "reachable from a pinned feed" is evidence about **that author** only (§22.3.3 step 1a) |
 | **Feed `seq` anti-rollback** | §22.4.2 | a `FeedHead` with `seq` strictly below the highest accepted for that `pub` | reject the stale head, retain the higher tip; `ERR_PUB_FEED_ROLLBACK` `0x0907`, FAIL_CLOSED_BLOCK. Equal `seq` + identical `tip` ⇒ idempotent re-fetch, accept; equal `seq` + different `tip` ⇒ equivocation, `0x0908` HALT_ALERT — never a rollback |
@@ -771,7 +771,7 @@ initial, authoritative contents. The gap between `0x090D` and `0x0914` is not an
 | `0x0901` | `ERR_PUB_UNSUPPORTED_VERSION` | `PubAnnounce`/`PubManifest`/`FeedHead` parse (§22.3.1, §22.4.1) | Object carries a PUB `v`/`suite` this implementation does not support. | No | FAIL_CLOSED_BLOCK |
 | `0x0902` | `ERR_PUB_MANIFEST_KEY_PRESENT` | `PubManifest` decode (§22.2.1) | A public manifest carries the forbidden key field (`5`) — a public blob has no key by construction. | No | FAIL_CLOSED_BLOCK — reject; never use an embedded key |
 | `0x0903` | `ERR_PUB_MANIFEST_TYPE_MISMATCH` | Manifest type check (§22.2.3) | A public manifest was supplied where a sealed §5.5 manifest is required, or a sealed manifest where a public one is required — DS-tag/address-space confusion. | No | FAIL_CLOSED_BLOCK |
-| `0x0904` | `ERR_PUB_ANNOUNCE_SIG_INVALID` | `PubAnnounce` verification (§22.3.3) | `sig` fails under `signer`, or `signer` is not authorized by `pub` (DeviceCert chain). | No | FAIL_CLOSED_BLOCK |
+| `0x0904` | `ERR_PUB_ANNOUNCE_SIG_INVALID` | `PubAnnounce` verification (§22.3.3) | `sig` fails under `signer`, or `signer` is not authorised by `pub` (DeviceCert chain). | No | FAIL_CLOSED_BLOCK |
 | `0x0905` | `ERR_PUB_ANNOUNCE_ID_MISMATCH` | `PubAnnounce` fetch (§22.3.1, §22.3.3) | The recomputed `announce_id` does not equal the content address the object was fetched by. | Yes (re-fetch) | DROP_SILENT |
 | `0x0906` | `ERR_PUB_FEED_SIG_INVALID` | `FeedHead` verification (§22.4.1) | `FeedHead.sig` fails under `signer`/`pub` chain. | No | FAIL_CLOSED_BLOCK |
 | `0x0907` | `ERR_PUB_FEED_ROLLBACK` | Feed head anti-rollback (§22.4.2) | A `FeedHead` presents `seq` strictly below the highest already accepted for that author feed (stale replay / suppression). Equal `seq` is idempotent re-fetch (identical `tip`) or equivocation (`0x0908`), never this error. | No | FAIL_CLOSED_BLOCK — retain the higher tip |

@@ -10,7 +10,7 @@ A **Principal** is a 32-byte Ed25519 public key. Wherever this document says
 "issuer", "performer", "pool", or "attestor", it means a Principal.
 
 WRAP defines no username, no email address, and no directory. Display names are
-a presentation concern and MUST NOT be used for routing, authorization, or
+a presentation concern and MUST NOT be used for routing, authorisation, or
 identity comparison. Two Principals are equal if and only if their public keys
 are byte-equal.
 

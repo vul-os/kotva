@@ -4,7 +4,7 @@
 > renumber, replace, or amend any existing section; it **re-presents** parts of the core spec as a
 > small, standalone substrate that products other than mail may adopt à la carte, and cross-references
 > the normative text that governs each. Where this directory and a numbered section (§1–§27) appear to
-> differ, **the numbered section governs the normative bytes and behavior**; these documents govern the
+> differ, **the numbered section governs the normative bytes and behaviour**; these documents govern the
 > framing and the adoption rules.
 
 DMTAP began as *email reimagined from the keypair up* (see the repository [`README`](../README.md)).
@@ -206,7 +206,7 @@ Mail is not privileged; it is **complete**. DMTAP-mail is the profile that:
   same substrate — proof the waist already carries far more than mail; the video profile is also the
   convergence path for the independently built *vidmesh* protocol onto DMTAP-PUB's wire);
 - adopts **SYNC** for the device-cluster mailbox (§5.6 is the CRDT replica whose op algebra
-  [`SYNC.md`](SYNC.md) generalizes);
+  [`SYNC.md`](SYNC.md) generalises);
 - adopts **Roles & Wake** — the open-role vocabulary the Transport mechanisms above are built from, plus
   push-woken mobile clients (§4.9, §14.3);
 - **and then adds the mail-only surface on top:** MLS sessions and groups (§5), an **opt-in,

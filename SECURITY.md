@@ -20,7 +20,7 @@ A good report includes:
 - the affected specification **§/clause**, or the reference file/function;
 - the **security property** you believe is broken — an `SP-n` from §6.9, or a `§10.7` fail-closed
   invariant — and **without invoking its disclosed residual** (a counterexample that only exercises
-  a stated residual is expected behavior, not a defect);
+  a stated residual is expected behaviour, not a defect);
 - a reproduction, proof-of-concept, or symbolic-model trace;
 - the version / commit / deployment tested.
 

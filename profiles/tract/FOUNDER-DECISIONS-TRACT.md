@@ -598,8 +598,8 @@ decision, per this register's cross-section convention.)*
 ### 17.5 Does TRACT register a media type or reserve a well-known URI? (§17.7, §17.8)
 - **Question:** Does TRACT register a media type and/or reserve a well-known URI in v0?
 - **Why it is a founder call:** A `.well-known/` path is a host-centric discovery point that would
-  reintroduce the de-facto-gatekeeper surface §21.3/§21.4 records as decentralized commerce's first
-  re-centralization failure — a positioning trade, not a mechanical registration.
+  reintroduce the de-facto-gatekeeper surface §21.3/§21.4 records as decentralised commerce's first
+  re-centralisation failure — a positioning trade, not a mechanical registration.
 - **Recommendation:** **Neither in v0.** If a later non-substrate transport forces content-type
   negotiation, register a **single** `application/tract+cbor` type with the object family carried as
   a parameter (never a per-object-type family), and reserve **no** well-known URI — discovery stays

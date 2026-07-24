@@ -109,9 +109,9 @@ favour of the feed.
 
 > **The gap between permission and practice (§21.3).** "Any node MAY build an index" does not mean
 > many will. A content-addressed substrate offers no global index, so discovery is the **first**
-> function to re-centralize: whichever index becomes economically dominant becomes a de facto
+> function to re-centralise: whichever index becomes economically dominant becomes a de facto
 > content-policy gatekeeper, regardless of what this document permits. That happened to the closest
-> deployed relative of this design, and the largest live decentralized-commerce network avoided it
+> deployed relative of this design, and the largest live decentralised-commerce network avoided it
 > only by adopting a central approval-gating registry (§21.4). No protocol rule here prevents it.
 > Multiple competing indexers with verifiable completeness or censorship proofs are a candidate
 > answer with **no deployed precedent** (§21.8). This is the weakest load-bearing claim in the

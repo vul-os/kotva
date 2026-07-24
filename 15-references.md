@@ -31,11 +31,11 @@ where DMTAP narrows or extends a referenced spec, the DMTAP text is normative fo
 | **Signal Double Ratchet** (Perrin & Marlinspike, 2016) | per-message FS + PCS ratchet, shared-key-MAC auth | the deniable 1:1 session channel (§5.2.1) |
 | **RFC 6962** | Certificate Transparency (Merkle log, STH, inclusion/consistency proofs) | the profile for key-transparency `SignedTreeHead`/`InclusionProof`/`ConsistencyProof` (§3.5, §18.4.9–§18.4.11) |
 | **UCAN v1.0** (Fission et al.) | User-Controlled Authorization Networks — chained, attenuable capability tokens | the profile for the delegated `CapabilityToken` (§13.5, §18.7.3) |
-| **XEdDSA / VXEdDSA** (Perrin, 2016) | Ed25519↔X25519 signing/DH from one key | **historical:** earlier drafts derived the deniable X3DH identity DH key from `IK` via XEdDSA; **retired** in favor of a dedicated `IK`-certified X25519 `idk` so `IK` stays sign-only and hardware-buildable (§5.2.1(a)). No longer used by DMTAP. |
+| **XEdDSA / VXEdDSA** (Perrin, 2016) | Ed25519↔X25519 signing/DH from one key | **historical:** earlier drafts derived the deniable X3DH identity DH key from `IK` via XEdDSA; **retired** in favour of a dedicated `IK`-certified X25519 `idk` so `IK` stays sign-only and hardware-buildable (§5.2.1(a)). No longer used by DMTAP. |
 | **RFC 8949** | Concise Binary Object Representation (CBOR) | wire serialization; **deterministic (core) encoding, §4.2** (all objects) |
 | **FIPS 203** | ML-KEM (Module-Lattice KEM) | PQ KEM (suite 0x02, §1.1) |
 | **FIPS 204** | ML-DSA (Module-Lattice signatures) | PQ signatures (suite 0x02, §1.1) |
-| **BLAKE3** | BLAKE3 cryptographic hash | content addressing (§2.2), hash-agile prefix; not FIPS/IETF-standardized — SHA-256 fallback |
+| **BLAKE3** | BLAKE3 cryptographic hash | content addressing (§2.2), hash-agile prefix; not FIPS/IETF-standardised — SHA-256 fallback |
 
 ## 15.2 Normative — transport, mesh & naming
 
@@ -49,7 +49,7 @@ where DMTAP narrows or extends a referenced spec, the DMTAP text is normative fo
 | **RFC 8030** | Generic Event Delivery Using HTTP Push (Web Push) | delivery transport for the optional wake-signaling layer (§4.9) |
 | **RFC 8291** | Message Encryption for Web Push | payload encryption of the content-free `WakePing` token — `aes128gcm` under the device push key + auth secret (§4.9, §18.5.6, §18.9.15) |
 | **RFC 8292** | Voluntary Application Server Identification (VAPID) for Web Push | the node authenticates to a Web Push endpoint as the VAPID application server (§4.9.3) |
-| **UnifiedPush** | UnifiedPush specification (`unifiedpush.org`) | the user-chosen, self-hostable distributor — the decentralized push provider preferred where the platform allows (§4.9.3) |
+| **UnifiedPush** | UnifiedPush specification (`unifiedpush.org`) | the user-chosen, self-hostable distributor — the decentralised push provider preferred where the platform allows (§4.9.3) |
 
 ## 15.3 Normative — legacy mail interop (the gateway & client edges)
 
@@ -91,7 +91,7 @@ where DMTAP narrows or extends a referenced spec, the DMTAP text is normative fo
 | **RFC 9635** | Grant Negotiation and Authorization Protocol (GNAP) | key-based, no-pre-registration alternative for §13 sessions |
 | **draft-ietf-oauth-v2-1** | OAuth 2.1 | consolidated modern OAuth (draft) |
 | **ERC-4361 / CAIP-122** | Sign-In with Ethereum / Sign-In with X | the structured-challenge signing *pattern* (chain stripped, §13.3) |
-| **W3C DID Core 1.0** | Decentralized Identifiers | `did:web` (DNS-rooted) / `did:key` expression of DMTAP identity (§13.6) |
+| **W3C DID Core 1.0** | Decentralised Identifiers | `did:web` (DNS-rooted) / `did:key` expression of DMTAP identity (§13.6) |
 | **IndieAuth** (living std) | Identity = a URL/domain you own | discovery ergonomics precedent (§13.6); W3C Note, not a Rec |
 | **SIOP v2** (draft) | Self-Issued OpenID Provider | self-issued ID Token shape for the bridge (§13.6) |
 | **Solid-OIDC** (CG report) | WebID + DPoP over OIDC | architectural template for the OIDC bridge; trusts *issuers* (§13.6) |
@@ -106,10 +106,10 @@ where DMTAP narrows or extends a referenced spec, the DMTAP text is normative fo
 | **SLIP-0039** / **RFC 9591 (FROST)** | Shamir mnemonic / threshold signatures | recovery (§1.4) |
 | **Chatmail / Delta Chat, Matrix/Sygnal, Signal** | minimal mail server, push gateway, sealed sender | mobile push + relay-mailbox precedent (§14); sealed sender (§6) |
 | **Raman, Joglekar, De Cristofaro, Sastry & Tyson** (ACM IMC 2019) | *Challenges in the Decentralised Web: The Mastodon Case* — measured volunteer-instance availability (mean downtime 10.95% vs 1.25% for 2007-era Twitter; 21.3% of instances permanently offline within 15 months) and content concentration (removing the 10 most popular instances erased 62.69% of content; replication cut the loss to 2.1%) | the measured basis for making the offline buffer an **`n`-of-`m` role** rather than a hosted service, and for treating buffering as a permanent structural need (§14.3a, §14.5, §14.7) |
-| **Liu, Fass, Hong, Sharif, Ravi, Durumeric, Bailey & McCoy** (ACM IMC 2021) | *Who's Got Your Mail? Characterizing Mail Service Provider Usage* — third-party email-security vendors (ProofPoint, Mimecast, Barracuda) among the top-five providers by MX share and growing 2017–2021 despite not being mailbox providers; self-hosting organizations still outsource inbound filtering | the measured basis for the **authorize-never-classify** rule: anti-abuse forms a second, independently-growing centralized tier, so a gateway that classifies content is permanent by construction (§7.11.4, §9.11) |
+| **Liu, Fass, Hong, Sharif, Ravi, Durumeric, Bailey & McCoy** (ACM IMC 2021) | *Who's Got Your Mail? Characterizing Mail Service Provider Usage* — third-party email-security vendors (ProofPoint, Mimecast, Barracuda) among the top-five providers by MX share and growing 2017–2021 despite not being mailbox providers; self-hosting organisations still outsource inbound filtering | the measured basis for the **authorise-never-classify** rule: anti-abuse forms a second, independently-growing centralised tier, so a gateway that classifies content is permanent by construction (§7.11.4, §9.11) |
 | **draft-connolly-cfrg-xwing-kem** (`-10`, Independent Submission stream — **not CFRG-adopted**; "no formal standing in the IETF standards process") | X-Wing hybrid KEM | PQ HPKE KEM combiner (§1.1, §1.3); FIPS 203 standardizes **no** combiner and defers to SP 800-227 |
 | **draft-ietf-mls-pq-ciphersuites / -combiner** | PQ-MLS | PQ migration for the messaging layer (§5) |
-| **draft-kohbrok-mls-dmls** | Decentralized MLS | ongoing work on MLS over a leaderless mesh (§5.1) |
+| **draft-kohbrok-mls-dmls** | Decentralised MLS | ongoing work on MLS over a leaderless mesh (§5.1) |
 | **draft-ietf-privacypass-arc-protocol** (Privacy Pass WG-adopted 2026, Standards Track; formerly the individual `draft-yun-privacypass-arc`) | Anonymous Rate-Limited Credentials | the ARC token profile (§9.3) |
 | **Vatandas, Gennaro, Ithurburn & Krawczyk** (ACNS 2020) | On the Cryptographic Deniability of the Signal Protocol | the honest bound on X3DH offline vs online/interactive deniability (§5.2.1(e)) |
 | **Unger & Goldberg** (PETS 2015/2018) | Deniable Authenticated Key Exchange for secure messaging | deniability model precedent for the 1:1 mode (§5.2.1) |

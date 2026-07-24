@@ -26,7 +26,7 @@ hired and can fire. Nothing in the middle owns the timeline, ranks it, or can de
 
 It occupies the **public quadrant** (§22.1): authenticity without confidentiality. The publisher's
 identity is the point, not a secret — the inverse of sealed mail. This is deliberately the shape of
-the two live decentralized-social lineages folded into one object model: a **signed public event
+the two live decentralised-social lineages folded into one object model: a **signed public event
 stream keyed to a sovereign identity** (the niche served by Nostr-style relays) and **offline-first
 signed-log gossip** (the Secure Scuttlebutt property, §22 / [`OFFLINE § 1`](../substrate/OFFLINE.md)),
 with **ATProto-style composable, opt-in moderation** layered on as a `labeler` market rather than a
@@ -180,7 +180,7 @@ REPUTATION defines no score object (REP-3).
   result by the recipient's local web-of-trust or a subscribed labeler's advisory label — never by
   gating the underlying `Post`. SOCIAL defines no push-delivered mention/notification object and
   allocates no new MOTE kind (§2); a client wanting live-push notice of a mention runs its own
-  polling or indexer subscription, outside this protocol's scope. The filter authorizes on identity
+  polling or indexer subscription, outside this protocol's scope. The filter authorises on identity
   and rate; it MUST NOT be a coordinator classifying content in a delivery path (CONTRACT §4).
 
 ---
@@ -253,7 +253,7 @@ SOCIAL inherits [`THREAT-MODEL.md`](../THREAT-MODEL.md) unchanged; the invariant
 | `labeler` | `n/a` (public) | only already-public content; it publishes labels, gates nothing |
 | DM carrier (sealed MOTE `0x01`) | **`blind`** / structural | ciphertext only — a DM is E2E-encrypted; the carrier reads nothing (SEC-3) |
 
-- **SEC-6 (authorize, never classify).** The `indexer` ranks and the `labeler` labels only as
+- **SEC-6 (authorise, never classify).** The `indexer` ranks and the `labeler` labels only as
   disclosed, swappable, self-hostable policy the reader hired (SOC-4, SOC-8); neither is load-bearing,
   and neither gates delivery on content. Ranking that "finishes" and centralizes is what REP-4 forbids.
 - **SEC-7 (abuse priced and localized; anti-Sybil not solved).** A client MUST NOT describe bot /
@@ -277,7 +277,7 @@ Each is disclosed rather than solved; every one traces to a root ceiling
   Disclosed, not solved.
 - **The algorithm is genuinely better UX, and we ship reverse-chron by default.** A tuned engagement
   feed reads better than a chronological one; refusing a surveillance ranking authority costs real
-  usability. The fix — a TEE `indexer` you hired — converges toward centralized-grade discovery
+  usability. The fix — a TEE `indexer` you hired — converges toward centralised-grade discovery
   (§4 future-proofing) but trades operator-trust for chip-vendor-trust (`attested`, never trustless).
 - **Discovery re-centralizes even though the protocol permits many indexers.** "Any node MAY build an
   index" does not mean many will; whichever indexer becomes economically dominant becomes a de-facto

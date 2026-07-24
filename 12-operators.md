@@ -49,10 +49,10 @@ two are load-bearing, two are optional conveniences that default to nothing (ref
 
 **Load-bearing (a conformant implementation implements these):**
 
-- **GatewayAuthz** — authorize legacy egress with per-identity-token accountability (§9),
+- **GatewayAuthz** — authorise legacy egress with per-identity-token accountability (§9),
   preserving sealed sender. This is a **security** control, not a commercial one: it is what stops
   the gateway role becoming an open relay (§7.11.2), and it **MUST NOT fail open** (below). Its
-  wire form — the gateway-local authorization record, and the `CapabilityToken`-based per-address/
+  wire form — the gateway-local authorisation record, and the `CapabilityToken`-based per-address/
   per-rail grant extension — is defined at §18.8a.3.
 - **Policy** — per-deployment limits on *operations* (storage caps, send caps, domain counts, rate
   limits). It exists because a box has finite resources, not because someone is selling them; the
@@ -61,7 +61,7 @@ two are load-bearing, two are optional conveniences that default to nothing (ref
 **OPTIONAL, with no-op defaults (an implementation MAY omit them entirely and remain fully
 conformant):**
 
-- **Metering** — emit usage events at real cost centers. **Default: no-op.** DMTAP does not require
+- **Metering** — emit usage events at real cost centres. **Default: no-op.** DMTAP does not require
   usage to be counted, and an implementation that never counts anything is conformant. Metering
   exists for the case where a third party carries a genuinely scarce cost — legacy egress (§7.1a) —
   and wants to know its size.
@@ -103,7 +103,7 @@ generic "fail-open to allow" for this capability is prohibited.
 Privacy, cryptography, metadata privacy, and recovery MUST NOT be behind the seam, a quota, or a
 charge. There MUST be no seam hook, quota, plan gate, or operator control capable of disabling
 encryption, weakening the mixnet, reducing metadata privacy, or denying a user access to their own
-keys or mailbox. The seam limits **operations and organizational concerns only**.
+keys or mailbox. The seam limits **operations and organisational concerns only**.
 
 ### 12.3.1 The never-chargeable list (normative, exhaustive by category)
 
@@ -145,7 +145,7 @@ requiring a resource that cannot be self-provisioned — together with the two c
 on it (a vanity local-part in someone else's domain, and legacy-client service, §7.14). That is the
 entire chargeable surface of **the in-tree SMTP/mail gateway**, and it is exactly co-extensive with
 the one operator class the architecture admits (§0.5). It is not the entire chargeable surface of
-DMTAP: the Legacy Adapters extension (§26) generalizes the gateway pattern to other legacy rails
+DMTAP: the Legacy Adapters extension (§26) generalises the gateway pattern to other legacy rails
 and adds a second, smaller, **credential-gated rather than resource-gated** category of legitimate
 charge — see §26.10 for that surface.
 
@@ -193,9 +193,9 @@ that the absence cannot be quietly filled in later:
   appear the moment anyone tries to fund operations. §12.3.1 is the bright line, and it is written
   as a list precisely so that crossing it requires an argument in public.
 
-## 12.6 Organization administration & the seam (normative)
+## 12.6 Organisation administration & the seam (normative)
 
-Org / domain administration (§3.10) is an **organizational concern**, so it lives squarely on the
+Org / domain administration (§3.10) is an **organisational concern**, so it lives squarely on the
 operator seam (§12.2) — and the inviolable rule (§12.3) draws the honest line through it:
 
 - **Provisioning maps to the seam's Provisioning capability (§12.2).** Creating, suspending, and
@@ -243,7 +243,7 @@ invoice," it is "**the user can disprove a false one**."
   message's own `ProvenanceRecord` (§18.8.1) is the receipt. A charge with no corresponding
   attested message, or a **pure-mesh** message appearing on a gateway bill, is a **detectable
   billing error**, not something the user must take on faith.
-- **Self-host authorization is a `GatewayAuthz` policy matter, disclosed.** A self-hoster's use of
+- **Self-host authorisation is a `GatewayAuthz` policy matter, disclosed.** A self-hoster's use of
   a *third-party* gateway is governed by the operator's `GatewayAuthz` policy (§12.2) plus the
   DKIM-delegation / MX pointing the user performs (§7.3, §7.9), all of which are visible to the
   user (a DNS act they take, an accountable identity token they present, §9). No hidden operator
@@ -320,7 +320,7 @@ recovery.
   proposes a recovery Commit on top of it that is canonical **only** with the `> n/2` (or, for a
   2-member group, the trivial both-parties) member-signature quorum (§5.1 fork recovery); members on
   the losing fork roll back and re-apply; senders re-submit application messages stranded on the
-  abandoned fork (§2.6 sender retry). This is the v0 manual stopgap pending Decentralized MLS.
+  abandoned fork (§2.6 sender retry). This is the v0 manual stopgap pending Decentralised MLS.
 - **Key or device compromise (§6.7).** Run the normative lost/stolen-device sequence from **any**
   surviving cluster device (or after recovery, §1.4): (1) **MLS Remove** the device from every group
   and the personal-device group (§5.8.2, §5.6); (2) **device-key rotation** re-keying any
@@ -340,7 +340,7 @@ recovery.
   consistency checks** at least once per gossip interval (≤ 1 h) and treats any STH older than the
   freshness window (≤ 24 h) as stale — the split-view/freeze detector (§3.5.2(a), `0x0112`); (2)
   **owner self-monitoring** of every log in the identity's pinned set (STH poll ≤ 6 h) so an
-  unauthorized entry raises `HALT_ALERT` (§3.5.2(c)); (3) **≥ 2 independent auditors per log**
+  unauthorised entry raises `HALT_ALERT` (§3.5.2(c)); (3) **≥ 2 independent auditors per log**
   checking append-only extension name-agnostically (§3.5.2(c)); (4) **mix-directory freshness**
   checks (≤ one mix-key epoch) so a frozen fleet view fails closed
   ([docs/research/mixnet.md §4.4.2](docs/research/mixnet.md), `0x0311`); and (5)
@@ -348,7 +348,7 @@ recovery.
   ([docs/research/mixnet.md §4.4.7](docs/research/mixnet.md), `0x030F`) — items (4) and (5) apply
   only to an operator whose deployment offers the opt-in, research-tier mixnet. These cadences
   are the operational half of the trust-minimization triad — a trusted party (KT log, mix directory
-  authority) is *minimized* by quorum, made *detectable* by this monitoring, and *fails closed* on
+  authority) is *minimised* by quorum, made *detectable* by this monitoring, and *fails closed* on
   the codes above. An operator that runs the mechanisms but not this cadence has the detectors and
   never looks at them; the cadence is what makes "detectable" real.
 
@@ -369,7 +369,7 @@ DMTAP does not invent ceremony crypto; it composes §1/§3/§5 primitives, and R
   (phrase + devices + social guardians) so no single loss is fatal, and set `rotate_threshold` **>**
   `recover_threshold` so a single recovered factor cannot rewrite the policy. Use **Verifiable**
   secret sharing (Feldman/Pedersen VSS), **SLIP-0039** for the mnemonic⊕Shamir encoding, and
-  **strongly prefer FROST (RFC 9591)** so guardians *authorize* recovery without ever reassembling
+  **strongly prefer FROST (RFC 9591)** so guardians *authorise* recovery without ever reassembling
   the key in one place. Publish the policy to KT and confirm the owner's monitor devices alert on
   changes (§1.4 rule 6, §3.5).
 - **Domain-authority threshold ceremony (§3.10.1, §5.8.6).** For an org controlling `@domain`, the
@@ -412,7 +412,7 @@ flag day — the same dual-stack machinery that lets it *add* them:
 2. **Ratchet.** As peers advertise the successor, the **suite high-water-mark** (§1.3) and
    **monotonic capability version** (§10.2, `0x030A`) make the upgrade *stick* per contact — a peer
    cannot be silently rolled back to the retiring mechanism (SP-8, §10.7.1).
-3. **Retire.** The owner performs an explicit `IK`-authorized retirement — a `classical_retired`
+3. **Retire.** The owner performs an explicit `IK`-authorised retirement — a `classical_retired`
    marker in `Identity` (**§1.3**, the suite-ratchet floor; the marker travels in the signed
    `Identity` object, not the key-rotation path §1.5) — which is the **only** way a high-water-mark
    lowers, making rejection of the retired mechanism unconditional. A verifier that cannot validate a
@@ -423,7 +423,7 @@ adversary can force the old mechanism, and no user stranded because their counte
 upgraded (they interoperate on the highest mutual capability until the owner retires the old one).
 
 **Honest limit — retirement is per-owner and slow; there is no global kill-switch (by design).**
-Because a high-water-mark lowers only through **each owner's own `IK`-authorized** action (§1.3), a
+Because a high-water-mark lowers only through **each owner's own `IK`-authorised** action (§1.3), a
 compromised primitive is retired **identity-by-identity, at the pace owners act** — not
 network-wide by fiat. This is deliberate **anti-capture**: a global "disable suite X everywhere"
 lever would itself be a single point an adversary, or a coerced authority, could pull to **force** a

@@ -95,7 +95,7 @@ slot, §5.10; a shared-currency rule inside multi-`money` `Consideration` values
 ### C6 — Honesty: do not paper over the contradicting evidence
 `21-grounding.md` records evidence that **contradicts** parts of the design. Where a section rests
 on an unproven or contradicted claim, it MUST say so and cite the specific §21.x. The two weakest
-load-bearing claims — **index/discovery re-centralization** and **cross-publisher (near-duplicate)
+load-bearing claims — **index/discovery re-centralisation** and **cross-publisher (near-duplicate)
 product identity** — MUST stay marked as weakest, not defended. No section may cite §21 as
 *support* for logistics (§8), analytics (§13), trust (§10), or tax/legal (§11) — those areas
 returned **nothing verified** across passes (§21.1, §21.10, §21.11).
@@ -339,7 +339,7 @@ everything in it should change what is normative.
 
 8. **Tax/legal is assertion, textually-strong-but-untested (§21.11).** No court has applied any of
    it to a permissionless no-operator protocol. §11 must argue **"no facilitator"** (not "no
-   marketplace" — the term explicitly enumerates a catalog and a sales app, so TRACT's feed and cart
+   marketplace" — the term explicitly enumerates a catalogue and a sales app, so TRACT's feed and cart
    client are within it); **escrow is the trigger**; **render-only is a two-states-of-fifty holding,
    not safe**; and the **EU VAT rule (Art 5b / Art 14a ≤ €150) anticipates and rejects "the contract
    is between two keypairs"** by testing economic reality. GDPR Art 17 erasure vs immutable objects
@@ -372,5 +372,5 @@ everything in it should change what is normative.
   destination (never "expires" alone).
 - Write MUST/SHOULD/MAY only where settled; log every open decision for the founder.
 - Cite §21.x wherever you lean on an unproven/contradicted claim; keep the two weakest claims
-  (product identity, discovery re-centralization) marked as weakest.
+  (product identity, discovery re-centralisation) marked as weakest.
 - Preserve the six 2026-07-23 founder decisions verbatim in intent.

@@ -4,8 +4,8 @@
 
 A **coordinator** is any party that provides a function the peer-to-peer substrate cannot
 provide reciprocally — a global view, a scarce resource, or a legal/real-world anchor. This
-document is the single contract every coordinator honors, so that "some centralization, done
-safely" is a *checkable property* and not a hope. It generalizes DMTAP's legacy-mail gateway
+document is the single contract every coordinator honours, so that "some centralisation, done
+safely" is a *checkable property* and not a hope. It generalises DMTAP's legacy-mail gateway
 (§7) and legacy adapters (§26) into one reusable shape; both are instances of it.
 
 The key words MUST, MUST NOT, SHOULD, SHOULD NOT, MAY are BCP 14.
@@ -17,12 +17,12 @@ The key words MUST, MUST NOT, SHOULD, SHOULD NOT, MAY are BCP 14.
 The peer substrate handles custody, transport, and single-writer-per-resource state without a
 coordinator. Four jobs it cannot do reciprocally:
 
-- **Global-view optimization** — matching, ranking, search.
+- **Global-view optimisation** — matching, ranking, search.
 - **Scarce-resource egress** — a reputable IP + unblocked port 25 (mail), a public address.
 - **Real-world / legal anchoring** — licensing, liability, physical-event attestation.
 - **Cross-party judgement** — moderation labels, dispute arbitration.
 
-Each is a place centralization can regrow. The contract confines the damage: a coordinator is
+Each is a place centralisation can regrow. The contract confines the damage: a coordinator is
 **hired, not depended-on**. No coordinator is load-bearing, so none can become a gatekeeper.
 The sole exception is the **custodial escrow operator**, which holds the float for a trade
 window and is therefore structurally load-bearing and does not fade — disclosed here rather
@@ -40,7 +40,7 @@ A coordinator MUST have an **attested identity** (a substrate keypair,
 publish a **signed descriptor** carrying its kind, its policy, and — where it charges — a
 signed tariff. The descriptor is **discovery-only and self-asserted**: it carries no global
 reputation score, no price ranking, and no stake field. Reputation is **locally measured** by
-each client from its own results, never a globally published number (DMTAP §7.5, generalized).
+each client from its own results, never a globally published number (DMTAP §7.5, generalised).
 Stake is kept out of the descriptor for the same reason price-ranking is — see §6 for where and
 how a relying party verifies it instead. **Wire form:** the signed descriptor is
 `CoordinatorDescriptor`, the signed tariff is `Tariff`, and a metered coordinator's usage receipt
@@ -94,7 +94,7 @@ and a user always retains the local-scope version, which is a real architectural
 design where the relay is closer to required infrastructure. The self-host backstop for
 `indexer`/`matcher` is therefore guaranteed **at local / following-graph scope**, and is *not*
 claimed at whole-network scope. This is the self-hostability face of the discovery
-re-centralization open problem ([DIRECTION §8](../DIRECTION.md)), stated here because §2.3's
+re-centralisation open problem ([DIRECTION §8](../DIRECTION.md)), stated here because §2.3's
 blanket sentence would otherwise read as covering a case the evidence says it does not.
 
 ### 2.4 Content-visibility declared
@@ -140,14 +140,14 @@ the coordinator **cannot** read) and the *declaration* rules above. It **cannot*
 cryptographically prove a `declared`-level operator is not secretly logging — only
 `structural` and `attested` are verifiable. A visibility declaration proves a coordinator's
 architecture and intent, **never** that a `declared`-level operator is honest (DMTAP §7.10.4,
-generalized). Clients MUST NOT present a `declared`-level `blind` claim as if it were verified.
+generalised). Clients MUST NOT present a `declared`-level `blind` claim as if it were verified.
 
 ---
 
 ## 4. Authorize, never classify (normative)
 
 Every gate a coordinator applies **on a delivery path or a canonical/authoritative path** MUST
-be an **authorization** question answered from **sender identity and rate** — *is this party who
+be an **authorisation** question answered from **sender identity and rate** — *is this party who
 they claim, and within their limits?* On that path, a coordinator MUST NOT run content
 classification (spam scoring, ML filters, keyword/URL reputation) and MUST NOT drop, quarantine,
 re-rank, or annotate on a content basis. "Wanted" is a property of a relationship, judged by the
@@ -156,7 +156,7 @@ recipient, on the recipient's device, against the recipient's own corpus.
 This is structural, not a preference: a coordinator that classifies content on a delivery or
 authoritative path becomes permanent by construction (classification improves with corpus size,
 so it centralizes, and it never "finishes"). The rule is what stops anti-abuse from forming a
-second centralized tier (DMTAP §7.11.4, generalized to every coordinator).
+second centralised tier (DMTAP §7.11.4, generalised to every coordinator).
 
 **Anti-abuse that _is_ allowed:** authenticated-by-default identity, anonymous-but-accountable
 rate-limit tokens, optional postage/proof-of-work for cold contact, and — for moderation — a
@@ -207,7 +207,7 @@ exception").
 
 ## 6. Economics (normative boundary)
 
-- **In scope:** the authorization *mechanism*, the visibility declaration, the descriptor and
+- **In scope:** the authorisation *mechanism*, the visibility declaration, the descriptor and
   signed tariff, and — where a coordinator meters — **signed usage receipts** delivered
   directly to the paying party (auditable, never merely asserted). Wire form: `CoordinatorDescriptor`,
   `Tariff`, and `UsageReceipt` — deterministic-CBOR CDDL, a DS-tag, and a signing preimage for each
@@ -216,7 +216,7 @@ exception").
   settlement rail (an existing stablecoin or fiat; KOTVA brokers none and takes no cut).
 - **Charge for service, never for deliverability or classification.** A signed tariff and a signed
   usage receipt price the *work a coordinator actually does* — relaying, indexing, computing,
-  arbitrating, holding a float. §4's authorize-never-classify rule already forbids gating,
+  arbitrating, holding a float. §4's authorise-never-classify rule already forbids gating,
   dropping, or re-ranking on a content basis; §6 closes the economic half of the same rule: a
   coordinator MUST NOT price whether a message is delivered, or how it is classified, only the
   service performed. A tariff that varies by content rather than by service is non-conformant
@@ -237,7 +237,7 @@ exception").
 - **Never:** a protocol token, an advertising mechanism, or a payout-fairness scheme. Absent
   by decision.
 
-A user's audit is **one-directional** (DMTAP §7.9, generalized): a signed receipt lets a user
+A user's audit is **one-directional** (DMTAP §7.9, generalised): a signed receipt lets a user
 confirm a claimed operation was real; it cannot disconfirm an operation the coordinator
 fabricated. Disclosed, not hidden.
 
@@ -258,7 +258,7 @@ not assumed away.
 | COORD-3 | has a self-host backstop (or discloses one of the two exception classes: scarce reachability, or — `custodial-escrow` only — regulatory licensing) | §2.3 |
 | COORD-4 | declares exactly one visibility class + assurance level, and clients surface it | §2.4, §3 |
 | COORD-5 | never silently downgrades from blind to terminating | §3.2 |
-| COORD-6 | authorizes from identity + rate on any delivery/authoritative path; classifies only within opt-in derived views | §4 |
+| COORD-6 | authorises from identity + rate on any delivery/authoritative path; classifies only within opt-in derived views | §4 |
 | COORD-7 | if metered, issues signed usage receipts directly to the payer | §6 |
 | COORD-8 | mints no token; stakes/settles only in existing assets | §6, DIRECTION §5 |
 | COORD-9 | prices service performed only, never deliverability or classification | §4, §6 |

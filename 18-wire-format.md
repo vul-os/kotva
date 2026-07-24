@@ -46,7 +46,7 @@ reused with a different meaning across versions of the same object. Key `0` is r
 
 Integer keys **≥ 64 (`0x40`)** are RESERVED for future/extension fields, mirroring the reserved
 message-kind range (§2.3). A decoder processing a **signed** object MUST reject any key it does
-not recognize (fail closed) so that the signing preimage is unambiguous; a decoder processing an
+not recognise (fail closed) so that the signing preimage is unambiguous; a decoder processing an
 **unsigned** object MAY ignore unknown keys ≥ 64. Text-keyed extensibility is confined to
 `Headers.ext` (§18.3.6).
 
@@ -128,7 +128,7 @@ apply the fail-closed unknown-value rule to whichever hook the object defines:
 | `Envelope`, `Identity`, `DeviceCert`, `RecoveryPolicy`, `KeyRotation`, `MoveRecord`, `DomainDirectory`, `Profile`, `DeniablePrekeyBundle`, `MixNodeDescriptor`, `MixDirectory`, `GroupState`, `PostageStamp`, `CapabilityToken`, `KeyPackageRef`/`KeyPackageBundleRef` | explicit `suite` field (this section) |
 | `SignedTreeHead` | explicit `suite`, plus `tree_size` as its monotonic version (§18.4.9) |
 | `GatewayAttestation` | `disc` (key 0, §18.3.11) selects the attestation kind; the signature algorithm is that of the published `_dmtap-gw` key (`v=` scheme version, §7.2a) — **no `suite` field** |
-| `LocationRecord` | `seq` (monotonic rollback defense) + `substrate` (transport agility, §21.24); `sig` is governed by the signing device key's `Identity` suite — **no `suite` field** |
+| `LocationRecord` | `seq` (monotonic rollback defence) + `substrate` (transport agility, §21.24); `sig` is governed by the signing device key's `Identity` suite — **no `suite` field** |
 | `Assertion` | inheritance: `sig` is verified under the pinned identity of `from` (§3.4, §13.3), whose `Identity.suites` governs algorithm and lengths — **no `suite` field** |
 | `PushSubscription` | `provider` (key 1, §4.9.3); `sig` is governed by the `device_key`'s `DeviceCert`/`Identity` suite — **no `suite` field** |
 | `GroupEvent` | inheritance: the group's `GroupState.suite` governs `committer_sig`; the opaque `mls` blob is versioned by its own RFC 9420 ciphersuite — **no `suite` field** |
@@ -565,7 +565,7 @@ Payload = {
 | Field | Key | Type | Presence | Meaning & constraints |
 |-------|----:|------|----------|-----------------------|
 | `from` | 1 | `ik-pub` | MUST | Sender identity key (IK). For a known contact it MUST match the pinned key; on first contact it is TOFU-pinned (§2.7 step 8, §3.4). |
-| `sig` | 2 | `sig-val` | MUST | Signature by `from` (IK) or an IK-authorized device key over the canonical payload hash (§18.9.2). Verified at §2.7 step 8. |
+| `sig` | 2 | `sig-val` | MUST | Signature by `from` (IK) or an IK-authorised device key over the canonical payload hash (§18.9.2). Verified at §2.7 step 8. |
 | `headers` | 3 | `Headers` | MUST | Message headers (§18.3.6). MAY be an empty map. |
 | `body` | 4 | `Body` | MUST | Message body: text (`tstr`) or opaque MIME (`bytes`). MAY be empty. |
 | `refs` | 5 | `[* hash]` | MUST (MAY be empty) | Content addresses of MOTEs this one replies to / references, giving threading and `reaction`/`edit`/`redact` targeting (§2.3, §5.4). Order is preserved. |
@@ -601,7 +601,7 @@ Body = tstr / bytes           ; UTF-8 text, or opaque MIME bytes
 | `mime` | 3 | `tstr` | OPTIONAL | Media type of `Body` (e.g. `"text/plain; charset=utf-8"`, `"message/rfc822"`). If absent, `Body` of type `tstr` defaults to `text/plain; charset=utf-8`. |
 | `cc` | 4 | `[* ik-pub]` | MUST (MAY be empty) | Additional recipient identity keys. Delivery fan-out is one sealed MOTE **per recipient** (§2.4); `cc` is informational threading metadata visible only to those who can decrypt. |
 | `ext` | 5 | `{* tstr => ext-value}` | OPTIONAL | Text-keyed extension headers (§10). The **only** place text keys are admitted — but values are restricted to `ext-value` (bool/int/bytes/tstr and nestings), **not** arbitrary CBOR: floats, NaN/Infinity, `undefined`, and tags are forbidden (§18.1.1 rules 4–5), because `Headers` is inside the signed `Payload` (§18.9.2) and a non-canonical value would make the signature non-reproducible. A decoder MUST reject an `ext` value outside `ext-value` (fail closed) rather than sign/verify over an ambiguous encoding. Unknown extension *keys* MUST be ignored, never rejected. Keys SHOULD be namespaced (e.g. `"x-vendor-foo"`). |
-| `sensitive` | 6 | `bool` | OPTIONAL | If `true`, the receiving client **MUST NOT persist the message at rest** — hold it for an ephemeral view only, never write it to the durable MOTE store (§6.7, endpoint-seizure least-persistence). Cooperative like `expires` (§6.6 item 8): a compliant recipient honors it, a compromised one can still copy what it reads. Absent ⇒ `false` (normal persistence). |
+| `sensitive` | 6 | `bool` | OPTIONAL | If `true`, the receiving client **MUST NOT persist the message at rest** — hold it for an ephemeral view only, never write it to the durable MOTE store (§6.7, endpoint-seizure least-persistence). Cooperative like `expires` (§6.6 item 8): a compliant recipient honours it, a compromised one can still copy what it reads. Absent ⇒ `false` (normal persistence). |
 | `Body` | — | `tstr / bytes` | (as `Payload.body`) | `tstr` ⇒ UTF-8 text; `bytes` ⇒ opaque MIME per `mime`. A decoder MUST accept either major type. |
 
 ### 18.3.7 `Attachment` and `ManifestRef` (§2.5)
@@ -673,7 +673,7 @@ Manifest = {
 | `size` | 2 | `u64` | MUST | Total plaintext file size in bytes. |
 | `chunk_sz` | 3 | `u32` | MUST | Fixed chunk size; every chunk except possibly the last is exactly this many plaintext bytes. v0 default 1 MiB (§16.4). |
 | `chunks` | 4 | `[+ hash]` | MUST | **Ordered list** of per-chunk content addresses `h_i = prefix ‖ BLAKE3-256(encrypted_chunk_i)` (§18.9.5). At least one. Enables resumable/parallel/swarmed/deduplicated transfer (§5.5). |
-| ~~`key`~~ | ~~5~~ | — | **FORBIDDEN** | The file content key MUST NOT appear in a `Manifest`. A `Manifest` is a content-addressed blob fetched from the swarm to obtain the chunk list (§5.5, §19.8.2); any holder that serves it would then also learn the key and could decrypt every chunk, defeating blind chunk-serving. The key travels **only** in `Attachment.key` (§18.3.7, key 6) inside the **sealed** MOTE. A decoder that receives a `Manifest` containing key `5` MUST reject it (`ERR_MANIFEST_KEY_PRESENT`, §21) as a leak/malformation, never use the embedded key. Key `5` is reserved-unused for this object so an old sender's leaky manifest is detected, not silently honored. |
+| ~~`key`~~ | ~~5~~ | — | **FORBIDDEN** | The file content key MUST NOT appear in a `Manifest`. A `Manifest` is a content-addressed blob fetched from the swarm to obtain the chunk list (§5.5, §19.8.2); any holder that serves it would then also learn the key and could decrypt every chunk, defeating blind chunk-serving. The key travels **only** in `Attachment.key` (§18.3.7, key 6) inside the **sealed** MOTE. A decoder that receives a `Manifest` containing key `5` MUST reject it (`ERR_MANIFEST_KEY_PRESENT`, §21) as a leak/malformation, never use the embedded key. Key `5` is reserved-unused for this object so an old sender's leaky manifest is detected, not silently honoured. |
 | `suite` | 6 | `suite` | MUST | Suite governing chunk AEAD and the digest algorithm of each `h_i` and of `id`. |
 
 ### 18.3.9 `DeniableFrame`, `DeniableInit`, `DeniableMessage` (§5.2.1)
@@ -714,9 +714,9 @@ DeniableMessage = {
 |--------|-------|----:|------|----------|-----------------------|
 | `DeniableInit` | disc | 0 | `1` | MUST | Selects the X3DH/PQXDH first message. |
 | | `suite` | 1 | `suite` | MUST | `0x01` ⇒ classical X3DH; `0x02` ⇒ PQXDH with ML-KEM-768 (§16.7). MUST satisfy the recipient's suite ratchet (§1.3); a below-high-water-mark suite is rejected (`0x020F`). |
-| | `ik_a` | 2 | `ik-pub` | MUST | Initiator **Ed25519 `IK`**. Only the **recipient** parses this (sealed sender — the whole `ciphertext` is opaque to intermediaries). It is used for the AD identity binding (`AD = IK_A ‖ IK_B`, oriented initiator‖responder) and to authorize `idk_a`; it is **not** an X3DH DH input. The recipient MUST bind it to the pinned `name → key` identity (§3.4). |
+| | `ik_a` | 2 | `ik-pub` | MUST | Initiator **Ed25519 `IK`**. Only the **recipient** parses this (sealed sender — the whole `ciphertext` is opaque to intermediaries). It is used for the AD identity binding (`AD = IK_A ‖ IK_B`, oriented initiator‖responder) and to authorise `idk_a`; it is **not** an X3DH DH input. The recipient MUST bind it to the pinned `name → key` identity (§3.4). |
 | | `idk_a` | 9 | `bytes` | MUST | Initiator's **dedicated deniable-identity DH key** (X25519) — the X3DH/PQXDH *long-term identity DH input* on the initiator side, carried inline so an offline responder can complete the async handshake without fetching the initiator's own `DeniablePrekeyBundle`. The recipient MUST verify `idk_a_cert` before use; DH1 mixes `idk_a` (not any `IK`-derived key). |
-| | `idk_a_cert` | 10 | `sig-val` | MUST | Signature by an `IK`-authorized device key of `ik_a` over the raw `idk_a` bytes (DS-tag `DMTAP-v0/deniable-idk`, §18.9.10) — the same certification carried in the responder's `DeniablePrekeyBundle.idk_sig` (§18.4.8). Authenticates that `idk_a` belongs to the initiator's identity; a failure is `ERR_DENIABLE_X3DH_FAILED` (`0x040C`). It signs a *public DH key*, never content, so it is deniability-neutral. |
+| | `idk_a_cert` | 10 | `sig-val` | MUST | Signature by an `IK`-authorised device key of `ik_a` over the raw `idk_a` bytes (DS-tag `DMTAP-v0/deniable-idk`, §18.9.10) — the same certification carried in the responder's `DeniablePrekeyBundle.idk_sig` (§18.4.8). Authenticates that `idk_a` belongs to the initiator's identity; a failure is `ERR_DENIABLE_X3DH_FAILED` (`0x040C`). It signs a *public DH key*, never content, so it is deniability-neutral. |
 | | `ek_a` | 3 | `bytes` | MUST | Initiator ephemeral X25519 public key for the X3DH DH mix. |
 | | `spk_ref` | 4 | `hash` | MUST | Content address of the responder **signed prekey** (`spk`) consumed from the responder's `DeniablePrekeyBundle` (§18.4.8). Unknown/expired ⇒ `ERR_DENIABLE_X3DH_FAILED` (`0x040C`). |
 | | `opk_ref` | 5 | `hash` | OPTIONAL | Content address of the responder **one-time prekey** consumed. Absent ⇒ the signed prekey alone was used (last-resort, rate-limited, §16.9). A one-time prekey MUST be marked spent on use. |
@@ -752,7 +752,7 @@ DeniablePayload = {
 |-------|----:|------|----------|-----------------------|
 | `from` | 1 | `ik-pub` | MUST | Sender `IK`. It is **authenticated by the X3DH/PQXDH key agreement** (the shared secret can only be derived by the holder of `ik_a`'s identity key and the consumed prekeys), **not** by a signature — so the recipient is convinced of the sender *to itself* while retaining no transferable proof of authorship (repudiation). MUST match the pinned identity for a known contact (§3.4). |
 | `kind` | 2 | `u8` | MUST | The real content kind (§2.3), since the envelope `kind` is the fixed transport tag `0x0b`. A node MUST NOT act on a `kind` it cannot validate. |
-| `headers` | 3 | `Headers` | MUST | As §18.3.6. MAY be empty. The `sensitive` flag (key 6) is honored as in any MOTE. |
+| `headers` | 3 | `Headers` | MUST | As §18.3.6. MAY be empty. The `sensitive` flag (key 6) is honoured as in any MOTE. |
 | `body` | 4 | `Body` | MUST | As §18.3.6. MAY be empty. |
 | `refs` | 5 | `[* hash]` | MUST (MAY be empty) | Threading references (§2.3). |
 | `attach` | 6 | `[* Attachment]` | MUST (MAY be empty) | Attachments (§18.3.7); per-file keys travel in `Attachment.key` as always. |
@@ -860,7 +860,7 @@ Identity = {
 |-------|----:|------|----------|-----------------------|
 | `suites` | 1 | `[+ u8]` | MUST | The suites this identity supports, **as a preference-ordered set** (§1.3). A sender MUST use the highest suite both parties support; empty intersection ⇒ delivery fails closed (no downgrade). |
 | `iks` | 2 | `{+ u8 => ik-pub}` | MUST | Map from each suite in `suites` to that suite's identity public key. Every suite in `suites` MUST have exactly one entry, and vice-versa. |
-| `version` | 3 | `u64` | MUST | Monotonic version. A verifier MUST reject a version ≤ the last one it pinned for this identity (rollback defense, §3.3). |
+| `version` | 3 | `u64` | MUST | Monotonic version. A verifier MUST reject a version ≤ the last one it pinned for this identity (rollback defence, §3.3). |
 | `devices` | 4 | `[* DeviceCert]` | MUST (MAY be empty) | The identity's device certificates (§18.4.2), each signed by IK. |
 | `keypkgs` | 5 | `KeyPackageBundleRef` | MUST | Location + hash of the current KeyPackage bundle (§18.4.3). Named `keypkgs` throughout, matching §1.3 and §5.3 (the earlier `prekeys` name is retired; §18.11 item 1). |
 | `recovery` | 6 | `hash` (`RecoveryPolicyRef`) | MUST | Hash of the current `RecoveryPolicy` (§18.4.4). Resolved via the mesh/KT log. |
@@ -899,7 +899,7 @@ key-protection = "software" / "tpm" / "secure-enclave" / "strongbox" / "tee"
 | `caps` | 7 | `[+ tstr]` | MUST | Capability set gating participation: `"send"`, `"recv"`, `"relay"`, `"mix"`, `"gateway"`, `"admin"` (§1.2). An `admin` device counts as only **one factor** toward `rotate_threshold` and MAY NOT unilaterally change recovery (§1.4). |
 | `sig` | 8 | `sig-val` | MUST | IK signature over the body (§18.9.3). Covers keys `9`/`10` when present (the preimage is `DeviceCert ∖ {8}`). |
 | `key_protection` | 9 | `key-protection` | OPTIONAL | The keystore class holding `device_key`: `"software"` or a hardware class (`"tpm"`/`"secure-enclave"`/`"strongbox"`/`"tee"`, §1.2a). A relying context (group admit, org provisioning) MAY require a hardware class. Absent ⇒ unstated (treat as `"software"` for policy). |
-| `attestation` | 10 | `bytes` | OPTIONAL | Platform key-attestation evidence that `device_key` is hardware-resident and **non-exportable** (Android Key Attestation / Apple / TPM `AK` quote / FIDO), §1.2a. Verified against the platform's **attestation root** — a vendor trust anchor (a disclosed TTP, §1.2a) — out of band. A context requiring attestation rejects a device whose evidence is absent/invalid (`ERR_DEVICE_ATTESTATION_INVALID`, `0x0116`). Evidence has a **validity window**: a context MUST treat evidence older than the re-attestation cadence (≤ 90 days, §16.9) or past its own expiry, or chaining only to a retired attestation root, as **expired** (`ERR_DEVICE_ATTESTATION_EXPIRED`, `0x0118`) and require re-attestation over the same key (§1.2a). Advisory hardening — never a substitute for the §1.4 authorization authority. |
+| `attestation` | 10 | `bytes` | OPTIONAL | Platform key-attestation evidence that `device_key` is hardware-resident and **non-exportable** (Android Key Attestation / Apple / TPM `AK` quote / FIDO), §1.2a. Verified against the platform's **attestation root** — a vendor trust anchor (a disclosed TTP, §1.2a) — out of band. A context requiring attestation rejects a device whose evidence is absent/invalid (`ERR_DEVICE_ATTESTATION_INVALID`, `0x0116`). Evidence has a **validity window**: a context MUST treat evidence older than the re-attestation cadence (≤ 90 days, §16.9) or past its own expiry, or chaining only to a retired attestation root, as **expired** (`ERR_DEVICE_ATTESTATION_EXPIRED`, `0x0118`) and require re-attestation over the same key (§1.2a). Advisory hardening — never a substitute for the §1.4 authorisation authority. |
 
 ### 18.4.3 `KeyPackageBundleRef` (§1.3, §5.3)
 
@@ -979,7 +979,7 @@ not name a `RecoveryMethod`.
 
 ### 18.4.5 `KeyRotation` (§1.5)
 
-Cross-signed record authorizing a new root key. Distributed via the `Identity` chain and the KT
+Cross-signed record authorising a new root key. Distributed via the `Identity` chain and the KT
 log.
 
 ```cddl
@@ -1004,7 +1004,7 @@ KeyRotation = {
 | `ts` | 5 | `ts` | MUST | Timestamp. |
 | `prev` | 6 | `hash` | OPTIONAL | Hash chaining into identity history. |
 | `sig` | 7 | `sig-val` | MUST | Signature by **`old_ik`** over the body (§18.9.3), proving continuity. |
-| `rotate_quorum` | 8 | `sig-val` | OPTIONAL | A **`rotate_threshold` quorum co-signature** over the body (`det_cbor(KeyRotation ∖ {7,8})`, verified under the recovery group per §1.4), authorizing the rotation under §1.5 **path (a)** (immediate effect). **When the identity has a published `RecoveryPolicy`, a `KeyRotation` MUST carry a valid `rotate_quorum` OR be published to KT and take effect only after the §16.8 veto/delay window (path (b))** — an `old_ik`-alone rotation satisfying neither is rejected/held (`ERR_KEYROTATION_UNAUTHORIZED`, `0x0121`, §1.5, §21.3). Absent for an identity with no published `RecoveryPolicy`, where `old_ik` alone suffices. |
+| `rotate_quorum` | 8 | `sig-val` | OPTIONAL | A **`rotate_threshold` quorum co-signature** over the body (`det_cbor(KeyRotation ∖ {7,8})`, verified under the recovery group per §1.4), authorising the rotation under §1.5 **path (a)** (immediate effect). **When the identity has a published `RecoveryPolicy`, a `KeyRotation` MUST carry a valid `rotate_quorum` OR be published to KT and take effect only after the §16.8 veto/delay window (path (b))** — an `old_ik`-alone rotation satisfying neither is rejected/held (`ERR_KEYROTATION_UNAUTHORIZED`, `0x0121`, §1.5, §21.3). Absent for an identity with no published `RecoveryPolicy`, where `old_ik` alone suffices. |
 
 ### 18.4.6 `MoveRecord` (§1.6)
 
@@ -1073,7 +1073,7 @@ alloc-tier     = "random" / "vanity" / "byod"     ; tiers 0 / 1 / 2 (§3.11.2)
 |--------|-------|----:|------|----------|-----------------------|
 | `DomainDirectory` | `domain` | 2 | `tstr` | MUST | The administered domain; the `authority` key is pinned via `_dmtap.<domain>` (§3.2). |
 | | `authority` | 3 | `ik-pub` | MUST | Domain authority IK (§3.10.1). SHOULD be threshold-held by the domain-owner/domain-admin set (§5.8.6). A verifier MUST reject a directory not signed by the pinned authority (`ERR_DOMAIN_DIRECTORY_SIG_INVALID`, `0x0113`). |
-| | `version` | 4 | `u64` | MUST | Monotonic; reject ≤ last pinned (rollback defense, `0x0105`, same rule as `Identity`). |
+| | `version` | 4 | `u64` | MUST | Monotonic; reject ≤ last pinned (rollback defence, `0x0105`, same rule as `Identity`). |
 | | `membership_visibility` | 5 | `dir-visibility` | MUST | `"public"` (world-listable) or `"members-only"` (entries served only to authenticated members) (§3.10.3). |
 | | `entries` | 6 | `[* DirEntry]` | MUST (MAY be empty) | Member/group bindings. Each MUST verify forward against DNS + KT (§3.9.4) before use — the directory indexes, it does not attest (`ERR_DIRECTORY_ENTRY_UNVERIFIED`, `0x0114`). MAY be sharded/paged for large orgs; the KT-logged signed root is authoritative over the set. |
 | | `prev` | 7 | `hash` | OPTIONAL | Hash chain; the chain is appended to key transparency (§3.5), so directory history is append-only and auditable. |
@@ -1113,17 +1113,17 @@ DeniablePrekeyBundle = {
 | Field | Key | Type | Presence | Meaning & constraints |
 |-------|----:|------|----------|-----------------------|
 | `suite` | 1 | `suite` | MUST | `0x01` X3DH or `0x02` PQXDH; governs the DH group and (PQ) the ML-KEM parameters. |
-| `ik` | 2 | `ik-pub` | MUST | The identity offering deniable sessions (its **Ed25519 `IK`**); MUST match the pinned identity. `IK` is used **only** for the AD identity binding (`AD = IK_A ‖ IK_B`, §18.3.9) and to authorize `idk` — it is **never** the X3DH DH input. This keeps `IK` cold and hardware-buildable (a usage-fixed Secure-Enclave/TPM/StrongBox signing key need never also perform DH). |
-| `idk` | 11 | `bytes` | MUST | The **dedicated long-term deniable-identity DH key** — a **standalone X25519 public key**, provisioned once and reused across sessions, that serves as this identity's X3DH/PQXDH *long-term identity DH key*. It is **NOT** derived from `IK` by XEdDSA (the retired construction); a separate DH key means the signing `IK` never needs sign-and-DH on one key material. A verifier MUST reject a bundle whose `idk_sig` does not authorize `idk` under `ik`'s `Identity` (`ERR_DENIABLE_PREKEY_INVALID_OR_EXHAUSTED`, `0x040B`). |
-| `idk_sig` | 12 | `sig-val` | MUST | Signature by an `IK`-authorized **device key** over the raw `idk` bytes (DS-tag `DMTAP-v0/deniable-idk`, §18.9.10). This **certifies the long-term deniable-identity DH key to the identity** — it signs a *public DH key*, never any message, so it is exactly as deniability-preserving as `spk_sig`. It is the certification that replaces the old "`IK` *is* the identity DH key via XEdDSA" binding. |
+| `ik` | 2 | `ik-pub` | MUST | The identity offering deniable sessions (its **Ed25519 `IK`**); MUST match the pinned identity. `IK` is used **only** for the AD identity binding (`AD = IK_A ‖ IK_B`, §18.3.9) and to authorise `idk` — it is **never** the X3DH DH input. This keeps `IK` cold and hardware-buildable (a usage-fixed Secure-Enclave/TPM/StrongBox signing key need never also perform DH). |
+| `idk` | 11 | `bytes` | MUST | The **dedicated long-term deniable-identity DH key** — a **standalone X25519 public key**, provisioned once and reused across sessions, that serves as this identity's X3DH/PQXDH *long-term identity DH key*. It is **NOT** derived from `IK` by XEdDSA (the retired construction); a separate DH key means the signing `IK` never needs sign-and-DH on one key material. A verifier MUST reject a bundle whose `idk_sig` does not authorise `idk` under `ik`'s `Identity` (`ERR_DENIABLE_PREKEY_INVALID_OR_EXHAUSTED`, `0x040B`). |
+| `idk_sig` | 12 | `sig-val` | MUST | Signature by an `IK`-authorised **device key** over the raw `idk` bytes (DS-tag `DMTAP-v0/deniable-idk`, §18.9.10). This **certifies the long-term deniable-identity DH key to the identity** — it signs a *public DH key*, never any message, so it is exactly as deniability-preserving as `spk_sig`. It is the certification that replaces the old "`IK` *is* the identity DH key via XEdDSA" binding. |
 | `spk` | 3 | `bytes` | MUST | The signed prekey — an X25519 DH public key. |
-| `spk_sig` | 4 | `sig-val` | MUST | Signature by an `IK`-authorized **device key** over `spk` (DS-tag `DMTAP-v0/deniable-spk`, §18.9.10). Together with `idk_sig`, these are the **only** signatures that participate in a deniable session, and they both sign *public prekeys*, never any message — which is exactly why deniability is preserved (§5.2.1(a)). |
+| `spk_sig` | 4 | `sig-val` | MUST | Signature by an `IK`-authorised **device key** over `spk` (DS-tag `DMTAP-v0/deniable-spk`, §18.9.10). Together with `idk_sig`, these are the **only** signatures that participate in a deniable session, and they both sign *public prekeys*, never any message — which is exactly why deniability is preserved (§5.2.1(a)). |
 | `opks` | 5 | `[* bytes]` | MUST (MAY be empty) | One-time prekeys (X25519 DH publics). Each is consumed (marked spent) by one `DeniableInit.opk_ref`. Empty ⇒ only the signed prekey / last-resort path is available (rate-limited, §16.9). |
 | `last_kem` | 6 | `bytes` | OPTIONAL | PQXDH signed last-resort ML-KEM encapsulation key; present under `suite = 0x02`. |
 | `okems` | 7 | `[* bytes]` | OPTIONAL | PQXDH one-time ML-KEM encapsulation keys, consumed by `DeniableInit.kem_ref`. |
-| `version` | 8 | `u64` | MUST | Monotonic; a verifier MUST reject a bundle whose `version` is older-or-equal to one already seen (rollback defense, same rule as `Identity.version`). |
+| `version` | 8 | `u64` | MUST | Monotonic; a verifier MUST reject a bundle whose `version` is older-or-equal to one already seen (rollback defence, same rule as `Identity.version`). |
 | `ts` | 9 | `ts` | MUST | Publication time. |
-| `sig` | 10 | `sig-val` | MUST | Signature by an `IK`-authorized device key over the body (§18.9.10, DS-tag `DMTAP-v0/deniable-prekeys`). Authenticates the *bundle*; an invalid signature or an exhausted bundle is `ERR_DENIABLE_PREKEY_INVALID_OR_EXHAUSTED` (`0x040B`). |
+| `sig` | 10 | `sig-val` | MUST | Signature by an `IK`-authorised device key over the body (§18.9.10, DS-tag `DMTAP-v0/deniable-prekeys`). Authenticates the *bundle*; an invalid signature or an exhausted bundle is `ERR_DENIABLE_PREKEY_INVALID_OR_EXHAUSTED` (`0x040B`). |
 
 ### 18.4.9 `SignedTreeHead` (KT, §3.5)
 
@@ -1148,7 +1148,7 @@ SignedTreeHead = {
 | `suite` | 1 | `suite` | MUST | Suite governing `sig` and the tree hash. |
 | `log_id` | 2 | `bytes` | MUST | The log's public signing key — the log **is** its key (§21.19); a verifier MUST have pinned it (the `kt=` DNS/SVCB anchor, §3.2) and MUST reject an STH not signed by it. |
 | `tree_size` | 3 | `u64` | MUST | Count of leaves. Two validly-signed STHs of one `log_id` with **equal `tree_size` but differing `root_hash`** are transferable proof of equivocation (`0x0110`/`0x0107`, §3.5.2(d)). |
-| `timestamp` | 4 | `ts` | MUST | Issuance time; an STH older than the STH-freshness window (§16.2) is stale (`ERR_KT_STH_STALE`, `0x0112`) — the freeze-attack defense. |
+| `timestamp` | 4 | `ts` | MUST | Issuance time; an STH older than the STH-freshness window (§16.2) is stale (`ERR_KT_STH_STALE`, `0x0112`) — the freeze-attack defence. |
 | `root_hash` | 5 | `hash` | MUST | The RFC 6962 Merkle Tree Hash over the first `tree_size` leaves, using the log's suite hash with the §18.9.5 domain-separated leaf/node prefixes. |
 | `sig` | 6 | `sig-val` | MUST | The log's signature over the head (§18.9.13). Signature failure ⇒ `ERR_KT_PROOF_INVALID` (`0x0108`). |
 
@@ -1217,7 +1217,7 @@ ConsistencyProof = {
 An identity's **self-asserted, signed human display data** — display name, optional structured
 name parts, and an optional avatar pointer (§3.9.5). It is a **replaceable pointer**, authenticated
 to the key exactly like `Identity.names` (§3.9.4): the signature proves the key asserts this data,
-never a real-world identity. Signed by `IK` (or an `IK`-authorized device key, §1.2); versioned
+never a real-world identity. Signed by `IK` (or an `IK`-authorised device key, §1.2); versioned
 and rollback-protected like `Identity`; published and pinned via the directory / DNS / KT path
 (§3.3–3.5). The avatar is **owner-hosted** — DMTAP stores no image — with an OPTIONAL content
 address giving tamper-evidence for the exact bytes the owner signed.
@@ -1246,14 +1246,14 @@ Avatar = {
 |--------|-------|----:|------|----------|-----------------------|
 | `Profile` | `suite` | 1 | `suite` | MUST | Suite of `ik`/`sig`. |
 | | `ik` | 2 | `ik-pub` | MUST | The identity this profile describes; MUST match the pinned `Identity.iks[suite]`. |
-| | `version` | 3 | `u64` | MUST | Monotonic. A verifier MUST reject a `version` ≤ the last pinned for this identity (rollback defense, `ERR_STALE_ROLLBACK` `0x0105`, same rule as `Identity.version`). |
+| | `version` | 3 | `u64` | MUST | Monotonic. A verifier MUST reject a `version` ≤ the last pinned for this identity (rollback defence, `ERR_STALE_ROLLBACK` `0x0105`, same rule as `Identity.version`). |
 | | `display_name` | 4 | `tstr` | MUST | The primary human-shown string, UTF-8 (NFC). **Self-asserted** — proves only that this key chose it, never a real-world identity (§3.9.5); two keys MAY assert the same string. Confusable/spoofing handling is a rendering concern, not an authenticity claim. |
 | | `given_name` | 5 | `tstr` | OPTIONAL | Structured given-name part (legacy interop / sorting). |
 | | `family_name` | 6 | `tstr` | OPTIONAL | Structured family-name part. |
 | | `avatar` | 7 | `Avatar` | OPTIONAL | Owner-set avatar pointer. Absent ⇒ the client uses the §3.9.5 fallback ladder (key-derived identicon, then initials). |
 | | `prev` | 8 | `hash` | OPTIONAL | Hash of the previous `Profile` version; absent for the first. Chains profile history for KT audit (§3.5), same shape as `Identity.prev`. |
 | | `ts` | 9 | `ts` | MUST | Publication time. |
-| | `sig` | 10 | `sig-val` | MUST | `IK` (or an `IK`-authorized device key, §1.2) signature over the body (§18.9.3, DS-tag `DMTAP-v0/profile`). A `Profile` whose `sig` fails MUST be rejected (`ERR_PROFILE_SIG_INVALID` `0x0119`, FAIL_CLOSED_BLOCK) and the prior pinned profile / fallback ladder used. |
+| | `sig` | 10 | `sig-val` | MUST | `IK` (or an `IK`-authorised device key, §1.2) signature over the body (§18.9.3, DS-tag `DMTAP-v0/profile`). A `Profile` whose `sig` fails MUST be rejected (`ERR_PROFILE_SIG_INVALID` `0x0119`, FAIL_CLOSED_BLOCK) and the prior pinned profile / fallback ladder used. |
 | `Avatar` | `url` | 1 | `tstr` | MUST | Owner-set public URL of the avatar image. It is **attacker-chosen data** (any key may publish any `Profile` about itself): a fetcher MUST require scheme `https` and MUST NOT fetch a URL that resolves to a loopback / private / link-local / ULA / cloud-metadata (`169.254.169.254`) address — re-checked after any redirect — else `ERR_PROFILE_AVATAR_URL_UNSAFE` (`0x011B`, FAIL_CLOSED_BLOCK) and fall back (§3.9.5). DMTAP does **not** host the image. Fetching discloses the viewer's IP/timing to the owner-chosen host (a read-beacon): a client MUST NOT fetch eagerly on message arrival, and when `avatar.hash` is present MUST cache by content address and SHOULD NOT re-fetch on later renders (§3.9.5, §6 metadata caveat). |
 | | `hash` | 2 | `hash` | OPTIONAL | Content address (`0x1e ‖ BLAKE3-256`, §18.1.5) of the exact image bytes. When present, a client MUST verify the fetched bytes address to this value **before display**; on mismatch it MUST NOT display them, MUST fall back (§3.9.5), and SHOULD warn (`ERR_PROFILE_AVATAR_HASH_MISMATCH` `0x011A`, USER_WARN). Absent ⇒ the URL is best-effort with no integrity guarantee. |
 
@@ -1283,14 +1283,14 @@ LocationRecord = {
 | `ik` | 1 | `ik-pub` | MUST | Identity key; the DHT key is `multihash(ik)`. |
 | `peer_id` | 2 | `peer-id` | MUST | libp2p PeerId; MAY be a per-epoch, unlinkable id to decouple node from identity (§6.4). |
 | `addrs` | 3 | `[* maddr]` | MUST (MAY be empty) | Reachability hints (multiaddrs): direct, relay-circuit, or mix addresses. Order = preference. |
-| `seq` | 4 | `u64` | MUST | Monotonic sequence number; a resolver MUST reject a record whose `seq` is **older or equal** to one already seen (rollback/replay defense, §4.2, §16.2). |
+| `seq` | 4 | `u64` | MUST | Monotonic sequence number; a resolver MUST reject a record whose `seq` is **older or equal** to one already seen (rollback/replay defence, §4.2, §16.2). |
 | `ttl` | 5 | `u64` | MUST | Record lifetime in seconds (v0 default 2 h, §16.2); republished before expiry (default 45 min). |
 | `ts` | 6 | `ts` | MUST | Publication time. |
 | `substrate` | 8 | `u8` | OPTIONAL | Transport-substrate tag from the Transport Substrates registry (§21.24). **Absent ⇒ `0x01` (libp2p)**, the v0 default (§4.1). Governs how `peer_id` and `addrs` are interpreted and dialed; a resolver that does not implement the tagged substrate treats the record as unreachable (`0x0303`), never a parse error. Introducing a new substrate is the additive, capability-negotiated (§10.2) migration analogous to a new suite (§4.1, §21.25) — not a flag day. |
-| `sig` | 7 | `sig-val` | MUST | Signed by a **device key** (not necessarily IK) authorized in the current `Identity` (§18.9.3). Signing authenticates content only — it does NOT stop eclipse (§4.2). Covers `substrate` when present. |
+| `sig` | 7 | `sig-val` | MUST | Signed by a **device key** (not necessarily IK) authorised in the current `Identity` (§18.9.3). Signing authenticates content only — it does NOT stop eclipse (§4.2). Covers `substrate` when present. |
 
 > **Reconciled (§18.11 item 3):** `seq` (key 4) is REQUIRED here, per §16.2's "Location
-> seq-number | monotonic u64" rollback defense. §4.2's inline CBOR now carries the same `seq`
+> seq-number | monotonic u64" rollback defence. §4.2's inline CBOR now carries the same `seq`
 > field, so appendix and prose agree; a resolver MUST reject any record whose `seq` is older-or-
 > equal to one already seen.
 
@@ -1340,7 +1340,7 @@ mix-layer   = 0..2
 | | `operator` | 9 | `ik-pub` | OPTIONAL | The **operator identity** this mix is under, for the **operator-diversity** path rule (§4.4.8): a path MUST NOT reuse an `operator` across hops. **Absent ⇒ the mix is its own operator (`node_ik`).** SHOULD be corroborated by a `_dmtap-mix` operator attestation (§4.4.8, analogous to `_dmtap-gw`, §7.2a) so it cannot be spoofed to defeat diversity. |
 | | `substrate` | 8 | `u8` | OPTIONAL | Transport-substrate tag (§21.24); absent ⇒ `0x01` libp2p (§4.1). |
 | | `ts` | 6 | `ts` | MUST | Descriptor publication time. |
-| | `sig` | 7 | `sig-val` | MUST | Signature by an `IK`-authorized device key of `node_ik` (§18.9.9). Authenticates the descriptor's content; trust in the *set* of mixes comes from the KT-anchored `MixDirectory`, §18.5.3. |
+| | `sig` | 7 | `sig-val` | MUST | Signature by an `IK`-authorised device key of `node_ik` (§18.9.9). Authenticates the descriptor's content; trust in the *set* of mixes comes from the KT-anchored `MixDirectory`, §18.5.3. |
 | `MixKeyEntry` | `epoch` | 1 | `u64` | MUST | Monotonic mix-key epoch number (§4.4.4). |
 | | `mix_key` | 2 | `enc-key` | MUST | Sphinx per-hop public key for this epoch (v0 X25519). |
 | | `valid_until` | 3 | `ts` | MUST | End of this epoch's validity; a packet built to an expired epoch key is rejected (`ERR_MIX_DESCRIPTOR_STALE`, `0x030C`). |
@@ -1372,7 +1372,7 @@ MixDirectory = {
 | `suite` | 1 | `suite` | MUST | Suite of the authority signature. |
 | `authority` | 2 | `ik-pub` | MUST | Directory-authority identity key; a verifier MUST have pinned it via DNS/KT (§4.4.2) and MUST reject a directory not signed by it (`ERR_MIX_DIRECTORY_SIG_INVALID`, `0x030B`). |
 | `epoch` | 3 | `u64` | MUST | The mix-key epoch this directory describes (§4.4.4). |
-| `version` | 4 | `u64` | MUST | Monotonic; a resolver MUST reject a directory whose `version` is older-or-equal to one already accepted (rollback defense, mirrors `LocationRecord.seq`). |
+| `version` | 4 | `u64` | MUST | Monotonic; a resolver MUST reject a directory whose `version` is older-or-equal to one already accepted (rollback defence, mirrors `LocationRecord.seq`). |
 | `mixes` | 5 | `[+ MixNodeDescriptor]` | MUST | Each mix's own signed descriptor (§18.5.2); the authority attests **membership of the set**, not the descriptors' content (each self-verifies under its own `node_ik`). A directory MUST contain ≥ 1 node per stratified layer or path-building fails (`ERR_MIX_PATH_UNBUILDABLE`, `0x030D`). |
 | `prev` | 6 | `hash` | MUST | Content-address of the previous `MixDirectory`, chaining the fleet history (genesis = all-zero digest with the v0 prefix); the root is KT-anchored (§3.5) so equivocation over the fleet is detectable exactly like a split-view (`0x0107`). |
 | `ts` | 7 | `ts` | MUST | Publication time. |
@@ -1407,7 +1407,7 @@ profile** (padding hides both path length and true payload length).
 |-------|-------:|------:|---------|
 | `cmd` | 0 | 1 | `0x00` forward-to-mix; `0x01` deliver-to-recipient (exit); `0x02` SURB-reply hop. Unknown ⇒ drop (`ERR_MIX_PACKET_MALFORMED`, `0x0307`). |
 | `flags` | 1 | 1 | bit0 = last-hop; other bits reserved (MUST be 0). |
-| `delay_ms` | 2 | 4 | the hop's **Poisson-sampled** hold in milliseconds (the sender draws it `exp(mean)` per §16.3 and writes it here; the hop MUST honor it — memoryless mixing, §4.4.6). |
+| `delay_ms` | 2 | 4 | the hop's **Poisson-sampled** hold in milliseconds (the sender draws it `exp(mean)` per §16.3 and writes it here; the hop MUST honour it — memoryless mixing, §4.4.6). |
 | `next_hop` | 6 | 32 | for `cmd=0x00`/`0x02`, the next node's routing id (`peer-id`/mix id per `substrate`, §21.24); for `cmd=0x01`, all-zero (the recipient is the local node). |
 | `reserved` | 38 | 10 | MUST be zero; reserved for a future substrate/PQ field, capability-gated (§10.2). |
 
@@ -1445,7 +1445,7 @@ mixing `msg_id`s, is discarded (`0x0307`).
 
 The signed registration a device publishes **to its own node** so the node can wake it (§4.9.1). It
 is an ordinary signed object, held only within the device cluster (§5.6) — never in the DHT, a
-directory, or a relay. The device signature (an `IK`-authorized device key, §1.2) authenticates it
+directory, or a relay. The device signature (an `IK`-authorised device key, §1.2) authenticates it
 to the identity, so no other party can register or redirect a device's wakes.
 
 ```cddl
@@ -1466,7 +1466,7 @@ PushSubscription = {
 | `endpoint` | 2 | `tstr` | MUST | The provider endpoint: an RFC 8030 push-resource URL for Web Push / UnifiedPush, or the opaque platform device token for APNs / FCM. |
 | `push_key` | 3 | `bytes` | MUST | The device's public push key the wake token is sealed to under RFC 8291 Web Push encryption (Web Push: an uncompressed P-256 point). |
 | `auth_secret` | 4 | `bytes` | MUST | The RFC 8291 auth secret (16 B) mixed into the wake's HKDF key derivation; held **only** by the device and the user's own node, so only the node can produce a wake the device will open (§18.9.15). |
-| `device_key` | 5 | `ik-pub` | MUST | The device signing key (an `IK`-authorized device key, §1.2) that signs this subscription; a verifier MUST confirm it is authorized by a current `DeviceCert` under the owner's `Identity`. |
+| `device_key` | 5 | `ik-pub` | MUST | The device signing key (an `IK`-authorised device key, §1.2) that signs this subscription; a verifier MUST confirm it is authorised by a current `DeviceCert` under the owner's `Identity`. |
 | `ts` | 6 | `ts` | MUST | Registration time. |
 | `sig` | 7 | `sig-val` | MUST | Signature by `device_key` over the body (§18.9.15). A signature that does not verify is `ERR_PUSH_SUBSCRIPTION_SIG_INVALID` (`0x0312`, FAIL_CLOSED_BLOCK); the subscription MUST NOT be acted on. |
 
@@ -1544,7 +1544,7 @@ role          = "owner" / "admin" / "member" / "poster" / "reader"
 | | `version` | 11 | `u64` | MUST | Monotonic; reject ≤ last pinned. |
 | | `ts` | 12 | `ts` | MUST | Snapshot time. |
 | | `committer_sig` | 13 | `sig-val` | MUST | Signature by `committer` over the body (§18.9.6). Members MUST also independently verify each underlying handshake is member-signed (a committer cannot forge membership changes). |
-| | `group_identity` | 14 | `hash` | MUST | Content address of the group's **own** `Identity` object (§18.4.1) — the group is an addressable identity with its own keypair (§5.8). That `Identity` carries the group's **threshold-held signing key** (`iks`, FROST-style over the `owner`/`admin` set) and its `recovery` → group `RecoveryPolicy` (§18.4.4), per §5.8.6. Changing the group's identity key or recovery is a **threshold act** requiring the group's `rotate_threshold` (weakening-quorum + veto rules of §1.4 apply) and MUST appear in key transparency (§3.5); the `committer` orders *handshakes* only and is **NOT** authorized to change it. `group_id` (key 1) is derived from this identity. |
+| | `group_identity` | 14 | `hash` | MUST | Content address of the group's **own** `Identity` object (§18.4.1) — the group is an addressable identity with its own keypair (§5.8). That `Identity` carries the group's **threshold-held signing key** (`iks`, FROST-style over the `owner`/`admin` set) and its `recovery` → group `RecoveryPolicy` (§18.4.4), per §5.8.6. Changing the group's identity key or recovery is a **threshold act** requiring the group's `rotate_threshold` (weakening-quorum + veto rules of §1.4 apply) and MUST appear in key transparency (§3.5); the `committer` orders *handshakes* only and is **NOT** authorised to change it. `group_id` (key 1) is derived from this identity. |
 | `RosterEntry` | `member` | 1 | `ik-pub` | MUST | Member identity key. |
 | | `roles` | 2 | `[+ role]` | MUST | ≥ 1 role from `{owner, admin, member, poster, reader}` (§5.8.2). `owner`/`admin` gate management ops; `poster` may send, `reader` may not. |
 | | `joined` | 3 | `ts` | MUST | Join timestamp. |
@@ -1704,8 +1704,8 @@ Assertion = {
 | `issued_at` | 3 | `ts` | MUST | Echo. |
 | `exp` | 4 | `ts` | MUST | Echo; RP MUST reject if now > `exp`. |
 | `aud` | 5 | `tstr` | MUST | Echo; MUST match the RP. |
-| `from` | 6 | `ik-pub` | MUST | The user's **login signer**: an `IK`-authorized **device key** (or `IK` itself, §1.2) that the RP MUST verify resolves to the pinned `name → key` identity (§3.4, §13.3 step 6). This is the identity-revealing login signature; it is **NOT** the session key. The fresh per-RP session key is committed by `cnf` (key 8), not carried here; per-RP session keys (used for DPoP/GNAP thereafter) are what give cross-site unlinkability (§13.4, §13.7 limit 7), not this field. |
-| `sig` | 7 | `sig-val` | MUST | Signature by `from` over the origin-bound preimage **including `cnf`** (§18.9.8). A captured assertion cannot be replayed with an attacker-chosen session key because `cnf` is inside the signed preimage (session-hijack defense, §13.3). |
+| `from` | 6 | `ik-pub` | MUST | The user's **login signer**: an `IK`-authorised **device key** (or `IK` itself, §1.2) that the RP MUST verify resolves to the pinned `name → key` identity (§3.4, §13.3 step 6). This is the identity-revealing login signature; it is **NOT** the session key. The fresh per-RP session key is committed by `cnf` (key 8), not carried here; per-RP session keys (used for DPoP/GNAP thereafter) are what give cross-site unlinkability (§13.4, §13.7 limit 7), not this field. |
+| `sig` | 7 | `sig-val` | MUST | Signature by `from` over the origin-bound preimage **including `cnf`** (§18.9.8). A captured assertion cannot be replayed with an attacker-chosen session key because `cnf` is inside the signed preimage (session-hijack defence, §13.3). |
 | `cnf` | 8 | `hash` | MUST | Confirmation key = `H(session_pubkey)`, carried in the `cnf` claim (RFC 7800) as a DPoP-style (RFC 9449 §6.1) `jkt` SHA-256 key-hash confirmation (§13.3 step 4). The client generates the per-RP, per-device session keypair **before** signing and commits it here; the RP MUST bind the session **only** to `cnf` (proof-of-possession, §13.4). Present on every native assertion, and embedded verbatim in a bridged ID Token (§13.6). |
 | `scope` | 9 | `[* tstr]` | OPTIONAL (echo) | Echo of `Challenge.scope` (§18.7.1 key 6); the **empty array `[]`** when the Challenge omits it. It is **inside the signed preimage** (§18.9.8), so the granted scope is cryptographically bound to the user's consent: the RP MUST reconstruct the preimage with exactly the scope it will grant and MUST NOT grant any scope broader than the signed value (a broader grant fails signature verification; an over-attenuated delegation surfaces as `0x0508`). Closes the OAuth-style scope-elevation where a scope the user never signed is granted on the login assertion. |
 
@@ -1763,7 +1763,7 @@ CapabilityRevocation = {
 | | `token` | 3 | `hash` | MUST | Content-address of the revoked `CapabilityToken` (revoking a chain root revokes all descendants). A verified revocation makes any invocation of that token (or descendant) fail `ERR_CAPABILITY_REVOKED` (`0x050B`). |
 | | `ts`/`sig` | 4/5 | | MUST | Revocation time and `iss` signature (§18.9.14). Revocations are **published to the transparency log / status endpoint** (§13.4, §13.5.1) and MUST be routed through the owner's/domain's KT self-monitoring path so a silent grant/revoke is owner-visible (§13.5). |
 
-**Verification (normative).** To honor an invocation a verifier MUST: (1) validate the token's
+**Verification (normative).** To honour an invocation a verifier MUST: (1) validate the token's
 signature and, if `prnt` present, the **entire chain** to a trusted root; (2) check the
 **attenuation invariant** at every link (each narrows its parent); (3) check `nbf ≤ now ≤ exp` at
 every link; (4) confirm the requested `(resource, ability)` is covered by the leaf `caps` **and that
@@ -1847,7 +1847,7 @@ object family, keyed by the `kind` field (§18.8a.1, key 2) rather than one besp
 class (§26.3.1) are kind-specific facts and live in the opaque `policy` field (key 4) exactly as
 they do informally today; nothing about §7.5's or §26.3.1's own field list changes. §26's
 previously-**reserved-but-undefined** `DMTAP-ADAPT-v0/…` DS-tags (§21.24g) are **retired, unused**
-in favor of the tags below (§21.24h) — an adapter, being a `gateway`-kind coordinator (CONTRACT
+in favour of the tags below (§21.24h) — an adapter, being a `gateway`-kind coordinator (CONTRACT
 §5), signs the same object a mail gateway would, never a second parallel scheme.
 
 ### 18.8a.1 `CoordinatorDescriptor`, `Visibility`, `Tariff` (CONTRACT §2.1, §2.4, §6)
@@ -1886,7 +1886,7 @@ Tariff = {
 | Field | Key | Type | Presence | Meaning & constraints |
 |-------|----:|------|----------|-----------------------|
 | `suite` | 1 | `suite` | MUST | Signature suite of `sig`. Under a composite suite (`0x02`–`0x05`) this field is what pins the signed representative (§18.9's family form `M' = DS-tag ‖ 0x00 ‖ u8(suite) ‖ det_cbor(body)`); without it two implementations of a composite suite cannot agree on the preimage. |
-| `kind` | 2 | `tstr` | MUST | One of the CONTRACT §5 canonical kind strings (`"gateway"`, `"relay"`, `"media-relay"`, `"reachability-adapter"`, `"indexer"`, `"labeler"`, `"matcher"`, `"compute"`, `"infra-service"`, `"arbiter"`, `"oracle"`, `"custodial-escrow"`). An unknown `kind` MUST be treated as an undeclared coordinator (§2.4) — a client MUST NOT rely on a descriptor whose kind it does not recognize. |
+| `kind` | 2 | `tstr` | MUST | One of the CONTRACT §5 canonical kind strings (`"gateway"`, `"relay"`, `"media-relay"`, `"reachability-adapter"`, `"indexer"`, `"labeler"`, `"matcher"`, `"compute"`, `"infra-service"`, `"arbiter"`, `"oracle"`, `"custodial-escrow"`). An unknown `kind` MUST be treated as an undeclared coordinator (§2.4) — a client MUST NOT rely on a descriptor whose kind it does not recognise. |
 | `identity` | 3 | `ik-pub` | MUST | The coordinator's attested substrate identity (CONTRACT §2.1). The descriptor is self-certifying — `sig` (key 7) is verified against this same field, never an external identity. |
 | `visibility` | 4 | `Visibility` | MUST | Exactly one declared class at one assurance level (CONTRACT §2.4, §3.1, §3.3); `class` ∈ `{"blind","blind-routing","terminating"}`, `level` ∈ `{"structural","attested","declared"}`. An unrecognized value in either sub-field MUST be rejected, not defaulted (fail-closed, mirrors §18.1.2's unknown-key rule for the enclosing choice). A `terminating` class MUST declare `level = "declared"` (there is no `"structural"` assurance level for a plaintext-terminating role; `"declared"` is the honest-trust level, CONTRACT §3.3). |
 | `policy` | 5 | `bytes` | MUST | Opaque deterministic-CBOR operator policy (region, capabilities, contact, and every kind-specific field §7.5/§26.3.1 already enumerate for `gateway`). This document does not interpret it; it exists so §2.1's "no reputation/price/stake field" rule has exactly one escape hatch (self-declared, never a ranking input) rather than a slow accretion of new top-level descriptor keys. |
@@ -1940,11 +1940,11 @@ guessed at.
 proves the coordinator signed a claim about one real operation; it is **one-directional** — it
 cannot disconfirm an operation the coordinator fabricated or silently omitted, and a client MUST
 NOT present the absence of a disputed receipt as proof the operation never happened. Disclosed, not
-hidden (CONTRACT §6, DMTAP §7.9 generalized).
+hidden (CONTRACT §6, DMTAP §7.9 generalised).
 
 ### 18.8a.3 `GatewayAuthz` (§12.2, §7.11.2, §7.12, §26.2.1)
 
-The operator-side record of a legacy-egress authorization (§12.2): who a gateway (or, generalized,
+The operator-side record of a legacy-egress authorisation (§12.2): who a gateway (or, generalised,
 a gateway-mode adapter, §26.2.1 item 1) will relay outbound for, and — where granted — which
 address(es) or rail identifier(s) that identity may claim. §7.11.2 step 2 and §26.2.1 item 1 each
 cited a "planned... not yet defined on wire" per-address/per-rail grant type; this closes both from
@@ -1981,12 +1981,12 @@ GatewayAuthz = {
 
 | Field | Key | Type | Presence | Meaning & constraints |
 |-------|----:|------|----------|-----------------------|
-| `identity` | 1 | `ik-pub` | MUST | The authorized sender's `IK`. Absence of a live, unexpired, unrevoked record for a given `identity` is exactly the condition behind `ERR_GATEWAY_SENDER_UNAUTHENTICATED` (`0x0607`) / `ERR_ADAPTER_CREDENTIAL_UNAUTHORIZED` (`0x0B03`). |
+| `identity` | 1 | `ik-pub` | MUST | The authorised sender's `IK`. Absence of a live, unexpired, unrevoked record for a given `identity` is exactly the condition behind `ERR_GATEWAY_SENDER_UNAUTHENTICATED` (`0x0607`) / `ERR_ADAPTER_CREDENTIAL_UNAUTHORIZED` (`0x0B03`). |
 | `mode` | 2 | `u8` | MUST | `1` open (§7.12.1: the operator's own admission means, e.g. postage-only), `2` key-registered (§7.12.2, verified via a retained `Assertion`). |
 | `granted_at` | 3 | `ts` | MUST | When this record was created. |
-| `grants` | 4 | `[* hash]` | OPTIONAL | Content-addresses of the `CapabilityToken`(s) (§18.7.3, §18.9.4 content-address formula) that authorize `identity` for a **specific** address or rail identifier. Absence ⇒ `identity` is authenticated for egress (§7.11.2 step 1 / `0x0607`) but has **no** per-address/per-rail grant — the ordinary case, where the submitter's own `IK` already resolves to the address it claims (§7.11.2 step 2, first bullet), so no separate grant is needed. Where an outbound message claims an address/rail-identity the ordinary resolution does not cover, the gateway MUST find a covering, valid, unrevoked `CapabilityToken` referenced here or refuse with `ERR_GATEWAY_SENDER_ADDRESS_UNAUTHORIZED` (`0x060A`) / `ERR_ADAPTER_CREDENTIAL_UNAUTHORIZED` (`0x0B03`). |
-| `expires` | 5 | `ts` | OPTIONAL | Absent ⇒ no expiry. A lookup after `expires` MUST be treated as no authorization. |
-| `revoked` | 6 | `bool` | OPTIONAL | `true` retires the record (operator-initiated); retained rather than deleted so a repeat attempt is distinguishable from one that was never authorized, for audit purposes only — it confers nothing. |
+| `grants` | 4 | `[* hash]` | OPTIONAL | Content-addresses of the `CapabilityToken`(s) (§18.7.3, §18.9.4 content-address formula) that authorise `identity` for a **specific** address or rail identifier. Absence ⇒ `identity` is authenticated for egress (§7.11.2 step 1 / `0x0607`) but has **no** per-address/per-rail grant — the ordinary case, where the submitter's own `IK` already resolves to the address it claims (§7.11.2 step 2, first bullet), so no separate grant is needed. Where an outbound message claims an address/rail-identity the ordinary resolution does not cover, the gateway MUST find a covering, valid, unrevoked `CapabilityToken` referenced here or refuse with `ERR_GATEWAY_SENDER_ADDRESS_UNAUTHORIZED` (`0x060A`) / `ERR_ADAPTER_CREDENTIAL_UNAUTHORIZED` (`0x0B03`). |
+| `expires` | 5 | `ts` | OPTIONAL | Absent ⇒ no expiry. A lookup after `expires` MUST be treated as no authorisation. |
+| `revoked` | 6 | `bool` | OPTIONAL | `true` retires the record (operator-initiated); retained rather than deleted so a repeat attempt is distinguishable from one that was never authorised, for audit purposes only — it confers nothing. |
 
 **Operator-unreachable fail-safe (`ERR_GATEWAYAUTHZ_DENIED`, `0x070E`, §12.2).** This object is
 consulted, not transmitted, when the operator behind the seam is unreachable: §12.2's safe default
@@ -2153,7 +2153,7 @@ routine. Regenerating the frozen `mote_payload_sig` vector was the cost of the c
 was paid (`conformance/vectors/vectors.json`).
 
 `from` (key 1) is included in the hashed body, binding the signature to the claimed sender. A
-device-key signature is valid only if that device key is authorized by a current `DeviceCert`
+device-key signature is valid only if that device key is authorised by a current `DeviceCert`
 under `from`'s `Identity` (§1.2). Verified at §2.7 step 8.
 
 **Envelope-context binding (normative — envelope `kind`/`ts`/`to` under the *identity* signature).**
@@ -2176,8 +2176,8 @@ envelope `kind`/`ts`/`to` do not equal the signed context (**`ERR_ENVELOPE_CONTE
 `DomainDirectory`, `Profile` all use the general rule: `Sign(sk, DS-tag ‖ 0x00 ‖ det_cbor(object ∖ {sig-key}))`
 with the DS-tags in the table above. The signing key is: IK for `Identity`/`DeviceCert`/`MoveRecord`;
 IK **or** a satisfied `rotate_threshold` quorum for `RecoveryPolicy`; **`old_ik`** for `KeyRotation`;
-an authorized **device key** for `LocationRecord`; the **domain authority IK** (threshold-held,
-§3.10.1/§5.8.6) for `DomainDirectory`; IK **or** an `IK`-authorized device key for `Profile`
+an authorised **device key** for `LocationRecord`; the **domain authority IK** (threshold-held,
+§3.10.1/§5.8.6) for `DomainDirectory`; IK **or** an `IK`-authorised device key for `Profile`
 (§3.9.5, §18.4.12).
 
 ### 18.9.4 Object content addresses (`Envelope.id`, `Identity` anchor)
@@ -2205,7 +2205,7 @@ replay-cache key in this protocol is derived from a signature … An implementat
 introduce a construction that depends on signature uniqueness or non-malleability" — and §1.3
 also concedes hybrid AND-composition gives EUF-CMA, not SUF-CMA (malleable). Hashing `sig` into
 `Identity_id` did exactly what §1.3 forbids: two byte-distinct but both-valid signatures over the
-same `Identity ∖ {10}` body (a re-signing under the same key, a second authorized signer under
+same `Identity ∖ {10}` body (a re-signing under the same key, a second authorised signer under
 §18.9.3's quorum rule, or a malleated hybrid component) would produce two different `Identity_id`s
 for what is semantically **one** identity version — splitting the very pin (§3.2), safety-number
 input (§3.4.1, below), and KT leaf (§18.4.9) this anchor exists to make singular. Excluding `sig`
@@ -2215,7 +2215,7 @@ exception carved out of it** — §1.3 already forbade a signature-derived ident
 sig-included formula was the violation the invariant already ruled out, not a case it left open.
 
 **Consequence, stated rather than left implicit: the id is now stable across re-signing.** Because
-`sig` is excluded, re-signing the identical `Identity ∖ {10}` body — a second authorized signature
+`sig` is excluded, re-signing the identical `Identity ∖ {10}` body — a second authorised signature
 added under the multi-suite `sig` array (§18.4.1 key 10), or a signature refreshed with no content
 change — yields the **same** `Identity_id` with different/additional valid `sig` entries. This is
 benign and intentional, and is recorded here rather than left to be discovered by surprise.
@@ -2265,7 +2265,7 @@ DS-tag — a content address, not a signature preimage.
 
 The manifest root is an **RFC 6962-style binary Merkle tree** over the ordered chunk hashes, using
 the object's suite hash (v0 BLAKE3-256) with **domain-separated leaf/node prefixes** so a leaf can
-never be reinterpreted as an internal node (second-preimage defense):
+never be reinterpreted as an internal node (second-preimage defence):
 
 ```
 ; 1. Chunking & per-chunk hash (chunks are encrypted, then hashed)
@@ -2333,7 +2333,7 @@ carries no `scope`), then `cnf` (`Assertion` key 8) — matching §13.3 step 5's
 `H(rp_origin ‖ nonce ‖ issued_at ‖ exp ‖ aud ‖ scope ‖ cnf)`. The RP reconstructs it from its own
 issued `Challenge` plus the assertion's `cnf`, **using exactly the scope it will grant**, and MUST
 reject any mismatch of `rp_origin`/`aud`, MUST NOT grant a scope broader than the signed value
-(a broader grant simply fails verification), and MUST bind the session **only** to `cnf`. The signing key is the user's **`IK`-authorized device key**
+(a broader grant simply fails verification), and MUST bind the session **only** to `cnf`. The signing key is the user's **`IK`-authorised device key**
 (`Assertion.from`), verified against the pinned `name → key` identity (§3.4) — **not** the session
 key (which `cnf` merely commits) and not `IK` used directly for routine logins.
 
@@ -2341,7 +2341,7 @@ key (which `cnf` merely commits) and not `IK` used directly for routine logins.
 
 `MixNodeDescriptor.sig` and `MixDirectory.sig` use the general rule
 (`Sign(sk, DS-tag ‖ 0x00 ‖ det_cbor(object ∖ {sig}))`) with tags `DMTAP-v0/mix-descriptor` /
-`DMTAP-v0/mix-directory`. The `MixNodeDescriptor` signing key is an **`IK`-authorized device key**
+`DMTAP-v0/mix-directory`. The `MixNodeDescriptor` signing key is an **`IK`-authorised device key**
 of the descriptor's `node_ik` (verified via that node's `Identity`, §1.2); the `MixDirectory`
 signing key is the **directory-authority IK** pinned via DNS/KT ([docs/research/mixnet.md
 §4.4.2](docs/research/mixnet.md), threshold-held per §5.8.6 where a set/quorum is used). The
@@ -2358,7 +2358,7 @@ what would destroy deniability:
 
 - **`DeniablePrekeyBundle.sig`** (key 10) uses the general rule
   `Sign(sk_device, "DMTAP-v0/deniable-prekeys" ‖ 0x00 ‖ det_cbor(DeniablePrekeyBundle ∖ {10}))`
-  with an `IK`-authorized device key. This signs the *bundle of public prekeys*, not any message.
+  with an `IK`-authorised device key. This signs the *bundle of public prekeys*, not any message.
 - **`DeniablePrekeyBundle.spk_sig`** (key 4) is the standard X3DH **signed-prekey signature**:
   `Sign(sk_device, "DMTAP-v0/deniable-spk" ‖ 0x00 ‖ spk_bytes)` over the raw `spk` public key
   (field 3). It proves the prekey was published by the identity; it signs **no** content and
@@ -2368,7 +2368,7 @@ what would destroy deniability:
   `Sign(sk_device, "DMTAP-v0/deniable-idk" ‖ 0x00 ‖ idk_bytes)` over the raw X25519 `idk` /
   `idk_a` public key. This is what **replaces the retired XEdDSA-from-`IK` derivation**: instead
   of `IK` *being* the long-term identity DH key, a **dedicated X25519 `idk`** is certified once by
-  an `IK`-authorized device key. Like `spk_sig` it signs a *public DH key*, never any message, so
+  an `IK`-authorised device key. Like `spk_sig` it signs a *public DH key*, never any message, so
   deniability is unchanged — no long-term signature ever covers content or a transcript. Keeping
   the DH key separate from `IK` also lets `IK` live in a usage-fixed hardware keystore that only
   signs (Secure Enclave P-256 / TPM / StrongBox), which cannot perform both signing and DH on one
@@ -2447,7 +2447,7 @@ CapabilityToken.sig       = Sign(sk_iss, "DMTAP-v0/cap-token"      ‖ 0x00 ‖ 
 CapabilityRevocation.sig  = Sign(sk_iss, "DMTAP-v0/cap-revocation" ‖ 0x00 ‖ det_cbor(CapabilityRevocation ∖ {5}))
 ```
 
-`sk_iss` is the issuer's `IK` or an `IK`-authorized device key (for a root link, §13.5), or — for a
+`sk_iss` is the issuer's `IK` or an `IK`-authorised device key (for a root link, §13.5), or — for a
 delegated link — the key that is the parent token's `aud` (the chain binds each link's `iss` to its
 parent's `aud`, §18.7.3). A signature/attenuation/expiry failure anywhere in the chain is
 `ERR_CAPABILITY_DELEGATION_INVALID` (`0x0508`); a covering revocation is `ERR_CAPABILITY_REVOKED`
@@ -2461,10 +2461,10 @@ as `ArcToken`/deniable frames.
 
 `PushSubscription.sig` (key 7) uses the general rule
 `Sign(sk_device, "DMTAP-v0/push-subscription" ‖ 0x00 ‖ det_cbor(PushSubscription ∖ {7}))` with an
-`IK`-authorized device key (§1.2) — the same signing discipline as `LocationRecord` (§18.9.3). It
+`IK`-authorised device key (§1.2) — the same signing discipline as `LocationRecord` (§18.9.3). It
 authenticates the subscription to the identity so no other party can register or redirect a device's
 wakes; a signature that does not verify is `ERR_PUSH_SUBSCRIPTION_SIG_INVALID` (`0x0312`),
-fail-closed. The verifier MUST also confirm `device_key` (field 5) is authorized by a current
+fail-closed. The verifier MUST also confirm `device_key` (field 5) is authorised by a current
 `DeviceCert` under the owner's `Identity`.
 
 `WakePing` carries **no** DMTAP `sig-val`. Its authentication is the **RFC 8291 `aes128gcm` AEAD
@@ -2897,7 +2897,7 @@ resolves each explicitly rather than picking one silently; each SHOULD be reconc
    separate objects (§18.3.4, §18.4.3) and documents the distinction.
 
 3. **`LocationRecord` missing `seq`.** RECONCILED. §16.2 normatively requires a monotonic
-   `Location seq-number (u64)` for rollback defense; §4.2's inline CBOR now carries it and this
+   `Location seq-number (u64)` for rollback defence; §4.2's inline CBOR now carries it and this
    appendix specifies it as a REQUIRED field (key 4, §18.5.1). Appendix and prose agree.
 
 4. **`chunks` means two different things.** In `ManifestRef` (§2.5) `chunks` is a `u32` **count**;
@@ -2915,7 +2915,7 @@ resolves each explicitly rather than picking one silently; each SHOULD be reconc
    `type:"phrase"|"device"|"social"`. For a uniform integer-keyed choice, this appendix encodes the
    discriminator at **key 0** with integer values `1/2/3` (§18.3.3 convention), preserving the
    variant meaning while keeping deterministic small-integer keys throughout. This is a *format*
-   normalization, not a semantic change; noted for consistency review.
+   normalisation, not a semantic change; noted for consistency review.
 
 7. **DMTAP `suite` (u8) vs MLS ciphersuite (u16).** §1.1/§16.7 define `suite` as a one-byte DMTAP
    id (`0x01`/`0x02`); §5.1 also cites MLS ciphersuites `0x0001`/`0x0003`. These are different

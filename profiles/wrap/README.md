@@ -1,4 +1,4 @@
-<div align="center">
+<div align="centre">
 
 # WRAP
 
@@ -20,7 +20,7 @@ platform account, and no cut taken.
 Every platform that coordinates work does it the same way: put one company in
 the middle, let it hold every identity, every job record and every reputation,
 and let it take a cut. The coordination is not the hard part. The
-centralization is a business model wearing the costume of an architecture.
+centralisation is a business model wearing the costume of an architecture.
 
 Look at what actually *forces* a central operator and it comes down to one
 thing: **somebody must decide who gets the job.** Almost every platform runs
@@ -141,13 +141,13 @@ the day a second implementer appears.
 Specification: [CC BY 4.0](LICENSE.md) — implement, quote and build on it
 freely, with attribution.
 
-<div align="center">
+<div align="centre">
 <sub><em>Vulos — rooted in <strong>vula</strong>, the Zulu and Xhosa word for <strong>open</strong>.</em></sub>
 </div>
 
 ---
 
-<p align="center">
+<p align="centre">
   <a href="https://vulos.org"><img src="docs/assets/vulos-logo.png" alt="vulos" height="20"></a><br>
   <sub><a href="https://vulos.org"><b>vulos</b></a> — open by design</sub>
 </p>

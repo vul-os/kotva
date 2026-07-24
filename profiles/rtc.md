@@ -46,7 +46,7 @@ adds only a message kind, a key label, and a capacity advertisement (§27.1, §2
 |---|---|
 | **Identity** ([`../01-identity.md`](../01-identity.md)) | A keypair is the call endpoint. An SFU is identified by its own identity key, disclosed before any media (§27.4.1 keys 9/10). |
 | **MOTE** ([`../02-mote.md`](../02-mote.md)) | Signaling is one sealed-MOTE kind, `0x44 rtc_signal`, on the ordinary deliver/ack/retry path (§27.3, §27.4). Media is **not** a MOTE. |
-| **SYNC / MLS group** ([`../substrate/SYNC.md`](../substrate/SYNC.md)) | The MLS group that scopes the conversation supplies **membership** (the sole call authorization) and, via its epoch exporter, the **media key root** (§27.5). A 1:1 call is a call in a 2-member group. |
+| **SYNC / MLS group** ([`../substrate/SYNC.md`](../substrate/SYNC.md)) | The MLS group that scopes the conversation supplies **membership** (the sole call authorisation) and, via its epoch exporter, the **media key root** (§27.5). A 1:1 call is a call in a 2-member group. |
 | **Roles & Wake** ([`../substrate/ROLES.md`](../substrate/ROLES.md)) | The SFU is an infrastructure **role** any node may take — your own always-on box or an operator — never a privileged server type (§27.7.2). Wake is content-free push; it is **never relied on for correctness** ([`../substrate/OFFLINE.md`](../substrate/OFFLINE.md) §3). |
 
 RTC does **not** compose the commerce recipe roles
@@ -70,7 +70,7 @@ Every intermediary RTC can place in a path is a coordinator under
 | **relay** (TURN) | Relayed ICE candidate when direct/STUN fails (§27.11 item 3) | `blind` / `structural` — carries SFrame ciphertext |
 | **reachability-adapter** | Optional public ingress to reach a self-hosted SFU box | `blind-routing` (SNI-passthrough) preferred |
 
-An SFU/relay **authorizes, never classifies** ([CONTRACT §4](../coordinator/CONTRACT.md)): it may
+An SFU/relay **authorises, never classifies** ([CONTRACT §4](../coordinator/CONTRACT.md)): it may
 check *who you are and your rate*, never *what your media contains* — which it structurally cannot,
 because it holds no key. None is load-bearing: remove every coordinator and a **mesh** call still
 works (§6).
@@ -124,10 +124,10 @@ them — it states the rules a profile reader must not miss.
   instead publish `sframe_required=false`, declaring it will forward unprotected media if offered;
   that operator is a `terminating` coordinator, not `blind-routing`, and a client MUST disclose it as such
   before joining (§27.7.4, R-RTC-3) rather than treat content-blindness as unconditional.
-- **R-RTC-2 (membership is the authorization).** An `rtc_signal` MUST be accepted only from a
+- **R-RTC-2 (membership is the authorisation).** An `rtc_signal` MUST be accepted only from a
   **current member** of the group under whose epoch the MOTE decrypted, evaluated against the
   receiver's own applied state — never a claim in the signal (§27.4.5). This is
-  authorize-never-classify at the endpoint: the question is *who*, never *what*.
+  authorise-never-classify at the endpoint: the question is *who*, never *what*.
 - **R-RTC-3 (the operator is disclosed before media).** Before a byte of media reaches an SFU, the
   client MUST display *which* operator identity is in the path and whether it has committed to
   `sframe_required` (§27.9 item 4). A topology change (mesh→SFU, or between SFUs) is a
@@ -173,7 +173,7 @@ the leftmost cell that works: `topology` absent ⇒ mesh (§27.4.1).
 
 ---
 
-## 6. Offline / apocalypse behavior
+## 6. Offline / apocalypse behaviour
 
 RTC is measured against the substrate offline grades
 ([`../substrate/OFFLINE.md`](../substrate/OFFLINE.md) §2). A call is honestly the hardest case for

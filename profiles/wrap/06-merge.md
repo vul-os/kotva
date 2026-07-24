@@ -32,7 +32,7 @@ to one substrate primitive:
 | `WorkOrder` | Immutable content object (SYNC §4.9; FEEDS §3) | the namespace anchor; `id` per §3.2 | never changes |
 | `Offer` | OR-Set add (SYNC §4.3) | `target = "offers"` | union |
 | `Bid` | OR-Set, add-wins observed-remove (SYNC §4.3) | `target = "bids"` | union; withdraw = observed-remove |
-| `Assignment` | LWW register (SYNC §4.4) | `target = "assignment"`, `field = ""` | highest HLC among *authorized* ops |
+| `Assignment` | LWW register (SYNC §4.4) | `target = "assignment"`, `field = ""` | highest HLC among *authorised* ops |
 | `Progress` | OR-Set add / append (SYNC §4.3) | `target = "progress"` | union; current state folded at read (§6.3) |
 | `Attestation` | Author-feed entry (FEEDS §4) | the subject's feed | append-only, anti-rollback (FEEDS §4.3) |
 
@@ -82,9 +82,9 @@ so a partitioned performer simply has no assignment to make. When the partition
 heals, the union includes whatever the issuer decided, and the performer's bids
 are still there.
 
-The failure mode this avoids is the one that makes naive decentralized dispatch
+The failure mode this avoids is the one that makes naive decentralised dispatch
 unusable: two partitioned dispatchers both assigning the same job to different
 couriers, both couriers driving to the same restaurant, and no principled way to
 decide which was wrong. A general CRDT would "resolve" that by timestamp and
 silently discard one courier's trip. WRAP cannot reach the state at all, because
-the contended decision has exactly one authorized author.
+the contended decision has exactly one authorised author.

@@ -8,7 +8,7 @@ derived-index/aggregate posture, public-object HTTP serving, and privacy & secur
 facets: the **media facet** (§24.4–§24.17, `meta["video"]`) and the **engineering-artifact facet**
 (§24.18, `meta["artifact"]`). The fold removed the duplicated scaffolding the two profiles each
 restated; every normative rule of the former §23 is preserved in §24 — the CAD-specific schemas,
-registries, units, canonical-source specialization, assembly Merkle-DAG model, workshop conventions,
+registries, units, canonical-source specialisation, assembly Merkle-DAG model, workshop conventions,
 and the `CAD-1`…`CAD-12` conformance checklist all live in §24.18, and the shared concerns are
 inherited from the generic core by reference.
 

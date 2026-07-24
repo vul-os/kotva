@@ -2,7 +2,7 @@
 
 KOTVA is a **family of open protocol specifications** — a shared substrate (Identity, MOTE,
 Transport, PUB, SYNC, infrastructure roles), the [coordinator contract](coordinator/CONTRACT.md)
-that fences centralization, a small set of primitives, and the profiles built on top of them:
+that fences centralisation, a small set of primitives, and the profiles built on top of them:
 **DMTAP-mail** (mail, messaging, and the legacy gateway — the first and reference profile, §0–§27
 at the repository root) plus **TRACT** (commerce, [`profiles/tract/`](profiles/tract/)) and
 **WRAP** (work, [`profiles/wrap/`](profiles/wrap/)), with more to follow. Every layer is intended
@@ -58,7 +58,7 @@ profile-specific one, e.g. "DMTAP-compatible") means **passes the conformance su
   per-peer — **no flag day**. New **coordinator kinds** follow the analogous, family-wide
   procedure below. Mechanisms are retired the same way (§12.8.5): announce the successor, let the
   suite high-water-mark / capability version make the upgrade stick, then retire the old one with
-  an explicit owner-authorized action.
+  an explicit owner-authorised action.
 - **Structural revisions** to a wire-bearing document increment **both** its domain-separation-tag
   prefix and, where one exists, a DNS discriminator anchor, in lockstep — DMTAP-mail's
   `DMTAP-v0/…` → `DMTAP-v1/…` plus `v=dmtap<N>` is the worked instance (§10.1); the coordinator
@@ -73,8 +73,8 @@ profile-specific one, e.g. "DMTAP-compatible") means **passes the conformance su
 ## Amending the coordinator contract
 
 [`coordinator/CONTRACT.md`](coordinator/CONTRACT.md) is the mechanism that does the family's
-anti-centralization work: its four conformance clauses (§2) and its **§5 canonical coordinator-kind
-list** are what stop "some centralization, done safely" from drifting into ungoverned gatekeeping.
+anti-centralisation work: its four conformance clauses (§2) and its **§5 canonical coordinator-kind
+list** are what stop "some centralisation, done safely" from drifting into ungoverned gatekeeping.
 It carries its own `Status: draft… normative once ratified` line — this section is the process that
 line refers to.
 
@@ -104,12 +104,12 @@ line refers to.
   DMTAP-mail §10.1) across every wire object it touches.
 - **Backward compatibility.** A structural revision follows the same discipline as mechanism
   retirement elsewhere in the family (DMTAP-mail §12.8.5): announce the successor, allow a
-  transition window, retire only with an explicit maintainer-authorized action. A ratified kind is
+  transition window, retire only with an explicit maintainer-authorised action. A ratified kind is
   **deprecated, never silently redefined** — the append-only discipline the wire registries already
   use (§21.25 item 6) — and an already-conformant coordinator MUST NOT be retroactively failed
   without notice.
 
-This is deliberately a light process, not a foundation: while the family is pre-standardization,
+This is deliberately a light process, not a foundation: while the family is pre-standardisation,
 "ratified" means "the maintainers, applying the criteria above in the open, said so" — the same
 honest, minimal arrangement DMTAP-mail's own registries already run on (§21.25 item 5) — and it is
 expected to hand off to a heavier, IETF-run process only if and when the standards track

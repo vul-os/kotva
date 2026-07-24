@@ -141,7 +141,7 @@ NOT require more fields than the rule consumes.
 A matcher optimises; it MUST NOT **classify**. It MUST NOT drop, hide, quarantine, or
 down-rank an **eligible** candidate on a content basis (who the supplier is beyond identity+rate,
 what they "seem like"), and MUST NOT inject candidates the rule does not rank. Eligibility is an
-**authorization** question — is this candidate well-formed, within its rate, answering this demand,
+**authorisation** question — is this candidate well-formed, within its rate, answering this demand,
 unexpired? — answered from identity and the declared fields, never from a judgement about whether
 the candidate is "wanted" ([`CONTRACT § 4`](../coordinator/CONTRACT.md)). "Wanted" is the issuer's
 call, made on the issuer's device by *accepting* the assignment. A matcher that classifies is
@@ -301,7 +301,7 @@ Inheriting [`THREAT-MODEL.md`](../THREAT-MODEL.md); a profile MAY add, MUST NOT 
 
 Per house rule, the boundaries MATCH does **not** cross:
 
-- **Global reach is where centralization regrows.** A matcher's value is candidate **liquidity**,
+- **Global reach is where centralisation regrows.** A matcher's value is candidate **liquidity**,
   and liquidity has network-effect gravity: the matcher with the deepest pool wins, and that pull
   toward one operator is real even though the contract keeps it swappable and self-hostable. The
   engine stays sovereign; the *market* still tends to concentrate. Disclosed

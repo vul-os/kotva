@@ -129,7 +129,7 @@ The issuer's decision. **The issuer is the only valid author.** An
 assignment is the highest-HLC op among *admissible* ones. Because admission
 (§5.5) has already reduced the register's writers to one — the issuer — the
 last-writer-wins resolution is unambiguous. This is the entire reason WRAP needs
-no consensus: the contended decision has a single authorized author, so
+no consensus: the contended decision has a single authorised author, so
 "concurrent conflicting assignments" is not a state the protocol can reach
 between honest participants.
 

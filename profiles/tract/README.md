@@ -1,10 +1,10 @@
-<div align="center">
+<div align="centre">
 
 # TRACT
 
 ### Trade, Routing, Attestation, Custody & Trust
 
-**An open protocol for decentralized commerce.** Goods, services, rentals and subscriptions between
+**An open protocol for decentralised commerce.** Goods, services, rentals and subscriptions between
 self-sovereign identities — with no marketplace operator, no registrar, and no token.
 
 *A keypair is a store. A cart is the buyer's. Delivery is computed, not brokered.*
@@ -55,9 +55,9 @@ no new signature framing.**
 
 - **OpenBazaar** — the closest deployed relative of this design — shut down in 2021 having moved
   ~US$86k over 14 months, with ~80 users online at a time and one vendor faking 60% of measured
-  sales value. Discovery re-centralized first; catalogues vanished when nodes went offline; opt-in
+  sales value. Discovery re-centralised first; catalogues vanished when nodes went offline; opt-in
   escrow was declined by exactly the actors it existed to constrain.
-- **Beckn/ONDC**, the largest live decentralized-commerce network, avoids all of that by adopting a
+- **Beckn/ONDC**, the largest live decentralised-commerce network, avoids all of that by adopting a
   central approval-gating registry with DNS/TLS identity — the opposite of this design, at the
   precise points this design is weakest.
 - **There is no deployed permissionless global product identity.** The space between GS1's licensed

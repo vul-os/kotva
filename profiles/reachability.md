@@ -155,7 +155,7 @@ and cannot be squatted.
   even for a vanity name or an own-domain name lacking an RFC 8657 binding, and a box SHOULD
   monitor Certificate Transparency logs for its served names to detect covert issuance. These
   detect a `declared`-level breach; they do not make it `structural`.
-- **REACH-2 — the tunnel is key-authenticated; the adapter authorizes, never classifies.** The
+- **REACH-2 — the tunnel is key-authenticated; the adapter authorises, never classifies.** The
   box↔adapter tunnel MUST be established as an ordinary **libp2p-secured stream** — a
   **libp2p-Noise `XX` handshake** (Noise transport security + yamux stream-mux, the
   ordinary-libp2p-transport leg already named in [§2](#2-primitives-coordinators-and-bindings-it-composes),
@@ -198,7 +198,7 @@ and cannot be squatted.
   adapter MUST expose a narrowly-scoped `_acme-challenge` provisioning API (or a `CNAME
   _acme-challenge` delegation to a zone the box controls) so the box can place its own challenge
   value without otherwise writing the zone; REACH-7's "sole writer" remains true of the zone's
-  physical writes, with the adapter now acting as the box's authorized agent for one named record,
+  physical writes, with the adapter now acting as the box's authorised agent for one named record,
   not a silent co-issuer.
 - **REACH-2b — tunnel control frames (register / register-ack).** Immediately **after** the Noise
   handshake completes and **before** the yamux session starts, on the now-encrypted+authenticated
@@ -220,7 +220,7 @@ and cannot be squatted.
   unsigned, and never mesh-transmitted** (they ride inside the authenticated channel), so they
   define **no** new [§18](../18-wire-format.md) wire object and **no** new
   [§21](../21-errors-iana.md) error code.
-- **REACH-3 — subdomain naming is [§7.10.5](../07-gateway.md) generalized to DNS labels.** A **vanity
+- **REACH-3 — subdomain naming is [§7.10.5](../07-gateway.md) generalised to DNS labels.** A **vanity
   subdomain** is a user-chosen label in the adapter's own zone (`alice.reach.example`). It is the
   only REACH name with ownership semantics and is fenced identically: it MUST be **dot-free** (a
   single label), valid **only** fully-qualified under the adapter's zone, **first-come and
@@ -228,7 +228,7 @@ and cannot be squatted.
   flat-namespace consensus problem KOTVA does not solve). A vanity **MUST yield to, and MUST NOT
   shadow, a resolvable anchored name** (DNS `name@domain` or name-chain).
 - **REACH-4 — the name is a pointer, never an identity.** A REACH subdomain MUST NOT be presented as
-  the box's identity ([§7.10.6](../07-gateway.md) rules (i)/(ii), generalized). Identity is the
+  the box's identity ([§7.10.6](../07-gateway.md) rules (i)/(ii), generalised). Identity is the
   keypair ([§1.2](../01-identity.md)); the subdomain is a **rotatable, revocable route**. A client's
   share/QR/invite flow MUST surface the box's own domain if it has one, else its chain name, else its
   key-name — and MUST label a bare adapter vanity with its provenance ("reachability alias, issued by
@@ -370,10 +370,10 @@ Inheriting [THREAT-MODEL.md](../THREAT-MODEL.md) (SEC-1…SEC-9); the REACH-spec
   mint its own certificate and MITM a plain client that does not pin the box's key (REACH-1a) — a
   declared, disclosed residual (§8), not structurally excluded; closed only for a KOTVA-aware client
   that verifies the `LocationRecord` TLS pin.
-- **SEC-6 authorize-never-classify + swappable.** REACH-2/REACH-8/REACH-11: the adapter gates on
+- **SEC-6 authorise-never-classify + swappable.** REACH-2/REACH-8/REACH-11: the adapter gates on
   identity + rate, is swappable with zero migration, and its audit is one-directional (a signed receipt
   confirms a claimed byte-count, cannot disconfirm a fabricated one — disclosed, CONTRACT §6).
-- **SEC-7 abuse priced-and-localized.** Anti-abuse is authorization — authenticated tunnels,
+- **SEC-7 abuse priced-and-localized.** Anti-abuse is authorisation — authenticated tunnels,
   rate-limit tokens, optional postage for cold registration — never content classification. A poisoned
   adapter is one adapter, swappable; there is no network-wide reachability authority to poison.
 - **SEC-8 replay-inert / downgrade-resistant for own-domain names with an RFC 8657 binding.**
@@ -429,7 +429,7 @@ Inheriting [THREAT-MODEL.md](../THREAT-MODEL.md) (SEC-1…SEC-9); the REACH-spec
 - **A public IP is genuinely scarce; a NAT'd box cannot fully self-serve.** REACH-9's backstop is real
   only for a box that already has a public path; the box that most needs an adapter is the one that
   cannot be its own. The scarcity is confined to this one coordinator kind (like port-25) but does not
-  vanish — the honest §7.15.4 exception, generalized.
+  vanish — the honest §7.15.4 exception, generalised.
 - **Bare vanity names are not portable.** Changing adapters changes a bare public name unless the box
   owns a domain ([§7.10.6](../07-gateway.md) tier 3). The specification says so rather than dressing a
   convenience up as an identity; the durable name is the keypair/key-name, always available.
@@ -441,7 +441,7 @@ Inheriting [THREAT-MODEL.md](../THREAT-MODEL.md) (SEC-1…SEC-9); the REACH-spec
 - **Blind means the adapter cannot help by looking.** The same property that makes an adapter
   permissionless and low-liability (it carries ciphertext it cannot read, [ROLES §4](../substrate/ROLES.md))
   means it cannot inspect abusive traffic on a victim's behalf. Abuse response is the box's and the
-  recipient's, at the edge — the authorize-never-classify trade ([CONTRACT §4](../coordinator/CONTRACT.md)),
+  recipient's, at the edge — the authorise-never-classify trade ([CONTRACT §4](../coordinator/CONTRACT.md)),
   disclosed as a cost, not solved.
 
 Every residual traces to a root ceiling ([DIRECTION §8](../DIRECTION.md)): SNI/graph exposure is

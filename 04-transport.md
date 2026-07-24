@@ -64,7 +64,7 @@ decrypt-later** exposure of the mixnet's routing layer.
 
 The full harvest-now, decrypt-later rationale was written against the mixnet's routing layer
 (§4.4.12, now [docs/research/mixnet.md §4.4.12](docs/research/mixnet.md)); this field is where
-that defense actually lands, and it is worth keeping even for the `fast` tier — a per-epoch
+that defence actually lands, and it is worth keeping even for the `fast` tier — a per-epoch
 `peer_id` is cheap, general routing-layer hygiene independent of which transport tier is in
 force.
 
@@ -85,12 +85,12 @@ KOTVA. Mitigations KOTVA REQUIRES/RECOMMENDS:
 - **S/Kademlia disjoint-path lookups** (parallel, node-disjoint) and **IP-diversity caps** per
   k-bucket.
 - **Aggressive republish** + accept only records with a newer sequence number (rollback
-  defense).
-- Closed/organizational deployments SHOULD use a **private DHT** (own protocol prefix) to
+  defence).
+- Closed/organisational deployments SHOULD use a **private DHT** (own protocol prefix) to
   shrink the Sybil surface.
 
 **IP-diversity caps do not survive IPv6 (disclosed).** The per-k-bucket IP-diversity cap above is
-a real defense against an IPv4 adversary, where addresses are scarce and costly. It is **close to
+a real defence against an IPv4 adversary, where addresses are scarce and costly. It is **close to
 worthless under IPv6**: a single routine allocation yields a /64 — 2⁶⁴ addresses — so per-address
 and even per-/64 caps can be defeated for free, and an adversary renting commodity capacity can
 mint effectively unlimited distinct-looking peers. Diversity counting therefore MUST be done at a
@@ -138,9 +138,9 @@ safely hold in a system that must resist a well-funded adversary.
 ### 4.2.2 Bootstrap — how a node finds its first peer (normative)
 
 A node with no peers, no cache, and no contacts must reach the network somehow, and **whatever
-answers that question is the most centralizing component in any P2P system** — it is consulted by
+answers that question is the most centralising component in any P2P system** — it is consulted by
 every node exactly when the node can verify nothing. Leaving it unspecified does not avoid the
-centralization; it guarantees it, because every implementation then hardcodes its own vendor's
+centralisation; it guarantees it, because every implementation then hardcodes its own vendor's
 addresses and those addresses become load-bearing infrastructure nobody chose. KOTVA therefore
 specifies bootstrap explicitly, in priority order:
 
@@ -304,9 +304,9 @@ network need no infrastructure at all.
 A mobile device sleeps its radios and its KOTVA process to save battery; while asleep it cannot
 hold the mesh connection that §4.3 delivery assumes. Today the only way to wake such a device is
 the platform's push service — Apple **APNs** or Google **FCM** — which sees, for every message,
-**which device was woken and when**. That is a centralized metadata choke point squarely against
+**which device was woken and when**. That is a centralised metadata choke point squarely against
 KOTVA's goals (§6). KOTVA therefore defines an **optional**, open wake-signaling layer that
-(a) prefers self-hostable, decentralized push transports, (b) carries **no** content and **no**
+(a) prefers self-hostable, decentralised push transports, (b) carries **no** content and **no**
 sender identity in the wake signal, and (c) is originated by the **user's own node**, so no third
 party ever sees the social graph. It **reuses existing standards** rather than inventing a push
 protocol: **Web Push** (RFC 8030 delivery, RFC 8291 payload encryption, RFC 8292 VAPID) and
@@ -323,7 +323,7 @@ pulled over the ordinary reachability ladder (§4.3) or the mixnet (§4.4); a wa
 
 A device registers a **`PushSubscription`** (§18.5.5) with **its own node**: the provider kind, the
 provider endpoint URL/token, the device's **public push key** (P-256 for Web Push, RFC 8291), and
-the RFC 8291 **auth secret**, all **signed by an `IK`-authorized device key** (§1.2) so the
+the RFC 8291 **auth secret**, all **signed by an `IK`-authorised device key** (§1.2) so the
 subscription is authenticated to the identity and cannot be forged by another party to register or
 redirect a device's wakes. The subscription is published **only to the user's own node(s)** (the
 device cluster, §5.6) — never to a global directory, the DHT, or any relay — so no external party
@@ -381,7 +381,7 @@ Push transport sits behind a **provider seam**; `PushSubscription.provider` sele
 
 | Provider (tag) | Standard | Openness | Notes |
 |---|---|---|---|
-| **UnifiedPush** (`0x01`) | user-chosen distributor | **fully open / self-hostable** | the decentralized default on Android/desktop; the user picks the distributor, no platform gatekeeper |
+| **UnifiedPush** (`0x01`) | user-chosen distributor | **fully open / self-hostable** | the decentralised default on Android/desktop; the user picks the distributor, no platform gatekeeper |
 | **Web Push** (`0x02`) | RFC 8030 + 8291 + 8292 (VAPID) | **open / self-hostable** | browsers and any RFC 8030 endpoint; the node acts as the VAPID application server |
 | **APNs** (`0x03`) | Apple-mandated | closed bridge | used **only** where the platform (iOS) mandates it (§6.6 item 9) |
 | **FCM** (`0x04`) | Google-mandated | closed bridge | used **only** where the platform mandates it |
@@ -397,7 +397,7 @@ unsupported provider, never a parse failure.
 
 A wake spends the target's battery, so wakes are gated, fail-closed:
 
-- **Authenticated to the device.** A `WakePing` is honored only against a `PushSubscription` the
+- **Authenticated to the device.** A `WakePing` is honoured only against a `PushSubscription` the
   device itself signed (§4.9.1); a subscription whose device-key signature does not verify **MUST**
   be rejected (`ERR_PUSH_SUBSCRIPTION_SIG_INVALID`, `0x0312`, FAIL_CLOSED_BLOCK) and never acted on.
   Because the token is RFC 8291-sealed under the device push key **and** the `auth_secret` — secrets

@@ -33,7 +33,7 @@ ATTEST) · `DIS` dispute (the arbiter kind) · `PAY` (the stablecoin binding).
 **Coordinators** ([CONTRACT §5](../../coordinator/CONTRACT.md)) carry their declared
 content-visibility ([CONTRACT §3](../../coordinator/CONTRACT.md)) inline: `blind` /
 `blind-routing` / `terminating`. Every coordinator named here is an instance of the four
-clauses (accountable · swappable · self-hostable · visibility-declared) and authorizes but
+clauses (accountable · swappable · self-hostable · visibility-declared) and authorises but
 never classifies.
 
 **Status** — `✔` covered · `▲` covered with a disclosed ceiling · `✚` needs a new seam (gap) ·
@@ -89,7 +89,7 @@ object model** — a signed public object plus a derived, rebuildable, never-aut
 ([§22](../../22-public-objects.md), TRACT §2.6). Building the primitives once builds the space;
 that is the substrate claim, and the matrix is its ledger.
 
-Every intermediary above is a coordinator under the same four clauses, so "some centralization"
+Every intermediary above is a coordinator under the same four clauses, so "some centralisation"
 stays a *checkable property*: each is hired-not-depended-on, swaps with a config change, has a
 self-host backstop, and declares its visibility. Remove connectivity and each row degrades to
 its local-trust form ([DIRECTION §6](../../DIRECTION.md)) — a local order book instead of a

@@ -16,7 +16,7 @@ existing standards**; the novelty is the composition and transport, not new cryp
 | PQ KEM | ML-KEM-768 (cat-3) | FIPS 203 | confirmed |
 | PQ signatures | ML-DSA-65 (cat-3) | FIPS 204 (SLH-DSA/FIPS 205 as backup) | confirmed |
 | Hybrid HPKE KEM | **X-Wing** (ML-KEM-768 ⊕ X25519) | `draft-connolly-cfrg-xwing-kem-10` (HPKE KEM `0x647a`) | **Independent Submission draft — NOT CFRG-adopted** (§1.3) |
-| Hashing | BLAKE3-256 + agility prefix | (BLAKE3 not FIPS/IETF-standardized; SHA-256 fallback) | confirmed w/ caveat |
+| Hashing | BLAKE3-256 + agility prefix | (BLAKE3 not FIPS/IETF-standardised; SHA-256 fallback) | confirmed w/ caveat |
 | Serialization | Deterministic CBOR (bytewise/core key order) | RFC 8949 §4.2 (dCBOR draft for floats) | confirmed |
 | Group/session | MLS | RFC 9420; architecture RFC 9750; suites `0x0001`/`0x0003` | confirmed |
 | PQ-MLS | ML-KEM ciphersuites + combiner | `draft-ietf-mls-pq-ciphersuites`, `draft-ietf-mls-combiner` | adopted |
@@ -50,7 +50,7 @@ existing standards**; the novelty is the composition and transport, not new cryp
    last-hop visibility, receipt-timing, and intersection exposure — mitigated by node/identity
    decoupling + recipient-side cover traffic (§6.4).
 5. **DHT security** — record signing ≠ eclipse resistance; added S/Kademlia disjoint paths,
-   IP-diversity buckets, seq#/EOL rollback defense, and a **non-DHT rendezvous fallback**; the
+   IP-diversity buckets, seq#/EOL rollback defence, and a **non-DHT rendezvous fallback**; the
    DHT is one discovery mechanism, not the root of trust (§4.2).
 6. **QUIC roaming** — carried by location re-publish + re-dial, not seamless QUIC migration
    (`quinn` has no multipath) (§4.1).
@@ -87,7 +87,7 @@ existing standards**; the novelty is the composition and transport, not new cryp
   readable); mitigated by per-file keys + FS-delivered keys + at-rest encryption (§6.7).
 - **Key loss** of `IK` plus all recovery factors is unrecoverable (the bottom turtle, §1.4).
 - **PQ onion (Sphinx)** as published is not PQ-safe; PQ mix packet formats are open research.
-- **The hybrid KEM combiner is not standardized.** X-Wing is an **Independent Submission**
+- **The hybrid KEM combiner is not standardised.** X-Wing is an **Independent Submission**
   Internet-Draft, not a CFRG-adopted document, and **FIPS 203 standardizes no combiner**, warning
   that a combined KEM containing ML-KEM "might not meet IND-CCA2 security" and deferring to
   SP 800-227. DMTAP pins X-Wing on analysis and a fixed HPKE code point, not on standing; the
@@ -157,7 +157,7 @@ existing standards**; the novelty is the composition and transport, not new cryp
   Mastodon Case*, ACM IMC 2019 — volunteer availability and replication measurements behind the
   `n`-of-`m` buffer role (§14.3a).
 - Liu, Fass, Hong et al., *Who's Got Your Mail? Characterizing Mail Service Provider Usage*, ACM
-  IMC 2021 — the anti-abuse centralization tier behind the authorize-never-classify rule (§9.11).
+  IMC 2021 — the anti-abuse centralisation tier behind the authorise-never-classify rule (§9.11).
 - Martiny et al., *Improving Signal's Sealed Sender*, NDSS 2021.
 - RFCs 9180, 8032, 7748, 8949, 9420, 9750, 8620, 8621, 9460, 6376, 7929, 9576/9577/9578, 9591.
 - FIPS 203, 204, 205; `draft-connolly-cfrg-xwing-kem`; `draft-ietf-mls-pq-ciphersuites`;

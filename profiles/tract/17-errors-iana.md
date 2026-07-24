@@ -199,8 +199,8 @@ The settled facts that bound any future registration:
 - **Discovery is index-mediated, not host-mediated.** TRACT deliberately has no authoritative host
   a buyer resolves a catalogue *from* (§2.6, §0.4.1); an index is derived, rebuildable and never
   authoritative. A `.well-known/` path is a host-centric discovery point, and minting one would
-  reintroduce exactly the de-facto-gatekeeper surface §21.3/§21.4 records as decentralized
-  commerce's first re-centralization failure. No well-known URI is defined, and one SHOULD NOT be
+  reintroduce exactly the de-facto-gatekeeper surface §21.3/§21.4 records as decentralised
+  commerce's first re-centralisation failure. No well-known URI is defined, and one SHOULD NOT be
   added without confronting that.
 - **The one HTTP surface is the gateway, and it serves HTML.** A gateway (§12) renders storefronts
   to keyless browsers over HTTP; that traffic is presentation HTML, not TRACT CBOR, and needs no

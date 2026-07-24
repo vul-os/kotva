@@ -19,7 +19,7 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHOULD**, **SHO
 ## 1. Purpose
 
 Reputation is the answer to *"should I trust this counterparty?"* computed **without an authority
-that owns the answer**. A centralized platform bundles three things a user cannot separate: the
+that owns the answer**. A centralised platform bundles three things a user cannot separate: the
 identities, the feedback graph, and the single number it publishes about you — and it owns all
 three, so it can suppress, inflate, or sell them. REPUTATION unbundles them:
 
@@ -275,8 +275,8 @@ Reputation inherits [`THREAT-MODEL.md`](../THREAT-MODEL.md) unchanged; the invar
   content-addressed) and verifies identically over mesh, HTTPS, or SD card, trusting no server. A
   malicious index can **withhold or stall** (detectable via `seq`/chain discontinuity, §22.4.3) but
   can **never forge** an edge (that needs the author's key) or **hide** one without a reader noticing.
-- **SEC-6 (authorize, never classify).** An `indexer` is a hired coordinator: swappable with zero
-  migration, self-hostable, never load-bearing, and it **authorizes, it does not classify** — it MAY
+- **SEC-6 (authorise, never classify).** An `indexer` is a hired coordinator: swappable with zero
+  migration, self-hostable, never load-bearing, and it **authorises, it does not classify** — it MAY
   weight and rank as disclosed policy (REP-7) but MUST NOT be the authority on a subject's trust
   (REP-4). Ranking that "finishes" and centralizes is exactly what REP-4 forbids.
 - **SEC-7 (abuse priced and localized; anti-Sybil not solved).** A profile MUST NOT describe Sybil

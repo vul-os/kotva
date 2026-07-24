@@ -31,7 +31,7 @@ an edge.
 
 This is the substrate a product needs when it wants **reachability, relaying, offline holding, content
 serving, or wake** for identities that are behind NAT, on dynamic IPs, asleep, or intermittently online —
-without standing up a centralized service and without inventing a directory. A product adopts the roles it
+without standing up a centralised service and without inventing a directory. A product adopts the roles it
 needs, à la carte:
 
 | Role | What it provides | Key-addressed by | Normative home | Profiles |
@@ -157,7 +157,7 @@ ciphertext** for a NAT'd peer — rung 3, **content-blind** by construction:
 
 An offline or asleep identity needs somewhere to hold ciphertext until it returns. The **relay-mailbox** is
 a **content-blind, short-TTL buffer** held by an **`n`-of-`m` set** of peers, own-devices, and optionally a
-third party (§14.3a) — the Chatmail model, decentralized — and it is a **buffer, not an archive**:
+third party (§14.3a) — the Chatmail model, decentralised — and it is a **buffer, not an archive**:
 
 - **Content-blind, short TTL, delete-after-inactivity (§14.5).** It holds only E2EE ciphertext addressed
   to an offline identity's key, for a short TTL (reference: ~20-day message TTL, ~90-day inactive purge),
@@ -246,7 +246,7 @@ Every role above obeys the same discipline, and a product adopting any of them M
 
 A sleeping mobile device cannot hold a mesh connection, so it must be **woken** to reconnect and sync. The
 naive path — Apple **APNs** / Google **FCM** — sees, for every message, *which device was woken and when*:
-a centralized metadata choke point (§4.9). The **Wake** capability is an **optional, open wake-signaling
+a centralised metadata choke point (§4.9). The **Wake** capability is an **optional, open wake-signaling
 layer** that carries **no content and no sender identity**, is **originated by the user's own node**, and
 **reuses existing standards** rather than inventing a push protocol. It is part of Capability ⑥ (Roles &
 Wake) because *needing to be woken* is a product-facing property a device may want even when it runs none
@@ -261,7 +261,7 @@ and MUST NOT treat a wake as delivery confirmation.
 
 - **`PushSubscription`** — a device registers, **with its own node**, the provider kind, the provider
   endpoint, the device's **public push key** (P-256 for Web Push, RFC 8291), and the RFC 8291 **auth
-  secret**, all **signed by an `IK`-authorized device key** (§1.2) so the subscription is authenticated to
+  secret**, all **signed by an `IK`-authorised device key** (§1.2) so the subscription is authenticated to
   the identity and cannot be forged to register/redirect a device's wakes. It is published **only to the
   user's own node(s)** — never to a directory, DHT, or relay — so no external party learns the device
   exists or where it is pushed.
@@ -287,7 +287,7 @@ inside it (which is: nothing).
 
 | Provider | Standard | Openness |
 |----------|----------|----------|
-| **UnifiedPush** | user-chosen distributor | fully open / self-hostable (the decentralized default on Android/desktop) |
+| **UnifiedPush** | user-chosen distributor | fully open / self-hostable (the decentralised default on Android/desktop) |
 | **Web Push** | RFC 8030 + 8291 + 8292 (VAPID) | open / self-hostable (the node is the VAPID application server) |
 | **APNs / FCM** | platform-mandated | closed bridges, used **only** where a platform mandates them |
 
@@ -299,7 +299,7 @@ and **MUST fall back to APNs/FCM only on a platform that mandates them** (§4.9.
 A wake spends the target's battery, so wakes are gated **fail-closed**, and the codes already exist in the
 §21 registry (`0x0312`–`0x0316`):
 
-- **Authenticated to the device.** A `WakePing` is honored only against a `PushSubscription` the device
+- **Authenticated to the device.** A `WakePing` is honoured only against a `PushSubscription` the device
   itself signed; an unverifiable subscription is rejected (`ERR_PUSH_SUBSCRIPTION_SIG_INVALID`, `0x0312`,
   FAIL_CLOSED_BLOCK). A wake that fails to open under the sealed push key + auth secret is
   forged/unauthenticated and dropped (`ERR_WAKEPING_AUTH_FAILED`, `0x0314`, DROP_SILENT).
@@ -340,7 +340,7 @@ independent implementation MUST be buildable from this document and the core (§
    serves it — irrevocable in the same sense as [`FEEDS.md § 8`](FEEDS.md).
 4. **Cache/pin of public objects is not blind** (§6, §22.6.1). Serving plaintext shifts operator liability;
    it MUST be explicit opt-in. Relay/mailbox/sealed-chunk caching stay blind.
-5. **Wake is a metadata optimization with residual channels** (§8). It is content-free and sender-blind and
+5. **Wake is a metadata optimisation with residual channels** (§8). It is content-free and sender-blind and
    keeps the social graph off the push relay, but a push relay still learns *that a device was woken and
    when* unless jitter/batching is applied (a MUST under the High-security profile). Platform-mandated
    APNs/FCM bridges are closed carriers used only where unavoidable; prefer the open providers.

@@ -1,8 +1,8 @@
-# 13. DMTAP-Auth — Decentralized Identity & Login
+# 13. DMTAP-Auth — Decentralised Identity & Login
 
 Your DMTAP identity is a keypair (§1) with a human name resolvable to that key (§3). The same
 identity that receives your mail can log you in **everywhere**, with **no central identity
-provider**. This section specifies DMTAP-Auth: sovereign, decentralized web login built on the
+provider**. This section specifies DMTAP-Auth: sovereign, decentralised web login built on the
 identity and naming layers, plus a bridge so existing "Sign in with OIDC" apps work unchanged.
 
 The governing principle mirrors the rest of DMTAP:
@@ -14,7 +14,7 @@ The governing principle mirrors the rest of DMTAP:
 
 DMTAP-Auth MUST provide:
 
-1. **Decentralized login** — a relying party (RP) authenticates you as `alice@yourdomain` by
+1. **Decentralised login** — a relying party (RP) authenticates you as `alice@yourdomain` by
    verifying a signature from your key; there is no Google/Okta in the middle.
 2. **Phishing resistance** — a signature obtained by a look-alike site MUST NOT authenticate to
    the real site.
@@ -26,7 +26,7 @@ DMTAP-Auth MUST provide:
 5. **Recoverable & revocable** — losing a device does not lose your identity (§1.4), and a
    single app/device session can be revoked without rotating your whole identity.
 
-Non-goals: replacing WebAuthn/passkeys (DMTAP-Auth *uses* them); acting as an authorization
+Non-goals: replacing WebAuthn/passkeys (DMTAP-Auth *uses* them); acting as an authorisation
 server for arbitrary third-party API scopes beyond login + basic profile + delegated
 capabilities (§13.5).
 
@@ -38,8 +38,8 @@ DMTAP-Auth introduces almost no new cryptography — it reuses:
 - **Naming** (§3): `name → key` via DNS + key transparency — this *is* issuer discovery.
 - **Recovery** (§1.4): because your key now guards *all* your logins, recovery is even more
   load-bearing; DMTAP-Auth inherits it directly.
-- **Transparency log** (§3.5): device/session authorizations and revocations are logged, so
-  unauthorized login grants are detectable (§13.4).
+- **Transparency log** (§3.5): device/session authorisations and revocations are logged, so
+  unauthorised login grants are detectable (§13.4).
 
 ## 13.3 The native login ceremony
 
@@ -91,7 +91,7 @@ The signed statement is a structured, origin-scoped, nonce-bound challenge (the 
 pattern, hardened — see §13.7). The `aud` field binds the assertion to the intended RP. The
 `cnf` field (confirmation key, RFC 7800 style) binds the assertion to the session key the client
 generated *before* signing, so a captured assertion — including one seen by the bridge (§13.6) —
-**cannot be replayed with an attacker-chosen session key** (session-hijack defense). The RP MUST
+**cannot be replayed with an attacker-chosen session key** (session-hijack defence). The RP MUST
 bind the session to `cnf` and to nothing else.
 
 ### 13.3.1 Origin binding is the load-bearing property (normative)
@@ -119,7 +119,7 @@ never by the signer trusting a value handed to it by the RP.
      signs a challenge that **matches an intent it originated a request for**. An unsolicited
      challenge **relayed** by a third party has no matching pending intent and MUST be refused —
      there is nothing for it to match. The node MUST rate-limit and log approvals (consent-farming
-     defense).
+     defence).
 
   Preferred — and, for a remote node, the **only permitted** — design: the **passkey/WebAuthn
   ceremony happens in the user's client**, and the node's key is only invoked *after* a
@@ -137,7 +137,7 @@ never by the signer trusting a value handed to it by the RP.
   passkey/PRF authenticator MAY instead use an **authenticated paired companion client** (their
   own signed-in Envoir app on a device paired to the node, §5.6) as the trusted client: it
   originates the login intent, performs user verification (biometric/PIN), and only then
-  authorizes the node's signature.
+  authorises the node's signature.
 
   **Honest calibration (normative — do not overclaim).** The companion path preserves
   **intent-matching** (a relayed unsolicited challenge has no matching pending intent and is
@@ -163,15 +163,15 @@ key**, so a leaked token cannot be replayed by a thief:
   continuation, which is key-based end to end. A bearer session on the native path is
   non-conformant; the bridge path's bearer ID Token is the disclosed exception (caveat below,
   §13.6).
-- Session keys are **per-RP, per-device** ephemeral keys authorized by a device key (§1.2), not
+- Session keys are **per-RP, per-device** ephemeral keys authorised by a device key (§1.2), not
   `IK` itself. This limits blast radius and enables granular revocation.
 - **Revocation:** revoking one app/device session publishes a revocation to the transparency
   log and/or a short-lived status endpoint; it MUST NOT require rotating `IK`. Rotating a
   device key (§1.5) revokes all its sessions at once. Losing `IK` and recovering (§1.4) MUST
-  invalidate all prior session authorizations.
+  invalidate all prior session authorisations.
 - **Bounded re-validation (normative).** Because an RP validates the login-time delegation
   **once**, IK rotation (§1.5), device revocation, or recovery (§1.4) would not otherwise reach a
-  live RP session. Therefore session authorizations MUST be **short-lived** (DMTAP-Auth session
+  live RP session. Therefore session authorisations MUST be **short-lived** (DMTAP-Auth session
   TTL + idle-timeout, §16), and an RP MUST NOT treat a login-time delegation as valid
   indefinitely: it MUST **re-validate the delegation** against the user's status endpoint or KT
   head at a **bounded interval** (RP re-validation interval, §16), or bind the session to a
@@ -180,18 +180,18 @@ key**, so a leaked token cannot be replayed by a thief:
   interchangeable for the recovery case: a bare revocation list enumerates *explicitly revoked*
   sessions, but a recovering owner (fresh device, empty store, §1.4) does not know which RPs hold
   live sessions and so cannot populate it — leaving a pre-recovery session alive and silently
-  defeating the "recovery MUST invalidate all prior session authorizations" rule above. Therefore
+  defeating the "recovery MUST invalidate all prior session authorisations" rule above. Therefore
   the revocation-list epoch MUST be **keyed to `Identity.version`** (and bumped by any
   `KeyRotation`/recovery event): a session carries the `Identity.version` under which it was
-  authorized, and a re-validation MUST terminate it when the current `Identity.version` is higher
+  authorised, and a re-validation MUST terminate it when the current `Identity.version` is higher
   (recovery advances the version, §1.4/§1.5), so a wholesale recovery invalidates every
   pre-recovery delegation without the owner enumerating RPs. An RP that cannot bind its
   revocation-list epoch to `Identity.version` MUST use the delegation-re-chain option instead.
 - **On unreachable status/KT (normative, sensible default).** If the status endpoint / KT head is
-  unreachable at a re-validation check, the RP MUST NOT honor the session indefinitely (fail-open
+  unreachable at a re-validation check, the RP MUST NOT honour the session indefinitely (fail-open
   would let an attacker who partitions the endpoint keep a revoked session alive) and SHOULD NOT
   hard-fail instantly (that would log everyone out on a transient outage). Instead the RP MUST
-  honor the last successfully-validated delegation only until a bounded **grace window** (= 2×
+  honour the last successfully-validated delegation only until a bounded **grace window** (= 2×
   the re-validation interval, §16), then fail closed and require re-authentication. This bounds
   an attacker's post-revocation persistence to the grace window while tolerating brief outages —
   mirroring §3.3's fail-closed-on-unreachable-KT stance.
@@ -208,18 +208,18 @@ rather than opaque scopes: a signed, offline-verifiable, attenuable capability t
 (**UCAN-style**, informative) delegates a *specific, least-privilege* right (e.g. "read
 calendar MOTEs for 24h") from `IK`/device key to an app or another of the user's nodes.
 Delegations are attenuable (a device can only sub-delegate a subset), time-bound, and
-revocable. This also carries authorization **across the user's own device cluster** (§5.6).
+revocable. This also carries authorisation **across the user's own device cluster** (§5.6).
 
-**Owner-visible grants (BEC defense, normative).** A new capability delegation, a new RP-session
-authorization (§13.4), and any **auto-forward / redirection rule** change MUST be routed through
+**Owner-visible grants (BEC defence, normative).** A new capability delegation, a new RP-session
+authorisation (§13.4), and any **auto-forward / redirection rule** change MUST be routed through
 the owner's **device-cluster notification + KT self-monitoring path** (§3.5), exactly like
 identity events (§1.4) — so a **silent grant** an attacker installs (the classic business-email-
 compromise move: quietly delegating access or auto-forwarding mail) is **visible to the owner's
-other devices** and alertable. Silent, unlogged authorization is prohibited.
+other devices** and alertable. Silent, unlogged authorisation is prohibited.
 
-### 13.5.1 Organizational admin roles as capabilities (normative)
+### 13.5.1 Organisational admin roles as capabilities (normative)
 
-Org / domain administration (§3.10) introduces **no new authorization machinery**: an admin role
+Org / domain administration (§3.10) introduces **no new authorisation machinery**: an admin role
 is a §13.5 UCAN-style capability rooted at the **domain authority** key (§3.10.1) and delegated to
 an admin's device/identity. Four standard roles, least-privilege and attenuable:
 
@@ -240,7 +240,7 @@ Rules — all reuse machinery already defined:
 - **KT-logged & owner-visible.** Every role grant/revocation MUST be routed through the domain
   authority's KT self-monitoring path (§3.5), exactly like the owner-visible-grants rule above — a
   silently installed admin grant is detectable and alertable. Silent, unlogged org-admin
-  authorization is prohibited.
+  authorisation is prohibited.
 - **No unilateral super-admin where it matters (mirror §5.8.6).** A **domain-authoritative act** —
   rotating the domain anchor `IK`, or changing the directory-signing key — MUST satisfy the
   domain's **threshold** (§3.10.1, the §5.8.6 discipline), not one admin's capability. A single

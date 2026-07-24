@@ -1,6 +1,6 @@
 # 20. Appendix C: State Machines
 
-This appendix restates the protocol's dynamic behavior as formal, **total** state machines: for
+This appendix restates the protocol's dynamic behaviour as formal, **total** state machines: for
 every machine, every state, and every event applicable to that machine, the next state and the
 required action are defined. No `(state, event)` pair is left to implementer discretion where the
 body of the spec (§1–§16) settles it; where the body does *not* settle it, this appendix makes a
@@ -50,12 +50,12 @@ backoff/deadline of §16.1, the dedup-ack of §2.6, and the `private`-vs-`fast` 
 `enqueue`, `resolve_and_seal_ok`, `resolve_or_seal_blocked` (transient — DNS/DHT/KT lag, or
 fail-closed-at-first-contact per §3.3), `dispatch_ok`, `tier_unreachable` (mixnet hop failure, or
 §20.4 reaches `UNREACHABLE`), `ack_received` (an `ack` whose `ack_sig` **verified** under a key
-currently authorized for the recipient's pinned identity, §19.3.2, and whose `tier` matched the
+currently authorised for the recipient's pinned identity, §19.3.2, and whose `tier` matched the
 send — includes recipient-side dedup-ack, §2.6, since the sender cannot and need not distinguish an
 ordinary ack from a dedup-ack), `ack_invalid` (an `ack(id)` arrived but `ack_sig` failed to verify,
-verified under a key not currently authorized, or carried a mismatched `tier` — H-6: this is the
+verified under a key not currently authorised, or carried a mismatched `tier` — H-6: this is the
 disposition for a forged ack synthesized from the cleartext `id` by a relay/mix/buffer holder that
-never had an authorized key), `retry_timer_fires` [§16.1: backoff], `deadline_exceeded`
+never had an authorised key), `retry_timer_fires` [§16.1: backoff], `deadline_exceeded`
 [§16.1: retry deadline] (checked on every timer tick, in every non-terminal state), `late_ack`
 (an `ack_received` arriving after `EXPIRED` — see 20.1's fill below).
 
@@ -94,7 +94,7 @@ never had an authorized key), `retry_timer_fires` [§16.1: backoff], `deadline_e
   implementation choice (§19.3.2). What is **no longer** an open gap is *whether* an `ack` is
   authenticated at all: `ack_sig` is MUST (§2.6, §19.3.2), and this machine's `ack_received` event
   is now defined to fire only once that signature — and the `tier` match — verify; an unsigned,
-  wrongly-signed, unauthorized-key, or tier-mismatched arrival is the distinct `ack_invalid` event
+  wrongly-signed, unauthorised-key, or tier-mismatched arrival is the distinct `ack_invalid` event
   above, not a variant realization of `ack_received`.
 - **Exit `RETRY`:** cancel backoff timer.
 - **Entry `EXPIRED`/`ACKED`:** these are terminal for the *sending* queue slot; the queue entry MAY
@@ -202,7 +202,7 @@ Formalizes the §2.7 ordered validation pipeline as a state machine, with the dr
 | `DECRYPTED` | `verify_payload` = ok | `PAYLOAD_OK` | Verify `Payload.sig` under `Payload.from`; match pinned identity (known contact) or TOFU-pin (first contact, §3.4); for a cold sender, re-apply block/allow now that `from` is revealed (§2.7 step 8). **Deniable fork (`kind = 0x0b`): `verify_payload` substitutes the Double-Ratchet AEAD tag (shared-key MAC, already checked at `decrypt`) for the absent `Payload.sig`**, binds `DeniablePayload.from` to the X3DH-authenticated `IK`, and rejects a `DeniablePayload` bearing any signature (`ERR_DENIABLE_SIGNATURE_PRESENT`, `0x040F`) → `DROPPED`. |
 | `DECRYPTED` | `verify_payload` = fail | `DROPPED` | **[fill]** §2.7 step 8 does not explicitly restate "drop on failure" the way steps 1–4 and 7 do; this machine applies the same fail-closed default for consistency with §9.1 principle 1 ("authenticated-by-default"). No ack. |
 | `DECRYPTED` | `verify_payload` = revealed_from_blocked | `DROPPED` | **[fill]** Cold sender's re-applied block/allow list (§2.7 step 8) finds `from` blocked; treated as a drop, symmetric with the pre-decryption block case. No ack. |
-| `PAYLOAD_OK` | `apply_and_store` | `STORED` | Apply `expires`/`refs`/`kind` semantics (§2.7 step 9); persist. Local storage failure (disk, quota) is an operational condition outside protocol scope, not modeled here. |
+| `PAYLOAD_OK` | `apply_and_store` | `STORED` | Apply `expires`/`refs`/`kind` semantics (§2.7 step 9); persist. Local storage failure (disk, quota) is an operational condition outside protocol scope, not modelled here. |
 | `STORED` | `ack` | `ACKED` | Confirm receipt of `id` (§2.6). |
 | `ACKED` | (any further `check_duplicate` for the same `id`, from a redelivered copy) | `ACKED` | Idempotent — see `ADDR_OK`'s duplicate row; a redelivered copy of an already-`ACKED` `id` is a fresh machine instance that dedup-shortcuts straight to `ACKED`. |
 | `DROPPED` | — | `DROPPED` | Terminal; no further protocol action. Sender's own §20.1 retry logic (unaware of the drop) will eventually re-deliver a fresh copy, which is a new instance of this machine. |
@@ -300,7 +300,7 @@ pinned-follow-chain path for key rotation (§1.5) and name migration (§1.6).
 | `RESOLVING` | `dns_ok` | `KT_VERIFY` | This is necessarily first contact (no prior pin exists in `UNRESOLVED`). |
 | `RESOLVING` | `dns_fail_transient` | `UNRESOLVED` | **[fill]** §3.3 does not classify a plain DNS miss among its three named outcomes — that clause is about *KT* unreachability, not DNS itself. A **transient** resolution failure (timeout, SERVFAIL, no connectivity) is not an answer: bounce back to `UNRESOLVED` and retry on the caller's schedule (§20.1's `resolve_or_seal_blocked` → `RETRY`, capped by the caller's own deadline). |
 | `RESOLVING` | `dns_fail_definitive` | `UNRESOLVED` | A **definitive** negative answer (authoritative NXDOMAIN, or the zone exists but publishes no `_dmtap` record) is **terminal for this attempt**: surface `ERR_NAME_RESOLUTION_FAILED` (`0x0109`, §19.1.1) to the caller as "name not found." It MUST NOT be treated as a transient fault to auto-retry — re-resolution happens only when the caller corrects the address or deliberately re-invokes (the owner may have published a record since). Matches §19.1.1's disposition exactly. |
-| `KT_VERIFY` | `kt_reachable_confirmed` | `FETCHING_IDENTITY` | No newer version supersedes the DNS-returned pointer (§3.3 step 2 rollback defense). |
+| `KT_VERIFY` | `kt_reachable_confirmed` | `FETCHING_IDENTITY` | No newer version supersedes the DNS-returned pointer (§3.3 step 2 rollback defence). |
 | `KT_VERIFY` | `kt_reachable_but_superseded` | `RESOLVING` | **[fill]** A newer KT-visible version supersedes what DNS returned (DNS lagging KT): reject the stale pointer and re-query DNS, bounded by the caller's own deadline (§20.1). |
 | `KT_VERIFY` | `kt_unreachable`, policy=block | `FAIL_CLOSED_BLOCKED` | §3.3 normative: MUST NOT silently TOFU-pin; refuse. |
 | `KT_VERIFY` | `kt_unreachable`, policy=warn | `OOB_REQUIRED` | §3.3 normative: hard-warn + require explicit acceptance, prefer OOB. |
@@ -415,7 +415,7 @@ by §20.1 for the `fast` tier and by §20.7 on reconnect.
 - **Entry `CONNECTED`:** cancel any pending ladder timers; start the republish background timer
   [§16.2: 45 min].
 - **Entry `REPUBLISHING`:** sign new `LocationRecord` with incremented monotonic sequence number
-  (§4.2 rollback defense).
+  (§4.2 rollback defence).
 - Note: the `private`-tier mixnet path (§20.1, [docs/research/mixnet.md §4.4](docs/research/mixnet.md)) does **not** invoke this machine — mix-hop
   connectivity to permissionless, generally-available mix infrastructure is a separate, simpler
   libp2p-connection concern, not gated by the peer-specific reachability ladder.
@@ -478,7 +478,7 @@ Formalizes group epoch advancement and the committer lifecycle of §5.1, converg
 | `COMMIT_APPLIED` | `apply_local_fail` | `RESYNCING` | **[fill]** §5.1 does not describe a member falling behind a validly-ordered Commit it cannot apply (e.g. missing key material); this machine routes it through §5.3's External Commit / `GroupInfo` mechanism, the tool the spec provides for exactly this recovery. |
 | `RESYNCING` | `external_commit_ok` | `STABLE` | Re-joined at current epoch via External Commit against `GroupInfo` (§5.3). |
 | `RESYNCING` | `external_commit_fail` | `RESYNCING` | **[fill]** Retry; §5 specifies no protocol-level deadline for this — bounded only by implementation policy. |
-| `HALT` | `recovery_commit_agreed` | `STABLE` | §5.1 "Fork recovery (out of HALT)": members roll back to the **last common epoch** and re-apply from a recovery Commit that an `admin`/`owner` proposes on top of it, canonical only with a **`> n/2` member-signature quorum** (denying any single admin unilateral fork-selection). Abandoned-fork application messages are re-sent by sender retry (§2.6). This is the v0 out-of-band stopgap; Decentralized MLS (`draft-kohbrok-mls-dmls`) is the eventual leaderless elimination of the fork surface. |
+| `HALT` | `recovery_commit_agreed` | `STABLE` | §5.1 "Fork recovery (out of HALT)": members roll back to the **last common epoch** and re-apply from a recovery Commit that an `admin`/`owner` proposes on top of it, canonical only with a **`> n/2` member-signature quorum** (denying any single admin unilateral fork-selection). Abandoned-fork application messages are re-sent by sender retry (§2.6). This is the v0 out-of-band stopgap; Decentralised MLS (`draft-kohbrok-mls-dmls`) is the eventual leaderless elimination of the fork surface. |
 | `HALT` | (other events) | `HALT` | Remain halted for handshake purposes until a quorum-backed recovery Commit is agreed; already-decrypted application messages under the last-agreed epoch continue to render (§19.5.6). |
 
 ### 20.5.2 Committer lifecycle
@@ -506,7 +506,7 @@ re-enters `ACTIVE` under the new committer identity). `HALT` is shared with §20
 - **Entry `HALT`:** alert all members (§5.1); log the fork evidence for out-of-band dispute
   resolution.
 - **Entry `ELECTION`:** nominate candidate committer(s) per group policy (§5.8.2 role rules —
-  rotation is itself a Commit, authorized like any membership/role Commit).
+  rotation is itself a Commit, authorised like any membership/role Commit).
 
 ### Timeouts
 
@@ -568,7 +568,7 @@ session lifecycle (§13.4).
 | `APPROVAL_GATE` | Remote-node-signing path only: a trusted approval surface displays the verified `rp_origin` and requires explicit per-login approval before the node signs (§13.3.1). |
 | `ASSERTION_VERIFIED` | Signature produced and verified by the RP: pinned key matches, `rp_origin` matches RP's own origin, nonce unused, not expired; the RP binds the session **only** to the assertion's `cnf = H(session_pubkey)` (§13.3 steps 4–6, proof-of-possession). |
 | `SESSION_ACTIVE` | Key-bound session established (DPoP/GNAP, per-RP per-device ephemeral key, §13.4). |
-| `REVALIDATION_GRACE` | The RP's periodic delegation re-validation (§13.4) found the user's **status endpoint / KT head unreachable**. The RP honors the **last successfully-validated delegation** but only until the bounded grace window elapses; the session is live-but-provisional (§13.4). |
+| `REVALIDATION_GRACE` | The RP's periodic delegation re-validation (§13.4) found the user's **status endpoint / KT head unreachable**. The RP honours the **last successfully-validated delegation** but only until the bounded grace window elapses; the session is live-but-provisional (§13.4). |
 | `REFRESHED` | Session key rotated while the logical session continues (§13.4). |
 | `REVOKED` | Terminal: explicit revocation, device-key rotation, or `IK` recovery (§13.4). |
 | `EXPIRED` | Terminal: session lifetime elapsed. |
@@ -597,12 +597,12 @@ session lifecycle (§13.4).
 | `APPROVAL_GATE` | `user_approves` and `rp_verify_fail` | `NO_SESSION` | Signature produced but RP verification failed regardless. |
 | `APPROVAL_GATE` | `user_denies` | `NO_SESSION` | Aborted; no signature produced. |
 | `APPROVAL_GATE` | `approval_timeout` | `NO_SESSION` | [§16.1: 120 s] nonce window elapsed unattended. |
-| `APPROVAL_GATE` | `rate_limited` | `NO_SESSION` | Node's own rate limit on approvals (§13.3.1 point 2, consent-farming defense) refuses this attempt; logged. |
-| `ASSERTION_VERIFIED` | `establish_session` | `SESSION_ACTIVE` | Mint per-RP, per-device ephemeral session key authorized by a device key (§13.4), not `IK` itself. |
+| `APPROVAL_GATE` | `rate_limited` | `NO_SESSION` | Node's own rate limit on approvals (§13.3.1 point 2, consent-farming defence) refuses this attempt; logged. |
+| `ASSERTION_VERIFIED` | `establish_session` | `SESSION_ACTIVE` | Mint per-RP, per-device ephemeral session key authorised by a device key (§13.4), not `IK` itself. |
 | `SESSION_ACTIVE` | `dpop_proof_ok` | `SESSION_ACTIVE` | Self-loop: steady state of normal use. |
 | `SESSION_ACTIVE` | `revalidation_ok` | `SESSION_ACTIVE` | Self-loop: the RP re-validated the login-time delegation against the status endpoint / KT head at the **≤ 15 min** interval (§16.8) and it still holds (§13.4). |
 | `SESSION_ACTIVE` | `revalidation_delegation_invalid` | `REVOKED` | Re-validation reached the endpoint and found the delegation **no longer valid** (IK rotation, device revocation, or recovery, §1.4/§1.5); the session MUST be terminated at this check (§13.4). |
-| `SESSION_ACTIVE` | `revalidation_endpoint_unreachable` | `REVALIDATION_GRACE` | Status endpoint / KT head **unreachable** at a re-validation check. Neither fail-open (would let an endpoint-partitioning attacker keep a revoked session alive) nor instant hard-fail (would log everyone out on a transient outage): honor the last validated delegation and start the grace timer [§16.8: 2× re-validation interval ≤ 30 min] (§13.4). |
+| `SESSION_ACTIVE` | `revalidation_endpoint_unreachable` | `REVALIDATION_GRACE` | Status endpoint / KT head **unreachable** at a re-validation check. Neither fail-open (would let an endpoint-partitioning attacker keep a revoked session alive) nor instant hard-fail (would log everyone out on a transient outage): honour the last validated delegation and start the grace timer [§16.8: 2× re-validation interval ≤ 30 min] (§13.4). |
 | `REVALIDATION_GRACE` | `revalidation_ok` | `SESSION_ACTIVE` | Endpoint reachable again within the grace window and the delegation still validates; cancel the grace timer and resume normal use. |
 | `REVALIDATION_GRACE` | `revalidation_delegation_invalid` | `REVOKED` | Endpoint reachable again but the delegation is now invalid; terminate immediately (§13.4). |
 | `REVALIDATION_GRACE` | `dpop_proof_ok` | `REVALIDATION_GRACE` | Self-loop: requests are still served on the last-validated delegation **only** while the grace window has not elapsed. |
@@ -613,8 +613,8 @@ session lifecycle (§13.4).
 | `SESSION_ACTIVE` | `dpop_proof_fail` | `SESSION_ACTIVE` | **[fill]** §13.4 does not state whether a single bad proof-of-possession tears down the whole session or only that one request. This machine rejects the request only and keeps the session alive — consistent with DPoP's inherently per-request nature; a stolen bearer token is "useless without the key" precisely because *each* request re-proves possession, not because one failure is terminal. |
 | `SESSION_ACTIVE` | `session_key_rotation` | `REFRESHED` | Periodic re-keying of the ephemeral session key, same logical session. |
 | `SESSION_ACTIVE` | `revoke_requested` | `REVOKED` | Published to transparency log / short-lived status endpoint (§13.4); MUST NOT require rotating `IK`. |
-| `SESSION_ACTIVE` | `device_key_rotated` | `REVOKED` | Rotating the authorizing device key revokes all its sessions at once (§13.4). |
-| `SESSION_ACTIVE` | `ik_recovered` | `REVOKED` | §13.4: recovering `IK` (§1.4) MUST invalidate all prior session authorizations. |
+| `SESSION_ACTIVE` | `device_key_rotated` | `REVOKED` | Rotating the authorising device key revokes all its sessions at once (§13.4). |
+| `SESSION_ACTIVE` | `ik_recovered` | `REVOKED` | §13.4: recovering `IK` (§1.4) MUST invalidate all prior session authorisations. |
 | `SESSION_ACTIVE` | `session_timeout` | `EXPIRED` | Fires at the **session TTL = 24 h** (absolute) or **idle timeout = 30 min**, whichever first (§16.8); an RP also re-validates delegation status at **≤ 15 min** (§16.8), so a revoked-but-not-yet-expired session is caught within that window. |
 | `REFRESHED` | (immediate) | `SESSION_ACTIVE` | New ephemeral session key now current; old one retired. |
 | `REVOKED` | (any event) | `REVOKED` | Terminal; a fresh `NO_SESSION → ...` ceremony is required. |
@@ -623,7 +623,7 @@ session lifecycle (§13.4).
 ### Entry/exit actions
 
 - **Entry `CHALLENGE_ISSUED`:** RP-side nonce single-use marking begins immediately (replay
-  defense, §16.1).
+  defence, §16.1).
 - **Entry `APPROVAL_GATE`:** display verified `rp_origin` on the trusted approval surface
   (§13.3.1 point 2) — never on a value handed to it by the RP directly.
 - **Entry `SESSION_ACTIVE`:** bind session to the per-RP, per-device ephemeral key; register for
@@ -717,7 +717,7 @@ buffering), as one machine with two operating profiles.
 - **Entry `DRAINING`:** open authenticated session to each active buffer source; per fetched item,
   invoke §20.2.
 - **Entry `ONLINE`:** for a mobile thin client this is transient — client MUST still
-  poll/reconcile on foreground even absent a push (§14.3: "push is a latency optimization, not
+  poll/reconcile on foreground even absent a push (§14.3: "push is a latency optimisation, not
   delivery"); for an always-on node this is the durable steady state (§14.4).
 
 ### Timeouts
@@ -776,7 +776,7 @@ papers over (matching the "honest limits" style of §6.6/§13.7/§14.2/§14.5).
 
 1. **§20.1** — the wire mechanism by which `ack(id)` itself travels back to the sender (a MOTE?
    a mixnet reply mechanism? a transport-level ack?) is not specified by §2.6/§4. **[gap]**
-2. **§20.1** — behavior for an `ack` arriving after the sender has already reached `EXPIRED` is
+2. **§20.1** — behaviour for an `ack` arriving after the sender has already reached `EXPIRED` is
    not addressed by §2.6/§4.7; this appendix specifies idempotent late-correction. **[fill]**
 3. **§20.1** — fail-closed-at-first-contact (§3.3) folded into the sender's ordinary `RETRY`
    loop rather than a distinct sender-side terminal. **[fill]**
@@ -789,7 +789,7 @@ papers over (matching the "honest limits" style of §6.6/§13.7/§14.2/§14.5).
    blocked (post-decryption) is not explicit; treated as a drop. **[fill]**
 7. **§20.3** — a plain DNS lookup failure (as opposed to KT unreachability) is not one of
    §3.3's three named outcomes; this appendix bounces to `UNRESOLVED`. **[fill]**
-8. **§20.3** — behavior on `kt_reachable_but_superseded` (DNS lagging KT) and on
+8. **§20.3** — behaviour on `kt_reachable_but_superseded` (DNS lagging KT) and on
    `fetch_fail`/`sig_chain_invalid` at the identity-fetch step is not spelled out. **[fill]** ×3
 9. **§20.3** — retry semantics after `FAIL_CLOSED_BLOCKED` (does a later attempt remember the
    block?) are not specified; this appendix re-runs `resolve()` fresh each time. **[fill]**
@@ -799,7 +799,7 @@ papers over (matching the "honest limits" style of §6.6/§13.7/§14.2/§14.5).
     transition: members identify the **last common epoch**, an `admin`/`owner` proposes a
     recovery Commit on top of it that is canonical only with a **`> n/2` member-signature
     quorum**, losing-fork members roll back and re-apply, and abandoned-fork messages are re-sent
-    by sender retry (§2.6). Decentralized MLS remains the eventual leaderless elimination of the
+    by sender retry (§2.6). Decentralised MLS remains the eventual leaderless elimination of the
     fork surface. (Was previously the largest undefined surface; now specified.)
 12. **§20.5** — **RESOLVED.** §16.8 pins the **committer-liveness timeout = 5 min** with a
     **takeover hysteresis of 2 consecutive misses** and a **`> n/2` roster quorum**; §20.5.2's

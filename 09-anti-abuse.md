@@ -52,7 +52,7 @@ signs — both `sender_sig` and the stolen proof then verify). To close this, **
   (`nonce(epoch)` is the recipient's published epoch beacon, defined in §9.4; parameters §16.5)
   and `id` is the content address of *this* ciphertext, so a stolen PoW only "works"
   on the identical MOTE, which the recipient de-duplicates by `id`. Implementations SHOULD
-  additionally fold `sender_key` into the PoW scope for defense in depth.
+  additionally fold `sender_key` into the PoW scope for defence in depth.
 - **PostageStamp** — theft is bounded by the online single-use redemption check (§9.5.1): the
   first party to redeem `serial` wins and the stamp is spent, so a stolen stamp cannot be
   redeemed twice. The presentation MUST additionally name `sender_key` in the redemption request
@@ -117,7 +117,7 @@ tokens). Therefore:
 
 This is the load-bearing rule that makes ARC anti-abuse real rather than bypassable.
 
-### 9.3.2 The unlinkability ↔ collective-defense tension (honest)
+### 9.3.2 The unlinkability ↔ collective-defence tension (honest)
 
 ARC's cross-recipient unlinkability is in **direct tension** with identifying a repeat spammer
 who hits many recipients: the very property that protects a legitimate sender's social graph
@@ -126,7 +126,7 @@ layer, not the recipient layer**: repeat abuse is bounded by the issuer throttli
 own issuance to a misbehaving client (who is *not* anonymous to its own issuer), and by
 recipients down-scoring issuers that mint for abusers. Recipient-side cross-recipient linking is
 deliberately unavailable; DMTAP does not claim it. (Signal solves the analogous problem with
-delivery tokens; DMTAP generalizes it to open, issuer-scored anonymous tokens.)
+delivery tokens; DMTAP generalises it to open, issuer-scored anonymous tokens.)
 
 ## 9.4 Proof-of-work (fallback)
 
@@ -168,7 +168,7 @@ closed on the users it was written for. A recipient MAY additionally *prefer* be
 resolved the recipient's `Identity`; it MUST NOT make the beacon the only acceptable scope.
 
 **CAUTION.** PoW is a **last-resort** tier, not primary: there is no live standard, and plain
-hashcash asymmetry favors organized spammers (botnets/GPUs) over low-power legitimate senders
+hashcash asymmetry favours organized spammers (botnets/GPUs) over low-power legitimate senders
 (phones). DMTAP PoW MUST use a **memory-hard** function (Argon2/scrypt-style) to flatten that
 asymmetry, and difficulty SHOULD be adaptive. Prefer the token/reputation path (§9.3) whenever
 available.
@@ -231,11 +231,11 @@ an untrusted issuer's stamps carry no weight.
 
 ## 9.6 Gateway-operator accountability
 
-For decentralized legacy gateways (§7):
+For decentralised legacy gateways (§7):
 
 - **Per-identity accountability**: every outbound handoff carries the sender's signature +
   postage, so a gateway attributes abuse to a *token/identity*, not an IP — making a shared
-  reputation pool safe to decentralize.
+  reputation pool safe to decentralise.
 - **Structural independence**: operator attestation plus **ASN/jurisdiction diversity** — the
   same Sybil-resistance reasoning applied to the (research-tier, opt-in) mixnet's entry-guard
   diversity ([docs/research/mixnet.md §4.4.8](docs/research/mixnet.md)) — needs no adjudicator.
@@ -449,11 +449,11 @@ specified normatively in §7.11 and restated here because it belongs to the anti
   a **cold contact**, subject to the recipient's challenge policy, never injected with contact
   standing. This stops a gateway from laundering legacy spam into the accountable mesh.
 - **Outbound (mesh → legacy).** The gateway MUST relay **only for authenticated senders** — an
-  authorized `GatewayAuthz`/key-registered relationship (§7.12) **or** valid redeemable postage
+  authorised `GatewayAuthz`/key-registered relationship (§7.12) **or** valid redeemable postage
   (§9.5) — and MUST apply per-sender **rate limits and volume caps** (§9.6). An unauthenticated
   outbound relay attempt is refused fail-closed with `ERR_GATEWAY_SENDER_UNAUTHENTICATED` (`0x0607`,
   §21.8): a valid `sender_sig` proves *who signed*, not *who may relay*, so signature-validity alone
-  MUST NOT authorize egress. This is the open-relay floor (§7.7) that per-identity accountability
+  MUST NOT authorise egress. This is the open-relay floor (§7.7) that per-identity accountability
   (§9.6) makes affordable to hold open.
 
 As everywhere in §9, only the **floor** — that both directions are gated, fail-closed, on these
@@ -467,7 +467,7 @@ an institution:
 
 | Question | Who answers it | On what evidence |
 |----------|----------------|------------------|
-| **"May this sender inject/relay this?"** — *authorization* | the gateway, at the legacy boundary (§7.11) | SPF/DKIM/DMARC results, IP standing, authenticated sender identity, cold-sender state, rate counters |
+| **"May this sender inject/relay this?"** — *authorisation* | the gateway, at the legacy boundary (§7.11) | SPF/DKIM/DMARC results, IP standing, authenticated sender identity, cold-sender state, rate counters |
 | **"Is this message wanted?"** — *classification* | the **recipient**, on the recipient's own device | the recipient's own corpus, contacts, and history |
 
 **The rule.** A gateway **MUST NOT classify content** (§7.11.4): no content-based scoring, no
@@ -486,8 +486,8 @@ exact. The thing legacy filters exist to solve — unlimited unattributable inje
 problem, and it should leave when legacy does (§7.1c).
 
 **Why this is structural: measured evidence that anti-abuse is how mail re-centralizes.** Mail
-centralization is usually told as a story about mailbox providers. Measured evidence says there is
-a **second, independently growing centralized tier** made of anti-abuse — why this prohibition is
+centralisation is usually told as a story about mailbox providers. Measured evidence says there is
+a **second, independently growing centralised tier** made of anti-abuse — why this prohibition is
 structural, not a preference — reported in `research/` (IMC 2021 mail-provider study; BitTorrent
 tracker persistence).
 

@@ -281,7 +281,7 @@ design* with the substrate in several places, and explicitly aware of it.
 similarly-named `/Users/pc/code/exo/whatsacc-mono` is an unrelated project.) A mature chat-driven physical
 gate access-control product (Go gateway + controller agent + Tauri app). Its own `ARCHITECTURE.md` §8 marks
 a DMTAP channel adapter as **"Sketch only — no seam interface, no wire format, no schedule."** Its authors'
-own assessment is the right one to record here: this product has essentially no decentralized-substrate
+own assessment is the right one to record here: this product has essentially no decentralised-substrate
 surface today, by design, not by oversight.
 
 - **Identity — minimal.** Real per-device Ed25519 keypairs (`controller/internal/identity/identity.go`,
@@ -322,11 +322,11 @@ Its actual current state is **better than that document's text**, which had gone
   as the stricter of the two arms §22.3.3 step 4 permits**: kerf-pub hard-enforces `signer == pub` rather
   than accepting a `DeviceCert` chain, because a chain-verification path that checked the certificate's
   signature but not its revocation status (§1.5) would be a **fail-open** — accepting a revoked signer as
-  though it were still authorized. `signer == pub` has no revocation surface to get wrong, so it is
+  though it were still authorised. `signer == pub` has no revocation surface to get wrong, so it is
   correctly the safer of the two conformant postures, not an outstanding defect. **What would close the
   remaining gap:** implement `DeviceCert` chain verification **with** §1.5 revocation checking (not
   without it) per [`FEEDS.md § 4.2`](FEEDS.md#42-the-pubannounce-kind-0x40-223) step 4 — a strict
-  superset of the current behavior, never a loosening of it.
+  superset of the current behaviour, never a loosening of it.
   **Fixed-width `seq`/`ts` decode guards — closed 2026-07-21.** kerf-pub compared feed `seq`
   **numerically** (Python `int`), so it never had the lexical-vs-numeric ordering bug that the
   flowstock HLC counter had — but it decoded `seq`, `ts`, `size` and `chunk_sz` with a bare
@@ -382,7 +382,7 @@ retire them" — holds up, with more nuance than the premise implied:
 - **Roles is the most consistently "right shape, wrong bytes" capability** — vulos's peering relay,
   vulos-relay's rendezvous, and ofisi's `FabricClient` are all structurally faithful, independent
   reinventions of announce/resolve/mailbox/relay. This is the capability where a shared binding would
-  probably require the least behavioral change per product, only a wire-format swap.
+  probably require the least behavioural change per product, only a wire-format swap.
 - **Wake is the least attempted and the most subtly wrong where it exists.** vulos's cellpush is a correct,
   sovereign VAPID implementation for the wrong job (it wants to render a notification, not fire a
   content-free hint) — a good reminder that "uses the right open standard" and "implements this capability"
