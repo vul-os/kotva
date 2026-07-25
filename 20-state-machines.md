@@ -207,8 +207,8 @@ Formalizes the §2.7 ordered validation pipeline as a state machine, with the dr
 | `PRE_DECRYPT` | `decrypt` = ok | `DECRYPTED` | MLS epoch key or HPKE-to-recipient-key (§2.7 step 7). **Deniable fork (`kind = 0x0b`):** `decrypt` is the **Double-Ratchet** decrypt of the `DeniableFrame` (X3DH/PQXDH establish on a `DeniableInit`, ratchet-advance on a `DeniableMessage`, §5.2.1) — NOT an MLS/HPKE decrypt; a ratchet failure maps to `ERR_DENIABLE_RATCHET_AUTH_FAILED` (`0x040D`) → `DROPPED`, prekey/X3DH failure to `0x040B`/`0x040C`. |
 | `PRE_DECRYPT` | `decrypt` = fail | `DROPPED` | (§2.7 step 7 "drop on failure"). No ack. |
 | `DECRYPTED` | `verify_payload` = ok | `PAYLOAD_OK` | Verify `Payload.sig` under `Payload.from`; match pinned identity (known contact) or TOFU-pin (first contact, §3.4); for a cold sender, re-apply block/allow now that `from` is revealed (§2.7 step 8). **Deniable fork (`kind = 0x0b`): `verify_payload` substitutes the Double-Ratchet AEAD tag (shared-key MAC, already checked at `decrypt`) for the absent `Payload.sig`**, binds `DeniablePayload.from` to the X3DH-authenticated `IK`, and rejects a `DeniablePayload` bearing any signature (`ERR_DENIABLE_SIGNATURE_PRESENT`, `0x040F`) → `DROPPED`. |
-| `DECRYPTED` | `verify_payload` = fail | `DROPPED` | **[fill]** §2.7 step 8 does not explicitly restate "drop on failure" the way steps 1–4 and 7 do; this machine applies the same fail-closed default for consistency with §9.1 principle 1 ("authenticated-by-default"). No ack. |
-| `DECRYPTED` | `verify_payload` = revealed_from_blocked | `DROPPED` | **[fill]** Cold sender's re-applied block/allow list (§2.7 step 8) finds `from` blocked; treated as a drop, symmetric with the pre-decryption block case. No ack. |
+| `DECRYPTED` | `verify_payload` = fail | `DROPPED` | §2.7 step 8 requires this explicitly — `02-mote.md` §2.7 step 8(a): "on failure, discard silently and do not `ack`" (fail closed), restated in the `19-operations.md` failure-mode table. **Not** a filled gap; the fail-closed default is normative for consistency with §9.1 principle 1 ("authenticated-by-default"). No ack. |
+| `DECRYPTED` | `verify_payload` = revealed_from_blocked | `DROPPED` | Stated explicitly at `19-operations.md` (§19.3.1 and its failure-mode table: "`from` revealed post-decrypt on the recipient's block list → silent drop"). **Not** a filled gap. Cold sender's re-applied block/allow list (§2.7 step 8) finds `from` blocked; a silent drop symmetric with the pre-decryption block case. No ack. |
 | `PAYLOAD_OK` | `apply_and_store` | `STORED` | Apply `expires`/`refs`/`kind` semantics (§2.7 step 9); persist. Local storage failure (disk, quota) is an operational condition outside protocol scope, not modelled here. |
 | `STORED` | `ack` | `ACKED` | Confirm receipt of `id` (§2.6). |
 | `ACKED` | (any further `check_duplicate` for the same `id`, from a redelivered copy) | `ACKED` | Idempotent — see the `KNOWN_OK`/`GATE_PASSED` `duplicate_of_acked` rows. A redelivered copy is a fresh machine instance which must again reach classification (and, if cold, clear the gate) before the dedup shortcut applies; it does **not** shortcut from `ADDR_OK`. A redelivered copy of a **`DEFERRED`** `id` is never acked. |
@@ -371,7 +371,8 @@ stateDiagram-v2
   OOB_REQUIRED --> PINNED : user_accepts_with_warning
   OOB_REQUIRED --> FAIL_CLOSED_BLOCKED : user_declines
   PINNED --> VERIFYING_CHAIN : rotation_or_move_seen
-  VERIFYING_CHAIN --> PINNED : chain_valid / oob_verify_ok / name_reresolve_requested
+  PINNED --> PINNED : oob_verify_ok (tier upgrade) / name_reresolve_requested (no-op)
+  VERIFYING_CHAIN --> PINNED : chain_valid
   VERIFYING_CHAIN --> SECURITY_ALERT : chain_invalid
   SECURITY_ALERT --> PINNED : user_overrides_with_oob
   SECURITY_ALERT --> FAIL_CLOSED_BLOCKED : user_blocks_contact
@@ -539,7 +540,7 @@ stateDiagram-v2
   STABLE --> STABLE : application_message
   STABLE --> PROPOSALS_PENDING : propose
   STABLE --> HALT : fork_detected
-  PROPOSALS_PENDING --> PROPOSALS_PENDING : additional_proposal
+  PROPOSALS_PENDING --> PROPOSALS_PENDING : additional_proposal / committer_unreachable (hold)
   PROPOSALS_PENDING --> HALT : commit_received_fork_evidence
   PROPOSALS_PENDING --> COMMIT_APPLIED : commit_received_valid
   COMMIT_APPLIED --> STABLE : applied_locally_ok (epoch N+1)
@@ -662,6 +663,7 @@ stateDiagram-v2
   [*] --> NO_SESSION
   NO_SESSION --> CHALLENGE_ISSUED : login_started
   CHALLENGE_ISSUED --> ASSERTION_VERIFIED : webauthn_ok + rp_verify_ok
+  CHALLENGE_ISSUED --> NO_SESSION : webauthn_ok+rp_verify_fail / webauthn_fail / nonce_expired
   CHALLENGE_ISSUED --> APPROVAL_GATE : node_signing_requested
   APPROVAL_GATE --> ASSERTION_VERIFIED : user_approves + rp_verify_ok
   APPROVAL_GATE --> NO_SESSION : channel_unattributable / user_denies / approval_timeout / rate_limited
@@ -674,7 +676,7 @@ stateDiagram-v2
   SESSION_ACTIVE --> REVALIDATION_GRACE : revalidation_endpoint_unreachable
   REVALIDATION_GRACE --> SESSION_ACTIVE : revalidation_ok
   REVALIDATION_GRACE --> REVALIDATION_GRACE : dpop_proof_ok / revalidation_endpoint_unreachable (timer NOT restarted)
-  REVALIDATION_GRACE --> EXPIRED : grace_window_elapsed (2× interval, §16.8)
+  REVALIDATION_GRACE --> EXPIRED : grace_window_elapsed (2× interval, §16.8) / session_timeout (ordinary TTL)
   REVALIDATION_GRACE --> REVOKED : revalidation_delegation_invalid / revoke_requested / device_key_rotated / ik_recovered
   REVOKED --> [*]
   EXPIRED --> [*]
