@@ -242,7 +242,7 @@ no way for a formula to be more blind or more portable than its most-exposed, mo
 
 **How a formula is actually encoded (normative — it is a named recipe, not a coordinator).** A
 formula adds **no** `service` value and **no** coordinator kind: the four `infra-service` primitives
-stay exactly four, and their `service` field ([§3.1](#31-declared-capacity-how-a-small-operator-competes-honestly))
+stay exactly four, and their `service` field (§3.1)
 stays one of `bucket`/`volume`/`edge-fn`/`box`. A formula is instead a **named schema over a
 content-addressed PUB object**, the same shape `DepotSite` uses above — no new wire object, DS-tag or
 error code:
