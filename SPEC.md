@@ -120,11 +120,44 @@ the first fully-worked instances; every kind inherits the four clauses unchanged
 
 Canonical, exhaustive kind list (12 kinds, incl. `compute`, the draft `infra-service`, and the
 load-bearing `custodial-escrow` exception): [`coordinator/CONTRACT § 5`](coordinator/CONTRACT.md) —
-that table governs; it is not reproduced here to avoid drift.
+that table governs; it is not reproduced here to avoid drift. The three of those twelve that carry
+the most risk — `custodial-escrow` (load-bearing), `infra-service` (draft), `compute` (provisional) —
+are all **outside Core v1** (ratification tiers below).
 
 `indexer` and `matcher` add **reach, never authority**, by contract — but whether a fenced,
 swappable role actually stops search, ranking, and matching from re-concentrating the way real
 markets do is a **named open problem**, not a proven property: [`DIRECTION § 8`](DIRECTION.md).
+
+---
+
+## Ratification tiers — what v1 ships, and what defers (normative)
+
+The family is large on purpose but does **not** ratify as one monolith. It ratifies in tiers, each
+shipping on its own clock, so the least-proven parts never block the core. An implementation MUST
+declare which tier(s) it implements; **Core v1 is complete and conformant with *no* extension.**
+
+- **Core v1 — ratifiable now.** The six waist capabilities ([②](#-substrate--the-narrow-waist)), the
+  [coordinator contract](coordinator/CONTRACT.md), the coordinator kinds the messaging core actually
+  uses — **`gateway`, `relay`, `reachability-adapter`** (and `labeler`, opt-in) — and the
+  **DMTAP-mail** reference profile (§00–§27). This is the mature heart: sovereign identity, sealed
+  metadata-reducing messaging, PUB/SYNC, and legacy interop. **Core v1 has *no* load-bearing
+  coordinator and depends on no market forming** — the "never load-bearing" invariant (§0) holds
+  *absolutely* here, which is the point of drawing the line.
+- **Stable extensions — well-specified, ship independently.** SOCIAL, SEARCH, MEDIA, RTC, and the
+  commerce family TRACT/WRAP. Each is a thin profile that **names the coordinator kinds it needs**
+  (`indexer`, `matcher`, `media-relay`, `arbiter`, `oracle`, and — for commerce only —
+  `custodial-escrow`, the family's *one* load-bearing exception, thereby confined to the extension
+  that requires it and kept out of Core v1). An extension's risk is its own; it never gates the core.
+- **Draft / deferred — not part of v1.** The **DEPOT** cloud profile (`infra-service`) and the
+  provisional **`compute`** kind. These carry the newest surface and the largest unproven market
+  dynamics (the two-sided-market/demand question, DIRECTION §5/§8); they are designed and kept in
+  the tree, but a v1 ratification and a first reference implementation deliberately **do not** include
+  them. They earn their way in once the core has adoption and a real implementation.
+
+The twelve coordinator kinds ([CONTRACT §5](coordinator/CONTRACT.md)) and six waist capabilities are
+unchanged by this — the tier is a **ratification and conformance seam**, not a subtraction. Nothing
+is removed; the risky and the unproven are simply not bundled into the thing shipped and audited
+first ([DIRECTION §9](DIRECTION.md), "future-proof by seams").
 
 ---
 

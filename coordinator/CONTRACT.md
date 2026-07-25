@@ -26,7 +26,10 @@ Each is a place centralisation can regrow. The contract confines the damage: a c
 **hired, not depended-on**. No coordinator is load-bearing, so none can become a gatekeeper.
 The sole exception is the **custodial escrow operator**, which holds the float for a trade
 window and is therefore structurally load-bearing and does not fade — disclosed here rather
-than hidden (see primitives/ESCROW.md).
+than hidden (see primitives/ESCROW.md). It is confined to the **commerce extension** that needs it
+(TRACT), and is deliberately **not** part of Core v1 ([SPEC.md ratification tiers](../SPEC.md)); **Core
+v1 has no load-bearing coordinator at all**, so the never-load-bearing invariant holds there without
+exception.
 
 ---
 
@@ -212,13 +215,21 @@ many coordinator kinds exist" cites this table rather than re-deriving its own t
 | **compute** *(provisional)* | Hosted/outsourced computation (e.g. private-AI inference on rented GPU) | `terminating` (default) / `attested` (TEE, for blind compute) |
 | **arbiter** | Dispute resolution (staked jury) | `terminating` for evidence, disclosed |
 | **oracle** | Physical-world / real-fact attestation (delivered? ride done?) | `terminating`, disclosed |
-| **custodial-escrow** | Holds the trade float for a trade window ([primitives/ESCROW.md](../primitives/ESCROW.md) SEC-6a) | `terminating` for evidence, disclosed — the family's **one load-bearing exception** (§1) |
+| **custodial-escrow** | Holds the trade float for a trade window ([primitives/ESCROW.md](../primitives/ESCROW.md) SEC-6a) | `terminating` for evidence, disclosed — the family's **one load-bearing exception** (§1), confined to the **commerce extension** (TRACT); **not** in Core v1 ([SPEC tiers](../SPEC.md)) |
 
 `gateway` (DMTAP §7) and the legacy `adapter`s (§26) are the first, fully-worked instances;
 every kind above inherits the four clauses and the visibility property unchanged. `custodial-escrow`
 satisfies all four clauses like every other kind but, uniquely, does not fade once hired — see §1
 and [primitives/ESCROW.md](../primitives/ESCROW.md) §9–§10 (SEC-6a, "the one honest load-bearing
 exception").
+
+**Ratification tier (normative — see [SPEC.md tiers](../SPEC.md)).** The list is canonical and
+exhaustive at twelve, but the kinds do not all ratify at once. **Core v1** uses `gateway`, `relay`,
+`reachability-adapter` (and `labeler`). The **stable extensions** use `indexer`, `matcher`,
+`media-relay`, `arbiter`, `oracle`, and — commerce only — `custodial-escrow`. **`infra-service`
+(draft, DEPOT) and `compute` (provisional) are deferred: not part of Core v1.** So the one
+load-bearing kind and the two least-proven kinds are all outside the tier ratified and implemented
+first — the tier is a conformance seam, not a change to this table.
 
 ---
 

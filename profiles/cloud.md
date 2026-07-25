@@ -1,6 +1,6 @@
 # DEPOT — managed infrastructure services (the decentralised-cloud profile)
 
-> **Status:** profile spec (KOTVA family), **draft — normative once ratified**. Provisional name
+> **Status:** profile spec (KOTVA family), **draft — a deferred extension, NOT part of Core v1** ([SPEC.md ratification tiers](../SPEC.md)): DEPOT carries the newest surface and the largest unproven market dynamics, so it ships on its own clock after the core has adoption and a real implementation. Normative once ratified. Provisional name
 > (**DEPOT** — a supply depot where infrastructure is provisioned and dispensed); the codename is a
 > founder call. DEPOT is **thin by construction**: it defines **no new runtime** and **no economics**.
 > It reuses the coordinator contract, the [§18.8a](../18-wire-format.md) descriptor / tariff /
