@@ -11,7 +11,8 @@
 >   `0x01` chat, §2.3 of [`02-mote.md`](../02-mote.md)), authenticated by that MOTE's `Payload.sig`
 >   (DS-tag `DMTAP-v0/payload`, §18.9.2) —
 >
-> carrying an **EAS attestation or a W3C Verifiable Credential** ([bindings](../bindings/README.md)).
+> carrying an **EAS attestation or a W3C Verifiable Credential** for a credential-class claim, or a
+> **profile-defined det_cbor claim body** for a non-credential one ([bindings](../bindings/README.md), §1).
 > This document owns only the **mapping** (issuer/subject → substrate identity), the **carrier
 > selection**, the **revocation rules**, and the **honest residual**. Where it and a normative-byte
 > home (§18, §22, the ratifying binding) disagree, the byte home governs.
@@ -29,8 +30,14 @@ identity** — a review, a "licensed plumber" badge, an over-18 proof, a proof-o
 "delivery happened" oracle statement are all one shape: an issuer-signed claim, verifiable
 offline against the issuer's key, meaning **exactly** *"`I` said this"* and nothing more.
 
-ATTEST invents no credential format ([DIRECTION §3](../DIRECTION.md)). The claim body is EAS or
-W3C-VC; the substrate contributes only the binding of issuer and subject to a **keypair identity**
+ATTEST invents no **credential** format ([DIRECTION §3](../DIRECTION.md)): for a credential-class
+claim — a badge, a KYC pass, an age proof, any verifiable claim *about a person* — the claim body is
+an EAS attestation or a W3C VC, bound not reinvented. For a **non-credential** claim — a REPUTATION
+trust-edge polarity (§2.1), a DEPOT service measurement (profiles/cloud.md §5) — the body MAY be a
+profile-defined integer-keyed det_cbor map identified by its profile-namespaced `SchemaRef` (§2); that
+is a profile carrying its own domain data through the generic signed-claim carrier, **not** a new
+credential format, so it does not breach the DIRECTION §3 rule. The substrate contributes only the
+binding of issuer and subject to a **keypair identity**
 (§1), the choice of **public vs sealed** carrier, and cooperative **revocation**. It mints no
 token and carries no funds ([DIRECTION §5](../DIRECTION.md)); it carries no network-wide score
 ([CONTRACT §2.1](../coordinator/CONTRACT.md)) — a score is *derived* from attestations by
@@ -58,7 +65,8 @@ authenticated **only** by that carrier's own signature — the `Attestation` map
   used to carry a generic attestation claim.
 
 The `Attestation` map below is the **payload** carried inside whichever carrier is chosen; it is
-an integer-keyed deterministic-CBOR map (§18.1) whose `claim` body is an EAS attestation or a VC —
+an integer-keyed deterministic-CBOR map (§18.1) whose `claim` body is an EAS attestation or a VC (for
+a credential) or a profile-defined map (for a non-credential claim, §1) —
 **not a format defined here**. It has **no signature field of its own**: the carrier's existing
 `sig` (`PubAnnounce.sig` or `Payload.sig`, above) covers the embedded bytes end-to-end and is the
 **only** signature a verifier checks.
@@ -71,7 +79,7 @@ Attestation = {
                       ;           authenticated identity (PubAnnounce.pub / Payload.from, above)
   4 => Subject,       ; subject   who/what the claim is about (§2.1)
   5 => SchemaRef,     ; schema    identifies claim semantics (EAS UID / VC URI / profile namespace, below)
-  6 => Claim,         ; claim     the EAS attestation / W3C VC body (bound, NOT invented — §bindings)
+  6 => Claim,         ; claim     EAS/VC body for a credential, or a profile-defined det_cbor map (§1)
   7 => u64,           ; ts        issuance time (ms epoch), display/ordering only
   ? 8 => Revoke,      ; revoke    revocation binding (§2.2); absent ⇒ no status-list/expiry
                       ;           revocation declared for this attestation — supersession for
