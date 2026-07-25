@@ -2007,7 +2007,7 @@ requires an exact, shared definition of the bytes fed to `Sign` / `Hash`. Except
 every signature is over `DS-tag ‖ det_cbor(object∖sig)`, where:
 
 > **Why a bare preimage here, when `SyncOp` uses a real `COSE_Sign1` (recorded, because the spec
-> genuinely does this two ways).** [SYNC §4.1](../substrate/SYNC.md) signs its ops as RFC 9052
+> genuinely does this two ways).** [SYNC §4.1](substrate/SYNC.md) signs its ops as RFC 9052
 > `COSE_Sign1` and carries domain separation in the standard `external_aad` slot — the same job §18.9
 > does by hand. The divergence is deliberate on two grounds and is **not** a claim of COSE
 > conformance for §18.9 objects ([§18.1.2](#1812-integer-key-convention-cosecwt-style) borrows only
@@ -2015,7 +2015,7 @@ every signature is over `DS-tag ‖ det_cbor(object∖sig)`, where:
 > protected/unprotected header maps and array framing to every object, and §4.8's radio arithmetic
 > shows the envelope budget is already the binding constraint on constrained links — a bare preimage
 > keeps the smallest objects smallest. Second, **the preimage is the hardest thing in this spec to
-> change**: it is the seam [§10.1](../10-conformance.md) builds a whole structural-version migration
+> change**: it is the seam [§10.1](10-conformance.md) builds a whole structural-version migration
 > around, so converging the two schemes is a versioned migration, never an edit. `SyncOp` uses the
 > full envelope because it already carries COSE-shaped metadata and pays that cost willingly.
 > **The honest cost of the split:** an implementer writes two signing paths rather than one, and a

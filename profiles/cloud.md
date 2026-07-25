@@ -497,9 +497,9 @@ DepotMeasurement = {                ; claim body for schema "kotva-depot/measure
   1 => tstr,                        ; service      a §3 primitive ("bucket", "volume", "box", "edge-fn")
   2 => tstr,                        ; metric       "uptime" / "conformance" / "visibility-audit" / "latency-ms" / "capacity-conformance" / "export-conformance"
   3 => uint / bool,                 ; value        metric-typed, below — never a float (§18.1)
-  4 => tstr,                        ; method       "probe" / "conformance-vector" / "audit" / "self-report"
+  4 => tstr,                        ; method       CLOSED: "probe"/"conformance-vector"/"audit"/"self-report"; unknown ignored
   5 => ts,                          ; observed_at  ms since the Unix epoch (§18.1)
-  ? 6 => { 1 => tstr, 2 => tstr },  ; evidence     { kind: "recipe"/"vector-id"/"transcript", ref }
+  ? 6 => { 1 => tstr, 2 => tstr },  ; evidence     { kind: CLOSED "recipe"/"vector-id"/"transcript", ref }; unknown ignored
 }
 ```
 
@@ -511,7 +511,10 @@ DepotMeasurement = {                ; claim body for schema "kotva-depot/measure
   operator of the same service. Both exist so a declaration is falsifiable rather than marketing —
   with the honest limits stated in §7, because both are far more expensive to test than a signature
   is to verify. An
-  unrecognised `metric` MUST be ignored by aggregators (never guessed at). Representing the same claim
+  unrecognised `metric`, `method`, or evidence `kind` MUST be ignored by aggregators, never
+  guessed at — the three are **closed value sets** (like `Visibility.class`, [§18.8a.1](../18-wire-format.md)),
+  not free text, so a rater MUST NOT coin a value and an aggregator MUST NOT treat an unknown one as
+  meaningful. A future value is a DEPOT registry addition, exactly as a new `metric` would be. Representing the same claim
   as an EAS attestation or W3C VC for consumers outside KOTVA is a **binding-layer mapping**
   ([bindings/README.md](../bindings/README.md)) and is out of scope for `v0`; pinning that external
   mapping is a ratification item, not an interoperability blocker inside the family.
