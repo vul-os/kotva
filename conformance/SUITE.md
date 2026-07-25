@@ -48,6 +48,22 @@ subscription, video artifact, real-time-media session, or market coordinator. Th
 core (SPEC, "Core v1 is complete and conformant with *no* extension"), made testable: the tier is a
 filter over this catalogue, not a second suite.
 
+**Three distinct "core" scopings — do not conflate them.** This suite now carries three separate
+partitions that all use the word *core*, at three different granularities. They nest; they are not
+the same set, and one numeric coincidence is worth calling out:
+
+| Scoping | Size | Meaning |
+|---------|-----:|---------|
+| **Core conformance *level*** (§10.3, the `## Core level` case block) | ≈ **71** | The **minimum mandatory interoperability floor** — the least an implementation must pass to claim any conformance at all. |
+| **`ratification_tier: core-v1`** (this section) | **291** | The whole ratifiable DMTAP-mail heart (§00–§21, §26) — the Core *level* floor **plus** the higher DMTAP levels (Private, Groups&Files, Legacy, Clients, Auth), which are still market-free and load-bearing-free and so ratify together. |
+| **`level: Core`** (the `level` field) | **220** | *Area*-core: which numbered core chapter a case derives from. §10 warns this is **not** a Core-*level* obligation — some `level: Core` cases are the optional PUB/PUBSUB extension. |
+
+The nesting is **Core level (≈71) ⊂ core-v1 tier (291)**, and `level: Core` (220) cuts across both.
+The `71` in the Core-*level* floor and the `71` stable-extension count are **coincidental and
+unrelated** — one is the mandatory floor, the other is the count of extension vectors. When this
+document says "Core-v1" it always means the **291-case ratification tier**; "Core level" always means
+the **≈71-case §10.3 floor**.
+
 **Clause citations into the relocated mixnet/VDF sections (2026-07 demotion).** Every `§4.4`/
 `§4.4.x` clause cited by a `MIXPROF`/`FLEET`/`GUARD`/`COVER`/`TIER` case (and any other inline
 `§4.4.x` mention below) refers to [`docs/research/mixnet.md`](../docs/research/mixnet.md), not

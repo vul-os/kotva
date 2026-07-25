@@ -201,10 +201,14 @@ discipline the §5 kind table and the SPEC index use).
   `pub-1`**" and "**Core** — DMTAP-PUBSUB extension, **optional `pubsub-1`**" are area-Core and
   simultaneously optional. The Core *level* boundary is, and is only, the `## Core level` case block
   above. An implementer or verifier MUST NOT infer a Core-level obligation from the area prefix.
-- **Scale of the floor (informative, this revision).** Core is ≈ **71 of ~354** conformance cases,
-  ≈ **28 of ~166** registered error codes, and ≈ **300 of ~2 144** normative MUSTs across the
-  numbered chapters — roughly a **15–20 % slice**. These counts are informative and drift as the
-  suite grows; the Core case block, not these numbers, is the boundary.
+- **Scale of the floor (informative, this revision).** The Core *level* is ≈ **71 of 362**
+  conformance cases, ≈ **28 of ~166** registered error codes, and ≈ **300 of ~2 144** normative MUSTs
+  across the numbered chapters — roughly a **15–20 % slice**. These counts are informative and drift
+  as the suite grows; the Core case block, not these numbers, is the boundary. **Do not confuse this
+  Core *level* floor with the `ratification_tier: core-v1` partition** ([`conformance/SUITE.md`](conformance/SUITE.md)):
+  that is the coarser **291-of-362** ratifiable tier (this floor **plus** the higher Private / Groups
+  / Legacy / Clients / Auth levels, which are equally market-free), and it is a **superset** of this
+  floor. The `71` here and the 71 `stable-extension` vectors there are an unrelated coincidence.
 
 **Honest residual.** Two costs are disclosed rather than hidden. (a) **§18 and §21 are not
 tier-partitioned** — a Core implementer derives their subset from the Core case block rather than
