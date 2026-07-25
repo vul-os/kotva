@@ -168,6 +168,34 @@ factor and loses it alongside the device, is still unrecoverable — recovery tr
 risk for a guardian/quorum trust dependency (§1.4, R-5), and this clause buys an **informed** choice,
 never a safe default.
 
+## 8.6b Coordinator-default surfacing (SHOULD — normative UX)
+
+The coordinator contract makes `indexer`, `matcher`, and `relay` swappable and self-hostable, but
+swappability the user never exercises is swappability that does not exist: the Nostr precedent
+([DIRECTION §8](DIRECTION.md)) shows a client's **hardcoded default list** re-centralising a
+permissionless relay set without any coordinator misbehaving. The re-centralising actor is the
+client, so the mitigation is a client rule, not a coordinator clause.
+
+A client that selects an `indexer`, `matcher`, or `relay` on a user's behalf **SHOULD**:
+
+- **make the active choice inspectable** — the user can see which coordinator(s) are in use for
+  search, match-assignment, and relaying, and that others exist;
+- **make it changeable without reinstall or data loss** — switching or adding a coordinator is a
+  user action in the running client, not an edit to a shipped binary;
+- **not present a single shipped default as the only option**, and SHOULD seed from **more than one**
+  provider where the profile admits it, so the out-of-box path is not itself a monoculture.
+
+A client MAY ship defaults — a blank list is worse UX and its own centralisation onto whoever the
+user can find. The requirement is that the default be **visible and escapable**, not absent. A client
+MUST NOT hardcode a coordinator such that the user can neither see it nor replace it; that
+configuration re-creates the very lock-in the swappable-coordinator contract exists to prevent, and a
+client doing it MUST NOT present its coordinators as swappable.
+
+**Honest limit.** This surfaces and lowers the switching cost; it does not equalise choice. Defaults
+still carry disproportionate weight (most users never change them), and this clause buys **exit that
+is real and visible**, not the elimination of default-driven concentration — the structural answer
+(verifiable-completeness indexing) remains open ([DIRECTION §8](DIRECTION.md)).
+
 ## 8.7 Deniable mode, org administration & device attestation (UX guidance)
 
 The hardening mechanisms of §5.2.1, §3.10 and §1.2a each have a **client surface** a conforming

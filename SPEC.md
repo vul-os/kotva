@@ -159,6 +159,17 @@ unchanged by this — the tier is a **ratification and conformance seam**, not a
 is removed; the risky and the unproven are simply not bundled into the thing shipped and audited
 first ([DIRECTION §9](DIRECTION.md), "future-proof by seams").
 
+**The dependency risk is confined by the same line.** Core v1 binds only **mature, standards-track
+primitives** — Ed25519 / X25519 / HPKE (RFC 9180) / BLAKE3 / ChaCha20-Poly1305 behind the
+crypto-agility suite registry (§1.1, §21.15), MLS (RFC 9420) for messaging, libp2p behind the
+transport-substrate registry (§4.1, §21.24), and a **self-contained** recovery path (BIP39 phrase +
+FROST/Shamir guardians, §1.4 — no external vendor). Every binding that is **single-vendor,
+market-dependent, or unproven** — World ID / passport personhood, OpenRank reputation, Walrus /
+Filecoin storage, Kleros dispute, x402 payment rails — sits under an **extension**, never Core v1
+([bindings/README](bindings/README.md), each a swappable slot). So a dependency that dies, forks, or
+is captured can break an *extension* and never the core: the core's external surface is exactly the
+part that is standardised and already has multiple implementations.
+
 ---
 
 ## ⑤ Bindings — what KOTVA adopts instead of reinventing

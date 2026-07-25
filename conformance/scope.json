@@ -900,6 +900,14 @@
       "reason": "client UX requirement: recovery setup or explicit unrecoverability warning at onboarding"
     },
     {
+      "section": "8.6b",
+      "file": "08-clients.md",
+      "title": "8.6b Coordinator-default surfacing (SHOULD — normative UX)",
+      "musts": 2,
+      "class": "IMPL",
+      "reason": "client UX requirement: coordinator defaults must be inspectable and replaceable, mitigating client-default re-centralisation (DIRECTION §8)"
+    },
+    {
       "section": "8.7",
       "file": "08-clients.md",
       "title": "8.7 Deniable mode, org administration & device attestation (UX guidance)",

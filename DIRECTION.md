@@ -229,8 +229,13 @@ sustainability, is named at §5):
   default, not the coordinator's conduct, so no clause binding coordinators — accountability,
   swappability, self-hostability, declared visibility — constrains it. KOTVA inherits this exposure
   wherever a client must pick an `indexer`, `matcher`, or `relay` on a user's behalf. Client
-  conformance is the only surface that could address it (surfacing and rotating defaults rather than
-  freezing one set), and this specification does not currently require that. Disclosed as open.
+  conformance is the only surface that could address it, and [§8.6b](08-clients.md) now carries that
+  rule: a client selecting a coordinator on the user's behalf SHOULD make the choice inspectable and
+  changeable in the running client and SHOULD seed from more than one provider, and MUST NOT hardcode
+  a coordinator the user can neither see nor replace. This buys **real, visible exit** and lowers the
+  switching cost; it does not equalise default weight — most users never change a default — so the
+  *structural* answer (verifiable-completeness indexing above) stays open. Exit is bound; gravity is
+  not.
 
 ---
 
