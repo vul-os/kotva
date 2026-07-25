@@ -45,6 +45,7 @@ DEPOT is composition, not new machinery. It reuses:
 | **PUB** (feeds & blobs) + **ATTEST** + the **indexer/labeler** role | distributed reputation — signed measurement **claims** (ATTEST attestations, §5) anyone may publish and anyone may aggregate; DEPOT mints no reputation object of its own. | [§22](../22-public-objects.md), [primitives/ATTEST.md](../primitives/ATTEST.md) |
 | **Identity** + **`RecoveryPolicy`** | non-custody (the root `IK` never leaves the user's device) + guardian recovery — **not** key escrow. | [§1](../01-identity.md), [§1.4](../01-identity.md) |
 | **IK-authenticated Noise transport** | the box↔service control/data channel is a libp2p-Noise `XX` stream keyed to the user's `IK` (as REACH-2), not a bearer token. | [profiles/reachability.md REACH-2](reachability.md) |
+| **SYNC** / **RESERVE** | the coordination half of a composed formula (§3.2) — SYNC for a signed CRDT the operator cannot read, RESERVE for a single-writer claim; a `queue` formula's ordering rides these, not a rented broker. | [substrate/SYNC.md](../substrate/SYNC.md), [primitives/RESERVE.md](../primitives/RESERVE.md) |
 
 Bindings **adopted rather than reinvented** ([bindings/README.md](../bindings/README.md)): **WASI** /
 **OCI** (edge-fn runtime), **S3 API** / content-addressing **and HTTP caching** (bucket, including
@@ -208,8 +209,11 @@ row is deliberate — a row would imply a mechanism that is not there:
   local disk, streaming straight to and from S3. What remains is ordering and exactly-once claim,
   which is [SYNC](../substrate/SYNC.md) (a signed CRDT the operator cannot read) or
   [RESERVE](../primitives/RESERVE.md) (a single-writer claim) — **not** a rented broker. The folded
-  queue is therefore *more* private than a broker would be: the payload sits in a `blind` bucket and
-  the claim is a CRDT among the consumers themselves, needing no trusted operator at all.
+  queue is therefore *capable of being* more private than a broker: the payload sits in a bucket that
+  is `blind` **exactly to the extent the client encrypted it** (the same conditional rule as any
+  bucket, §3.3 — it is not blind by virtue of being called a queue), and the claim is a CRDT among
+  the consumers themselves, needing no trusted operator at all. A broker sees plaintext by
+  construction; this fold *lets* a client keep the operator out, it does not do it for them.
 
 **The native alternative comes first, for both.** For application state a user's own devices own, a
 local-first signed CRDT ([SYNC](../substrate/SYNC.md)) needs no rented database and no trusted
@@ -222,10 +226,41 @@ requirement.
 **A formula's visibility and portability are inherited, not declared (normative).** A formula has no
 honesty properties of its own; it takes the **least-blind** visibility and the **least-portable**
 class of its parts. The `database` formula is `terminating` because its `box` is, and export/import
-because its `box`/`volume` are; the `queue` formula is `blind` because its `bucket` is, and its claim
-CRDT is unreadable. So the DEPOT-2 and DEPOT-4 clauses below enumerate the **four primitives**, and a
+because its `box`/`volume` are; the `queue` formula is **at best** `blind`, inheriting the bucket's
+*conditional* blindness (`structural` only for what the client encrypted, else `declared` — §3.3),
+and its claim CRDT is unreadable. So the DEPOT-2 and DEPOT-4 clauses below enumerate the **four primitives**, and a
 formula is bound by the composition of the primitives it names — there is nothing extra to declare and
 no way for a formula to be more blind or more portable than its most-exposed, most-stuck part.
+
+**How a formula is actually encoded (normative — it is a named recipe, not a coordinator).** A
+formula adds **no** `service` value and **no** coordinator kind: the four `infra-service` primitives
+stay exactly four, and their `service` field ([§3.1](#31-declared-capacity-how-a-small-operator-competes-honestly))
+stays one of `bucket`/`volume`/`edge-fn`/`box`. A formula is instead a **named schema over a
+content-addressed PUB object**, the same shape `DepotSite` uses above — no new wire object, DS-tag or
+error code:
+
+```cddl
+DepotFormula = {                          ; "kotva-depot/formula/v0"
+  1 => tstr,                              ; kind        formula identity, e.g. "postgres" / "redis" / "kafka-queue"
+  2 => [+ Part],                          ; parts       the primitive coordinators it composes (>= 1)
+  ? 3 => bytes,                           ; recipe      opaque det_cbor provisioning/wiring, engine-defined
+  ? 4 => tstr,                            ; consensus   what provides coordination if it scales (see below); absent = single-writer
+}
+Part = {
+  1 => tstr,                              ; service     one of the four §3 primitives
+  2 => ik-pub,                            ; provider    the infra-service coordinator supplying this part
+  ? 3 => hash,                            ; descriptor  content address of that provider's CoordinatorDescriptor (§18.8a.1)
+}
+```
+
+This is what makes the inheritance rule *computable* rather than rhetorical: a client reads a
+`DepotFormula`, resolves each `Part.provider`'s own signed descriptor, and derives the formula's
+visibility and portability as the least-blind and least-portable across the parts — there is a
+concrete object to check, not a promise. A formula whose parts span **different operators** is
+legitimate and is exactly how a user avoids one operator holding the whole database; a formula all of
+whose parts name **one** provider is a single-operator managed offering, and the client can see which
+from the `provider` keys. Publishing a `DepotFormula` is permissionless (it is a PUB object); competing
+formulas for the same `kind` are the market, and the protocol never learns what "postgres" means.
 
 **Honest limit — a formula composes storage, never consensus (normative for any "scaling" claim).**
 `box` + `volume` + `bucket` gives the *ingredients* of a scalable database, never the *coordination*.
@@ -233,8 +268,10 @@ Two boxes cannot share one `volume` (attachment is exclusive; `shared` pushes th
 onto the guest, §3.1); two boxes *can* share a `bucket`, but then which is primary, and what orders
 the writes? That is consensus, and no engine gets it from object storage for free — Neon had to build
 safekeepers, Aurora a bespoke storage layer. DEPOT cannot supply consensus and does not pretend to. A
-formula that advertises "scales across boxes" MUST name what provides the coordination (a consensus
-protocol, a single-writer lease, an external quorum); absent that, it is a single-writer database with
+formula that advertises "scales across boxes" MUST populate `DepotFormula.consensus` with what
+provides the coordination (a consensus protocol, a single-writer lease, an external quorum); an absent
+`consensus` field means single-writer, and such a formula MUST NOT advertise horizontal scaling —
+absent that, it is a single-writer database with
 extra parts, and MUST be described as one. This is the same stateful/stateless asymmetry DEPOT-13
 discloses: content-addressed `bucket` bytes replicate freely, single-writer state does not.
 
@@ -327,7 +364,7 @@ unencrypted `volume` are `terminating`** — the operator sees your data or comp
   **"Portable" means format-portable, and downtime is an acceptable price:** the export MUST be in the
   **adopted standard's own interchange format** for that service — S3-API objects for `bucket`, a
   standard block image or filesystem dump for `volume`, the engine's native dump (`pg_dump`-class,
-  engine dump (`pg_dump`-class, RESP) for a `database` formula, an OCI/WASI artefact for `edge-fn`, a standard disk image for `box` — such
+  RESP) for a `database` formula, an OCI/WASI artefact for `edge-fn`, a standard disk image for `box` — such
   that **any conformant operator of the same service can ingest it without the exporting operator's
   cooperation**. An export only its author's tooling can read is **not** an export and MUST NOT be
   advertised as satisfying this clause. The exit this profile guarantees is *interoperable*, not
