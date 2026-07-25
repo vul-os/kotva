@@ -19,9 +19,10 @@ BCP 14 (RFC 2119, RFC 8174) when, and only when, in all capitals.
 ## 1. What this is
 
 A market where any operator — a **gateway** — offers managed infrastructure to a user who holds their
-own keys and can leave: a **box** (a managed node), a **bucket** (object storage, which also serves
-public objects at the edge — the CDN shape), a **volume** (block storage), an **edge-fn**
-(serverless compute), a **database** (Redis / Postgres), a **queue**. It is the Hetzner / AWS / ngrok
+own keys and can leave: the four irreducible primitives — a **box** (a managed node), a **bucket**
+(object storage, which also serves public objects at the edge — the CDN shape), a **volume** (block
+storage) and an **edge-fn** (serverless compute) — plus everything that **composes** from them as a
+formula: a **database** (Redis / Postgres), a **queue**, and the rest (§3.2). It is the Hetzner / AWS / ngrok
 product shape rebuilt as **fenced coordinators** ([coordinator/CONTRACT.md](../coordinator/CONTRACT.md)):
 each service is `accountable`, `swappable`, `self-hostable`, and **never load-bearing** — reach and
 convenience, never a gate on the user's function or identity.
@@ -47,26 +48,25 @@ DEPOT is composition, not new machinery. It reuses:
 
 Bindings **adopted rather than reinvented** ([bindings/README.md](../bindings/README.md)): **WASI** /
 **OCI** (edge-fn runtime), **S3 API** / content-addressing **and HTTP caching** (bucket, including
-its public-object/edge mode), **Redis RESP** / **Postgres wire** (database), **cloud-init** / any OS
-(box). DEPOT specifies **no** new
+its public-object/edge mode), **Redis RESP** / **Postgres wire** (the `database` formula, §3.2), **cloud-init** / any OS (box). DEPOT specifies **no** new
 runtime, storage format, or price model.
 
 ---
 
 ## 3. The service registry (extensible — the future-proof surface)
 
-The specific services are a **registry**, not spec text: a new service (a GPU cluster, a message queue,
-a search index) is a **registry row**, never a spec change. Each row fixes the honest defaults the
+The specific **primitives** are a **registry**, not spec text: a genuinely new primitive (say a GPU
+fabric that is not just a `box` attribute) is a **registry row**, never a spec change — while anything
+that composes from existing primitives (a message queue, a database, a search index) is a **formula**
+(§3.2), not a row. Each row fixes the honest defaults the
 profile enforces. v0 registry:
 
 | `service` | Adopt (native protocol) | **Honest visibility** (DEPOT-2) | Metering unit (example — operator sets the number) | Portability (DEPOT-4) |
 |---|---|---|---|---|
 | `bucket` | S3 API / CID content-addressing; **HTTP caching** when serving public objects | **`blind`** — `structural` **only for objects the client actually encrypted** (S3 takes arbitrary bytes, so plaintext handed to it is readable and the declaration stays truthful — CONTRACT §3.3), else `declared`; **`blind-routing`** when it serves *public* objects, seeing which and when but never a private payload | GB-month + egress-GB + requests | **zero-migration** (re-pin elsewhere) |
 | `edge-fn` | WASI / OCI | **`terminating`** (runs your code, sees I/O) → **`attested`** in a TEE | CPU-ms + invocations | **zero-migration** (redeploy the artefact) |
-| `database` | Redis RESP / Postgres wire | **`terminating` / `declared`** — the operator sees plaintext to answer queries | GB-month + ops | **export/import** (a portable dump) |
 | `volume` | Block device (virtio-blk / NVMe-oF / iSCSI); guest-owned filesystem | **`blind`** at `structural` **only where the guest actually encrypted** (LUKS/dm-crypt — the operator then holds ciphertext blocks plus access patterns, never plaintext); an unencrypted volume is **`terminating` / `declared`**, and the operator cannot tell which it was given (CONTRACT §3.3) | GB-month (+ provisioned IOPS) | **export/import** across operators; *detach/reattach* within one operator iff `attachment = detachable` |
 | `box` | OS + node (cloud-init) | **`terminating` / `declared`** — the operator has root on the host | instance-hour | **export** (keys stay with the user; data dumps out) |
-| `queue` | AMQP-class / opaque-payload FIFO | **`blind-routing`** — `structural` **only for payloads the client encrypted**, else `declared`; sees depth, size, rate and timing, and sees content if handed plaintext (CONTRACT §3.3) | message-count + GB-month retained | **zero-migration** (drain and re-enqueue elsewhere) |
 
 ### 3.1 Declared capacity — how a small operator competes honestly
 
@@ -88,7 +88,7 @@ Capacity = {                    ; every value a uint — no floats (§18.1)
   ? 4 => uint,                  ; max_concurrent     concurrent streams / instances
   ? 5 => tstr,                  ; class              "cold" / "warm" / "commit-path" (latency tier, §3)
   ? 6 => uint,                  ; uptime_target      per-mille intent (0…1000) — an aim, NOT a promise
-  ? 7 => { * tstr => uint },    ; resources          OPEN quantity vocabulary, §3.2 — never a closed enum
+  ? 7 => { * tstr => uint },    ; resources          OPEN quantity vocabulary (machine shape, below) — never a closed enum
 }
 ```
 
@@ -141,8 +141,8 @@ remain **operator policy** and are deliberately not fixed here: the protocol sta
 
 **Completeness, not catalogue.** This set is deliberately small and is chosen to *span* what a
 centralised platform does, not to mirror a product list: run code (`edge-fn`, `box`), store blobs
-and serve them at the edge (`bucket`), store queryable state (`database`), decouple asynchronously
-(`queue`) — composed with public reachability ([REACH](reachability.md)), identity and login (§13),
+and serve them at the edge (`bucket`) — with queryable state (`database`) and asynchronous decoupling
+(`queue`) composed as formulas (§3.2), not rows — plus public reachability ([REACH](reachability.md)), identity and login (§13),
 messaging and wake (§2, §4.9), real-time (§27, §25), and the control plane of DEPOT-11. A capability
 that is merely a *product* built from these MUST be a product, not a registry row.
 
@@ -181,20 +181,62 @@ which and when but never a private payload. Encoding that as one row with a deri
 honest; encoding it as two rows implied a mechanism split that does not exist. Locality and
 edge-placement are an operator's **policy and tariff**, not a separate service.
 
-**`database` is a posture, not a mechanism — and often you should not rent one at all.** A managed
-database *is* a `box` running an engine over a `bucket`; that is how the centralised ones are built
-too, and a Redis is a process on a box. DEPOT therefore defines **no** query language, schema,
-replication protocol or consistency model — it adopts the existing wire protocols and stops. What
-the registry row buys is the two things composition would silently lose: the **visibility
-declaration** (a `box` operator has root, but a `database` operator *must* hold plaintext to
-evaluate a query — a different and less obvious exposure) and the **portability class** (DEPOT-4:
-`database` and `box` are export/import, never zero-migration). **The native alternative is
-[SYNC](../substrate/SYNC.md).** For application state that a user's own devices own, a local-first
-signed CRDT needs no rented database and no trusted operator: the box holds the state, SYNC
-converges it across devices, and a `bucket` backs it up under client-side encryption — so no
-operator reads it, ever. `database` is the **compatibility bridge** for software that already speaks
-SQL or RESP, bought at the price of a `terminating` operator. Reach for SYNC first; rent a
-`database` when an existing engine is the requirement.
+### 3.2 Formulas — the services that are compositions, not primitives
+
+The four rows above are **irreducible**: bytes cold or hot (`bucket`/`volume`), code stateless or
+stateful (`edge-fn`/`box`). Everything a centralised platform sells beyond them — a database, a
+managed queue, a Redis, a CDN, a static site — is a **formula**: a recipe that composes the four,
+never a new mechanism. This is the profile's own "completeness, not catalogue" rule turned on itself,
+and the reason DEPOT does not grow a row per product. A formula is a **signed, content-addressed PUB
+object** ([§22](../22-public-objects.md)) anyone may publish, fork and compete on; the protocol never
+learns what "Postgres" is.
+
+The two most-asked-for services are worked examples, and folding them here rather than giving each a
+row is deliberate — a row would imply a mechanism that is not there:
+
+- **`database` = `box` + `volume` + `bucket`.** A managed database *is* a query engine on a box, its
+  WAL and hot pages on a fast `volume` (the commit path physics of §3.1), its archive/PITR on a
+  `bucket`. DEPOT defines **no** query language, schema, replication protocol or consistency model —
+  it adopts the existing wire protocols (Postgres, RESP) and stops. The visibility is not lost by
+  dissolving the row: the `box` in the formula is `terminating`, so "the operator can read your data
+  to answer a query" is declared by the box it runs on. **A Redis is the same formula minus the
+  bucket** — a process on a box, with an optional `volume` for AOF/RDB persistence, or none at all
+  for a pure cache.
+
+- **`queue` = `bucket` + a claim mechanism.** The durable half of a queue is object storage —
+  [WarpStream](https://www.warpstream.com/) and AutoMQ run fully Kafka-compatible queues with zero
+  local disk, streaming straight to and from S3. What remains is ordering and exactly-once claim,
+  which is [SYNC](../substrate/SYNC.md) (a signed CRDT the operator cannot read) or
+  [RESERVE](../primitives/RESERVE.md) (a single-writer claim) — **not** a rented broker. The folded
+  queue is therefore *more* private than a broker would be: the payload sits in a `blind` bucket and
+  the claim is a CRDT among the consumers themselves, needing no trusted operator at all.
+
+**The native alternative comes first, for both.** For application state a user's own devices own, a
+local-first signed CRDT ([SYNC](../substrate/SYNC.md)) needs no rented database and no trusted
+operator: the box holds the state, SYNC converges it across devices, a `bucket` backs it up under
+client-side encryption, and no operator reads it, ever. The `database` formula is the
+**compatibility bridge** for software that already speaks SQL or RESP, bought at the price of a
+`terminating` box. Reach for SYNC first; compose a `database` when an existing engine is the
+requirement.
+
+**A formula's visibility and portability are inherited, not declared (normative).** A formula has no
+honesty properties of its own; it takes the **least-blind** visibility and the **least-portable**
+class of its parts. The `database` formula is `terminating` because its `box` is, and export/import
+because its `box`/`volume` are; the `queue` formula is `blind` because its `bucket` is, and its claim
+CRDT is unreadable. So the DEPOT-2 and DEPOT-4 clauses below enumerate the **four primitives**, and a
+formula is bound by the composition of the primitives it names — there is nothing extra to declare and
+no way for a formula to be more blind or more portable than its most-exposed, most-stuck part.
+
+**Honest limit — a formula composes storage, never consensus (normative for any "scaling" claim).**
+`box` + `volume` + `bucket` gives the *ingredients* of a scalable database, never the *coordination*.
+Two boxes cannot share one `volume` (attachment is exclusive; `shared` pushes the consistency problem
+onto the guest, §3.1); two boxes *can* share a `bucket`, but then which is primary, and what orders
+the writes? That is consensus, and no engine gets it from object storage for free — Neon had to build
+safekeepers, Aurora a bespoke storage layer. DEPOT cannot supply consensus and does not pretend to. A
+formula that advertises "scales across boxes" MUST name what provides the coordination (a consensus
+protocol, a single-writer lease, an external quorum); absent that, it is a single-writer database with
+extra parts, and MUST be described as one. This is the same stateful/stateless asymmetry DEPOT-13
+discloses: content-addressed `bucket` bytes replicate freely, single-writer state does not.
 
 **Scaling, autoscaling and load balancing are deliberately out of scope — with one exception.** How
 many instances an operator runs, and how it spreads load across its own machines, is **operator
@@ -205,7 +247,7 @@ operators**: signed `CoordinatorDescriptor`s to discover them, published measure
 compare them, and DEPOT-4 swappability to leave. That composition, not an elastic-group API, is this
 profile's load balancer. **The honest ceiling is the stateless/stateful asymmetry**, not the absence
 of an autoscaler: `bucket` and `edge-fn` spread across operators freely *because* they are
-zero-migration, while `database`, `volume` and `box` carry state that must be exported and re-imported to
+zero-migration, while `volume`, `box`, and any stateful formula built on them (a `database`) carry state that must be exported and re-imported to
 move. Adding providers is cheap for the former and a migration for the latter, and no protocol rule
 changes that.
 
@@ -237,17 +279,17 @@ authorised by scoped `CapabilityToken`s under DEPOT-11 (a CI credential is stric
 parent), so a leaked deploy token can publish a site and **cannot** reach mail or identity.
 
 **Triggers, not more services.** Time-based and event-based invocation are **trigger types on
-`edge-fn`**, never separate services: `http` (via REACH ingress), `cron` (a schedule), `queue` (a
-`queue` message), and `webhook` (an inbound HTTPS event routed to a box or function through REACH,
-buffered in a `queue` when the target is offline). A new trigger is an enum value; it is **not** a
+`edge-fn`**, never separate services: `http` (via REACH ingress), `cron` (a schedule), `queue` (an item arriving on a `queue` formula,
+§3.2), and `webhook` (an inbound HTTPS event routed to a box or function through REACH,
+buffered in a `queue` formula when the target is offline). A new trigger is an enum value; it is **not** a
 spec change and **not** a new coordinator kind.
 
-Only **`bucket`**, **`queue`** and **`volume`** keep the payload cryptographically out of the
-operator's reach — **and only for the objects the client actually encrypted.** All three accept
-arbitrary bytes, so their blindness is the *client's* property, not the operator's architecture: hand
+Only **`bucket`** and **`volume`** keep the payload cryptographically out of the operator's reach —
+**and only for the objects the client actually encrypted** (the `queue` formula inherits this from
+the `bucket` it composes, §3.2). Both accept arbitrary bytes, so their blindness is the *client's* property, not the operator's architecture: hand
 any of them plaintext and it is readable, while the operator's declaration remains truthful
 (CONTRACT §3.3). A deployment wanting unconditional blindness MUST make client-side encryption
-non-optional on ingest. **`edge-fn`, `database`, `box`, and an
+non-optional on ingest. **`edge-fn`, `box`, and an
 unencrypted `volume` are `terminating`** — the operator sees your data or computation. This is normal and honest
 (Fastmail-tier trust); it is **not** cryptographic blindness, and DEPOT-2 forbids pretending otherwise.
 
@@ -261,13 +303,13 @@ unencrypted `volume` are `terminating`** — the operator sees your data or comp
   channel (REACH-2 shape — the user's `IK` is the libp2p identity key; **no bearer token**). It mints
   no new runtime, wire object, DS-tag, or error code — reputation reuses the ATTEST claim primitive (§5).
 - **DEPOT-2 — honest visibility is load-bearing (the cliff).** Each service MUST declare **exactly**
-  the visibility its data model permits (§3): `bucket`/`volume`/`queue` `blind` — `structural` **only
-  for what the client encrypted**, `declared` otherwise (CONTRACT §3.3) — or public-serving
-  `blind-routing`; `volume` `blind` when the guest encrypts it, else `terminating`/`declared`;
-  `edge-fn`/`database`/`box` `terminating`/`declared`. **Advertising a `terminating`
+  the visibility its data model permits (§3): `bucket` `blind` — `structural` **only for what the
+  client encrypted**, `declared` otherwise (CONTRACT §3.3) — or public-serving `blind-routing`;
+  `volume` `blind` when the guest encrypts it, else `terminating`/`declared`;
+  `edge-fn`/`box` `terminating`/`declared`; a **formula** inherits the least-blind of its parts (§3.2). **Advertising a `terminating`
   service as `blind`, `private`, or `sovereign` is non-conformant misrepresentation**
   ([CONTRACT §3.2](../coordinator/CONTRACT.md)), not marketing. A TEE with **verifiable remote
-  attestation** MAY raise `edge-fn`/`database`/`box` from `declared` to `attested`; the attestation
+  attestation** MAY raise `edge-fn`/`box` from `declared` to `attested`; the attestation
   MUST be checkable by the client, or the claim reverts to `declared`.
 - **DEPOT-3 — non-custody, no key escrow.** The user's **root `IK` is generated and held on the
   user's own device**; a managed `box` receives only a **revocable `DeviceCert` subkey**
@@ -279,13 +321,13 @@ unencrypted `volume` are `terminating`** — the operator sees your data or comp
 - **DEPOT-4 — swappable, honest portability.** Leaving or switching an `infra-service` MUST be a
   **config change with zero identity change** ([CONTRACT §2.2](../coordinator/CONTRACT.md)). Each
   service MUST state its **true** portability (§3): content-addressed `bucket` and stateless
-  `edge-fn` are **zero-migration**; stateful `database`/`volume`/`box` MUST provide a **portable
+  `edge-fn` are **zero-migration**; stateful `volume`/`box` MUST provide a **portable
   export/import**, and MUST NOT be advertised as zero-migration. A `detachable` volume moves between
   boxes of **one** operator and MUST NOT be advertised as zero-migration on that basis (§3).
   **"Portable" means format-portable, and downtime is an acceptable price:** the export MUST be in the
   **adopted standard's own interchange format** for that service — S3-API objects for `bucket`, a
   standard block image or filesystem dump for `volume`, the engine's native dump (`pg_dump`-class,
-  RESP) for `database`, an OCI/WASI artefact for `edge-fn`, a standard disk image for `box` — such
+  engine dump (`pg_dump`-class, RESP) for a `database` formula, an OCI/WASI artefact for `edge-fn`, a standard disk image for `box` — such
   that **any conformant operator of the same service can ingest it without the exporting operator's
   cooperation**. An export only its author's tooling can read is **not** an export and MUST NOT be
   advertised as satisfying this clause. The exit this profile guarantees is *interoperable*, not
@@ -308,7 +350,7 @@ unencrypted `volume` are `terminating`** — the operator sees your data or comp
 - **DEPOT-7 — authorise, never classify.** An `infra-service` gates admission on **identity + rate +
   payment** only ([CONTRACT §4](../coordinator/CONTRACT.md)); it MUST NOT admit, refuse, throttle, or
   price on a **content judgement**. Metering measures **resource use**, never content. (A service that
-  *must* read content to function — `database`, `edge-fn` — does so under its declared `terminating`
+  *must* read content to function — an `edge-fn`, or the `box` inside a `database` formula — does so under its declared `terminating`
   visibility, never as a content gate on delivery.)
 - **DEPOT-8 — fail-closed.** An unpaid, expired, unauthenticated, or over-quota request MUST fail
   closed — a clean refusal or connection close ([§21](../21-errors-iana.md) FAIL_CLOSED_BLOCK), never a
@@ -366,9 +408,10 @@ unencrypted `volume` are `terminating`** — the operator sees your data or comp
   signed descriptor** (§18.8a); standing is **earned through measurement claims** (§5), never granted
   by a gatekeeper. Because no single small provider can match a hyperscaler's availability, a client
   obtains durability and availability by **using several independent providers**, not by trusting one —
-  and content-addressed services (`bucket` and `queue` payloads) replicate freely, so plurality
-  is cheap and re-pinning is zero-migration (DEPOT-4). **Honest asymmetry:** stateful `database`,
-  `volume` and `box` do **NOT** replicate freely — they carry single-writer state whose portability is
+  and content-addressed `bucket` bytes replicate freely — including the durable half of a `queue`
+  formula, which is a bucket — so plurality is cheap and re-pinning is zero-migration (DEPOT-4).
+  **Honest asymmetry:** the stateful primitives `volume` and `box`, and any formula built on them (a
+  `database`), do **NOT** replicate freely — they carry single-writer state whose portability is
   an export/import, so for those a client's real protections are that export plus the operator's
   declared visibility, not replication. A `detachable` volume is **not** a counter-example: it moves
   between boxes of one operator, never between operators. A profile MUST NOT present multi-provider replication as though it made
@@ -395,7 +438,7 @@ or signature** for reputation — it defines only a **claim schema** carried ins
 
 ```cddl
 DepotMeasurement = {                ; claim body for schema "kotva-depot/measurement/v0"
-  1 => tstr,                        ; service      a §3 registry value ("bucket", "queue", …)
+  1 => tstr,                        ; service      a §3 primitive ("bucket", "volume", "box", "edge-fn")
   2 => tstr,                        ; metric       "uptime" / "conformance" / "visibility-audit" / "latency-ms" / "capacity-conformance" / "export-conformance"
   3 => uint / bool,                 ; value        metric-typed, below — never a float (§18.1)
   4 => tstr,                        ; method       "probe" / "conformance-vector" / "audit" / "self-report"
@@ -437,15 +480,16 @@ schema, not by wire.
 Inheriting [THREAT-MODEL.md](../THREAT-MODEL.md) (SEC-1…SEC-9); the DEPOT-specific posture is the
 **cliff of §4 DEPOT-2**, restated for clarity:
 
-- **`bucket`, `queue` and `volume` are structurally private only for what the client encrypted.**
+- **`bucket` and `volume` are structurally private only for what the client encrypted** — and a
+  `queue` formula inherits it from its bucket.
   This is the sharpest self-deception risk in the profile: the label reads like an operator guarantee
   and is actually a statement about the client's own discipline, and the failure is silent — a
   misconfigured SDK or a plain `cp` loses the whole protection without the operator lying or anything
   erroring (CONTRACT §3.3). They hold client-encrypted,
-  content-addressed data — or, for `queue`, client-encrypted payloads whose depth, rate and timing are
+  content-addressed data — or, for a `queue` formula, client-encrypted payloads in a bucket whose depth, rate and timing are
   visible but whose content is not (SEC-4, `blind`/`structural` / `blind-routing`) — so the operator
   forwards, holds, or serves ciphertext it has no key to read.
-- **`database`, `edge-fn`, `box`, and an unencrypted `volume` are `declared`-trust.** The operator (and any cloud host or
+- **`edge-fn`, `box`, and an unencrypted `volume` are `declared`-trust** — and so is any formula built on them, e.g. a `database`. The operator (and any cloud host or
   subcontractor beneath it, DEPOT-6) can read what it must process to serve a query, run a function, or
   host a node. This is a **real, disclosed trust boundary** (SEC-4 `declared`), **not** structurally
   excluded. The durable protections are **DEPOT-3** (the owner-held root key — a breach reads live data
@@ -461,7 +505,7 @@ Inheriting [THREAT-MODEL.md](../THREAT-MODEL.md) (SEC-1…SEC-9); the DEPOT-spec
 
 ## 7. Honest residual
 
-- **Managed is not private.** A managed `database`, `edge-fn`, or `box` is `declared` trust: the
+- **Managed is not private.** A managed `edge-fn` or `box` — and any `database` formula, whose `box` runs the engine — is `declared` trust: the
   operator, its cloud, and its subcontractors can read what they process. Disclosed, not solved — the
   only durable protections are the **owner-held key** and the **real exit**, never host blindness. TEE
   attestation narrows this; it does not erase the operator's original access to plaintext-in-use.

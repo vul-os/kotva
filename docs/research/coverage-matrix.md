@@ -73,7 +73,7 @@ never classifies.
 > **DEPOT** profile ([`profiles/cloud.md`](../../profiles/cloud.md)) under one `infra-service`
 > coordinator kind — a decentralised-cloud market with operator-defined economics and distributed
 > ratings (ATTEST signed claims — no bespoke object). Honest visibility per service: `bucket` `blind`, `structural` only for client-encrypted objects (`blind-routing` when public-serving);
-> `database`/`edge-fn`/`box` `terminating`/`declared` (→ `attested` in a TEE). It underlies the product
+> `edge-fn`/`box` `terminating`/`declared` (→ `attested` in a TEE), and a formula (a `database`, a `queue`) inherits the visibility of its parts. It underlies the product
 > shapes rather than adding one, so the count of 22 product shapes is unchanged.
 
 ---
