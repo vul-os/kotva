@@ -135,7 +135,7 @@ device. Moderation is a **market of opt-in labelers**, each itself a coordinator
 coordinator meters, it MUST issue **signed usage receipts directly to the payer**; the audit is
 **one-directional** (a receipt confirms a real operation, it cannot disconfirm a fabricated one) and
 that limit is disclosed, not hidden ([CONTRACT §6](coordinator/CONTRACT.md)). It mints **no token**;
-stake and settlement are existing assets only ([DIRECTION §5](DIRECTION.md)). *Residual: R-6.*
+stake and settlement ride an existing rail only — fiat, stablecoin, or token, never a protocol mint ([DIRECTION §5](DIRECTION.md)). *Residual: R-6.*
 
 ### SEC-7 — Abuse is priced and localized, never centrally filtered
 Anti-abuse MUST hold **without** a central content filter and **without** deanonymizing the sender.

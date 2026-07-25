@@ -60,7 +60,7 @@ specified binding; it slots in as a future binding swap without a rearchitecture
 
 ## What KOTVA does **not** bind — and never will
 
-- **A protocol token.** Money is a stablecoin; trust is *staked existing value*. No mint.
+- **A *protocol* token.** No native mint. Money is any existing settlement rail the operator chooses — fiat, a stablecoin, or an existing token (DIRECTION §5); trust is *staked existing value*. Accepting an existing token or fiat is fine; minting a protocol token is not.
   ([DIRECTION §5](../DIRECTION.md).)
 - **A global reputation *score* we compute.** Reputation is locally measured, or bound to
   OpenRank as compute — never a single authority's published number.

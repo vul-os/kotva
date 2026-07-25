@@ -52,7 +52,7 @@ OFFER · MATCH · RESERVE · REPUTATION · ESCROW · ATTEST
 The **composite roles** that appear in service recipes — ORACLE, DISPUTE, PAY — are *not*
 standalone primitives: **ORACLE** is the oracle coordinator kind (a physical-fact attestation,
 i.e. ORACLE ⊂ ATTEST), **DISPUTE** is the arbiter coordinator kind, and **PAY** is the
-stablecoin binding. The recipe shorthand `OFFER · MATCH/RESERVE · REPUTATION · ESCROW · ORACLE
+payment-rail binding (fiat / stablecoin / token, §5). The recipe shorthand `OFFER · MATCH/RESERVE · REPUTATION · ESCROW · ORACLE
 · DISPUTE · PAY` remains a useful *recipe* mnemonic, but it names roles, not the primitive set.
 
 - **Uber, delivery, freelance, auctions** = OFFER + MATCH + REPUTATION + ESCROW + ORACLE +
@@ -81,7 +81,7 @@ index is [`bindings/README.md`](bindings/README.md). The short version:
 | Attestation | **ATTEST** is ours (a primitive); its claim body binds EAS / W3C Verifiable Credentials | a new credential format |
 | Reputation | OpenRank (EigenTrust, TEE-verified) | a global score we compute |
 | Personhood | World ID / Human Passport | our own biometrics |
-| Payments | x402 + stablecoins | **a protocol token (there is none, and none will be added)** |
+| Payments | x402 + stablecoins, **fiat rails**, or any existing token — operator's choice (§5) | **a *protocol* token (there is none, and none will be added — but accepting an existing token or fiat is fine)** |
 | Storage | Walrus (hot) / Arweave (permanent) / Filecoin | a bespoke durability market |
 | Dispute | Kleros-class arbitration | our own court |
 | Media transport | WebRTC + SFrame (RFC 9605) + TURN | a new media stack |
@@ -130,17 +130,29 @@ the fence holds. See §8.
 
 ---
 
-## 5. Money and trust — no token, ever
+## 5. Money and trust — no *protocol* token, ever (but any settlement rail)
 
-- **Money is an existing stablecoin.** Custody and canonical settlement are the one thing
-  KOTVA adopts wholesale. It mints nothing.
+- **The settlement rail is the operator's generic choice; KOTVA mints and brokers none.** Money is
+  whatever existing rail the paying and paid parties agree on — a **fiat rail** (card, bank/SEPA/ACH,
+  a payment processor), a **stablecoin**, or an **existing token**. The protocol carries only signed
+  payment *attestations* over that rail (TRACT §9, `UsageReceipt` §18.8a); it holds no funds, names no
+  provider, and takes no cut. This is deliberately generic: a gateway runs **its own economic model**
+  and settles however it likes — the protocol constrains *that a price exists, is signed, and is
+  metered honestly*, never *what the price is or how it is paid*.
+- **"No token" means no *protocol* token — not "no tokens."** KOTVA mints no native asset and none
+  will be added: a native protocol token is either a financing scheme in disguise or a coordination
+  problem a token cannot solve. An operator **accepting an existing token as payment** is just a
+  settlement-rail choice, exactly like accepting fiat — permitted and unremarkable. The forbidden
+  thing is the *protocol* minting or requiring one, not a coordinator taking crypto.
 - **Trust is _staked existing value_,** never a native token. Where a coordinator needs
-  skin-in-the-game (arbiter, oracle), the stake is denominated in an existing asset and sized
-  to the value at risk.
-- A **new protocol token is forbidden.** It is either a financing scheme in disguise or a
-  coordination problem a token cannot actually solve. Free tiers, subsidies, and even ads are
-  *operator policy* a coordinator may offer — optional, swappable, escapable by self-hosting —
-  never a protocol requirement.
+  skin-in-the-game (arbiter, oracle), the stake is denominated in an existing asset (fiat-bond,
+  stablecoin, or token) and sized to the value at risk.
+- **Bootstrapping is operator-layer, not protocol-layer.** Free tiers, subsidies, promotional
+  credits, referral incentives — even an operator issuing *its own* loyalty token on its own rail —
+  are *operator policy* a coordinator may offer: optional, swappable, escapable by self-hosting, never
+  a protocol requirement. So the one cold-start lever deployed markets relied on (paying early supply
+  before demand) **is available at the operator layer**; what is forbidden is baking it into the
+  protocol as a native token or a mandated subsidy.
 - **Open problem: coordinator-funding sustainability.** Whether charge-for-service alone — no
   token, no ads, zero lock-in, no paid classification — sustainably funds coordinators at scale
   is unproven: an open economic question, not a solved one

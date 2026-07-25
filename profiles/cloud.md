@@ -49,7 +49,7 @@ DEPOT is composition, not new machinery. It reuses:
 |---|---|---|
 | **`infra-service`** coordinator kind | provides one managed service, fenced by the four clauses; declares `{service, visibility, metering-unit}`. The one load-bearing new binding. | [CONTRACT §5](../coordinator/CONTRACT.md) |
 | **`CoordinatorDescriptor` / `Tariff` / `UsageReceipt`** | the signed offer, the operator's own price, and the metered receipt — the accountable, self-asserted, discovery-only seam. | [§18.8a](../18-wire-format.md) |
-| **Economics seam** (CONTRACT §6) | settlement over an existing asset, **no token, no published price-rank**; the *numbers* are operator policy. | [CONTRACT §6](../coordinator/CONTRACT.md) |
+| **Economics seam** (CONTRACT §6) | settlement over any existing rail the operator chooses (fiat / stablecoin / token), **no *protocol* token, no published price-rank**; the *numbers* are operator policy. | [CONTRACT §6](../coordinator/CONTRACT.md) |
 | **PUB** (feeds & blobs) + **ATTEST** + the **indexer/labeler** role | distributed reputation — signed measurement **claims** (ATTEST attestations, §5) anyone may publish and anyone may aggregate; DEPOT mints no reputation object of its own. | [§22](../22-public-objects.md), [primitives/ATTEST.md](../primitives/ATTEST.md) |
 | **Identity** + **`RecoveryPolicy`** | non-custody (the root `IK` never leaves the user's device) + guardian recovery — **not** key escrow. | [§1](../01-identity.md), [§1.4](../01-identity.md) |
 | **IK-authenticated Noise transport** | the box↔service control/data channel is a libp2p-Noise `XX` stream keyed to the user's `IK` (as REACH-2), not a bearer token. | [profiles/reachability.md REACH-2](reachability.md) |
@@ -394,8 +394,9 @@ unencrypted `volume` are `terminating`** — the operator sees your data or comp
   (per-unit / flat / tiered / spot), billing cycle, free tier, SLA, discounts, and settlement asset are
   **operator policy**, carried in the signed `Tariff`/policy as bytes KOTVA does not inspect. KOTVA
   requires **only**: the tariff is **signed and discoverable** (accountable); usage is metered into
-  **signed `UsageReceipt`s delivered to the payer**; settlement is over an **existing asset**; there is
-  **no protocol token** and **no published global price-rank** ([CONTRACT §6](../coordinator/CONTRACT.md)).
+  **signed `UsageReceipt`s delivered to the payer**; settlement is over an **existing rail the operator
+  chooses — fiat, a stablecoin, or an existing token** ([DIRECTION §5](../DIRECTION.md)); there is **no
+  *protocol* token** (accepting an existing token or fiat is fine) and **no published global price-rank** ([CONTRACT §6](../coordinator/CONTRACT.md)).
   Two operators MAY run entirely different economics and both be conformant — KOTVA guarantees a price
   *exists, is signed, and is metered honestly*; it never says what the price *is*.
 - **DEPOT-6 — subcontracting stays accountable, never launders visibility.** An operator MAY fulfil a

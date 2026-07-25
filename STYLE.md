@@ -69,7 +69,7 @@ an Honest residual / disclosed-limits section.
   stablecoin binding — these are **not** primitives.
 - **content-visibility** — every intermediary declares one class (`blind` / `blind-routing` /
   `terminating`) at one assurance level (`structural` / `attested` / `declared`).
-- **No token. No global published score.** Ever. Money is an existing stablecoin; trust is
+- **No *protocol* token. No global published score.** Ever. Money is any existing settlement rail the operator picks — fiat, stablecoin, or existing token (DIRECTION §5); trust is
   staked existing value.
 
 ## 7. Profile naming
