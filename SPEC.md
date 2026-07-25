@@ -139,15 +139,23 @@ declare which tier(s) it implements; **Core v1 is complete and conformant with *
 - **Core v1 — ratifiable now.** The six waist capabilities ([②](#-substrate--the-narrow-waist)), the
   [coordinator contract](coordinator/CONTRACT.md), the coordinator kinds the messaging core actually
   uses — **`gateway`, `relay`, `reachability-adapter`** (and `labeler`, opt-in) — and the
-  **DMTAP-mail** reference profile (§00–§27). This is the mature heart: sovereign identity, sealed
-  metadata-reducing messaging, PUB/SYNC, and legacy interop. **Core v1 has *no* load-bearing
-  coordinator and depends on no market forming** — the "never load-bearing" invariant (§0) holds
-  *absolutely* here, which is the point of drawing the line.
+  **DMTAP-mail** reference profile: the identity, MOTE, naming, transport, messaging, privacy,
+  gateway, client, anti-abuse, auth, wire-format, state-machine and legacy-interop sections
+  (**§00–§21 and §26**). This is the mature heart: sovereign identity, sealed metadata-reducing
+  messaging, the PUB/SYNC *waist capability* itself, and legacy interop. **Core v1 has *no*
+  load-bearing coordinator and depends on no market forming** — the "never load-bearing" invariant
+  (§0) holds *absolutely* here, which is the point of drawing the line. In the
+  [conformance suite](conformance/SUITE.md) this is the **291-of-362** Core-v1 subset; the remaining
+  71 vectors test the stable extensions below.
 - **Stable extensions — well-specified, ship independently.** SOCIAL, SEARCH, MEDIA, RTC, and the
-  commerce family TRACT/WRAP. Each is a thin profile that **names the coordinator kinds it needs**
-  (`indexer`, `matcher`, `media-relay`, `arbiter`, `oracle`, and — for commerce only —
-  `custodial-escrow`, the family's *one* load-bearing exception, thereby confined to the extension
-  that requires it and kept out of Core v1). An extension's risk is its own; it never gates the core.
+  commerce family TRACT/WRAP. Two forms: **in-tree profiles** that ride the same document and are
+  labelled "(extension)" in their own headers — the DMTAP-PUB public-object profile (**§22**), the
+  Published-Artifact/video profile (**§23–§24**), DMTAP-PUBSUB feed subscriptions (**§25**) and the
+  Real-Time Media profile (**§27**) — and **out-of-tree profiles** ([profiles/](profiles/)). Each is a
+  thin profile that **names the coordinator kinds it needs** (`indexer`, `matcher`, `media-relay`,
+  `arbiter`, `oracle`, and — for commerce only — `custodial-escrow`, the family's *one* load-bearing
+  exception, thereby confined to the extension that requires it and kept out of Core v1). An
+  extension's risk is its own; it never gates the core.
 - **Draft / deferred — not part of v1.** The **DEPOT** cloud profile (`infra-service`) and the
   provisional **`compute`** kind. These carry the newest surface and the largest unproven market
   dynamics (the two-sided-market/demand question, DIRECTION §5/§8); they are designed and kept in

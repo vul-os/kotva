@@ -810,6 +810,30 @@ fragmenting."
    format could be rejected cleanly instead of mis-parsed; there is deliberately no `v=` capability
    advertisement and no in-band version negotiation.
 
+9. **New profile / extension, and its ratification tier.** A new profile or extension (a DMTAP-PUB
+   object family member, a coordinator-kind-using profile, a new capability family) is registered by
+   a Specification-Required entry in the §21.24-series and **enters at the `draft` tier by default**
+   ([SPEC ratification tiers](SPEC.md)) — designed and in the tree, but not part of any ratified
+   level. **Tier promotion is an explicit, criteria-based decision by the Designated Expert (item 5),
+   never automatic and never by maintainer fiat**, on published criteria:
+   - **`draft` → `stable-extension`:** a complete, frozen specification; forward-compatibility rules
+     stated (item 7); and conformance-vector coverage in [the suite](conformance/SUITE.md) **or** ≥2
+     independent interoperating implementations. The extension names the coordinator kinds it needs
+     and carries its own risk (§12.3 privacy/crypto floor binds it regardless).
+   - **promotion into a future Core** additionally requires the **Core-v1 invariants**: **no
+     load-bearing coordinator**, **no dependency on a market forming**, and **no single-vendor or
+     unproven binding** (SPEC ratification tiers; a fragile binding keeps the surface in an
+     extension, [bindings/README](bindings/README.md)). A surface that cannot meet these stays an
+     extension permanently — that is the seam working, not a defect.
+
+   **Demotion follows item 6:** a stable extension found to carry an unfixable flaw is marked
+   Deprecated (never silently reassigned), and a replacement earns its own tier from `draft`. This
+   append-only, expert-reviewed, published-criteria process — transitioning to an IETF-appointed
+   Designated Expert (item 5) — is the **governance seam that bounds single-maintainer capture**: no
+   one party moves a surface across a tier boundary by decision alone. The machine-readable record of
+   each vectored surface's current tier is the `ratification_tier` field in
+   [`suite.json`](conformance/suite.json) (summarised in [SUITE.md](conformance/SUITE.md)).
+
 ## 21.26 Summary
 
 - **Error/status codes defined:** 145 (`0x0101`–`0x0126`: 38, incl. the KT-v1 detection codes

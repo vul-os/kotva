@@ -26,12 +26,18 @@ CAD/artifact profile `CAD` family, the wave-5 `VIDEO` family, the wave-6 anti-dr
 `GWOPS`/`GWSMTP`/`GWATT`/`GWNAME`/`GWFLOOR`/`GWLEG`, and the DMTAP-PUBSUB `PUBSUB` family (§25) are
 all mirrored) and MUST stay so.
 **58 cases are byte-runnable today** (52 backed by a `vectors.json` or `pub_vectors.json` entry, 6
-self-contained CBOR-reject cases whose bytes are inline); 281 are `construction-todo` — each
+self-contained CBOR-reject cases whose bytes are inline); 285 are `construction-todo` — each
 carries an exact construction recipe and the expected §21 error, and becomes byte-backed as its
 subsystem gains a fixed-input KAT (see [Coverage vs. deferred](#coverage-vs-deferred)); 19 are
 `manual-attestation` — client-UX, in-product-disclosure and deployment MUSTs with no wire bytes to
 recompute, each naming the review that settles it. The
 partition is exact: 52 + 6 + 285 + 19 = 362.
+
+**Ratification-tier subset.** A second, orthogonal partition (the `ratification_tier` field in
+`suite.json`, tabulated in [`SUITE.md`](SUITE.md)) marks which cases a **Core-v1** implementation must
+pass: **291** are `core-v1` (the §00–§21/§26 DMTAP-mail heart) and **71** are `stable-extension` (the
+in-tree DMTAP-PUB object family — `PUB`/`CAD`/`VIDEO`/`PUBSUB`). A Core-v1 implementation is fully
+conformant with **no extension present** ([SPEC ratification tiers](../SPEC.md)).
 
 **Normative coverage, and what it is not.** `make coverage` reports **100% of IMPL MUSTs sit in a
 section some case cites**, against the curated denominator in [`scope.json`](scope.json) — which

@@ -19,12 +19,34 @@ Each case has:
 |-------|---------|
 | **id** | Stable identifier, `DMTAP-<CATEGORY>-<NN>`. Never reused. |
 | **level** | The §10.3 level it belongs to (Core, Private, Groups&Files, Legacy, Clients, Auth). |
+| **ratification_tier** | The [SPEC ratification tier](../SPEC.md) the case belongs to — `core-v1` or `stable-extension`. **Orthogonal to `level`** (which is DMTAP feature grouping): a `Private`-level metadata-privacy case is still `core-v1`. Present in `suite.json`; summarised below. |
 | **req** | `MUST` or `SHOULD` (RFC 2119). A level passes only if every `MUST` at that level passes. |
 | **clause** | The exact normative spec clause (§-ref) the case pins. |
 | **checks** | What behaviour is asserted. |
 | **input** | A **vector id** in `vectors.json` (or, for the `PUB`/`CAD` categories, `vectors/pub_vectors.json` — see those sections), an inline **self-contained construction** (bytes given here), or a **construction** described from other vectors. |
 | **expect** | The required outcome: `match` (recompute a KAT and get the committed answer), `accept` (validation passes), or `reject` + the **§21 error code** the reject maps to. |
 | **status** | `vectored` (byte-backed by `vectors.json` or `pub_vectors.json`), `self-contained` (bytes given inline, reference-independent), `construction-todo` (recipe given; byte-exact vector still to be generated), or `manual-attestation` (a client-UX, in-product-disclosure or deployment/process MUST with **no wire bytes to recompute** — §22.7's publish-consent disclosures, [docs/research/mixnet.md §4.4.10a](../docs/research/mixnet.md)'s Bootstrap degradation disclosure and no-anonymity-claim rule for an implementation offering the opt-in mixnet, §7.11.4/§9.11's gateway posture, §7.1b's process/privilege separation; verified by implementer/deployment review, not by a runner. A vector is **not** invented for these: fabricating bytes would assert a fact the protocol does not carry). |
+
+## Ratification-tier subset — what a Core-v1 implementation must pass
+
+The [SPEC ratification tiers](../SPEC.md) draw a conformance seam through this suite. Of the **362**
+cases:
+
+| Ratification tier | Cases | What it covers |
+|-------------------|------:|----------------|
+| **`core-v1`** | **291** | The DMTAP-mail reference profile — identity, MOTE, naming, transport, messaging, privacy, gateway, clients, anti-abuse, auth, wire-format, state machines, legacy interop (§00–§21, §26). The mature heart, with **no load-bearing coordinator**. |
+| **`stable-extension`** | **71** | The in-tree DMTAP-PUB object family: `PUB`/`PUBGUARD` (§22), `CAD`/`CADASM` + `VIDEO`/`VIDMIG` (§23–§24), `PUBSUB` (§25). Capability-gated, additive. |
+| **`draft`** | **0** | DEPOT and `compute` carry no wire in this suite; RTC (§27) and commerce/escrow carry **no protocol surface** to vector (SEAM-02). |
+
+**A vector is `stable-extension` iff any of its clauses lives in an in-tree extension section**
+(§22/§23/§24/§25/§27); otherwise `core-v1`. The classification is mechanical and reproducible from
+the `clause` field — no vector is Core-v1 by virtue of a hand judgement.
+
+**The practical consequence:** an implementation can be **fully Core-v1 conformant with no extension
+present** — the 291 Core-v1 `MUST` cases neither reference nor require any DMTAP-PUB object, feed
+subscription, video artifact, real-time-media session, or market coordinator. That is the ratifiable
+core (SPEC, "Core v1 is complete and conformant with *no* extension"), made testable: the tier is a
+filter over this catalogue, not a second suite.
 
 **Clause citations into the relocated mixnet/VDF sections (2026-07 demotion).** Every `§4.4`/
 `§4.4.x` clause cited by a `MIXPROF`/`FLEET`/`GUARD`/`COVER`/`TIER` case (and any other inline

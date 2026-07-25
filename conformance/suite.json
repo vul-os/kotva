@@ -10,6 +10,13 @@
     "Clients",
     "Auth"
   ],
+  "ratification_tiers": {
+    "definition": "Ratification tier per SPEC.md 'Ratification tiers'. Orthogonal to 'level' (which is DMTAP feature grouping). A vector is 'stable-extension' iff any of its clauses lives in an in-tree extension section (§22 DMTAP-PUB, §23-§24 Published-Artifact/video, §25 DMTAP-PUBSUB, §27 Real-Time Media); otherwise 'core-v1' (§00-§21 + §26 legacy interop).",
+    "core-v1": 291,
+    "stable-extension": 71,
+    "draft": 0,
+    "note": "No DEPOT (draft/deferred), RTC, or commerce/escrow vectors exist in this suite — those surfaces carry no protocol wire (SEAM-02), so Core-v1 conformance is testable in full without any extension present."
+  },
   "outcomes": {
     "match": "known-answer test: recompute the operation over the fixed input; result MUST equal the committed expected value",
     "accept": "validation predicate: a conforming node MUST accept the input",
@@ -35,6 +42,7 @@
     {
       "id": "DMTAP-CBOR-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "CBOR",
       "req": "MUST",
       "clause": [
@@ -53,6 +61,7 @@
     {
       "id": "DMTAP-CBOR-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "CBOR",
       "req": "MUST",
       "clause": [
@@ -71,6 +80,7 @@
     {
       "id": "DMTAP-CBOR-03",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "CBOR",
       "req": "MUST",
       "clause": [
@@ -89,6 +99,7 @@
     {
       "id": "DMTAP-CBOR-04",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "CBOR",
       "req": "MUST",
       "clause": [
@@ -107,6 +118,7 @@
     {
       "id": "DMTAP-CBOR-05",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "CBOR",
       "req": "MUST",
       "clause": [
@@ -129,6 +141,7 @@
     {
       "id": "DMTAP-CBOR-06",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "CBOR",
       "req": "MUST",
       "clause": [
@@ -151,6 +164,7 @@
     {
       "id": "DMTAP-CBOR-07",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "CBOR",
       "req": "MUST",
       "clause": [
@@ -173,6 +187,7 @@
     {
       "id": "DMTAP-CBOR-08",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "CBOR",
       "req": "MUST",
       "clause": [
@@ -195,6 +210,7 @@
     {
       "id": "DMTAP-CBOR-09",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "CBOR",
       "req": "MUST",
       "clause": [
@@ -217,6 +233,7 @@
     {
       "id": "DMTAP-CBOR-10",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "CBOR",
       "req": "MUST",
       "clause": [
@@ -239,6 +256,7 @@
     {
       "id": "DMTAP-CBOR-11",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "CBOR",
       "req": "MUST",
       "clause": [
@@ -261,6 +279,7 @@
     {
       "id": "DMTAP-CBOR-12",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "CBOR",
       "req": "MUST",
       "clause": [
@@ -283,6 +302,7 @@
     {
       "id": "DMTAP-ADDR-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ADDR",
       "req": "MUST",
       "clause": [
@@ -301,6 +321,7 @@
     {
       "id": "DMTAP-ADDR-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ADDR",
       "req": "MUST",
       "clause": [
@@ -319,6 +340,7 @@
     {
       "id": "DMTAP-ADDR-03",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ADDR",
       "req": "MUST",
       "clause": [
@@ -337,6 +359,7 @@
     {
       "id": "DMTAP-ADDR-04",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ADDR",
       "req": "MUST",
       "clause": [
@@ -355,6 +378,7 @@
     {
       "id": "DMTAP-ADDR-05",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ADDR",
       "req": "MUST",
       "clause": [
@@ -371,6 +395,7 @@
     {
       "id": "DMTAP-ADDR-06",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ADDR",
       "req": "MUST",
       "clause": [
@@ -390,6 +415,7 @@
     {
       "id": "DMTAP-SIG-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SIG",
       "req": "MUST",
       "clause": [
@@ -410,6 +436,7 @@
     {
       "id": "DMTAP-SIG-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SIG",
       "req": "MUST",
       "clause": [
@@ -430,6 +457,7 @@
     {
       "id": "DMTAP-SIG-03",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SIG",
       "req": "MUST",
       "clause": [
@@ -450,6 +478,7 @@
     {
       "id": "DMTAP-SIG-04",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SIG",
       "req": "MUST",
       "clause": [
@@ -466,6 +495,7 @@
     {
       "id": "DMTAP-SIG-05",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SIG",
       "req": "MUST",
       "clause": [
@@ -482,6 +512,7 @@
     {
       "id": "DMTAP-SIG-06",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SIG",
       "req": "MUST",
       "clause": [
@@ -498,6 +529,7 @@
     {
       "id": "DMTAP-PRE-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "PRE",
       "req": "MUST",
       "clause": [
@@ -518,6 +550,7 @@
     {
       "id": "DMTAP-PRE-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "PRE",
       "req": "MUST",
       "clause": [
@@ -535,6 +568,7 @@
     {
       "id": "DMTAP-PRE-03",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "PRE",
       "req": "MUST",
       "clause": [
@@ -557,6 +591,7 @@
     {
       "id": "DMTAP-PRE-04",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "PRE",
       "req": "MUST",
       "clause": [
@@ -576,6 +611,7 @@
     {
       "id": "DMTAP-PRE-05",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "PRE",
       "req": "MUST",
       "clause": [
@@ -597,6 +633,7 @@
     {
       "id": "DMTAP-NAME-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "NAME",
       "req": "MUST",
       "clause": [
@@ -617,6 +654,7 @@
     {
       "id": "DMTAP-NAME-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "NAME",
       "req": "MUST",
       "clause": [
@@ -636,6 +674,7 @@
     {
       "id": "DMTAP-NAME-03",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "NAME",
       "req": "MUST",
       "clause": [
@@ -655,6 +694,7 @@
     {
       "id": "DMTAP-NAME-04",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "NAME",
       "req": "MUST",
       "clause": [
@@ -674,6 +714,7 @@
     {
       "id": "DMTAP-NAME-05",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "NAME",
       "req": "MUST",
       "clause": [
@@ -693,6 +734,7 @@
     {
       "id": "DMTAP-NAME-06",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "NAME",
       "req": "MUST",
       "clause": [
@@ -712,6 +754,7 @@
     {
       "id": "DMTAP-NAME-07",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "NAME",
       "req": "MUST",
       "clause": [
@@ -731,6 +774,7 @@
     {
       "id": "DMTAP-SAFE-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SAFE",
       "req": "MUST",
       "clause": [
@@ -751,6 +795,7 @@
     {
       "id": "DMTAP-SAFE-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SAFE",
       "req": "MUST",
       "clause": [
@@ -772,6 +817,7 @@
     {
       "id": "DMTAP-SUITE-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SUITE",
       "req": "MUST",
       "clause": [
@@ -793,6 +839,7 @@
     {
       "id": "DMTAP-SUITE-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SUITE",
       "req": "MUST",
       "clause": [
@@ -811,6 +858,7 @@
     {
       "id": "DMTAP-SUITE-03",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SUITE",
       "req": "MUST",
       "clause": [
@@ -832,6 +880,7 @@
     {
       "id": "DMTAP-SUITE-04",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SUITE",
       "req": "MUST",
       "clause": [
@@ -853,6 +902,7 @@
     {
       "id": "DMTAP-SUITE-05",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SUITE",
       "req": "MUST",
       "clause": [
@@ -870,6 +920,7 @@
     {
       "id": "DMTAP-SUITE-06",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SUITE",
       "req": "MUST",
       "clause": [
@@ -888,6 +939,7 @@
     {
       "id": "DMTAP-SUITE-07",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SUITE",
       "req": "MUST",
       "clause": [
@@ -907,6 +959,7 @@
     {
       "id": "DMTAP-SUITE-11",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SUITE",
       "req": "MUST",
       "clause": [
@@ -928,6 +981,7 @@
     {
       "id": "DMTAP-SUITE-12",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SUITE",
       "req": "MUST",
       "clause": [
@@ -947,6 +1001,7 @@
     {
       "id": "DMTAP-SUITE-13",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SUITE",
       "req": "MUST",
       "clause": [
@@ -968,6 +1023,7 @@
     {
       "id": "DMTAP-VAL-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "VAL",
       "req": "MUST",
       "clause": [
@@ -988,6 +1044,7 @@
     {
       "id": "DMTAP-VAL-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "VAL",
       "req": "MUST",
       "clause": [
@@ -1007,6 +1064,7 @@
     {
       "id": "DMTAP-VAL-03",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "VAL",
       "req": "MUST",
       "clause": [
@@ -1026,6 +1084,7 @@
     {
       "id": "DMTAP-VAL-04",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "VAL",
       "req": "MUST",
       "clause": [
@@ -1045,6 +1104,7 @@
     {
       "id": "DMTAP-VAL-05",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "VAL",
       "req": "MUST",
       "clause": [
@@ -1068,6 +1128,7 @@
     {
       "id": "DMTAP-VAL-06",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "VAL",
       "req": "MUST",
       "clause": [
@@ -1093,6 +1154,7 @@
     {
       "id": "DMTAP-VAL-07",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "VAL",
       "req": "MUST",
       "clause": [
@@ -1112,6 +1174,7 @@
     {
       "id": "DMTAP-VAL-08",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "VAL",
       "req": "MUST",
       "clause": [
@@ -1133,6 +1196,7 @@
     {
       "id": "DMTAP-VAL-09",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "VAL",
       "req": "MUST",
       "clause": [
@@ -1153,6 +1217,7 @@
     {
       "id": "DMTAP-VAL-10",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "VAL",
       "req": "MUST",
       "clause": [
@@ -1173,6 +1238,7 @@
     {
       "id": "DMTAP-VAL-11",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "VAL",
       "req": "MUST",
       "clause": [
@@ -1210,6 +1276,7 @@
     {
       "id": "DMTAP-VAL-12",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "VAL",
       "req": "MUST",
       "clause": [
@@ -1229,6 +1296,7 @@
     {
       "id": "DMTAP-VAL-13",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "VAL",
       "req": "MUST",
       "clause": [
@@ -1250,6 +1318,7 @@
     {
       "id": "DMTAP-VAL-14",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "VAL",
       "req": "SHOULD",
       "clause": [
@@ -1269,6 +1338,7 @@
     {
       "id": "DMTAP-VAL-15",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "VAL",
       "req": "SHOULD",
       "clause": [
@@ -1289,6 +1359,7 @@
     {
       "id": "DMTAP-IDENT-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "IDENT",
       "req": "MUST",
       "clause": [
@@ -1308,6 +1379,7 @@
     {
       "id": "DMTAP-IDENT-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "IDENT",
       "req": "MUST",
       "clause": [
@@ -1328,6 +1400,7 @@
     {
       "id": "DMTAP-IDENT-03",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "IDENT",
       "req": "MUST",
       "clause": [
@@ -1347,6 +1420,7 @@
     {
       "id": "DMTAP-IDENT-04",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "IDENT",
       "req": "MUST",
       "clause": [
@@ -1367,6 +1441,7 @@
     {
       "id": "DMTAP-IDENT-05",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "IDENT",
       "req": "MUST",
       "clause": [
@@ -1386,6 +1461,7 @@
     {
       "id": "DMTAP-IDENT-06",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "IDENT",
       "req": "MUST",
       "clause": [
@@ -1405,6 +1481,7 @@
     {
       "id": "DMTAP-IDENT-90",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "IDENT",
       "req": "MUST",
       "clause": [
@@ -1426,6 +1503,7 @@
     {
       "id": "DMTAP-IDENT-91",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "IDENT",
       "req": "MUST",
       "clause": [
@@ -1447,6 +1525,7 @@
     {
       "id": "DMTAP-PRIV-01",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "PRIV",
       "req": "MUST",
       "clause": [
@@ -1467,6 +1546,7 @@
     {
       "id": "DMTAP-PRIV-02",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "PRIV",
       "req": "MUST",
       "clause": [
@@ -1487,6 +1567,7 @@
     {
       "id": "DMTAP-PRIV-03",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "PRIV",
       "req": "MUST",
       "clause": [
@@ -1505,6 +1586,7 @@
     {
       "id": "DMTAP-PRIV-04",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "PRIV",
       "req": "MUST",
       "clause": [
@@ -1523,6 +1605,7 @@
     {
       "id": "DMTAP-PRIV-05",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "PRIV",
       "req": "MUST",
       "clause": [
@@ -1541,6 +1624,7 @@
     {
       "id": "DMTAP-PRIV-06",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "PRIV",
       "req": "MUST",
       "clause": [
@@ -1559,6 +1643,7 @@
     {
       "id": "DMTAP-PRIV-07",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "PRIV",
       "req": "SHOULD",
       "clause": [
@@ -1577,6 +1662,7 @@
     {
       "id": "DMTAP-GRP-01",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "GRP",
       "req": "MUST",
       "clause": [
@@ -1595,6 +1681,7 @@
     {
       "id": "DMTAP-GRP-02",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "GRP",
       "req": "MUST",
       "clause": [
@@ -1614,6 +1701,7 @@
     {
       "id": "DMTAP-GRP-03",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "GRP",
       "req": "MUST",
       "clause": [
@@ -1632,6 +1720,7 @@
     {
       "id": "DMTAP-FILE-01",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "FILE",
       "req": "MUST",
       "clause": [
@@ -1650,6 +1739,7 @@
     {
       "id": "DMTAP-FILE-02",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "FILE",
       "req": "MUST",
       "clause": [
@@ -1668,6 +1758,7 @@
     {
       "id": "DMTAP-FILE-03",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "FILE",
       "req": "MUST",
       "clause": [
@@ -1686,6 +1777,7 @@
     {
       "id": "DMTAP-FILE-04",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "FILE",
       "req": "MUST",
       "clause": [
@@ -1704,6 +1796,7 @@
     {
       "id": "DMTAP-FILE-05",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "FILE",
       "req": "MUST",
       "clause": [
@@ -1722,6 +1815,7 @@
     {
       "id": "DMTAP-FILE-06",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "FILE",
       "req": "MUST",
       "clause": [
@@ -1742,6 +1836,7 @@
     {
       "id": "DMTAP-FILE-07",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "FILE",
       "req": "MUST",
       "clause": [
@@ -1762,6 +1857,7 @@
     {
       "id": "DMTAP-FILE-08",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "FILE",
       "req": "MUST",
       "clause": [
@@ -1781,6 +1877,7 @@
     {
       "id": "DMTAP-FILE-09",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "FILE",
       "req": "MUST",
       "clause": [
@@ -1801,6 +1898,7 @@
     {
       "id": "DMTAP-LEG-01",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "LEG",
       "req": "MUST",
       "clause": [
@@ -1819,6 +1917,7 @@
     {
       "id": "DMTAP-LEG-02",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "LEG",
       "req": "MUST",
       "clause": [
@@ -1837,6 +1936,7 @@
     {
       "id": "DMTAP-LEG-03",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "LEG",
       "req": "MUST",
       "clause": [
@@ -1858,6 +1958,7 @@
     {
       "id": "DMTAP-CLI-01",
       "level": "Clients",
+      "ratification_tier": "core-v1",
       "category": "CLI",
       "req": "MUST",
       "clause": [
@@ -1875,6 +1976,7 @@
     {
       "id": "DMTAP-AUTH-01",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "AUTH",
       "req": "MUST",
       "clause": [
@@ -1893,6 +1995,7 @@
     {
       "id": "DMTAP-AUTH-02",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "AUTH",
       "req": "MUST",
       "clause": [
@@ -1911,6 +2014,7 @@
     {
       "id": "DMTAP-AUTH-03",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "AUTH",
       "req": "MUST",
       "clause": [
@@ -1929,6 +2033,7 @@
     {
       "id": "DMTAP-AUTH-04",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "AUTH",
       "req": "MUST",
       "clause": [
@@ -1947,6 +2052,7 @@
     {
       "id": "DMTAP-AUTH-05",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "AUTH",
       "req": "MUST",
       "clause": [
@@ -1965,6 +2071,7 @@
     {
       "id": "DMTAP-DENIABLE-01",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "DENIABLE",
       "req": "MUST",
       "clause": [
@@ -1985,6 +2092,7 @@
     {
       "id": "DMTAP-DENIABLE-02",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "DENIABLE",
       "req": "MUST",
       "clause": [
@@ -2005,6 +2113,7 @@
     {
       "id": "DMTAP-DENIABLE-03",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "DENIABLE",
       "req": "MUST",
       "clause": [
@@ -2025,6 +2134,7 @@
     {
       "id": "DMTAP-DENIABLE-04",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "DENIABLE",
       "req": "MUST",
       "clause": [
@@ -2045,6 +2155,7 @@
     {
       "id": "DMTAP-DENIABLE-05",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "DENIABLE",
       "req": "MUST",
       "clause": [
@@ -2065,6 +2176,7 @@
     {
       "id": "DMTAP-DENIABLE-06",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "DENIABLE",
       "req": "MUST",
       "clause": [
@@ -2085,6 +2197,7 @@
     {
       "id": "DMTAP-ORG-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ORG",
       "req": "MUST",
       "clause": [
@@ -2105,6 +2218,7 @@
     {
       "id": "DMTAP-ORG-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ORG",
       "req": "MUST",
       "clause": [
@@ -2125,6 +2239,7 @@
     {
       "id": "DMTAP-ORG-03",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ORG",
       "req": "MUST",
       "clause": [
@@ -2145,6 +2260,7 @@
     {
       "id": "DMTAP-ORG-04",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "ORG",
       "req": "MUST",
       "clause": [
@@ -2165,6 +2281,7 @@
     {
       "id": "DMTAP-ORG-05",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "ORG",
       "req": "MUST",
       "clause": [
@@ -2185,6 +2302,7 @@
     {
       "id": "DMTAP-ORG-06",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "ORG",
       "req": "MUST",
       "clause": [
@@ -2206,6 +2324,7 @@
     {
       "id": "DMTAP-ORG-07",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "ORG",
       "req": "MUST",
       "clause": [
@@ -2227,6 +2346,7 @@
     {
       "id": "DMTAP-ORG-08",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "ORG",
       "req": "MUST",
       "clause": [
@@ -2248,6 +2368,7 @@
     {
       "id": "DMTAP-KTV1-01",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "KTV1",
       "req": "MUST",
       "clause": [
@@ -2269,6 +2390,7 @@
     {
       "id": "DMTAP-KTV1-02",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "KTV1",
       "req": "MUST",
       "clause": [
@@ -2289,6 +2411,7 @@
     {
       "id": "DMTAP-KTV1-03",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "KTV1",
       "req": "MUST",
       "clause": [
@@ -2309,6 +2432,7 @@
     {
       "id": "DMTAP-KTV1-04",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "KTV1",
       "req": "MUST",
       "clause": [
@@ -2329,6 +2453,7 @@
     {
       "id": "DMTAP-ATTEST-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ATTEST",
       "req": "MUST",
       "clause": [
@@ -2349,6 +2474,7 @@
     {
       "id": "DMTAP-ATTEST-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ATTEST",
       "req": "MUST",
       "clause": [
@@ -2370,6 +2496,7 @@
     {
       "id": "DMTAP-PROFILE-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "PROFILE",
       "req": "MUST",
       "clause": [
@@ -2391,6 +2518,7 @@
     {
       "id": "DMTAP-PROFILE-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "PROFILE",
       "req": "MUST",
       "clause": [
@@ -2411,6 +2539,7 @@
     {
       "id": "DMTAP-PUSH-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "PUSH",
       "req": "MUST",
       "optional_capability": "push-wake",
@@ -2433,6 +2562,7 @@
     {
       "id": "DMTAP-PUSH-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "PUSH",
       "req": "MUST",
       "optional_capability": "push-wake",
@@ -2456,6 +2586,7 @@
     {
       "id": "DMTAP-SYNC-01",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "SYNC",
       "req": "MUST",
       "clause": [
@@ -2476,6 +2607,7 @@
     {
       "id": "DMTAP-SYNC-02",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "SYNC",
       "req": "MUST",
       "clause": [
@@ -2496,6 +2628,7 @@
     {
       "id": "DMTAP-SYNC-03",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "SYNC",
       "req": "MUST",
       "clause": [
@@ -2516,6 +2649,7 @@
     {
       "id": "DMTAP-SYNC-04",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "SYNC",
       "req": "MUST",
       "clause": [
@@ -2537,6 +2671,7 @@
     {
       "id": "DMTAP-SYNC-05",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "SYNC",
       "req": "MUST",
       "clause": [
@@ -2553,6 +2688,7 @@
     {
       "id": "DMTAP-ALIAS-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ALIAS",
       "req": "MUST",
       "clause": [
@@ -2573,6 +2709,7 @@
     {
       "id": "DMTAP-ALIAS-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ALIAS",
       "req": "MUST",
       "clause": [
@@ -2593,6 +2730,7 @@
     {
       "id": "DMTAP-ALIAS-03",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ALIAS",
       "req": "MUST",
       "clause": [
@@ -2611,6 +2749,7 @@
     {
       "id": "DMTAP-RESOLVE-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "RESOLVE",
       "req": "MUST",
       "clause": [
@@ -2630,6 +2769,7 @@
     {
       "id": "DMTAP-RESOLVE-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "RESOLVE",
       "req": "MUST",
       "clause": [
@@ -2649,6 +2789,7 @@
     {
       "id": "DMTAP-RESOLVE-03",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "RESOLVE",
       "req": "MUST",
       "clause": [
@@ -2669,6 +2810,7 @@
     {
       "id": "DMTAP-GWALIAS-01",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWALIAS",
       "req": "MUST",
       "clause": [
@@ -2689,6 +2831,7 @@
     {
       "id": "DMTAP-GWALIAS-02",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWALIAS",
       "req": "MUST",
       "clause": [
@@ -2709,6 +2852,7 @@
     {
       "id": "DMTAP-GWALIAS-03",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWALIAS",
       "req": "MUST",
       "clause": [
@@ -2725,6 +2869,7 @@
     {
       "id": "DMTAP-MIXPROF-01",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "MIXPROF",
       "req": "MUST",
       "clause": [
@@ -2742,6 +2887,7 @@
     {
       "id": "DMTAP-MIXPROF-02",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "MIXPROF",
       "req": "MUST",
       "clause": [
@@ -2759,6 +2905,7 @@
     {
       "id": "DMTAP-MIXPROF-03",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "MIXPROF",
       "req": "MUST",
       "clause": [
@@ -2778,6 +2925,7 @@
     {
       "id": "DMTAP-MIXPROF-04",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "MIXPROF",
       "req": "MUST",
       "clause": [
@@ -2799,6 +2947,7 @@
     {
       "id": "DMTAP-MIXPROF-05",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "MIXPROF",
       "req": "MUST",
       "clause": [
@@ -2820,6 +2969,7 @@
     {
       "id": "DMTAP-MIXPROF-06",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "MIXPROF",
       "req": "MUST",
       "clause": [
@@ -2839,6 +2989,7 @@
     {
       "id": "DMTAP-MIXPROF-07",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "MIXPROF",
       "req": "MUST",
       "clause": [
@@ -2859,6 +3010,7 @@
     {
       "id": "DMTAP-FLEET-01",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "FLEET",
       "req": "MUST",
       "clause": [
@@ -2877,6 +3029,7 @@
     {
       "id": "DMTAP-FLEET-02",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "FLEET",
       "req": "MUST",
       "clause": [
@@ -2898,6 +3051,7 @@
     {
       "id": "DMTAP-FLEET-03",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "FLEET",
       "req": "MUST",
       "clause": [
@@ -2921,6 +3075,7 @@
     {
       "id": "DMTAP-GUARD-01",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "GUARD",
       "req": "MUST",
       "clause": [
@@ -2939,6 +3094,7 @@
     {
       "id": "DMTAP-GUARD-02",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "GUARD",
       "req": "MUST",
       "clause": [
@@ -2959,6 +3115,7 @@
     {
       "id": "DMTAP-GUARD-03",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "GUARD",
       "req": "MUST",
       "clause": [
@@ -2978,6 +3135,7 @@
     {
       "id": "DMTAP-LOC-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "LOC",
       "req": "MUST",
       "clause": [
@@ -2997,6 +3155,7 @@
     {
       "id": "DMTAP-LOC-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "LOC",
       "req": "MUST",
       "clause": [
@@ -3014,6 +3173,7 @@
     {
       "id": "DMTAP-FLOOR-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "FLOOR",
       "req": "MUST",
       "clause": [
@@ -3034,6 +3194,7 @@
     {
       "id": "DMTAP-FLOOR-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "FLOOR",
       "req": "MUST",
       "clause": [
@@ -3055,6 +3216,7 @@
     {
       "id": "DMTAP-FLOOR-03",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "FLOOR",
       "req": "MUST",
       "clause": [
@@ -3075,6 +3237,7 @@
     {
       "id": "DMTAP-FLOOR-04",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "FLOOR",
       "req": "MUST",
       "clause": [
@@ -3095,6 +3258,7 @@
     {
       "id": "DMTAP-FLOOR-05",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "FLOOR",
       "req": "MUST",
       "clause": [
@@ -3115,6 +3279,7 @@
     {
       "id": "DMTAP-FLOOR-06",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "FLOOR",
       "req": "MUST",
       "clause": [
@@ -3135,6 +3300,7 @@
     {
       "id": "DMTAP-FAILCLASS-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "FAILCLASS",
       "req": "MUST",
       "clause": [
@@ -3152,6 +3318,7 @@
     {
       "id": "DMTAP-FAILCLASS-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "FAILCLASS",
       "req": "MUST",
       "clause": [
@@ -3170,6 +3337,7 @@
     {
       "id": "DMTAP-GWROLE-01",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWROLE",
       "req": "MUST",
       "clause": [
@@ -3188,6 +3356,7 @@
     {
       "id": "DMTAP-GWROLE-02",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWROLE",
       "req": "MUST",
       "clause": [
@@ -3205,6 +3374,7 @@
     {
       "id": "DMTAP-GWROLE-03",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWROLE",
       "req": "MUST",
       "clause": [
@@ -3221,6 +3391,7 @@
     {
       "id": "DMTAP-PUB-01",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3239,6 +3410,7 @@
     {
       "id": "DMTAP-PUB-02",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3257,6 +3429,7 @@
     {
       "id": "DMTAP-PUB-03",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3278,6 +3451,7 @@
     {
       "id": "DMTAP-PUB-04",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3297,6 +3471,7 @@
     {
       "id": "DMTAP-PUB-05",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3316,6 +3491,7 @@
     {
       "id": "DMTAP-PUB-06",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3337,6 +3513,7 @@
     {
       "id": "DMTAP-PUB-07",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3358,6 +3535,7 @@
     {
       "id": "DMTAP-PUB-08",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3378,6 +3556,7 @@
     {
       "id": "DMTAP-PUB-09",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3398,6 +3577,7 @@
     {
       "id": "DMTAP-PUB-10",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3419,6 +3599,7 @@
     {
       "id": "DMTAP-PUB-11",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3441,6 +3622,7 @@
     {
       "id": "DMTAP-PUB-12",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3462,6 +3644,7 @@
     {
       "id": "DMTAP-PUB-13",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3486,6 +3669,7 @@
     {
       "id": "DMTAP-PUB-14",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3509,6 +3693,7 @@
     {
       "id": "DMTAP-PUB-15",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3529,6 +3714,7 @@
     {
       "id": "DMTAP-PUB-16",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3552,6 +3738,7 @@
     {
       "id": "DMTAP-PUB-17",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3572,6 +3759,7 @@
     {
       "id": "DMTAP-PUB-18",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3593,6 +3781,7 @@
     {
       "id": "DMTAP-PUB-19",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3614,6 +3803,7 @@
     {
       "id": "DMTAP-PUB-20",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3634,6 +3824,7 @@
     {
       "id": "DMTAP-PUB-21",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3651,6 +3842,7 @@
     {
       "id": "DMTAP-PUB-22",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUB",
       "req": "MUST",
       "clause": [
@@ -3682,6 +3874,7 @@
         "note": "profile-level; a generic §22 node still stores/serves it unaffected"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "CAD",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3700,6 +3893,7 @@
         "outcome": "reject"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "CAD",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3718,6 +3912,7 @@
         "outcome": "reject (both variants)"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "CAD",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3736,6 +3931,7 @@
         "outcome": "reject"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "CAD",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3754,6 +3950,7 @@
         "outcome": "reject"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "CAD",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3773,6 +3970,7 @@
         "note": "client MUST refuse to interpret geometry; MAY still show name/description/license"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "CAD",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3792,6 +3990,7 @@
         "note": "the announce is malformed, but discarding it would fail open on a safety signal - the client MUST still honour deprecated and surface the artifact as deprecated with its reason unavailable; a CAD-aware index MUST flag it as malformed. Silently ignoring the announce is non-conformant"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "CAD",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3811,6 +4010,7 @@
         "note": "client MUST NOT imply deletion"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "CAD",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3829,6 +4029,7 @@
         "outcome": "reject"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "CAD",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3848,6 +4049,7 @@
         "note": "abort the walk at the cycle and surface it — never infinite-recurse, never silently drop"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "CAD",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3867,6 +4069,7 @@
         "note": "neither index is 'wrong'; ground truth is always the signed announces, re-derivable by any client"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "CAD",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3886,6 +4089,7 @@
         "note": "profile-level; a generic §22 node still stores/serves it unaffected"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "VIDEO",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3904,6 +4108,7 @@
         "outcome": "reject (both variants)"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "VIDEO",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3924,6 +4129,7 @@
         "note": "not an authorized rendition; MAY be shown labeled as unverified, or dropped"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "VIDEO",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3944,6 +4150,7 @@
         "note": "present only as a labeled third-party encoding, never as an equivalent authorized rendition"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "VIDEO",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3962,6 +4169,7 @@
         "outcome": "reject (replayed/mismatched statement); accept (matching)"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "VIDEO",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3980,6 +4188,7 @@
         "outcome": "reject"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "VIDEO",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -3999,6 +4208,7 @@
         "note": "malformed for this profile"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "VIDEO",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -4018,6 +4228,7 @@
         "note": "no-such-operation; retracted bytes remain fetchable, only status changes"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "VIDEO",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -4037,6 +4248,7 @@
         "note": "parent-subject mismatch"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "VIDEO",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -4056,6 +4268,7 @@
         "note": "count the current one only; superseded reactions are discarded"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "VIDEO",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -4075,6 +4288,7 @@
         "note": "verify against the signed root; the playlist is not an object of record"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "VIDEO",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -4094,6 +4308,7 @@
         "note": "absence is unsupported-not-fatal; store the announce, do not low-latency-follow"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "VIDEO",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -4113,6 +4328,7 @@
         "note": "label as 'views on this server'; a signed tally is worth only the attester's reputation"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "VIDEO",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -4133,6 +4349,7 @@
         "note": "neither is 'wrong'; ground truth is the signed feeds, re-derivable by any client"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "VIDEO",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -4152,6 +4369,7 @@
         "note": "category error; encrypted media belongs to the sealed path §5.5, not this public profile"
       },
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "VIDEO",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -4161,6 +4379,7 @@
     {
       "id": "DMTAP-GWOPS-01",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWOPS",
       "req": "MUST",
       "clause": [
@@ -4178,6 +4397,7 @@
     {
       "id": "DMTAP-GWOPS-02",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWOPS",
       "req": "MUST",
       "clause": [
@@ -4196,6 +4416,7 @@
     {
       "id": "DMTAP-GWOPS-03",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWOPS",
       "req": "MUST",
       "clause": [
@@ -4214,6 +4435,7 @@
     {
       "id": "DMTAP-GWOPS-04",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWOPS",
       "req": "MUST",
       "clause": [
@@ -4235,6 +4457,7 @@
     {
       "id": "DMTAP-GWOPS-05",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWOPS",
       "req": "MUST",
       "clause": [
@@ -4253,6 +4476,7 @@
     {
       "id": "DMTAP-GWOPS-06",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWOPS",
       "req": "MUST",
       "clause": [
@@ -4270,6 +4494,7 @@
     {
       "id": "DMTAP-GWOPS-07",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWOPS",
       "req": "MUST",
       "clause": [
@@ -4288,6 +4513,7 @@
     {
       "id": "DMTAP-GWSMTP-01",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWSMTP",
       "req": "MUST",
       "clause": [
@@ -4308,6 +4534,7 @@
     {
       "id": "DMTAP-GWSMTP-02",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWSMTP",
       "req": "MUST",
       "clause": [
@@ -4328,6 +4555,7 @@
     {
       "id": "DMTAP-GWSMTP-03",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWSMTP",
       "req": "MUST",
       "clause": [
@@ -4345,6 +4573,7 @@
     {
       "id": "DMTAP-GWSMTP-04",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWSMTP",
       "req": "MUST",
       "clause": [
@@ -4362,6 +4591,7 @@
     {
       "id": "DMTAP-GWSMTP-05",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWSMTP",
       "req": "MUST",
       "clause": [
@@ -4380,6 +4610,7 @@
     {
       "id": "DMTAP-GWSMTP-06",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWSMTP",
       "req": "MUST",
       "clause": [
@@ -4400,6 +4631,7 @@
     {
       "id": "DMTAP-GWSMTP-07",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWSMTP",
       "req": "MUST",
       "clause": [
@@ -4421,6 +4653,7 @@
     {
       "id": "DMTAP-GWSMTP-08",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWSMTP",
       "req": "MUST",
       "clause": [
@@ -4439,6 +4672,7 @@
     {
       "id": "DMTAP-GWSMTP-09",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWSMTP",
       "req": "MUST",
       "clause": [
@@ -4459,6 +4693,7 @@
     {
       "id": "DMTAP-GWSMTP-10",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWSMTP",
       "req": "MUST",
       "clause": [
@@ -4477,6 +4712,7 @@
     {
       "id": "DMTAP-GWATT-01",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWATT",
       "req": "MUST",
       "clause": [
@@ -4498,6 +4734,7 @@
     {
       "id": "DMTAP-GWATT-02",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWATT",
       "req": "MUST",
       "clause": [
@@ -4520,6 +4757,7 @@
     {
       "id": "DMTAP-GWATT-03",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWATT",
       "req": "MUST",
       "clause": [
@@ -4537,6 +4775,7 @@
     {
       "id": "DMTAP-GWATT-04",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWATT",
       "req": "MUST",
       "clause": [
@@ -4556,6 +4795,7 @@
     {
       "id": "DMTAP-GWATT-05",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWATT",
       "req": "MUST",
       "clause": [
@@ -4574,6 +4814,7 @@
     {
       "id": "DMTAP-GWATT-06",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWATT",
       "req": "MUST",
       "clause": [
@@ -4595,6 +4836,7 @@
     {
       "id": "DMTAP-GWNAME-01",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWNAME",
       "req": "MUST",
       "clause": [
@@ -4612,6 +4854,7 @@
     {
       "id": "DMTAP-GWNAME-02",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWNAME",
       "req": "MUST",
       "clause": [
@@ -4630,6 +4873,7 @@
     {
       "id": "DMTAP-GWNAME-03",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWNAME",
       "req": "MUST",
       "clause": [
@@ -4647,6 +4891,7 @@
     {
       "id": "DMTAP-GWNAME-04",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWNAME",
       "req": "MUST",
       "clause": [
@@ -4668,6 +4913,7 @@
     {
       "id": "DMTAP-GWNAME-05",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWNAME",
       "req": "MUST",
       "clause": [
@@ -4686,6 +4932,7 @@
     {
       "id": "DMTAP-GWNAME-06",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWNAME",
       "req": "MUST",
       "clause": [
@@ -4703,6 +4950,7 @@
     {
       "id": "DMTAP-GWFLOOR-01",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWFLOOR",
       "req": "MUST",
       "clause": [
@@ -4721,6 +4969,7 @@
     {
       "id": "DMTAP-GWFLOOR-02",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWFLOOR",
       "req": "MUST",
       "clause": [
@@ -4743,6 +4992,7 @@
     {
       "id": "DMTAP-GWFLOOR-03",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWFLOOR",
       "req": "MUST",
       "clause": [
@@ -4761,6 +5011,7 @@
     {
       "id": "DMTAP-GWLEG-01",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWLEG",
       "req": "MUST",
       "clause": [
@@ -4779,6 +5030,7 @@
     {
       "id": "DMTAP-GWLEG-02",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWLEG",
       "req": "MUST",
       "clause": [
@@ -4797,6 +5049,7 @@
     {
       "id": "DMTAP-GWLEG-03",
       "level": "Legacy",
+      "ratification_tier": "core-v1",
       "category": "GWLEG",
       "req": "MUST",
       "clause": [
@@ -4815,6 +5068,7 @@
     {
       "id": "DMTAP-AUTHORIG-01",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "AUTHORIG",
       "req": "MUST",
       "clause": [
@@ -4837,6 +5091,7 @@
     {
       "id": "DMTAP-AUTHORIG-02",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "AUTHORIG",
       "req": "MUST",
       "clause": [
@@ -4858,6 +5113,7 @@
     {
       "id": "DMTAP-AUTHORIG-03",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "AUTHORIG",
       "req": "MUST",
       "clause": [
@@ -4879,6 +5135,7 @@
     {
       "id": "DMTAP-AUTHORIG-04",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "AUTHORIG",
       "req": "MUST",
       "clause": [
@@ -4896,6 +5153,7 @@
     {
       "id": "DMTAP-AUTHSESS-01",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "AUTHSESS",
       "req": "MUST",
       "clause": [
@@ -4916,6 +5174,7 @@
     {
       "id": "DMTAP-AUTHSESS-02",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "AUTHSESS",
       "req": "MUST",
       "clause": [
@@ -4937,6 +5196,7 @@
     {
       "id": "DMTAP-AUTHSESS-03",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "AUTHSESS",
       "req": "MUST",
       "clause": [
@@ -4958,6 +5218,7 @@
     {
       "id": "DMTAP-AUTHSESS-04",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "AUTHSESS",
       "req": "MUST",
       "clause": [
@@ -4979,6 +5240,7 @@
     {
       "id": "DMTAP-AUTHSESS-05",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "AUTHSESS",
       "req": "MUST",
       "clause": [
@@ -5001,6 +5263,7 @@
     {
       "id": "DMTAP-AUTHSESS-06",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "AUTHSESS",
       "req": "MUST",
       "clause": [
@@ -5019,6 +5282,7 @@
     {
       "id": "DMTAP-AUTHBRIDGE-01",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "AUTHBRIDGE",
       "req": "MUST",
       "clause": [
@@ -5040,6 +5304,7 @@
     {
       "id": "DMTAP-AUTHBRIDGE-02",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "AUTHBRIDGE",
       "req": "MUST",
       "clause": [
@@ -5062,6 +5327,7 @@
     {
       "id": "DMTAP-AUTHBRIDGE-03",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "AUTHBRIDGE",
       "req": "MUST",
       "clause": [
@@ -5083,6 +5349,7 @@
     {
       "id": "DMTAP-AUTHBRIDGE-04",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "AUTHBRIDGE",
       "req": "MUST",
       "clause": [
@@ -5104,6 +5371,7 @@
     {
       "id": "DMTAP-AUTHBRIDGE-05",
       "level": "Auth",
+      "ratification_tier": "core-v1",
       "category": "AUTHBRIDGE",
       "req": "MUST",
       "clause": [
@@ -5121,6 +5389,7 @@
     {
       "id": "DMTAP-BOOT-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "BOOT",
       "req": "MUST",
       "clause": [
@@ -5139,6 +5408,7 @@
     {
       "id": "DMTAP-BOOT-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "BOOT",
       "req": "MUST",
       "clause": [
@@ -5156,6 +5426,7 @@
     {
       "id": "DMTAP-BOOT-03",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "BOOT",
       "req": "MUST",
       "clause": [
@@ -5177,6 +5448,7 @@
     {
       "id": "DMTAP-BOOT-04",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "BOOT",
       "req": "MUST",
       "clause": [
@@ -5199,6 +5471,7 @@
     {
       "id": "DMTAP-COVER-01",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "COVER",
       "req": "MUST",
       "clause": [
@@ -5218,6 +5491,7 @@
     {
       "id": "DMTAP-COVER-02",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "COVER",
       "req": "MUST",
       "clause": [
@@ -5236,6 +5510,7 @@
     {
       "id": "DMTAP-COVER-03",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "COVER",
       "req": "MUST",
       "clause": [
@@ -5257,6 +5532,7 @@
     {
       "id": "DMTAP-COVER-04",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "COVER",
       "req": "MUST",
       "clause": [
@@ -5275,6 +5551,7 @@
     {
       "id": "DMTAP-COVER-05",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "COVER",
       "req": "MUST",
       "clause": [
@@ -5293,6 +5570,7 @@
     {
       "id": "DMTAP-COVER-06",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "COVER",
       "req": "MUST",
       "clause": [
@@ -5311,6 +5589,7 @@
     {
       "id": "DMTAP-TIER-01",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "TIER",
       "req": "MUST",
       "clause": [
@@ -5330,6 +5609,7 @@
     {
       "id": "DMTAP-TIER-02",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "TIER",
       "req": "MUST",
       "clause": [
@@ -5348,6 +5628,7 @@
     {
       "id": "DMTAP-REST-01",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "REST",
       "req": "MUST",
       "clause": [
@@ -5367,6 +5648,7 @@
     {
       "id": "DMTAP-REST-02",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "REST",
       "req": "MUST",
       "clause": [
@@ -5385,6 +5667,7 @@
     {
       "id": "DMTAP-REST-03",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "REST",
       "req": "MUST",
       "clause": [
@@ -5406,6 +5689,7 @@
     {
       "id": "DMTAP-REST-04",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "REST",
       "req": "MUST",
       "clause": [
@@ -5425,6 +5709,7 @@
     {
       "id": "DMTAP-REST-05",
       "level": "Private",
+      "ratification_tier": "core-v1",
       "category": "REST",
       "req": "MUST",
       "clause": [
@@ -5444,6 +5729,7 @@
     {
       "id": "DMTAP-CLIUX-01",
       "level": "Clients",
+      "ratification_tier": "core-v1",
       "category": "CLIUX",
       "req": "MUST",
       "clause": [
@@ -5462,6 +5748,7 @@
     {
       "id": "DMTAP-CLIUX-02",
       "level": "Clients",
+      "ratification_tier": "core-v1",
       "category": "CLIUX",
       "req": "MUST",
       "clause": [
@@ -5483,6 +5770,7 @@
     {
       "id": "DMTAP-CLIUX-03",
       "level": "Clients",
+      "ratification_tier": "core-v1",
       "category": "CLIUX",
       "req": "MUST",
       "clause": [
@@ -5503,6 +5791,7 @@
     {
       "id": "DMTAP-CLIUX-04",
       "level": "Clients",
+      "ratification_tier": "core-v1",
       "category": "CLIUX",
       "req": "MUST",
       "clause": [
@@ -5521,6 +5810,7 @@
     {
       "id": "DMTAP-CLIUX-05",
       "level": "Clients",
+      "ratification_tier": "core-v1",
       "category": "CLIUX",
       "req": "MUST",
       "clause": [
@@ -5540,6 +5830,7 @@
     {
       "id": "DMTAP-ANCHOR-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ANCHOR",
       "req": "MUST",
       "clause": [
@@ -5559,6 +5850,7 @@
     {
       "id": "DMTAP-ANCHOR-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ANCHOR",
       "req": "MUST",
       "clause": [
@@ -5581,6 +5873,7 @@
     {
       "id": "DMTAP-ANCHOR-03",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ANCHOR",
       "req": "MUST",
       "clause": [
@@ -5603,6 +5896,7 @@
     {
       "id": "DMTAP-ANCHOR-04",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ANCHOR",
       "req": "MUST",
       "clause": [
@@ -5621,6 +5915,7 @@
     {
       "id": "DMTAP-ANCHOR-05",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ANCHOR",
       "req": "MUST",
       "clause": [
@@ -5640,6 +5935,7 @@
     {
       "id": "DMTAP-ANCHOR-06",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ANCHOR",
       "req": "MUST",
       "clause": [
@@ -5658,6 +5954,7 @@
     {
       "id": "DMTAP-GRPGOV-01",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "GRPGOV",
       "req": "MUST",
       "clause": [
@@ -5680,6 +5977,7 @@
     {
       "id": "DMTAP-GRPGOV-02",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "GRPGOV",
       "req": "MUST",
       "clause": [
@@ -5701,6 +5999,7 @@
     {
       "id": "DMTAP-GRPGOV-03",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "GRPGOV",
       "req": "MUST",
       "clause": [
@@ -5722,6 +6021,7 @@
     {
       "id": "DMTAP-GRPGOV-04",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "GRPGOV",
       "req": "MUST",
       "clause": [
@@ -5743,6 +6043,7 @@
     {
       "id": "DMTAP-GRPGOV-05",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "GRPGOV",
       "req": "MUST",
       "clause": [
@@ -5761,6 +6062,7 @@
     {
       "id": "DMTAP-GRPGOV-07",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "GRPGOV",
       "req": "MUST",
       "clause": [
@@ -5804,6 +6106,7 @@
     {
       "id": "DMTAP-GRPGOV-06",
       "level": "Groups & Files",
+      "ratification_tier": "core-v1",
       "category": "GRPGOV",
       "req": "MUST",
       "clause": [
@@ -5823,6 +6126,7 @@
     {
       "id": "DMTAP-ABUSE-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ABUSE",
       "req": "MUST",
       "clause": [
@@ -5843,6 +6147,7 @@
     {
       "id": "DMTAP-ABUSE-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ABUSE",
       "req": "MUST",
       "clause": [
@@ -5864,6 +6169,7 @@
     {
       "id": "DMTAP-ABUSE-03",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ABUSE",
       "req": "MUST",
       "clause": [
@@ -5884,6 +6190,7 @@
     {
       "id": "DMTAP-ABUSE-04",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ABUSE",
       "req": "MUST",
       "clause": [
@@ -5904,6 +6211,7 @@
     {
       "id": "DMTAP-ABUSE-05",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ABUSE",
       "req": "MUST",
       "clause": [
@@ -5923,6 +6231,7 @@
     {
       "id": "DMTAP-ABUSE-06",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "ABUSE",
       "req": "MUST",
       "clause": [
@@ -5945,6 +6254,7 @@
     {
       "id": "DMTAP-SEAM-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SEAM",
       "req": "MUST",
       "clause": [
@@ -5966,6 +6276,7 @@
     {
       "id": "DMTAP-SEAM-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SEAM",
       "req": "MUST",
       "clause": [
@@ -5985,6 +6296,7 @@
     {
       "id": "DMTAP-SEAM-03",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SEAM",
       "req": "MUST",
       "clause": [
@@ -6005,6 +6317,7 @@
     {
       "id": "DMTAP-SEAM-04",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SEAM",
       "req": "MUST",
       "clause": [
@@ -6027,6 +6340,7 @@
     {
       "id": "DMTAP-SCALE-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SCALE",
       "req": "MUST",
       "clause": [
@@ -6045,6 +6359,7 @@
     {
       "id": "DMTAP-SCALE-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SCALE",
       "req": "MUST",
       "clause": [
@@ -6064,6 +6379,7 @@
     {
       "id": "DMTAP-SCALE-03",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SCALE",
       "req": "MUST",
       "clause": [
@@ -6083,6 +6399,7 @@
     {
       "id": "DMTAP-SCALE-04",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SCALE",
       "req": "MUST",
       "clause": [
@@ -6103,6 +6420,7 @@
     {
       "id": "DMTAP-SCALE-05",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "SCALE",
       "req": "MUST",
       "clause": [
@@ -6121,6 +6439,7 @@
     {
       "id": "DMTAP-HYBRID-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "HYBRID",
       "req": "MUST",
       "clause": [
@@ -6143,6 +6462,7 @@
     {
       "id": "DMTAP-FSM-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "FSM",
       "req": "MUST",
       "clause": [
@@ -6162,6 +6482,7 @@
     {
       "id": "DMTAP-FSM-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "FSM",
       "req": "MUST",
       "clause": [
@@ -6183,6 +6504,7 @@
     {
       "id": "DMTAP-FSM-03",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "FSM",
       "req": "MUST",
       "clause": [
@@ -6202,6 +6524,7 @@
     {
       "id": "DMTAP-FSM-04",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "FSM",
       "req": "MUST",
       "clause": [
@@ -6223,6 +6546,7 @@
     {
       "id": "DMTAP-FSM-05",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "FSM",
       "req": "MUST",
       "clause": [
@@ -6242,6 +6566,7 @@
     {
       "id": "DMTAP-FWDCOMPAT-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "FWDCOMPAT",
       "req": "MUST",
       "clause": [
@@ -6264,6 +6589,7 @@
     {
       "id": "DMTAP-FWDCOMPAT-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "FWDCOMPAT",
       "req": "MUST",
       "clause": [
@@ -6282,6 +6608,7 @@
     {
       "id": "DMTAP-FWDCOMPAT-03",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "FWDCOMPAT",
       "req": "MUST",
       "clause": [
@@ -6301,6 +6628,7 @@
     {
       "id": "DMTAP-PUBGUARD-01",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUBGUARD",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -6321,6 +6649,7 @@
     {
       "id": "DMTAP-PUBGUARD-02",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUBGUARD",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -6343,6 +6672,7 @@
     {
       "id": "DMTAP-PUBGUARD-03",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUBGUARD",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -6361,6 +6691,7 @@
     {
       "id": "DMTAP-CADASM-01",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "CADASM",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -6383,6 +6714,7 @@
     {
       "id": "DMTAP-VIDMIG-01",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "VIDMIG",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -6402,6 +6734,7 @@
     {
       "id": "DMTAP-VIDMIG-02",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "VIDMIG",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -6422,6 +6755,7 @@
     {
       "id": "DMTAP-VIDMIG-03",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "VIDMIG",
       "req": "MUST",
       "optional_capability": "pub-1",
@@ -6441,6 +6775,7 @@
     {
       "id": "DMTAP-WIRE-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "WIRE",
       "req": "MUST",
       "clause": [
@@ -6463,6 +6798,7 @@
     {
       "id": "DMTAP-WIRE-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "WIRE",
       "req": "MUST",
       "clause": [
@@ -6485,6 +6821,7 @@
     {
       "id": "DMTAP-WIRE-03",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "WIRE",
       "req": "MUST",
       "clause": [
@@ -6506,6 +6843,7 @@
     {
       "id": "DMTAP-WIRE-04",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "WIRE",
       "req": "MUST",
       "clause": [
@@ -6527,6 +6865,7 @@
     {
       "id": "DMTAP-WIRE-05",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "WIRE",
       "req": "MUST",
       "clause": [
@@ -6548,6 +6887,7 @@
     {
       "id": "DMTAP-WIRE-06",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "WIRE",
       "req": "MUST",
       "clause": [
@@ -6569,6 +6909,7 @@
     {
       "id": "DMTAP-WIRE-07",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "WIRE",
       "req": "MUST",
       "clause": [
@@ -6591,6 +6932,7 @@
     {
       "id": "DMTAP-WIRE-08",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "WIRE",
       "req": "MUST",
       "clause": [
@@ -6612,6 +6954,7 @@
     {
       "id": "DMTAP-WIRE-09",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "WIRE",
       "req": "MUST",
       "clause": [
@@ -6634,6 +6977,7 @@
     {
       "id": "DMTAP-WIRE-10",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "WIRE",
       "req": "MUST",
       "clause": [
@@ -6656,6 +7000,7 @@
     {
       "id": "DMTAP-WIREKAT-01",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "WIREKAT",
       "req": "MUST",
       "clause": [
@@ -6675,6 +7020,7 @@
     {
       "id": "DMTAP-WIREKAT-02",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "WIREKAT",
       "req": "MUST",
       "clause": [
@@ -6693,6 +7039,7 @@
     {
       "id": "DMTAP-WIREKAT-03",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "WIREKAT",
       "req": "MUST",
       "clause": [
@@ -6712,6 +7059,7 @@
     {
       "id": "DMTAP-WIREKAT-04",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "WIREKAT",
       "req": "MUST",
       "clause": [
@@ -6733,6 +7081,7 @@
     {
       "id": "DMTAP-WIREKAT-05",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "WIREKAT",
       "req": "MUST",
       "clause": [
@@ -6750,6 +7099,7 @@
     {
       "id": "DMTAP-WIREKAT-06",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "WIREKAT",
       "req": "MUST",
       "clause": [
@@ -6771,6 +7121,7 @@
     {
       "id": "DMTAP-WIREKAT-07",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "WIREKAT",
       "req": "MUST",
       "clause": [
@@ -6792,6 +7143,7 @@
     {
       "id": "DMTAP-WIREKAT-08",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "WIREKAT",
       "req": "MUST",
       "clause": [
@@ -6813,6 +7165,7 @@
     {
       "id": "DMTAP-WIREKAT-09",
       "level": "Core",
+      "ratification_tier": "core-v1",
       "category": "WIREKAT",
       "req": "MUST",
       "clause": [
@@ -6834,6 +7187,7 @@
     {
       "id": "DMTAP-PUBSUB-01",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUBSUB",
       "req": "MUST",
       "optional_capability": "pubsub-1",
@@ -6855,6 +7209,7 @@
     {
       "id": "DMTAP-PUBSUB-02",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUBSUB",
       "req": "MUST",
       "optional_capability": "pubsub-1",
@@ -6875,6 +7230,7 @@
     {
       "id": "DMTAP-PUBSUB-03",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUBSUB",
       "req": "MUST",
       "optional_capability": "pubsub-1",
@@ -6893,6 +7249,7 @@
     {
       "id": "DMTAP-PUBSUB-04",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUBSUB",
       "req": "MUST",
       "optional_capability": "pubsub-1",
@@ -6914,6 +7271,7 @@
     {
       "id": "DMTAP-PUBSUB-05",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUBSUB",
       "req": "MUST",
       "optional_capability": "pubsub-1",
@@ -6934,6 +7292,7 @@
     {
       "id": "DMTAP-PUBSUB-06",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUBSUB",
       "req": "MUST",
       "optional_capability": "pubsub-1",
@@ -6954,6 +7313,7 @@
     {
       "id": "DMTAP-PUBSUB-07",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUBSUB",
       "req": "MUST",
       "optional_capability": "pubsub-1",
@@ -6974,6 +7334,7 @@
     {
       "id": "DMTAP-PUBSUB-08",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUBSUB",
       "req": "MUST",
       "optional_capability": "pubsub-1",
@@ -6995,6 +7356,7 @@
     {
       "id": "DMTAP-PUBSUB-09",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUBSUB",
       "req": "MUST",
       "optional_capability": "pubsub-1",
@@ -7013,6 +7375,7 @@
     {
       "id": "DMTAP-PUBSUB-10",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUBSUB",
       "req": "MUST",
       "optional_capability": "pubsub-1",
@@ -7031,6 +7394,7 @@
     {
       "id": "DMTAP-PUBSUB-11",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUBSUB",
       "req": "MUST",
       "optional_capability": "pubsub-1",
@@ -7051,6 +7415,7 @@
     {
       "id": "DMTAP-PUBSUB-12",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUBSUB",
       "req": "MUST",
       "optional_capability": "pubsub-1",
@@ -7072,6 +7437,7 @@
     {
       "id": "DMTAP-PUBSUB-13",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUBSUB",
       "req": "MUST",
       "optional_capability": "pubsub-1",
@@ -7093,6 +7459,7 @@
     {
       "id": "DMTAP-PUBSUB-14",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUBSUB",
       "req": "MUST",
       "optional_capability": "pubsub-1",
@@ -7111,6 +7478,7 @@
     {
       "id": "DMTAP-PUBSUB-15",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUBSUB",
       "req": "MUST",
       "optional_capability": "pubsub-1",
@@ -7128,6 +7496,7 @@
     {
       "id": "DMTAP-PUBSUB-16",
       "level": "Core",
+      "ratification_tier": "stable-extension",
       "category": "PUBSUB",
       "req": "MUST",
       "optional_capability": "pubsub-1",
