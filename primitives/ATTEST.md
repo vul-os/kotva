@@ -70,7 +70,7 @@ Attestation = {
   3 => bytes,         ; issuer    issuer root identity key IK (§1.2); MUST equal the carrier's
                       ;           authenticated identity (PubAnnounce.pub / Payload.from, above)
   4 => Subject,       ; subject   who/what the claim is about (§2.1)
-  5 => SchemaRef,     ; schema    EAS schema UID or VC type URI — identifies claim semantics
+  5 => SchemaRef,     ; schema    identifies claim semantics (EAS UID / VC URI / profile namespace, below)
   6 => Claim,         ; claim     the EAS attestation / W3C VC body (bound, NOT invented — §bindings)
   7 => u64,           ; ts        issuance time (ms epoch), display/ordering only
   ? 8 => Revoke,      ; revoke    revocation binding (§2.2); absent ⇒ no status-list/expiry
@@ -94,7 +94,8 @@ BlindedSubject = {
   2 => hash,         ; commit  0x1e ‖ BLAKE3-256(salt ‖ subject_IK) — the hiding commitment
 }
 
-SchemaRef = tstr           ; EAS schema UID (0x-hex) or a VC @type URI
+SchemaRef = tstr           ; EAS schema UID (0x-hex), a VC @type URI, or a profile-namespaced
+                           ; identifier "<profile>/<schema>/v<n>" (e.g. "kotva-depot/measurement/v0")
 
 Revoke = {
   ; key 1 (mode) is retired: the mechanism is self-describing by field presence, no discriminator

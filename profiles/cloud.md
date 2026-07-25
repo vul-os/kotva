@@ -261,6 +261,17 @@ Part = {
 }
 ```
 
+**How DEPOT schemas ride the wire (normative — grounding, not new bytes).** DEPOT invents no PUB
+object; its three schemas are integer-keyed deterministic-CBOR maps carried under a **named `meta`
+key** on a `PubAnnounce` ([§22.3](../22-public-objects.md)), embedded as `bytes` exactly as §24 carries
+`meta["artifact"]` — opaque to a generic reader, covered by the announce `sig`:
+`DepotFormula` under `meta["depot-formula"]`, `DepotSite` under `meta["depot-site"]`. The one
+exception is `DepotMeasurement` (§5), which is **not** a PUB payload but an ATTEST claim body, so it
+rides ATTEST's own `schema`/`claim` fields with the profile-namespaced `SchemaRef`
+`"kotva-depot/measurement/v0"` ([ATTEST §2](../primitives/ATTEST.md) admits a profile namespace
+alongside an EAS UID or VC URI). A reader that does not implement DEPOT ignores the unknown `meta`
+key like any other (§21.20 forward-compat), so publishing a formula never breaks a generic §22 node.
+
 This is what makes the inheritance rule *computable* rather than rhetorical: a client reads a
 `DepotFormula`, resolves each `Part.provider`'s own signed descriptor, and derives the formula's
 visibility and portability as the least-blind and least-portable across the parts — there is a
