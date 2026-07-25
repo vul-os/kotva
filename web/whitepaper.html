@@ -705,7 +705,7 @@
           <tbody>
             <tr><td><code>gateway</code></td><td>Legacy-mail bridge (MX, DKIM egress, legacy client surfaces)</td><td><code>terminating</code> (legacy leg is plaintext)</td></tr>
             <tr><td><code>relay</code></td><td>Mesh reachability for NAT'd peers</td><td><code>blind</code> / structural</td></tr>
-            <tr><td><code>media-relay</code></td><td>Forwards SFrame-encrypted call/stream media</td><td><code>blind-routing</code> / structural — payload sealed, routing/timing/participant graph visible</td></tr>
+            <tr><td><code>media-relay</code></td><td>Forwards SFrame-encrypted call/stream media</td><td><code>blind-routing</code> — structural only where the SFU commits <code>sframe_required=true</code>, else declared; routing/timing/participant graph visible either way</td></tr>
             <tr><td><code>reachability-adapter</code></td><td>ngrok-style public subdomains for arbitrary box services</td><td><code>blind-routing</code> (SNI-passthrough) preferred</td></tr>
             <tr><td><code>indexer</code></td><td>Search / discovery over public objects</td><td>corpus is public plaintext; query channel <code>terminating</code> unless <code>attested</code></td></tr>
             <tr><td><code>labeler</code></td><td>Moderation labels, opt-in, subscribable</td><td>n/a — labels public objects</td></tr>

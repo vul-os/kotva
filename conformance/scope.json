@@ -2364,6 +2364,14 @@
       "reason": "implementation requirement on a conformant node/client/gateway"
     },
     {
+      "section": "21.20a",
+      "file": "21-errors-iana.md",
+      "title": "21.20a PubAnnounce.meta Keys Registry (§22.3)",
+      "musts": 4,
+      "class": "PROCEDURE",
+      "reason": "IANA-style registry allocation/forward-compat rules for PubAnnounce.meta keys"
+    },
+    {
       "section": "21.21",
       "file": "21-errors-iana.md",
       "title": "21.21 DNS Parameter Keys Registry (`_dmtap` / `_dmtap-gw` / `_dmtap-mix`)",

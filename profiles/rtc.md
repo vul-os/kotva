@@ -66,7 +66,7 @@ Every intermediary RTC can place in a path is a coordinator under
 
 | Coordinator kind | Role in a call | Visibility (declared) |
 |---|---|---|
-| **media-relay** (the SFU) | Forwards SFrame ciphertext so the host is not the size limit (§27.7.2) | `blind-routing` / `structural` — holds no epoch key, cannot read media; sees routing metadata (participant graph, speaker timing, stream sizes) |
+| **media-relay** (the SFU) | Forwards SFrame ciphertext so the host is not the size limit (§27.7.2) | `blind-routing` — `structural` **only where the operator published `sframe_required = true`** (§27.7.4), else `declared`: it then holds no epoch key and cannot read media; sees routing metadata (participant graph, speaker timing, stream sizes) regardless |
 | **relay** (TURN) | Relayed ICE candidate when direct/STUN fails (§27.11 item 3) | `blind` / `structural` — carries SFrame ciphertext |
 | **reachability-adapter** | Optional public ingress to reach a self-hosted SFU box | `blind-routing` (SNI-passthrough) preferred |
 
