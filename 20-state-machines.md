@@ -244,18 +244,23 @@ stateDiagram-v2
   RECEIVED --> VERSION_OK : ok
   VERSION_OK --> DROPPED : verify_address fail
   VERSION_OK --> ADDR_OK : ok
-  ADDR_OK --> ACKED : duplicate
   ADDR_OK --> DROPPED : verify_sender_sig fail
-  ADDR_OK --> SIG_OK : not_duplicate + sig ok
+  ADDR_OK --> SIG_OK : verify_sender_sig ok
   SIG_OK --> DROPPED : check_freshness fail_future_skew / fail_past_stale
   SIG_OK --> FRESH_OK : check_freshness ok
   FRESH_OK --> DROPPED : resolve_to fail
   FRESH_OK --> RESOLVED : ok
-  RESOLVED --> PRE_DECRYPT : known sender
-  RESOLVED --> COLD_GATE : cold sender
-  COLD_GATE --> DROPPED : invalid_or_forged
-  COLD_GATE --> DEFERRED : absent_or_below_threshold
-  COLD_GATE --> PRE_DECRYPT : valid_and_sufficient
+  RESOLVED --> KNOWN_OK : classify_sender known
+  RESOLVED --> COLD_GATE : classify_sender cold
+  KNOWN_OK --> ACKED : duplicate_of_acked
+  KNOWN_OK --> DEFERRED : duplicate_of_deferred
+  KNOWN_OK --> PRE_DECRYPT : not_duplicate
+  COLD_GATE --> DROPPED : evaluate_challenge invalid_or_forged
+  COLD_GATE --> DEFERRED : evaluate_challenge absent_or_below_threshold
+  COLD_GATE --> GATE_PASSED : evaluate_challenge valid_and_sufficient
+  GATE_PASSED --> ACKED : duplicate_of_acked
+  GATE_PASSED --> DEFERRED : duplicate_of_deferred
+  GATE_PASSED --> PRE_DECRYPT : not_duplicate
   PRE_DECRYPT --> DROPPED : decrypt fail
   PRE_DECRYPT --> DECRYPTED : ok
   DECRYPTED --> DROPPED : verify_payload fail / revealed_from_blocked
@@ -787,8 +792,13 @@ papers over (matching the "honest limits" style of §6.6/§13.7/§14.2/§14.5).
    not addressed by §2.6/§4.7; this appendix specifies idempotent late-correction. **[fill]**
 3. **§20.1** — fail-closed-at-first-contact (§3.3) folded into the sender's ordinary `RETRY`
    loop rather than a distinct sender-side terminal. **[fill]**
-4. **§20.2** — the relative order of the duplicate-`id` check versus `sender_sig` verification
-   within §2.7's ordered list is not stated; this appendix checks duplicate first. **[fill]**
+4. **§20.2 — the dedup check runs AFTER classification, and for a cold sender after the §9 gate;
+   NOT at `ADDR_OK`.** This is **not** an unstated gap: §2.7's *Dedup ordering* rule is explicitly
+   normative and this machine's transition table enforces it (dedup is reachable only from
+   `KNOWN_OK` and `GATE_PASSED`, never from `ADDR_OK`). Checking duplicate before classification
+   would let a replayed previously-acked `ciphertext` with a garbage `sender_sig` earn a signed
+   `ack` at zero cost — the existence oracle §19.3.2 closes. An earlier revision of this appendix
+   wrongly listed the ordering as unstated and "filled" it duplicate-first; that fill is retracted.
 5. **§20.2** — §2.7 step 8 (Payload signature verification) does not explicitly restate
    "drop on failure" the way steps 1–4 and 7 do; this appendix applies the same fail-closed
    default. **[fill]**
