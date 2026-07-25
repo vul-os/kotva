@@ -18,6 +18,14 @@ BCP 14 (RFC 2119, RFC 8174) when, and only when, in all capitals.
 
 ## 1. What this is
 
+> **Terminology — "gateway" here is the colloquial word for a DEPOT operator, not the `gateway`
+> coordinator kind.** This profile uses *gateway* in its everyday sense — a provider you can reach that
+> offers managed infrastructure — because that is how operators describe themselves. It is **not** the
+> `gateway` coordinator kind of [CONTRACT §5](../coordinator/CONTRACT.md) (the legacy-mail bridge: MX,
+> DKIM egress, §7). A DEPOT operator is an **`infra-service`** coordinator. One party MAY run both roles,
+> but they are distinct kinds with distinct requirements, exactly as [§26](../26-legacy-adapters.md)
+> guards the same word for its own adapters.
+
 A market where any operator — a **gateway** — offers managed infrastructure to a user who holds their
 own keys and can leave: the four irreducible primitives — a **box** (a managed node), a **bucket**
 (object storage, which also serves public objects at the edge — the CDN shape), a **volume** (block
@@ -581,6 +589,30 @@ Inheriting [THREAT-MODEL.md](../THREAT-MODEL.md) (SEC-1…SEC-9); the DEPOT-spec
 - **A public IP and real compute are genuinely scarce.** DEPOT-10's self-host backstop is real only for
   a user who has the resource; the user who most needs a managed box is the one who cannot be their own.
   The scarcity is confined to this kind (like port-25 / REACH-9) but does not vanish.
+- **Billing is only as honest as the operator, and no metric falsifies over-billing.** A
+  `UsageReceipt` ([§18.8a.2](../18-wire-format.md)) is signed by the operator alone and is
+  one-directional — it proves an operation occurred, and cannot disconfirm one the operator
+  fabricated or silently omitted (disclosed there). §5's `capacity-conformance` catches an operator
+  overstating what it *has*; **nothing catches an operator over-reporting what it *did*** — billed
+  CPU-ms, invocations or `gpu-count` against delivered. TEE attestation (DEPOT-2) upgrades
+  *execution-environment integrity*, a different property from *quantity billed = quantity used*.
+  This is the deployed lesson of GPU-market fraud (io.net's 2024 spoofed-capacity incident: ~1.8M
+  virtual GPUs farmed for rewards): metered decentralised compute has no cheap third-party proof
+  that billed work was done. A client's real protections are the receipt trail as *evidence* for a
+  dispute (`arbiter`), metering a workload it can independently bound, and plurality — never a
+  protocol guarantee the number is true.
+- **DEPOT is a supply-side design in a market whose hard problem is demand.** Every clause here — DEPOT-13
+  permissionless supply, plurality-for-durability, "anyone MAY offer a box" — makes *listing* supply
+  easy, and treats that as the achievement. The deployed comparables say the achievement is elsewhere:
+  Akash and Golem have never lacked *listed* capacity, they lack *paid* utilisation — idle GPUs and thin
+  operator economics, not a shortage of providers. DEPOT does not solve this and MUST NOT be read as
+  though permissionless supply implied demand. It compounds with the **no-token** stance
+  ([DIRECTION §5](../DIRECTION.md)): every deployed decentralised market used token emissions to pay early
+  supply *before* paid demand existed, and DEPOT forbids that lever deliberately — so whether
+  charge-for-service alone bootstraps and sustains a two-sided market is the **coordinator-funding open
+  problem** ([DIRECTION §5, §8](../DIRECTION.md)), unproven, named here rather than left in the
+  constitution where a reader of this profile would miss it. The honest position: DEPOT makes an honest
+  market *possible* and says nothing about whether one *forms*.
 - **Vulos is a participant, never an authority.** The maintainer MAY run the flagship gateway and a
   well-known status page and be one guardian and one rater — because **no token**, **swappable**, **no
   authoritative score**, and **reproducible measurement** structurally deny it a load-bearing position.
