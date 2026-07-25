@@ -103,7 +103,8 @@ BlindedSubject = {
 }
 
 SchemaRef = tstr           ; EAS schema UID (0x-hex), a VC @type URI, or a profile-namespaced
-                           ; identifier "<profile>/<schema>/v<n>" (e.g. "kotva-depot/measurement/v0")
+                           ; identifier "<profile>/<path…>/v<n>" — one or more path segments then a
+                           ; version (e.g. "kotva-depot/measurement/v0", "kotva-reputation/trust-edge/commerce/v0")
 
 Revoke = {
   ; key 1 (mode) is retired: the mechanism is self-describing by field presence, no discriminator

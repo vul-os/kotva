@@ -24,7 +24,7 @@ is stated at both anchors of the scale-invariance slider ([DIRECTION §6](../../
 | **MATCH** | order-book / auction assignment (no standard to bind — it is a coordinator) | two OFFERs in, signed Assignment out | `matcher` | sees offers → `terminating`; TEE-`attested` preferred |
 | **RESERVE** | single-owner bounded-counter CRDT | SYNC single-writer object (§5.6, TRACT §6) | **none** (self-serving by construction) | owner-held; no intermediary |
 | **REPUTATION** | OpenRank (EigenTrust, TEE) over the attestation graph — **no global score** | Review / attestation feed objects (§22) | `indexer` (derived, rebuildable) | public objects; index `blind`/attested |
-| **ATTEST** | EAS + W3C Verifiable Credentials; personhood → World ID / Human Passport | signed feed object (§22) or sealed `identity` MOTE (kind 0x09) | `oracle` (only for physical-fact attestation) | issuer-signed, public or sealed |
+| **ATTEST** | EAS + W3C Verifiable Credentials for credential claims, else a profile-defined map (e.g. a reputation polarity, a measurement); personhood → World ID / Human Passport | signed feed object (§22) or sealed `identity` MOTE (kind 0x09) | `oracle` (only for physical-fact attestation) | issuer-signed, public or sealed |
 | **ESCROW** | HTLC / smart-contract escrow on a stablecoin rail; dispute → Kleros-class | EscrowScope (public) + PaymentAttestation (sealed) + escrow state machine | `arbiter` / escrow operator | evidence `terminating`, disclosed |
 
 Two invariants cut across the whole table: **the protocol carries attestations, never funds**
