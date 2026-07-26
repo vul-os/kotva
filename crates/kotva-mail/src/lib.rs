@@ -30,6 +30,7 @@
 //! terminates TLS and speaks the legacy protocol, the mesh/relay never decrypts, and there is no
 //! central IMAP/JMAP store for any data class.
 
+pub mod adapters;
 pub mod auth;
 pub mod autodiscover;
 pub mod imap;
