@@ -281,7 +281,7 @@ omission was accidental, not a narrower scope — nothing about a `u64` field ma
 admission a smaller hazard than an out-of-length byte string.
 
 This binds with particular force on every monotonic counter reachable from the network —
-`Identity.version` (§1.3), `LocationRecord.seq` (§4.2), `caps_version` (§10.2),
+`Identity.version` (§1.3), `LocationRecord.seq` (§4.2), `CapabilityAnnouncement.caps_version` (§10.2, §18.7.3),
 `GroupState.version` (§5.8.2), `FeedHead.seq` (§22.4.2) — because an anti-rollback rule is a claim
 about a **total order**, and a value that is well-formed to one engine and unrepresentable to
 another makes an order-dependent rule return two different answers while both engines believe
@@ -853,13 +853,15 @@ Identity = {
   9  => ts,                     ; ts
   10 => [+ sig-val],            ; sig       ONE signature per suite in `suites`, over the body
   ? 11 => KeyPackageBundleRef,  ; deniable_prekeys  OPTIONAL: X3DH/PQXDH prekey bundle (§5.2.1, §18.4.8)
+  12 => u8,                     ; anchor_suite  suite governing IK itself (§1.2.0); `iks` MUST hold its entry
+  ? 13 => [+ u8],               ; classical_retired  suites retired from IK verification (§1.3, §12.8.5); signed, so retirement is unconditional
 }
 ```
 
 | Field | Key | Type | Presence | Meaning & constraints |
 |-------|----:|------|----------|-----------------------|
 | `suites` | 1 | `[+ u8]` | MUST | The suites this identity supports, **as a preference-ordered set** (§1.3). A sender MUST use the highest suite both parties support; empty intersection ⇒ delivery fails closed (no downgrade). |
-| `iks` | 2 | `{+ u8 => ik-pub}` | MUST | Map from each suite in `suites` to that suite's identity public key. Every suite in `suites` MUST have exactly one entry, and vice-versa. |
+| `iks` | 2 | `{+ u8 => ik-pub}` | MUST | Map from each suite in `suites` to that suite's identity public key. Every suite in `suites` MUST have exactly one entry; **additionally the `anchor_suite` (key 12) MUST have an entry** — it MAY be one of `suites` or a distinct, more-conservative cold-anchor suite (§1.2.0). No entries beyond `suites ∪ {anchor_suite}` are permitted. |
 | `version` | 3 | `u64` | MUST | Monotonic version. A verifier MUST reject a version ≤ the last one it pinned for this identity (rollback defence, §3.3). |
 | `devices` | 4 | `[* DeviceCert]` | MUST (MAY be empty) | The identity's device certificates (§18.4.2), each signed by IK. |
 | `keypkgs` | 5 | `KeyPackageBundleRef` | MUST | Location + hash of the current KeyPackage bundle (§18.4.3). Named `keypkgs` throughout, matching §1.3 and §5.3 (the earlier `prekeys` name is retired; §18.11 item 1). |
@@ -867,8 +869,10 @@ Identity = {
 | `names` | 7 | `[* tstr]` | MUST (MAY be empty) | Human name(s), e.g. `"abc@def.com"`, `"@handle"` (§3.9). A list ⇒ aliases. These are **self-asserted**: an identity MAY list any string, including a victim's address, so a listed name proves **nothing** on its own. A verifier MUST trust/display a name **only after** confirming the forward `name → ik` binding (DNS + KT, §3.3–3.5) resolves back to *this* key (§3.9.4); a name that does not verify back MUST be rendered as unverified, never as an authenticated address. Every *verified* alias resolves to the same key. |
 | `prev` | 8 | `hash` | OPTIONAL | Hash of the previous `Identity` version; absent only for the genesis version. Chains versions into the KT-mirrored history (§3.5). |
 | `ts` | 9 | `ts` | MUST | Publication timestamp. |
-| `sig` | 10 | `[+ sig-val]` | MUST | **One signature per suite in `suites`**, in the same order, each over the body preimage (§18.9.3). A verifier trusting either the classical or PQ key can validate; it MUST reject an Identity whose highest offered suite it cannot validate (§1.3). Note `sig` remains key `10` even though the OPTIONAL `deniable_prekeys` is key `11`; the signing preimage is `Identity ∖ {10}` and so covers key `11` when present (§18.9.3). |
+| `sig` | 10 | `[+ sig-val]` | MUST | **One signature per suite in `suites`**, in the same order, each over the body preimage (§18.9.3). A verifier trusting either the classical or PQ key can validate; it MUST reject an Identity whose highest offered suite it cannot validate (§1.3). Note `sig` remains key `10` even though later keys are `11`–`13`; the signing preimage is `Identity ∖ {10}` and so covers keys `11`–`13` (`deniable_prekeys`, `anchor_suite`, `classical_retired`) when present (§18.9.3). |
 | `deniable_prekeys` | 11 | `KeyPackageBundleRef` | OPTIONAL | Location + hash of the identity's `DeniablePrekeyBundle` (§18.4.8) for the optional deniable 1:1 mode (§5.2.1). Same shape as `keypkgs` (§18.4.3). Absent ⇒ the identity does not offer deniable sessions; the default MLS path is unaffected. |
+| `anchor_suite` | 12 | `u8` | MUST | The suite governing `IK` and every signature `IK` itself makes (§1.2.0). It **MAY differ** from any operational suite in `suites` and SHOULD be the most conservative available (e.g. `0x04`, §1.2.0). It is the sole input selecting the anchor key in the zero-authority key-name derivation `Identity.iks[anchor_suite]` (§18.9.17); it MUST resolve to exactly one `iks` entry, which is what stops one identity from yielding two distinct key-names (the spoofing surface §18.9.17 closes). Signed like every other field (preimage `Identity ∖ {10}`, §18.9.3). |
+| `classical_retired` | 13 | `[+ u8]` | OPTIONAL | Suites the owner has **retired** from `IK` verification (§1.3, §12.8.5). Because the list rides the signed `Identity`, a verifier MUST reject any signature offered under a listed suite **unconditionally** — not merely when it is below the pinned high-water mark (`0x020F`) — making retirement the one way a suite high-water mark is lowered. Absent ⇒ no suite retired. |
 
 ### 18.4.2 `DeviceCert` (§1.2)
 
@@ -1749,6 +1753,17 @@ CapabilityRevocation = {
   4 => ts,              ; ts          revocation time
   5 => sig-val,         ; sig         `iss` signature (DS-tag DMTAP-v0/cap-revocation, §18.9.14)
 }
+
+; A peer's advertised capability set (§10.2), carried in a `system`-MOTE. Monotonic per peer:
+; a receiver rejects `caps_version` ≤ the last accepted (ERR_CAPABILITY_ANNOUNCE_ROLLBACK, 0x030A).
+CapabilityAnnouncement = {
+  1 => suite,           ; suite
+  2 => ik-pub,          ; iss          the announcing peer's identity key (verifies `sig`)
+  3 => u64,             ; caps_version monotonic per peer (§10.2); fixed-width u64 domain (§18.2)
+  4 => [* Capability],  ; caps         the advertised capability set (MAY be empty)
+  5 => ts,              ; ts
+  6 => sig-val,         ; sig          `iss` signature (DS-tag DMTAP-v0/cap-announce, §18.9.14)
+}
 ```
 
 | Object | Field | Key | Type | Presence | Meaning & constraints |
@@ -1766,6 +1781,10 @@ CapabilityRevocation = {
 | `CapabilityRevocation` | `iss` | 2 | `ik-pub` | MUST | MUST be the token's own `iss` or an **ancestor** issuer in its chain — only an issuer (or someone it delegated *from*) may revoke; a stranger cannot. |
 | | `token` | 3 | `hash` | MUST | Content-address of the revoked `CapabilityToken` (revoking a chain root revokes all descendants). A verified revocation makes any invocation of that token (or descendant) fail `ERR_CAPABILITY_REVOKED` (`0x050B`). |
 | | `ts`/`sig` | 4/5 | | MUST | Revocation time and `iss` signature (§18.9.14). Revocations are **published to the transparency log / status endpoint** (§13.4, §13.5.1) and MUST be routed through the owner's/domain's KT self-monitoring path so a silent grant/revoke is owner-visible (§13.5). |
+| `CapabilityAnnouncement` | `iss` | 2 | `ik-pub` | MUST | The announcing peer, whose key verifies `sig`. The announcement authenticates the whole advertised set to this peer. |
+| | `caps_version` | 3 | `u64` | MUST | Monotonic per peer. A receiver MUST retain the highest `caps_version` seen per peer and reject any announcement whose `caps_version` is **≤** the last accepted from that peer (`ERR_CAPABILITY_ANNOUNCE_ROLLBACK`, `0x030A`, §10.2) — a stale replay attempting to suppress an advertised capability (downgrade). Decoded in the fixed-width `u64` domain (§18.2), like every other network-reachable monotonic counter (line 284). |
+| | `caps` | 4 | `[* Capability]` | MUST (MAY be empty) | The advertised capabilities (§18.7.3 `Capability`). A receiver MUST ignore a capability token it does not recognise (not the whole announcement) and MUST NOT infer absence of an unfamiliar capability from a recognised, highest-`caps_version` announcement (§10.2 forward-compatibility rule). |
+| | `sig` | 6 | `sig-val` | MUST | `iss` signature over `det_cbor(CapabilityAnnouncement ∖ {6})` under DS-tag `DMTAP-v0/cap-announce` (§18.9.14). A signature that does not verify ⇒ the announcement MUST be discarded (fail closed); a stale/rolled-back one ⇒ `0x030A`. |
 
 **Verification (normative).** To honour an invocation a verifier MUST: (1) validate the token's
 signature and, if `prnt` present, the **entire chain** to a trusted root; (2) check the
@@ -2079,6 +2098,8 @@ to it.
 | `InclusionProof`/`ConsistencyProof` | — (none) | — | **no signature** — verified against the STH `root_hash` (§18.9.13) |
 | `CapabilityToken` | `sig` (k9) | `DMTAP-v0/cap-token` | `det_cbor(CapabilityToken ∖ {9})` (§18.9.14) |
 | `CapabilityRevocation` | `sig` (k5) | `DMTAP-v0/cap-revocation` | `det_cbor(CapabilityRevocation ∖ {5})` (§18.9.14) |
+| `CapabilityAnnouncement` | `sig` (k6) | `DMTAP-v0/cap-announce` | `det_cbor(CapabilityAnnouncement ∖ {6})` (§18.9.14) |
+| `Ack` | `ack_sig` (k3) | `DMTAP-v0/ack` | `det_cbor(Ack ∖ {3})` = `det_cbor({1=>id, 2=>tier})` (§18.9.18) |
 | `SphinxCell` & sub-structures | — (none) | — | **no DMTAP sig** — Sphinx per-hop MAC / wide-block PRP (§18.5.4, §18.9.9) |
 | `DeniablePrekeyBundle` | `sig` (k10) | `DMTAP-v0/deniable-prekeys` | `det_cbor(DeniablePrekeyBundle ∖ {10})` (§18.9.10) |
 | `DeniablePrekeyBundle` | `spk_sig` (k4) | `DMTAP-v0/deniable-spk` | the raw `spk` bytes (field 3) (§18.9.10) |
@@ -2459,14 +2480,19 @@ integrity derives from the signed head, not a signature of their own (like `Prov
 (`0x1e ‖ BLAKE3-256(0x00 ‖ det_cbor([name, ik, version, identity_id]))`); a leaf that does not
 recompute is `ERR_KT_LEAF_HASH_MISMATCH` (`0x0117`).
 
-### 18.9.14 Capability token & revocation (`CapabilityToken.sig`, `CapabilityRevocation.sig`)
+### 18.9.14 Capability token, revocation & announcement (`CapabilityToken.sig`, `CapabilityRevocation.sig`, `CapabilityAnnouncement.sig`)
 
-Both use the general rule under the **issuer** key:
+All three use the general rule under the **issuer**/announcer key:
 
 ```
-CapabilityToken.sig       = Sign(sk_iss, "DMTAP-v0/cap-token"      ‖ 0x00 ‖ det_cbor(CapabilityToken ∖ {9}))
-CapabilityRevocation.sig  = Sign(sk_iss, "DMTAP-v0/cap-revocation" ‖ 0x00 ‖ det_cbor(CapabilityRevocation ∖ {5}))
+CapabilityToken.sig         = Sign(sk_iss, "DMTAP-v0/cap-token"        ‖ 0x00 ‖ det_cbor(CapabilityToken ∖ {9}))
+CapabilityRevocation.sig    = Sign(sk_iss, "DMTAP-v0/cap-revocation"   ‖ 0x00 ‖ det_cbor(CapabilityRevocation ∖ {5}))
+CapabilityAnnouncement.sig  = Sign(sk_iss, "DMTAP-v0/cap-announce"     ‖ 0x00 ‖ det_cbor(CapabilityAnnouncement ∖ {6}))
 ```
+
+The `CapabilityAnnouncement` (§10.2, §18.7.3) is signed by its `iss` (the announcing peer); the
+receiver's monotonic anti-rollback check (`caps_version` ≤ last accepted ⇒ `0x030A`) runs **only**
+against a signature that verifies, so a forged announcement cannot lower a pinned `caps_version`.
 
 `sk_iss` is the issuer's `IK` or an `IK`-authorised device key (for a root link, §13.5), or — for a
 delegated link — the key that is the parent token's `aud` (the chain binds each link's `iss` to its
@@ -2599,6 +2625,36 @@ keyname_digest = H( u8(0x01)          ; keyname derivation VERSION byte
 The word encoding, wordlist size and folded checksum are §3.9.6's; this subsection pins only the
 digest that feeds them.
 
+### 18.9.18 Delivery-ack signature (`Ack.ack_sig`) (§2.6, §19.3.2)
+
+The `ack` a recipient returns for a delivered MOTE is the delivery system's **only** durability
+signal (§0.5), and its envelope `id` travels **unsealed** at every hop (§18.3.1). With `ack_sig`
+OPTIONAL, any intermediary that read `id` off the wire could forge a receipt and drive the sender's
+durability FSM straight to `ACKED` (§20.1), silently cancelling the retry that is the sole guarantee
+of delivery. `ack_sig` is therefore **MUST** (§19.3.2, H-6); it is pinned here so two implementations
+produce byte-identical preimages.
+
+```cddl
+Ack = {
+  1 => hash,      ; id    the acknowledged Envelope.id (§18.3.1)
+  2 => uint,      ; tier  the privacy tier the ack MUST travel at — the tier the MOTE was sent at (§2.6)
+  3 => sig-val,   ; ack_sig  §18.9.18, over det_cbor(Ack ∖ {3}) under an IK-authorised key of the *recipient*
+}
+```
+
+```
+Ack.ack_sig = Sign(sk, "DMTAP-v0/ack" ‖ 0x00 ‖ det_cbor(Ack ∖ {3}))     ; det_cbor(Ack ∖ {3}) = det_cbor({1=>id, 2=>tier})
+```
+
+`sk` is the acknowledging recipient's `IK` or a non-revoked `DeviceCert`-chained device key (§1.2) —
+the identical authorisation test §5.6.1 applies to cluster peers, reused rather than re-invented. The
+**sender** verifying an incoming `ack` MUST reject it — treat it as no delivery evidence, no
+durability-state change, retry-queue entry stays `IN_FLIGHT`/`RETRY` (§20.1) — if the signature does
+not verify, the signing key is not authorised under the pinned recipient identity
+(`ERR_ACK_SIG_INVALID`, `0x0317`), **or** `Ack.tier` does not equal the tier the MOTE was sent at
+(`ERR_ACK_TIER_MISMATCH`, `0x0318`; a tier downgrade on the return path, §2.6). Neither is grounds to
+short-circuit the mixnet-carried delivery the sender requested.
+
 ---
 
 ## 18.10 Collected CDDL grammar (copy-paste block)
@@ -2714,6 +2770,7 @@ Identity = {
   4 => [* DeviceCert], 5 => KeyPackageBundleRef, 6 => hash,
   7 => [* tstr], ? 8 => hash, 9 => ts, 10 => [+ sig-val],
   ? 11 => KeyPackageBundleRef,                              ; 11 = deniable_prekeys (§5.2.1); sig stays key 10
+  12 => u8, ? 13 => [+ u8],                                 ; 12 = anchor_suite (§1.2.0, MUST); 13 = classical_retired (§1.3)
 }
 
 DeviceCert = {
@@ -2867,6 +2924,8 @@ CapabilityToken = {
 }
 Capability = { 1 => tstr, 2 => tstr, ? 3 => { * tstr => ext-value } }   ; resource, ability, caveats
 CapabilityRevocation = { 1 => suite, 2 => ik-pub, 3 => hash, 4 => ts, 5 => sig-val }  ; 3=revoked token addr
+CapabilityAnnouncement = { 1 => suite, 2 => ik-pub, 3 => u64, 4 => [* Capability], 5 => ts, 6 => sig-val }  ; 2=iss 3=caps_version(§10.2) 6=sig(DMTAP-v0/cap-announce)
+Ack = { 1 => hash, 2 => uint, 3 => sig-val }                      ; id, tier, ack_sig (DMTAP-v0/ack, §18.9.18); preimage det_cbor(Ack ∖ {3})
 
 ; ── coordinator layer (coordinator/CONTRACT.md §2.1, §2.4, §6; §12.2) ──
 ; One object family for every coordinator kind (CONTRACT §5), keyed by `kind`; a gateway's/

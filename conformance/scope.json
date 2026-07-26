@@ -1868,6 +1868,14 @@
       "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
     },
     {
+      "section": "18.9.18",
+      "file": "18-wire-format.md",
+      "title": "18.9.18 Delivery-ack signature (`Ack.ack_sig`) (§2.6, §19.3.2)",
+      "musts": 1,
+      "class": "IMPL",
+      "reason": "the Ack object / DMTAP-v0/ack preimage and the sender-side reject rules (0x0317/0x0318) — a decoder + FSM case is what checks them (H-6)"
+    },
+    {
       "section": "18.10",
       "file": "18-wire-format.md",
       "title": "18.10 Collected CDDL grammar (copy-paste block)",

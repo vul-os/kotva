@@ -555,7 +555,13 @@ tier-dependence is the honest core of DMTAP's posture.
 - *Against:* all adversaries incl. global active (forgery needs the signing key).
 - *Residual:* authenticity of the *name→key binding* is only as strong as the KT profile in force
   (SP-9, §6.6 item 6); deniable-mode messages deliberately carry **no** content signature — their
-  authenticator is a shared-key MAC (SP-7, §5.2.1(c)).
+  authenticator is a shared-key MAC (SP-7, §5.2.1(c)). **Return-path disclosure (`ack_sig`, §18.9.18):**
+  making the delivery `ack` unforgeable (a required signature by an authorised *device* of the pinned
+  recipient, §19.3.2, H-6) means a SURB-path / exit-mix observer on the **return leg** can learn that
+  *some device of the recipient identity replied* — a narrow, honestly-disclosed reduction in
+  return-path deniability, not its elimination (some durable authentication of "delivery happened" is
+  inherent to an unforgeable receipt), and distinct from sender anonymity (SP-3/SP-4), which it does
+  not touch.
 
 **SP-3 — Sender anonymity against a GLOBAL PASSIVE adversary — NON-NORMATIVE, RESEARCH-TIER,
 scoped to the opt-in `private` mixnet only. Demoted from its former "headline property" status.**

@@ -1008,11 +1008,12 @@ sender-side retry loop (§4.7).
 - `ack_sig` (`bytes`, **MUST — normative correction**; this field was previously **OPTIONAL** in
   this section ("an implementation hardening, not specified further at the object-format level in
   v0"). That was wrong, not merely permissive, and is corrected here (H-6). Signature over the
-  DS-tagged preimage `DMTAP-v0/ack ‖ 0x00 ‖ det_cbor({id, tier})` (§18.9; exact CDDL and registry
-  entry owed to that section, reported below), by a key **currently authorised under the
-  recipient's own pinned identity**: the `IK` itself, or a non-revoked `DeviceCert`-chained device
-  key (§1.2) — the identical authorisation test §5.6.1 already applies to cluster-sync peers, reused
-  here rather than inventing a second one.
+  DS-tagged preimage `DMTAP-v0/ack ‖ 0x00 ‖ det_cbor({id, tier})` — the `Ack` object, its
+  `DMTAP-v0/ack` DS-tag and preimage are pinned at **§18.9.18**, and the two sender-side dispositions
+  are registered as `ERR_ACK_SIG_INVALID` (`0x0317`) and `ERR_ACK_TIER_MISMATCH` (`0x0318`) — by a
+  key **currently authorised under the recipient's own pinned identity**: the `IK` itself, or a
+  non-revoked `DeviceCert`-chained device key (§1.2) — the identical authorisation test §5.6.1 already
+  applies to cluster-sync peers, reused here rather than inventing a second one.
 
   **Why OPTIONAL was a defect, not a hardening.** The envelope `id` an `ack` carries travels in the
   **cleartext** `Envelope` (§18.3.1, field 3) at every hop: a mixnet relay, an exit mix, or an
