@@ -29,12 +29,12 @@ Each case has:
 
 ## Ratification-tier subset — what a Core-v1 implementation must pass
 
-The [SPEC ratification tiers](../SPEC.md) draw a conformance seam through this suite. Of the **362**
+The [SPEC ratification tiers](../SPEC.md) draw a conformance seam through this suite. Of the **364**
 cases:
 
 | Ratification tier | Cases | What it covers |
 |-------------------|------:|----------------|
-| **`core-v1`** | **291** | The DMTAP-mail reference profile — identity, MOTE, naming, transport, messaging, privacy, gateway, clients, anti-abuse, auth, wire-format, state machines, legacy interop (§00–§21, §26). The mature heart, with **no load-bearing coordinator**. |
+| **`core-v1`** | **293** | The DMTAP-mail reference profile — identity, MOTE, naming, transport, messaging, privacy, gateway, clients, anti-abuse, auth, wire-format, state machines, legacy interop (§00–§21, §26). The mature heart, with **no load-bearing coordinator**. |
 | **`stable-extension`** | **71** | The in-tree DMTAP-PUB object family: `PUB`/`PUBGUARD` (§22), `CAD`/`CADASM` + `VIDEO`/`VIDMIG` (§23–§24), `PUBSUB` (§25). Capability-gated, additive. |
 | **`draft`** | **0** | DEPOT and `compute` carry no wire in this suite; RTC (§27) and commerce/escrow carry **no protocol surface** to vector (SEAM-02). |
 
@@ -43,7 +43,7 @@ cases:
 the `clause` field — no vector is Core-v1 by virtue of a hand judgement.
 
 **The practical consequence:** an implementation can be **fully Core-v1 conformant with no extension
-present** — the 291 Core-v1 `MUST` cases neither reference nor require any DMTAP-PUB object, feed
+present** — the 293 Core-v1 `MUST` cases neither reference nor require any DMTAP-PUB object, feed
 subscription, video artifact, real-time-media session, or market coordinator. That is the ratifiable
 core (SPEC, "Core v1 is complete and conformant with *no* extension"), made testable: the tier is a
 filter over this catalogue, not a second suite.
@@ -55,13 +55,13 @@ the same set, and one numeric coincidence is worth calling out:
 | Scoping | Size | Meaning |
 |---------|-----:|---------|
 | **Core conformance *level*** (§10.3, the `## Core level` case block) | ≈ **71** | The **minimum mandatory interoperability floor** — the least an implementation must pass to claim any conformance at all. |
-| **`ratification_tier: core-v1`** (this section) | **291** | The whole ratifiable DMTAP-mail heart (§00–§21, §26) — the Core *level* floor **plus** the higher DMTAP levels (Private, Groups&Files, Legacy, Clients, Auth), which are still market-free and load-bearing-free and so ratify together. |
-| **`level: Core`** (the `level` field) | **220** | *Area*-core: which numbered core chapter a case derives from. §10 warns this is **not** a Core-*level* obligation — some `level: Core` cases are the optional PUB/PUBSUB extension. |
+| **`ratification_tier: core-v1`** (this section) | **293** | The whole ratifiable DMTAP-mail heart (§00–§21, §26) — the Core *level* floor **plus** the higher DMTAP levels (Private, Groups&Files, Legacy, Clients, Auth), which are still market-free and load-bearing-free and so ratify together. |
+| **`level: Core`** (the `level` field) | **222** | *Area*-core: which numbered core chapter a case derives from. §10 warns this is **not** a Core-*level* obligation — some `level: Core` cases are the optional PUB/PUBSUB extension. |
 
-The nesting is **Core level (≈71) ⊂ core-v1 tier (291)**, and `level: Core` (220) cuts across both.
+The nesting is **Core level (≈71) ⊂ core-v1 tier (293)**, and `level: Core` (222) cuts across both.
 The `71` in the Core-*level* floor and the `71` stable-extension count are **coincidental and
 unrelated** — one is the mandatory floor, the other is the count of extension vectors. When this
-document says "Core-v1" it always means the **291-case ratification tier**; "Core level" always means
+document says "Core-v1" it always means the **293-case ratification tier**; "Core level" always means
 the **≈71-case §10.3 floor**.
 
 **Clause citations into the relocated mixnet/VDF sections (2026-07 demotion).** Every `§4.4`/
@@ -151,7 +151,7 @@ and on `reject` MUST map it to the named §21 error code with that code's `Actio
 | **Core** — wire objects with no vector: decode & cross-field rules (`WIRE`) | 10 | 0 | 0 | 10 | 0 |
 | **Core** — §18 KATs: manifest, mix descriptor, Sphinx framing (`WIREKAT`) | 9 | 9 | 0 | 0 | 0 |
 | **Core** — DMTAP-PUBSUB extension, optional `pubsub-1` (`PUBSUB`) | 16 | 0 | 0 | 15 | 1 |
-| **Total** | **362** | **52** | **6** | **285** | **19** |
+| **Total** | **364** | **52** | **6** | **287** | **19** |
 
 The 52 vectored + 6 self-contained cases (**58**) are fully machine-runnable **today** from
 `vectors.json` / `pub_vectors.json` + the inline bytes here, with **no reference implementation
@@ -193,7 +193,7 @@ in [`scope.json`](scope.json). That sentence is doing exact work and is easy to 
   if every MUST in it is exercised. The metric is a floor **with named gaps**: it says "most of the
   implementable spec has a case pointed at it, and the tool lists what does not", never "everything
   is checked".
-- It counts cases that **exist**, not cases that **pass.** Of 362 cases, 58 are byte-runnable
+- It counts cases that **exist**, not cases that **pass.** Of 364 cases, 58 are byte-runnable
   today; the rest carry a construction recipe or are settled by review. **No implementation has
   been run against this suite**, so the suite is a specification of tests, not a test result.
 - The denominator is **curated.** [`scope.json`](scope.json) classifies all **402** MUST-bearing
@@ -209,7 +209,7 @@ curation can be checked rather than trusted; `make coverage` is authoritative an
 as the suite grows.
 
 **Sync status:** `SUITE.md` and [`suite.json`](suite.json) are **in sync** — both carry the same
-**362** case ids, and `make lint` (check C5) fails the build if they ever disagree, or if any
+**364** case ids, and `make lint` (check C5) fails the build if they ever disagree, or if any
 document states a different count. The changed deniable objects (§5.2.1 dedicated-`idk`) are still
 to be re-vectored when the reference regenerates `vectors.json`.
 
@@ -532,7 +532,7 @@ The optional wake layer (§4.9): a device registers a `PushSubscription` with it
 node emits a content-free, sender-blind `WakePing`. Push is **not required for Core** (§10.3) — these
 guards are conditional and MUST hold **only when a node implements the optional `push-wake`
 capability** (§10.2, §21.22), mirroring how the `DENIABLE` guards apply only when the deniable mode is
-implemented. No byte-exact vectors yet (RFC 8291 sealing uses fresh randomness); the reject guards
+implemented. No byte-exact vectors yet (RFC 8293 sealing uses fresh randomness); the reject guards
 below are MUST.
 
 | id | req | clause | checks | expect | status |
@@ -1098,7 +1098,7 @@ platform that did not require one.
 | id | req | clause | checks | input | expect | status |
 |----|-----|--------|--------|-------|--------|--------|
 | DMTAP-TIER-01 | MUST | §4.5, §6.5, §2.5 | **File bulk NEVER traverses the opt-in mixnet, and is not described as if it did, regardless of which tier the sender otherwise uses.** Blobs above the large-tier boundary MUST NOT traverse the mixnet — the bandwidth and latency are impractical. The control MOTE carrying the manifest and key travels the same tier as any other control MOTE for that sender (`fast` by default, §4.6, or the opt-in `private` tier if selected) — the bulk bytes never do either way. Where the control MOTE does ride the opt-in `private` tier, a well-positioned observer still learns the fact and approximate size of the large transfer from the bulk fetch, and an implementation MUST NOT claim mixnet-grade metadata privacy for it | construction: offer a large-tier file from a sender using the opt-in `private` tier for its control MOTEs; trace the control MOTE and the chunk fetches separately, and inspect what the client tells the user about the transfer's privacy | accept (control MOTE on whichever tier the sender uses — `private` in this construction — chunk fetch always on the fast/bulk path); routing the chunks over the mixnet is non-conformant, and so is presenting the chunk fetch as carrying the `private` tier's metadata protection | construction-todo |
-| DMTAP-TIER-02 | MUST | §4.9.3, §6.6 | **Prefer the open push provider wherever the platform allows.** A conforming node MUST prefer an open provider — UnifiedPush or Web Push — wherever the platform allows, and MUST fall back to APNs or FCM **only** on a platform that mandates them. The wake payload is the same RFC 8291-sealed content-free token either way, so the provider choice changes only who is in the path, which is exactly why the preference is normative rather than advisory | construction: enable push on (a) a desktop/browser platform where Web Push is available, (b) a de-Googled Android with UnifiedPush available, (c) iOS; inspect the provider tag in the resulting `PushSubscription` | accept ((a) Web Push, (b) UnifiedPush, (c) APNs); selecting FCM on (b), or any closed bridge on (a), is non-conformant even though the sealed token is identical | construction-todo |
+| DMTAP-TIER-02 | MUST | §4.9.3, §6.6 | **Prefer the open push provider wherever the platform allows.** A conforming node MUST prefer an open provider — UnifiedPush or Web Push — wherever the platform allows, and MUST fall back to APNs or FCM **only** on a platform that mandates them. The wake payload is the same RFC 8293-sealed content-free token either way, so the provider choice changes only who is in the path, which is exactly why the preference is normative rather than advisory | construction: enable push on (a) a desktop/browser platform where Web Push is available, (b) a de-Googled Android with UnifiedPush available, (c) iOS; inspect the provider tag in the resulting `PushSubscription` | accept ((a) Web Push, (b) UnifiedPush, (c) APNs); selecting FCM on (b), or any closed bridge on (a), is non-conformant even though the sealed token is identical | construction-todo |
 
 ---
 
@@ -1272,6 +1272,8 @@ consequences.
 | DMTAP-FSM-03 | MUST | §20.6, §13.4, §16.8 | **The grace timer runs monotonically, and one bad proof is one bad request.** A re-validation attempt during the grace window that finds the endpoint still unreachable MUST NOT restart the grace timer: it runs from the *first* entry into `REVALIDATION_GRACE`, so `grace_window_elapsed` fires on schedule however many unreachable re-checks occur. Otherwise an attacker who keeps the endpoint down extends a revoked session indefinitely — by making the check fail more often. §20.6 also fills what §13.4 leaves open: a single failed DPoP proof rejects that request and keeps the session alive, because DPoP is per-request by construction | construction: partition the RP from the status endpoint and issue re-validation attempts at short intervals across the whole grace window, recording when `grace_window_elapsed` fires; separately, send one request with a bad DPoP proof followed by one with a good proof | accept (the window expires exactly 2× the re-validation interval after **first** entry, regardless of the number of failed re-checks; the bad proof rejects → `ERR_DPOP_PROOF_INVALID` (0x0506) while the following good-proof request succeeds); a restarted grace timer is non-conformant, and so is tearing down the session on one bad proof | construction-todo |
 | DMTAP-FSM-04 | MUST | §20.5.2, §16.8, §5.1 | **A quorum below `> n/2` MUST NOT rotate the committer.** A takeover Commit promoting the deterministic successor is applied only when it references the last agreed log head **and** carries a `> n/2` roster quorum of member signatures. Below that, rotation is split-brain: two partitions each electing their own successor produce two committers, which is the fork the whole ordering layer exists to prevent | construction: partition a group so that a minority observes the committer-liveness timeout (§16.8) twice; have it assemble a takeover Commit carrying exactly `⌊n/2⌋` signatures against the last agreed head | reject → `ERR_GROUP_POLICY_VIOLATION` (0x0409); the rotation does not occur and the minority holds. Applying a sub-quorum takeover is non-conformant, and a competing Commit at the same log position is fork evidence → `ERR_COMMITTER_FORK_DETECTED` (0x0404), HALT_ALERT | construction-todo |
 | DMTAP-FSM-05 | MUST | §20.7, §14.3, §4.9 | **A wake without connectivity is a benign event, and a thin client still reconciles.** For a mobile thin client `ONLINE` is transient: the client MUST still poll and reconcile rather than treating reachability as continuous. A push wake arriving with no connectivity — airplane mode — returns to `OFFLINE` and is expected, not an error, because push is wake-and-fetch and never delivery confirmation; and repeated futile wakes SHOULD be coalesced rather than driving repeated reconnect attempts | construction: deliver a wake to a thin client in airplane mode, then restore connectivity without a further wake; observe whether the queue drains on foreground and whether any error state or delivery confirmation was produced by the failed wake | accept (the failed wake yields no error and no delivery signal; the queue drains on the client's own foreground reconcile); a client that only fetches on a successful wake will lose mail whenever the platform drops one, which both APNs and FCM do by design | construction-todo |
+| DMTAP-FSM-06 | MUST | §20.1, §19.3.2, §18.9.18 | **An unsigned or wrongly-keyed `ack` is not delivery evidence and MUST NOT advance the durability FSM (H-6).** The sender verifies `ack_sig` (§18.9.18) under a key currently authorised by the pinned recipient identity; an `ack` whose `ack_sig` is absent, fails to verify, or verifies under an unauthorised key is ignored and the retry-queue entry stays `IN_FLIGHT`/`RETRY` — a hop reading the **unsealed** `Envelope.id` cannot forge a receipt to cancel the retry | construction: present the sender an `ack` for an in-flight MOTE whose `ack_sig` is (a) absent, (b) a valid signature by a key not authorised under the recipient's pinned `Identity`; observe that neither advances `IN_FLIGHT`/`RETRY` → `ACKED` | reject → `ERR_ACK_SIG_INVALID` (0x0317); ack ignored, no durability-state change, retry continues | construction-todo |
+| DMTAP-FSM-07 | MUST | §20.1, §2.6, §18.9.18 | **A genuinely-signed but tier-mismatched `ack` MUST be ignored (return-path no-downgrade).** An `ack` whose `tier` (§18.9.18) does not equal the tier the acknowledged MOTE was sent at — e.g. a `private`-tier send acked over `fast` — is treated identically to a signature failure: no durability-state change, retry continues | construction: send a `private`-tier MOTE, then present the sender a validly-signed `ack` carrying `tier = fast`; observe the ack is ignored and the retry-queue entry stays `IN_FLIGHT`/`RETRY` | reject → `ERR_ACK_TIER_MISMATCH` (0x0318); tier-mismatched ack ignored, no state change | construction-todo |
 
 ---
 

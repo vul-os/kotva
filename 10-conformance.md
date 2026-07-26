@@ -114,11 +114,11 @@ The **conformance test suite** is the *operational definition* of compatibility.
 means "passes the suite," not "resembles the reference." This is the primary defence against
 fragmentation. The suite lives in `conformance/` as three coupled artifacts:
 
-- **`conformance/SUITE.md`** — the normative test-case catalogue: 362 numbered cases
+- **`conformance/SUITE.md`** — the normative test-case catalogue: 364 numbered cases
   (`DMTAP-<category>-<NN>`) grouped by the levels above, each pinning its spec clause, input,
   expected result (accept / reject + the §21 error code), and MUST/SHOULD.
 - **`conformance/suite.json`** — the machine-readable mirror of those cases, so a runner in **any
-  language** can drive them. It mirrors all 362 (SUITE.md and suite.json are in sync — the wave-2
+  language** can drive them. It mirrors all 364 (SUITE.md and suite.json are in sync — the wave-2
   deniable-1:1 and KT-v1-hardening families, the `PROFILE` display-data cases, the optional
   `PUSH` wake-signalling cases, the `FILE` durability cases, the wave-3 device-cluster `SYNC`,
   `ALIAS`, and gateway-alias `GWALIAS` families, the pluggable-resolver `RESOLVE` family, the
@@ -163,14 +163,14 @@ display-data guards, the optional `PUSH` wake-signalling guards, the wave-6 anti
 (`MIXPROF`/`FLEET`/`GUARD`/`LOC`/`FLOOR`/`FAILCLASS`/`GWROLE`), the gateway families
 (`GWOPS`/`GWSMTP`/`GWATT`/`GWNAME`/`GWFLOOR`/`GWLEG`), the profile-level `CAD`/`VIDEO` checklists,
 and the DMTAP-PUBSUB guards (`PUBSUB`, §25) — see `conformance/README.md`). The partition is exact:
-58 + 19 + 285 = 362. An implementation conforms at a level iff it passes every `MUST` case of that
+58 + 19 + 287 = 364. An implementation conforms at a level iff it passes every `MUST` case of that
 level and of every level it composes.
 
 **On the coverage figure.** `make coverage` reports that **84%** of `IMPL` sections (those whose
 MUSTs an implementation must satisfy) are cited by at least one case — and, conversely, that **56
 IMPL sections (212 MUSTs) are not yet cited** (e.g. §18.8a.1, §27.4.1, §8.6a). It is a
 **section-level measure**: a section counts as covered if *any* case cites it, not if every MUST in
-it is exercised; it counts cases that **exist**, not cases that **pass** (58 of 362 are byte-runnable
+it is exercised; it counts cases that **exist**, not cases that **pass** (58 of 364 are byte-runnable
 today, and no implementation has yet been run against the suite); and it is measured against a
 **curated** denominator whose classification is a judgement, auditable in `conformance/scope.json` and
 re-checkable by `make lint`. The **raw** figure — every capitalised MUST in the specification,
@@ -204,12 +204,12 @@ discipline the §5 kind table and the SPEC index use).
   `pub-1`**" and "**Core** — DMTAP-PUBSUB extension, **optional `pubsub-1`**" are area-Core and
   simultaneously optional. The Core *level* boundary is, and is only, the `## Core level` case block
   above. An implementer or verifier MUST NOT infer a Core-level obligation from the area prefix.
-- **Scale of the floor (informative, this revision).** The Core *level* is ≈ **71 of 362**
+- **Scale of the floor (informative, this revision).** The Core *level* is ≈ **71 of 364**
   conformance cases, ≈ **28 of ~166** registered error codes, and ≈ **300 of ~2 144** normative MUSTs
   across the numbered chapters — roughly a **15–20 % slice**. These counts are informative and drift
   as the suite grows; the Core case block, not these numbers, is the boundary. **Do not confuse this
   Core *level* floor with the `ratification_tier: core-v1` partition** ([`conformance/SUITE.md`](conformance/SUITE.md)):
-  that is the coarser **291-of-362** ratifiable tier (this floor **plus** the higher Private / Groups
+  that is the coarser **293-of-364** ratifiable tier (this floor **plus** the higher Private / Groups
   / Legacy / Clients / Auth levels, which are equally market-free), and it is a **superset** of this
   floor. The `71` here and the 71 `stable-extension` vectors there are an unrelated coincidence.
 

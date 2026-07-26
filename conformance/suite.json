@@ -12,7 +12,7 @@
   ],
   "ratification_tiers": {
     "definition": "Ratification tier per SPEC.md 'Ratification tiers'. Orthogonal to 'level' (which is DMTAP feature grouping). A vector is 'stable-extension' iff any of its clauses lives in an in-tree extension section (§22 DMTAP-PUB, §23-§24 Published-Artifact/video, §25 DMTAP-PUBSUB, §27 Real-Time Media); otherwise 'core-v1' (§00-§21 + §26 legacy interop).",
-    "core-v1": 291,
+    "core-v1": 293,
     "stable-extension": 71,
     "draft": 0,
     "note": "No DEPOT (draft/deferred), RTC, or commerce/escrow vectors exist in this suite — those surfaces carry no protocol wire (SEAM-02), so Core-v1 conformance is testable in full without any extension present."
@@ -6560,6 +6560,48 @@
       "expect": {
         "outcome": "accept",
         "note": "the failed wake must yield no error and no delivery signal, and the queue must drain on the client's own foreground reconcile"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-FSM-06",
+      "level": "Core",
+      "ratification_tier": "core-v1",
+      "category": "FSM",
+      "req": "MUST",
+      "clause": [
+        "§20.1",
+        "§19.3.2",
+        "§18.9.18"
+      ],
+      "checks": "An unsigned or wrongly-keyed ack is not delivery evidence and MUST NOT advance the durability FSM. The sender verifies ack_sig (§18.9.18) under a key currently authorised by the pinned recipient identity; an ack whose ack_sig is absent, fails to verify, or verifies under an unauthorised key is ignored (ERR_ACK_SIG_INVALID, 0x0317) and the retry-queue entry stays IN_FLIGHT/RETRY — the H-6 proof-of-fix that a hop reading the unsealed Envelope.id cannot forge a receipt to cancel the retry",
+      "operation": "delivery_durability_state_machine",
+      "construction": "present the sender an ack for an in-flight MOTE whose ack_sig is (a) absent, (b) a valid signature by a key not authorised under the recipient's pinned Identity; observe that neither advances IN_FLIGHT/RETRY to ACKED and the retry continues",
+      "expect": {
+        "outcome": "reject",
+        "error": "0x0317",
+        "note": "ack ignored, no durability-state change, retry-queue entry stays IN_FLIGHT/RETRY"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-FSM-07",
+      "level": "Core",
+      "ratification_tier": "core-v1",
+      "category": "FSM",
+      "req": "MUST",
+      "clause": [
+        "§20.1",
+        "§2.6",
+        "§18.9.18"
+      ],
+      "checks": "A genuinely-signed ack whose tier does not equal the tier the acknowledged MOTE was sent at is a return-path downgrade and MUST be ignored (ERR_ACK_TIER_MISMATCH, 0x0318), treated identically to a signature failure: no durability-state change, retry continues. A private-tier send acked over fast MUST NOT count as delivery",
+      "operation": "delivery_durability_state_machine",
+      "construction": "send a private-tier MOTE, then present the sender a validly-signed ack carrying tier=fast; observe the ack is ignored and the retry-queue entry stays IN_FLIGHT/RETRY",
+      "expect": {
+        "outcome": "reject",
+        "error": "0x0318",
+        "note": "tier-mismatched ack ignored, no state change"
       },
       "status": "construction-todo"
     },

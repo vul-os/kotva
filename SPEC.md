@@ -145,7 +145,7 @@ declare which tier(s) it implements; **Core v1 is complete and conformant with *
   messaging, the PUB/SYNC *waist capability* itself, and legacy interop. **Core v1 has *no*
   load-bearing coordinator and depends on no market forming** — the "never load-bearing" invariant
   (§0) holds *absolutely* here, which is the point of drawing the line. In the
-  [conformance suite](conformance/SUITE.md) this is the **291-of-362** Core-v1 subset; the remaining
+  [conformance suite](conformance/SUITE.md) this is the **293-of-364** Core-v1 subset; the remaining
   71 vectors test the stable extensions below.
 - **Stable extensions — well-specified, ship independently.** SOCIAL, SEARCH, MEDIA, RTC, and the
   commerce family TRACT/WRAP. Two forms: **in-tree profiles** that ride the same document and are
