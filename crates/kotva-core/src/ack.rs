@@ -195,6 +195,36 @@ mod tests {
         )
     }
 
+    /// Adversarial decode robustness (§18.1): `Ack::from_det_cbor` must never panic and must never
+    /// accept a non-canonical encoding (re-encode reproduces the exact input, or a hop reading the
+    /// unsealed envelope id could mint a byte-different ack — malleability).
+    #[test]
+    fn ack_decode_is_panic_free_and_strictly_canonical() {
+        let ik = IdentityKey::generate();
+        let valid = Ack::sign(ContentId::of(b"envelope-id"), Tier::Private, &ik).det_cbor();
+        let mut mutants: Vec<Vec<u8>> = Vec::new();
+        for i in 0..valid.len() {
+            for bit in [0x01u8, 0x08, 0x80, 0xff] {
+                let mut m = valid.clone();
+                m[i] ^= bit;
+                mutants.push(m);
+            }
+        }
+        for n in 0..valid.len() {
+            mutants.push(valid[..n].to_vec());
+        }
+        for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8]] {
+            let mut m = valid.clone();
+            m.extend_from_slice(&junk);
+            mutants.push(m);
+        }
+        for m in &mutants {
+            if let Ok(obj) = Ack::from_det_cbor(m) {
+                assert_eq!(&obj.det_cbor(), m, "Ack decoder accepted a non-canonical encoding");
+            }
+        }
+    }
+
     #[test]
     fn ack_signs_verifies_and_round_trips() {
         let ik = IdentityKey::generate();
