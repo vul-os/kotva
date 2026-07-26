@@ -779,7 +779,7 @@
       <figure>
         <div class="diagram-frame">
           <svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="layTitle layDesc">
-            <title id="layTitle">Six layers, bottom to top</title>
+            <title id="layTitle">A thin base, apps on top, swappable seams on the side</title>
             <desc id="layDesc">ADOPT, SUBSTRATE, PRIMITIVES stack vertically as the shared floor; PROFILES sit on top; the coordinator contract and bindings sit as side seams that absorb hard problems.</desc>
             <g font-family="var(--font-mono)" font-size="12.5" text-anchor="middle">
               <rect x="140" y="10"  width="480" height="40" rx="8" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.3"></rect>
@@ -812,7 +812,7 @@
             <text x="380" y="268" text-anchor="middle" font-family="var(--font-mono)" font-size="10" fill="var(--text-faint)" font-style="italic">ORACLE (⊂ATTEST), DISPUTE (arbiter) and PAY (stablecoin) are composite roles, not extra primitives — DIRECTION.md §2</text>
           </svg>
         </div>
-        <figcaption>Figure 3 — the layered architecture. Profiles are thin because everything hard is either adopted (layer ①/⑤) or fenced (layer ④), never re-derived at the top.</figcaption>
+        <figcaption>Figure 3 — the architecture. Applications sit on top of a thin base; everything hard is either adopted (bindings) or fenced (coordinators) as swappable side-seams, never re-derived at the top.</figcaption>
       </figure>
 
       <div class="profile" id="p-mail">

@@ -55,7 +55,10 @@ hard problem is never hard-wired — it is a swappable **binding** or a fenced *
 
 Four strata, plus the seams that plug in from the side. The colours are the **ratification tiers**
 (defined in full below): **🟢 Core v1** (stable, standardised), **🟡 stable extension** (candidate),
-**🔴 draft** (experimental).
+**🔴 draft** (experimental). The strata map onto the sections that follow: the **base** is the
+*Substrate* (②) plus the deterministic wire (§18) and the *Coordinator contract*; the **toolkit** is
+*Primitives* (③); the **seams** are *Coordinator kinds* (④) and *Bindings* (⑤); the **apps** are
+*Profiles* (⑥).
 
 1. **The base (🟢 — *the standard*).** The six waist capabilities
    ([`substrate/README.md`](substrate/README.md)), the deterministic wire format (§18), and the
