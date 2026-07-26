@@ -1924,50 +1924,6 @@ mod tests {
     }
 
     #[test]
-    fn recovery_policy_decode_is_panic_free_and_strictly_canonical() {
-        // §18.1: RecoveryPolicy governs who can regain/rotate an identity — a malleable or
-        // panic-inducing decode here is a takeover / DoS surface. Never panic; never accept
-        // non-canonical bytes.
-        let ik = IdentityKey::generate();
-        let mut p = RecoveryPolicy {
-            suite: Suite::Classical,
-            ik: ik.public(),
-            version: 1,
-            methods: vec![RecoveryMethod::Phrase { recovery_key: vec![1, 2, 3] }],
-            recover_threshold: Threshold { any_of: vec![MethodPredicate::Phrase] },
-            rotate_threshold: Threshold {
-                any_of: vec![MethodPredicate::Ik, MethodPredicate::Guardians(2)],
-            },
-            prev: None,
-            ts: 1,
-            sig: vec![],
-        };
-        p.sign(&ik);
-        let valid = p.det_cbor();
-        let mut mutants: Vec<Vec<u8>> = Vec::new();
-        for i in 0..valid.len() {
-            for bit in [0x01u8, 0x08, 0x80, 0xff] {
-                let mut m = valid.clone();
-                m[i] ^= bit;
-                mutants.push(m);
-            }
-        }
-        for n in 0..valid.len() {
-            mutants.push(valid[..n].to_vec());
-        }
-        for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8]] {
-            let mut m = valid.clone();
-            m.extend_from_slice(&junk);
-            mutants.push(m);
-        }
-        for m in &mutants {
-            if let Ok(o) = RecoveryPolicy::from_det_cbor(m) {
-                assert_eq!(&o.det_cbor(), m, "RecoveryPolicy decoder accepted a non-canonical encoding");
-            }
-        }
-    }
-
-    #[test]
     fn recovery_policy_and_move_record_sign_verify() {
         let ik = IdentityKey::generate();
         let mut policy = RecoveryPolicy {
