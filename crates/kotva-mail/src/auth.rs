@@ -134,9 +134,16 @@ pub fn decode_plain(b64: &str) -> Option<SaslCredential> {
         return None; // too many NUL-separated fields — malformed
     }
     let authzid = String::from_utf8(authzid.to_vec()).ok()?;
+    let authcid = String::from_utf8(authcid.to_vec()).ok()?;
+    // RFC 4616 authzid (the requested authorization identity): this surface does not support proxy
+    // authentication, so a present authzid MUST equal authcid — fail closed on a mismatch rather
+    // than silently ignoring what the client asked to act as (a privilege-confusion surface).
+    if !authzid.is_empty() && authzid != authcid {
+        return None;
+    }
     Some(SaslCredential {
         authzid: if authzid.is_empty() { None } else { Some(authzid) },
-        authcid: String::from_utf8(authcid.to_vec()).ok()?,
+        authcid,
         password: String::from_utf8(passwd.to_vec()).ok()?,
     })
 }
@@ -150,6 +157,16 @@ pub fn decode_login_field(b64: &str) -> Option<String> {
 mod tests {
     use super::*;
     use crate::util::base64_encode;
+
+    #[test]
+    fn plain_authzid_mismatch_is_rejected() {
+        // authzid "bob" != authcid "alice": proxy auth is unsupported, so fail closed (None) rather
+        // than silently ignore the requested authorization identity.
+        assert!(decode_plain(&base64_encode(b"bob\0alice\0s3cret")).is_none());
+        // authzid == authcid is fine; empty authzid is fine.
+        assert!(decode_plain(&base64_encode(b"alice\0alice\0s3cret")).is_some());
+        assert!(decode_plain(&base64_encode(b"\0alice\0s3cret")).is_some());
+    }
 
     #[test]
     fn plain_decodes() {

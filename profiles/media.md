@@ -73,7 +73,7 @@ swappable, self-hostable, never load-bearing, visibility declared:
   Derived, rebuildable, never authoritative (§6).
 - **`media-relay`** — forwards SFrame-encrypted **gated/members-only live** media, MLS-keyed to the
   entitled group, so the streamer's uplink is not the audience-size limit. `blind-routing` /
-  `structural` **only where the SFU published `sframe_required = true`** (§27.7.4, CONTRACT §3.3), else `declared` — SFrame seals the media payload, but the SFU reads routing
+  `blind-routing`/`structural` **only where the SFU published `sframe_required = true`** (§27.7.4, CONTRACT §3.3), **else class `terminating`** (it can read unprotected media) — SFrame seals the media payload, but the SFU reads routing
   metadata (participant graph, speaker timing, stream sizes) to forward frames (CONTRACT §3.1).
   Public live has no SFrame keying and does not ride this coordinator (§4 MED-4).
 - **`relay`** — mesh reachability so a box behind CGNAT can still serve its feed. `blind` /
@@ -205,7 +205,7 @@ real-time must not be forced through MOTE delivery.
   CDN/mirror** is **not blind** — the cache/pin role ([ROLES.md §6](../substrate/ROLES.md)) that
   holds and serves plaintext a holder can read; payload confidentiality is n/a because the content is
   public by design ([§22.1](../22-public-objects.md)). A **sealed-media CDN** and a gated-stream
-  **`media-relay`** are `blind-routing`/`structural` **where the operator committed `sframe_required = true`** (§27.7.4, CONTRACT §3.3), else `declared`: neither then holds a key, but each
+  **`media-relay`** are `blind-routing`/`structural` **where the operator committed `sframe_required = true`** (§27.7.4, CONTRACT §3.3), **else class `terminating`** (they can read unprotected media): where committed neither holds a key, but each
   sees routing metadata — which reader fetched which sealed object (SEC-9), or the SFU's per-frame
   participant graph, speaker timing, and stream sizes. An **`indexer`**'s corpus is public plaintext,
   nothing to be `blind` about ([CONTRACT §5](../coordinator/CONTRACT.md)); its query channel is
