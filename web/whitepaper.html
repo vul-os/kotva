@@ -773,6 +773,7 @@
 
     <section id="profiles" aria-labelledby="profiles-h">
       <h2 id="profiles-h"><span class="secnum">§5</span> The profiles</h2>
+      <p class="legend-note"><strong>How to read this section.</strong> These are <strong>reference applications</strong> that sit <em>on top</em> of the base — proof the thin substrate composes into real products; you can bring your own. The hard, domain-specific machinery (search, matching, oracles, moderation, payment) lives <em>on the side</em> as swappable <a href="#coordinator">coordinators</a> and <a href="#bindings">bindings</a>, never baked in. Each profile is tagged by ratification tier — <span class="badge b-live"><span class="dot"></span>🟢 Core&nbsp;v1 · stable</span> <span class="badge b-draft"><span class="dot"></span>🟡 stable extension · candidate</span> <span class="badge b-early"><span class="dot"></span>🔴 draft · experimental</span> — and only the base (the six waist capabilities, the wire format, and the coordinator contract) is ever <em>required</em>: a Core-v1 messaging node uses none of the primitives or profiles below.</p>
       <p>Six primitives recur across almost every real-world service: <strong>OFFER · MATCH · RESERVE · REPUTATION · ESCROW · ATTEST</strong>.<sup class="fn"><a href="#r6">[6]</a></sup> A wider service <em>recipe</em> — <code>OFFER · MATCH/RESERVE · REPUTATION · ESCROW · ORACLE · DISPUTE · PAY</code> — is a useful shorthand for describing a product, but only six of those names are primitives: <code>ORACLE</code> is the <code>oracle</code> coordinator kind (a physical-fact attestation, i.e. <code>ORACLE</code> ⊂ <code>ATTEST</code>), <code>DISPUTE</code> is the <code>arbiter</code> coordinator kind, and <code>PAY</code> is the stablecoin binding — composite roles built from primitives and coordinators, not a seventh and eighth primitive. Because the underlying services reduce to the same six primitives, "different products" are thin profiles standing on one substrate, not separate systems: Uber, delivery, freelance work, and auctions differ mainly in MATCH's assignment rule (nearest, best-fit, highest-bid); bookings drop MATCH entirely for a single-owner RESERVE.</p>
 
       <figure>
@@ -925,7 +926,7 @@
       <div class="profile" id="p-depot">
         <div class="profile-head">
           <h3>DEPOT — managed infrastructure (the decentralised-cloud profile)</h3>
-          <span class="badge b-draft"><span class="dot"></span>draft profile · normative once ratified</span>
+          <span class="badge b-early"><span class="dot"></span>🔴 draft · experimental (not in Core v1)</span>
         </div>
         <p class="profile-thesis">Gateways offer four irreducible primitives — a box, a bucket (which also serves public objects at the edge), a volume and an edge-fn — as fenced coordinators, and everything else (a database, a queue, a Redis, a static site) composes from them as a formula, never a new mechanism. A decentralised cloud where the user holds their keys and can leave.</p>
         <dl>

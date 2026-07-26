@@ -25,43 +25,68 @@ self-host backstop) generalised from mail to the whole system.
 
 ---
 
-## The layered architecture
+## The architecture — a thin base, apps on top, swappable seams on the side
 
-Six layers, bottom to top. Each depends only on the layer beneath and a stable seam sideways; a hard
-problem is never hard-wired — it is a swappable **binding** or a fenced **coordinator**
+Not a layer cake — an **hourglass with side-seams**. A small, stable **base** *is the standard*;
+**applications** stack **on top** of it; the hard, domain-specific machinery (search, matching,
+oracles, payment) lives **on the side** as **swappable seams** you plug in laterally, never bake in. A
+hard problem is never hard-wired — it is a swappable **binding** or a fenced **coordinator**
 ([`DIRECTION § 9`](DIRECTION.md)).
 
 ```
-        ┌──────────────────────────────────────────────────────────────────┐
-        │  ⑥ PROFILES   mail · commerce · work · social · media · calls …    │  thin
-        ├──────────────────────────────────────────────────────────────────┤
-        │  ⑤ BINDINGS   thin maps onto adopted standards (swap the filling)  │  seam →─┐
-        ├──────────────────────────────────────────────────────────────────┤        │
-        │  ④ COORDINATOR CONTRACT   safe centralization, made checkable      │  ←──────┘ (to the side)
-        ├──────────────────────────────────────────────────────────────────┤
-        │  ③ PRIMITIVES   OFFER · MATCH/RESERVE · REPUTATION · ESCROW …      │  compose the space
-        ├──────────────────────────────────────────────────────────────────┤
-        │  ② SUBSTRATE (the narrow waist)   ID · MOTE · TRANS · PUB · SYNC …  │  6 capabilities
-        ├──────────────────────────────────────────────────────────────────┤
-        │  ① ADOPT   Ed25519 · HPKE · CBOR                                    │  proven, not reinvented
-        └──────────────────────────────────────────────────────────────────┘
+                 ON TOP · applications (compose the base; bring-your-own)
+   ┌───────────────────────────────────────────────────────────────────────────────┐
+   │  🟢 messaging · email/legacy     🟡 social · search · calls     🔴 market · cloud  │
+   └────────────────────────────────────────┬──────────────────────────────────────┘
+                                            │ compose
+       COORDINATION TOOLKIT · generic, opt-in vocabulary (standardised; a messaging node uses none)
+       OFFER · MATCH · RESERVE · REPUTATION · ESCROW · ATTEST
+   ══════════════ THE BASE · the standard — thin · RFC-bound · stable (🟢) ═══════════
+       Identity · MOTE · Transport · PUB · SYNC · Wake   +   deterministic wire (§18)
+       + the coordinator CONTRACT (the rulebook every seam obeys)
+   ═════════════════════════════════════════╪═══════════════════════════════════════
+                   ON THE SIDE · swappable seams (plug in laterally, provider-swappable)
+   coordinators  gateway · relay · reachability · indexer · matcher · oracle · arbiter · escrow
+   bindings      MLS · HPKE · libp2p (mature)  ·  Walrus · Kleros · World ID (extension-only)
+       accountable · swappable · never canonical   —   your oracle / matcher / moderator lives here
+   ───────────────────────────────────────────────────────────────────────────────────
+   ADOPT · proven primitives everything rides on: Ed25519 · X25519 · HPKE · CBOR · BLAKE3 (not reinvented)
 ```
 
-1. **ADOPT** — the foundational wire primitives everything above rides on, proven rather than
-   re-derived ([`DIRECTION § 3`](DIRECTION.md)): Ed25519, HPKE, CBOR. (MLS, libp2p, WebRTC,
-   SFrame are the higher-level, swappable **bindings** — see layer ⑤, indexed at
-   [`bindings/README.md`](bindings/README.md).)
-2. **SUBSTRATE** — the six-capability waist; SYNC and MATCH's assignment vocabulary are the only
-   genuinely new normative ground: [`substrate/README.md`](substrate/README.md).
-3. **PRIMITIVES** — the small set every service rearranges: [`primitives/`](primitives/), design
-   brief [`docs/research/PRIMITIVES.md`](docs/research/PRIMITIVES.md).
-4. **COORDINATOR CONTRACT** — the keystone that makes "some centralisation, done safely" a checkable
-   property, not a hope: [`coordinator/CONTRACT.md`](coordinator/CONTRACT.md).
-5. **BINDINGS** — one thin mapping document per adopted standard; swap when the frontier improves:
-   [`bindings/README.md`](bindings/README.md).
-6. **PROFILES** — mail, commerce, work, social, media, calling, discovery, reachability, managed
-   infrastructure (DEPOT) — each a thin composition, no new cryptography: [`profiles/`](profiles/) +
-   the numbered DMTAP-mail sections.
+Four strata, plus the seams that plug in from the side. The colours are the **ratification tiers**
+(defined in full below): **🟢 Core v1** (stable, standardised), **🟡 stable extension** (candidate),
+**🔴 draft** (experimental).
+
+1. **The base (🟢 — *the standard*).** The six waist capabilities
+   ([`substrate/README.md`](substrate/README.md)), the deterministic wire format (§18), and the
+   coordinator **contract** ([`coordinator/CONTRACT.md`](coordinator/CONTRACT.md)). It is
+   **application-agnostic** — a pure messaging node touches nothing above it — and it is the minimum
+   two independent implementations must agree on: *standardise it hard, keep it tiny.* Bound to adopted
+   primitives (Ed25519 · X25519 · HPKE · CBOR · BLAKE3, [`DIRECTION § 3`](DIRECTION.md)), not
+   re-derived. SYNC and MATCH's assignment vocabulary are the only genuinely new normative ground.
+2. **The coordination toolkit (generic vocabulary, opt-in).** `OFFER · MATCH · RESERVE · REPUTATION ·
+   ESCROW · ATTEST` ([`primitives/`](primitives/)) — the shared schemas an *application* composes.
+   **Opt-in, not base:** messaging uses none of them; a marketplace uses most. `ATTEST` is the most
+   foundational (device- and gateway-attestation ride it); `OFFER/MATCH/RESERVE/ESCROW` are the
+   commerce/coordination vocabulary. Standardised so apps interoperate — *not* part of the base a
+   messaging node needs.
+3. **Applications — on top (maturity-tiered).** 🟢 **messaging + email/legacy** (the DMTAP-mail
+   reference app, implemented), 🟡 **social · search · calls**, 🔴 **marketplace (TRACT) · cloud
+   (DEPOT)** ([`profiles/`](profiles/) + the numbered DMTAP-mail sections). These are **reference
+   applications** — proof the base composes into real products, **bring-your-own**; the base never
+   *requires* one. *Honest residual:* the thinner and more optional a profile, the more two apps risk
+   **not** interoperating above the waist (the ActivityPub tension) — a shared profile is the
+   convergence, never a mandate.
+4. **Seams — on the side (swappable).** Coordinators
+   ([`coordinator/CONTRACT § 5`](coordinator/CONTRACT.md)) and bindings
+   ([`bindings/README.md`](bindings/README.md)) plug in **laterally**: a marketplace *reaches sideways*
+   to an `oracle`; you don't bake the oracle into the app. They obey the contract — **accountable ·
+   swappable · never load-bearing** — and the reference operator **Ephor** runs *reference* seams
+   (gateway · relay · reachability) **without them ever being canonical** (replace Ephor's with a DNS
+   change). *Honest limits:* **swappable-in-provider ≠ dispensable** — you can change *which* gateway,
+   not do legacy email *without* one; and a reference seam everyone uses becomes the **de-facto**
+   default (the default-gravity residual, [`DIRECTION § 8`](DIRECTION.md) — mitigated by
+   client-defaults discipline, [§8.6b](08-clients.md), not eliminated).
 
 ---
 
@@ -136,7 +161,7 @@ The family is large on purpose but does **not** ratify as one monolith. It ratif
 shipping on its own clock, so the least-proven parts never block the core. An implementation MUST
 declare which tier(s) it implements; **Core v1 is complete and conformant with *no* extension.**
 
-- **Core v1 — ratifiable now.** The six waist capabilities ([②](#-substrate--the-narrow-waist)), the
+- **🟢 Core v1 — ratifiable now.** The six waist capabilities ([②](#-substrate--the-narrow-waist)), the
   [coordinator contract](coordinator/CONTRACT.md), the coordinator kinds the messaging core actually
   uses — **`gateway`, `relay`, `reachability-adapter`** (and `labeler`, opt-in) — and the
   **DMTAP-mail** reference profile: the identity, MOTE, naming, transport, messaging, privacy,
@@ -147,7 +172,7 @@ declare which tier(s) it implements; **Core v1 is complete and conformant with *
   (§0) holds *absolutely* here, which is the point of drawing the line. In the
   [conformance suite](conformance/SUITE.md) this is the **293-of-364** Core-v1 subset; the remaining
   71 vectors test the stable extensions below.
-- **Stable extensions — well-specified, ship independently.** SOCIAL, SEARCH, MEDIA, RTC, and the
+- **🟡 Stable extensions — well-specified, ship independently.** SOCIAL, SEARCH, MEDIA, RTC, and the
   commerce family TRACT/WRAP. Two forms: **in-tree profiles** that ride the same document and are
   labelled "(extension)" in their own headers — the DMTAP-PUB public-object profile (**§22**), the
   Published-Artifact/video profile (**§23–§24**), DMTAP-PUBSUB feed subscriptions (**§25**) and the
@@ -156,7 +181,7 @@ declare which tier(s) it implements; **Core v1 is complete and conformant with *
   `arbiter`, `oracle`, and — for commerce only — `custodial-escrow`, the family's *one* load-bearing
   exception, thereby confined to the extension that requires it and kept out of Core v1). An
   extension's risk is its own; it never gates the core.
-- **Draft / deferred — not part of v1.** The **DEPOT** cloud profile (`infra-service`) and the
+- **🔴 Draft / deferred — not part of v1.** The **DEPOT** cloud profile (`infra-service`) and the
   provisional **`compute`** kind. These carry the newest surface and the largest unproven market
   dynamics (the two-sided-market/demand question, DIRECTION §5/§8); they are designed and kept in
   the tree, but a v1 ratification and a first reference implementation deliberately **do not** include
