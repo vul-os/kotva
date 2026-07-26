@@ -186,7 +186,7 @@ is the honest status, not a placeholder for a vector that could exist.
 ### Normative coverage, and what it is not
 
 `make coverage` reports that **84% of IMPL MUSTs sit in a section some case cites**, and enumerates
-the **56 IMPL sections (212 MUSTs) that are not yet cited**, measured against the curated denominator
+the **56 IMPL sections (213 MUSTs) that are not yet cited**, measured against the curated denominator
 in [`scope.json`](scope.json). That sentence is doing exact work and is easy to over-read, so:
 
 - It is **section-level, not MUST-level.** A section counts as covered if *any* case cites it, not
@@ -204,7 +204,7 @@ in [`scope.json`](scope.json). That sentence is doing exact work and is easy to 
   intended response to disagreeing with one is to reclassify it `IMPL` and write the case.
 
 The raw figure — every capitalised MUST in the specification, unclassified — is **75%** (403
-MUST-bearing sections, 1744 MUSTs). Both numbers are printed by `make coverage`, deliberately, so the
+MUST-bearing sections, 1745 MUSTs). Both numbers are printed by `make coverage`, deliberately, so the
 curation can be checked rather than trusted; `make coverage` is authoritative and `make lint` (C14)
 fails the build if any coverage figure quoted here disagrees with it, so they never silently drift —
 the figures move

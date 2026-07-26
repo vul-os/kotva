@@ -23,7 +23,58 @@ pub mod slack;
 pub mod telegram;
 pub mod whatsapp_business;
 
+use kotva_core::cbor::Cv;
 use kotva_core::mote::Payload;
+
+/// The **one** canonical `Headers.ext` key (§18.3.6, §21.20 private-use `x-` namespace) under which
+/// **every** rail adapter carries an inbound message's platform-asserted origin (§26.5, §26.5.1
+/// interim-carriage rule). Same key + same shape across all rails, so a client reads a bridged
+/// origin uniformly — a per-rail key or shape is non-conformant (§26.5.1). Superseded, not
+/// contradicted, when §18.3.11's `GatewayAttestation`/`AuthResults` entry lands.
+pub const PLATFORM_ASSERTED_EXT_KEY: &str = "x-dmtap-mail-platform-asserted";
+
+/// A platform-asserted inbound origin (§26.5): the platform's word for who sent it, never a
+/// cryptographically-verified sender. `verifiable` is always `false` for a platform rail.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlatformAsserted {
+    pub rail: String,
+    pub claim: String,
+    pub verifiable: bool,
+}
+
+/// Build the canonical `{ rail, claim, verifiable=false }` ext value (§26.5.1) — the structurally
+/// distinct shape, deliberately not the email `spf`/`dkim`/`dmarc` verdict shape.
+#[must_use]
+pub fn platform_asserted_cv(rail: &str, claim: &str) -> Cv {
+    Cv::TextMap(vec![
+        ("rail".to_string(), Cv::Text(rail.to_string())),
+        ("claim".to_string(), Cv::Text(claim.to_string())),
+        ("verifiable".to_string(), Cv::Bool(false)),
+    ])
+}
+
+/// Read the platform-asserted origin back out of a MOTE, if present — uniformly, for any rail.
+#[must_use]
+pub fn platform_asserted_origin(payload: &Payload) -> Option<PlatformAsserted> {
+    let entries = payload.headers.ext.iter().find_map(|(k, v)| match v {
+        Cv::TextMap(m) if k == PLATFORM_ASSERTED_EXT_KEY => Some(m),
+        _ => None,
+    })?;
+    let text = |key: &str| {
+        entries.iter().find_map(|(k, v)| match v {
+            Cv::Text(s) if k == key => Some(s.clone()),
+            _ => None,
+        })
+    };
+    let verifiable = entries
+        .iter()
+        .find_map(|(k, v)| match v {
+            Cv::Bool(b) if k == "verifiable" => Some(*b),
+            _ => None,
+        })
+        .unwrap_or(false);
+    Some(PlatformAsserted { rail: text("rail")?, claim: text("claim")?, verifiable })
+}
 
 /// §26.3 field 1 — *can it initiate?* The load-bearing field: can this rail reach a stranger cold?
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

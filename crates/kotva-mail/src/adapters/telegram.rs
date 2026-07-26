@@ -31,7 +31,6 @@
 //!   (`Payload.from`, a DMTAP identity key).
 #![allow(dead_code)]
 
-use kotva_core::cbor::Cv;
 use kotva_core::mote::{Headers, Payload};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -48,13 +47,7 @@ use super::{LegacyAdapter, RailMessage, RailProperties, RailSend, RailTransport,
 /// sender, sealed-sender §2.4), and a Telegram user id is neither an identity key nor cryptographic
 /// evidence of anything but what Telegram's own backend asserts. Overloading `from` with it would
 /// manufacture exactly the false "verified sender" parity §26.5.1 forbids.
-pub const RAIL_ORIGIN_EXT_KEY: &str = "x-dmtap-rail-origin";
-
-/// Build the honest, self-hedging platform-asserted origin string for a Telegram user id.
-#[must_use]
-pub fn platform_asserted_origin(telegram_id: &str) -> String {
-    format!("telegram:{telegram_id} (platform-asserted, unverifiable)")
-}
+pub const RAIL_ORIGIN_EXT_KEY: &str = super::PLATFORM_ASSERTED_EXT_KEY;
 
 /// The Telegram adapter: pure data + logic (the §26.3/§26.4 declaration and the inbound→MOTE map).
 /// It holds no credentials and makes no network call — the wire is [`TelegramTransport`].
@@ -77,7 +70,7 @@ impl LegacyAdapter for TelegramAdapter {
             // A MOTE body is native text (§8.2); mark it plainly so a legacy render is well-formed.
             mime: Some("text/plain; charset=utf-8".to_string()),
             // The one honest thing we can say about who sent this: the platform *asserts* it.
-            ext: vec![(RAIL_ORIGIN_EXT_KEY.to_string(), Cv::Text(platform_asserted_origin(&msg.from)))],
+            ext: vec![(RAIL_ORIGIN_EXT_KEY.to_string(), super::platform_asserted_cv("telegram", &msg.from))],
             ..Default::default()
         };
         Payload {
@@ -344,24 +337,12 @@ mod tests {
         // The Telegram id is NOT the cryptographic sender.
         assert!(payload.from.is_empty(), "a platform-asserted id must never masquerade as `from`");
 
-        // The origin rides the labelled ext header, hedged honestly (§26.5).
-        let origin = payload
-            .headers
-            .ext
-            .iter()
-            .find(|(k, _)| k == RAIL_ORIGIN_EXT_KEY)
-            .map(|(_, v)| v.clone())
-            .expect("the platform-asserted origin header must be present");
-        match origin {
-            Cv::Text(s) => {
-                assert!(s.contains("telegram:123456789"), "must name the platform + id: {s}");
-                assert!(
-                    s.contains("platform-asserted") && s.contains("unverifiable"),
-                    "must be hedged as platform-asserted + unverifiable (§26.5): {s}"
-                );
-            }
-            other => panic!("origin header must be text, got {other:?}"),
-        }
+        // The origin rides the ONE canonical platform-asserted ext entry (§26.5.1), read uniformly.
+        let origin = crate::adapters::platform_asserted_origin(&payload)
+            .expect("the platform-asserted origin must be present");
+        assert_eq!(origin.rail, "telegram");
+        assert_eq!(origin.claim, "123456789");
+        assert!(!origin.verifiable, "a platform-asserted claim is never verifiable (§26.5.1)");
     }
 
     /// §26.4.2: an outbound-cold send on Telegram (no prior inbound, no open window) is a functional

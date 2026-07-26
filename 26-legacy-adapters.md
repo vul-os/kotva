@@ -255,6 +255,19 @@ to prevent for `legacy_from`, now generalised:
 - This holds **regardless of adapter mode.** Node mode does not upgrade a platform-asserted claim
   to a cryptographic one; only the rail's own authentication mechanism (which, for these four
   rails, does not exist) could do that.
+- **Interim carriage — one convention across every rail (normative for implementations without the
+  §18.3.11 `AuthResults` entry).** Until `GatewayAttestation`/`AuthResults` carries this (§18.3.11,
+  §26.11), an adapter that produces a MOTE **with no `GatewayAttestation`** MUST carry the
+  platform-asserted claim in a **single canonical** `Headers.ext` entry (§18.3.6, §21.20 private-use
+  `x-` namespace), keyed **`x-dmtap-mail-platform-asserted`**, valued as the structurally-distinct
+  text-map **`{ rail, claim, verifiable }`** with `verifiable = false` — the **same** key and shape
+  for **every** rail (Telegram, Slack, Discord, WhatsApp, …), so a client reads a bridged origin
+  uniformly rather than per-rail, and the origin is **never** placed in `Payload.from` (a
+  cryptographic identity key, which a phone number or platform handle is not). This interim carriage
+  inherits every rule above — structural distinctness from the email verdict, no DMARC parity — and
+  is **superseded, not contradicted,** once §18.3.11 lands. A per-rail key or shape is
+  non-conformant: it re-creates, per platform, exactly the "client must parse a string in a shared
+  field" failure this section exists to prevent.
 
 ## 26.6 Sovereignty disclosure (normative)
 

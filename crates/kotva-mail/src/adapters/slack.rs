@@ -41,7 +41,7 @@ pub const CHAT_POST_MESSAGE_URL: &str = "https://slack.com/api/chat.postMessage"
 /// for a cryptographically *verified* sender. The claim is unverifiable by construction: there is no
 /// signature this adapter can check independent of trusting Slack, so the mapped [`Payload`] also
 /// carries an empty `from` (no identity key) and an empty `sig` (nothing to verify).
-pub const PLATFORM_ASSERTED_EXT_KEY: &str = "x-dmtap-slack-platform-asserted-from";
+pub const PLATFORM_ASSERTED_EXT_KEY: &str = super::PLATFORM_ASSERTED_EXT_KEY;
 
 /// The Slack rail label, as in the §26.4 table and the `platform_asserted` claim's `rail` field.
 const RAIL: &str = "slack";
@@ -69,6 +69,8 @@ impl LegacyAdapter for SlackAdapter {
         let claim = Cv::TextMap(vec![
             ("rail".to_string(), Cv::Text(RAIL.to_string())),
             ("claim".to_string(), Cv::Text(msg.from.clone())),
+            // §26.5.1 canonical shape: a platform rail is never verifiable — say so.
+            ("verifiable".to_string(), Cv::Bool(false)),
         ]);
         Payload {
             // No verified identity: a Slack user id is platform-asserted, not a cryptographic key.
