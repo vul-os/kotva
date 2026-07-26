@@ -283,6 +283,8 @@ fn pq_only_identity_fails_closed_not_silently_downgraded() {
         prev: None,
         ts: 0,
         sig: vec![vec![0u8; 64]], // suite unsupported ⇒ rejected before this bogus sig is even checked
+        anchor_suite: Suite::PqHybrid,
+        classical_retired: Vec::new(),
     };
     assert_eq!(id.verify(None), Err(IdentityError::UnsupportedSuite(0x02)));
 }

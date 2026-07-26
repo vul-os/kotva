@@ -121,6 +121,29 @@ impl Suite {
         matches!(self, Suite::Classical)
     }
 
+    /// Whether this reference verifier **implements `anchor_suite`** for the purpose of the
+    /// §1.3 / §1.2.0 mandatory anchor-signature check on an [`Identity`] whose `anchor_suite ∉
+    /// suites`. A verifier that implements the anchor suite MUST verify the appended anchor
+    /// signature and reject an `Identity` whose anchor signature is absent or invalid (§18.4.1
+    /// key 10); one that does not gains only the operational-suite guarantee.
+    ///
+    /// The reference core signs and verifies **Ed25519 only** at the `Identity` layer
+    /// ([`is_supported`](Suite::is_supported) is `Classical`-only). It therefore treats two suites
+    /// as anchor-verifiable:
+    ///
+    /// - `0x01` (**Classical**, pure Ed25519) — verified in full.
+    /// - `0x04` (**ReservedAnchorSlhDsa**, the spec's designated cold-anchor profile, §1.2.0) —
+    ///   verified via its **Ed25519 component only**. SLH-DSA-128s is not implemented here, so the
+    ///   reference acts as the *legacy single-component verifier* §1.3 explicitly sanctions,
+    ///   obtaining **classical-level** anchor assurance (key separation from the operational key)
+    ///   rather than the full hash-based conservatism a production `0x04` verifier would obtain.
+    ///   A production implementation MUST verify the full Ed25519 ∧ SLH-DSA-128s composite.
+    ///
+    /// [`Identity`]: crate::identity::Identity
+    pub fn anchor_verifiable(self) -> bool {
+        matches!(self, Suite::Classical | Suite::ReservedAnchorSlhDsa)
+    }
+
     /// Whether the **MOTE envelope/payload layer** (§2.2, §2.4) can seal, sign, and validate an
     /// object under this suite. Both `0x01` (classical) and `0x02` (X-Wing + Ed25519∧ML-DSA-65
     /// hybrid, see [`crate::pq`]) are implemented, so both return `true`. A future, still-unassigned

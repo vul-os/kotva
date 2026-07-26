@@ -327,7 +327,25 @@ pub struct Identity {
     pub prev: Option<ContentId>,     // key 8 — hash of the previous Identity version (hash chain)
     pub ts: TimestampMs,             // key 9
     #[serde(default)]
-    pub sig: Vec<Vec<u8>>, // key 10 — one signature per suite in `suites`, over the body
+    pub sig: Vec<Vec<u8>>, // key 10 — one sig per suite in `suites`, plus one under iks[anchor_suite]
+                           // appended when anchor_suite ∉ suites (§18.4.1, §1.2.0)
+    /// Key 12 (MUST) — the suite governing `IK` and the `Identity`-root signature (§1.2.0). MAY
+    /// differ from every operational suite in `suites`; `iks` MUST hold its entry. When it is
+    /// **not** one of `suites`, `sig` carries an additional anchor signature under
+    /// `iks[anchor_suite]` (§18.4.1). Also the sole input to the key-name digest (§18.9.17).
+    #[serde(default = "default_anchor_suite")]
+    pub anchor_suite: Suite,
+    /// Key 13 (OPTIONAL) — suites the owner has **retired** from `IK` verification (§1.3, §12.8.5).
+    /// Because the list rides the signed `Identity`, a verifier MUST reject any signature offered
+    /// under a listed suite **unconditionally**. Empty ⇒ key 13 absent on the wire.
+    #[serde(default)]
+    pub classical_retired: Vec<u8>,
+}
+
+/// Serde default for [`Identity::anchor_suite`] — the classical suite (§1.2.0 permits the anchor
+/// to coincide with the operational suite; `0x01` is the reference default).
+fn default_anchor_suite() -> Suite {
+    Suite::Classical
 }
 
 impl Identity {
@@ -357,6 +375,13 @@ impl Identity {
         m.push((9, Cv::U64(self.ts)));
         if include_sig {
             m.push((10, Cv::Array(self.sig.iter().map(|s| Cv::Bytes(s.clone())).collect())));
+        }
+        // Keys 12/13 are part of the signed body (the preimage is `Identity ∖ {10}`, §18.9.3), so
+        // they are emitted regardless of `include_sig`. The encoder sorts map keys, so pushing them
+        // after key 10 is fine — key 10 still precedes 12/13 in the canonical wire form.
+        m.push((12, Cv::U64(self.anchor_suite.as_u8() as u64)));
+        if !self.classical_retired.is_empty() {
+            m.push((13, Cv::Array(self.classical_retired.iter().map(|b| Cv::U64(*b as u64)).collect())));
         }
         Cv::Map(m)
     }
@@ -408,8 +433,37 @@ impl Identity {
             .into_iter()
             .map(as_bytes)
             .collect::<Result<_, _>>()?;
+        // Key 12 (anchor_suite) is MUST (§18.4.1); fail closed on an unregistered byte.
+        let anchor_suite = suite_from_cv(f.req(12)?)?;
+        // Key 13 (classical_retired) is OPTIONAL and `[+ u8]` — when present it MUST be non-empty.
+        let classical_retired = match f.take(13) {
+            Some(c) => {
+                let v: Vec<u8> = as_array(c)?
+                    .into_iter()
+                    .map(as_u8)
+                    .collect::<Result<_, _>>()?;
+                if v.is_empty() {
+                    return Err(CborError::TypeMismatch); // `[+ u8]` requires ≥ 1 element
+                }
+                v
+            }
+            None => Vec::new(),
+        };
         f.deny_unknown()?;
-        Ok(Identity { suites, iks, version, devices, keypkgs, recovery, names, prev, ts, sig })
+        Ok(Identity {
+            suites,
+            iks,
+            version,
+            devices,
+            keypkgs,
+            recovery,
+            names,
+            prev,
+            ts,
+            sig,
+            anchor_suite,
+            classical_retired,
+        })
     }
 
     /// Build and sign a single-suite (classical) `Identity` (spec §1.3). This is the v0 path;
@@ -439,8 +493,64 @@ impl Identity {
             prev,
             ts,
             sig: Vec::new(),
+            // Anchor coincides with the single operational suite (§1.2.0 permits this); anchor_suite
+            // ∈ suites, so no separate anchor signature is appended.
+            anchor_suite: Suite::Classical,
+            classical_retired: Vec::new(),
         };
         id.sig = vec![ik.sign_domain(IDENTITY_DS, &id.signing_body())];
+        id
+    }
+
+    /// Build and sign a classical (Ed25519) `Identity` whose **anchor suite is distinct** from its
+    /// operational suite (§1.2.0, §1.3) — the cold/hot split. `op_ik` governs the operational
+    /// suite `0x01`; `anchor_ik` is the separate cold anchor key stored at `iks[anchor_suite]`.
+    ///
+    /// Because `anchor_suite ∉ suites`, `sig` carries the operational signature **plus** a final
+    /// signature under `anchor_ik` appended after it (§18.4.1 key 10). This is the security-critical
+    /// binding of §1.2.0: forging a new `Identity` version requires breaking **both** the operational
+    /// suite **and** the conservative anchor.
+    ///
+    /// `anchor_suite` MUST NOT be `0x01` (that would make it coincide with the operational suite —
+    /// use [`create_classical`](Identity::create_classical) for that degenerate case).
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_classical_with_anchor(
+        op_ik: &IdentityKey,
+        anchor_ik: &IdentityKey,
+        anchor_suite: Suite,
+        version: u64,
+        devices: Vec<DeviceCert>,
+        keypkgs: KeyPackageBundleRef,
+        recovery: ContentId,
+        names: Vec<String>,
+        prev: Option<ContentId>,
+        ts: TimestampMs,
+        classical_retired: Vec<u8>,
+    ) -> Identity {
+        let mut iks = BTreeMap::new();
+        iks.insert(Suite::Classical.as_u8(), op_ik.public());
+        iks.insert(anchor_suite.as_u8(), anchor_ik.public());
+        let mut id = Identity {
+            suites: vec![Suite::Classical],
+            iks,
+            version,
+            devices,
+            keypkgs,
+            recovery,
+            names,
+            prev,
+            ts,
+            sig: Vec::new(),
+            anchor_suite,
+            classical_retired,
+        };
+        let body = id.signing_body();
+        // One signature per suite in `suites` (here, just the operational `0x01`), then — because
+        // anchor_suite ∉ suites — the anchor signature appended last (§18.4.1 key 10).
+        id.sig = vec![op_ik.sign_domain(IDENTITY_DS, &body)];
+        if !id.suites.contains(&anchor_suite) {
+            id.sig.push(anchor_ik.sign_domain(IDENTITY_DS, &body));
+        }
         id
     }
 
@@ -450,21 +560,62 @@ impl Identity {
         ContentId::of(&self.det_cbor())
     }
 
-    /// Verify the identity (spec §1.3, §3.4):
+    /// Verify the identity (spec §1.3, §1.2.0, §3.4):
     ///
-    /// 1. Every suite in `suites` must have a key in `iks` and an index-aligned entry in `sig`.
+    /// 1. Every suite in `suites` must have a key in `iks`; the `anchor_suite` MUST also have an
+    ///    entry, and `iks` MUST hold **no** entries beyond `suites ∪ {anchor_suite}` (§18.4.1 key 2).
     /// 2. **Fail closed** on any suite the implementation cannot validate — the reference core
     ///    only validates `0x01`, so a `0x02`-bearing identity is rejected rather than
     ///    silently downgraded (§1.3).
-    /// 3. Each signature must verify under the corresponding suite key.
-    /// 4. Hash-chain sanity: `version == 0` ⇒ no `prev`; `version > 0` ⇒ `prev` present, and if
+    /// 3. **`classical_retired` (§18.4.1 key 13):** a signature offered under a suite named in
+    ///    `classical_retired` is rejected **unconditionally** — so no operational suite, nor the
+    ///    anchor suite, may appear in the list.
+    /// 4. `sig` carries one signature per suite in `suites` (index-aligned), **plus** — when
+    ///    `anchor_suite ∉ suites` — a final signature under `iks[anchor_suite]` appended after them
+    ///    (§18.4.1 key 10). Each operational signature must verify under its suite key.
+    /// 5. **Anchor signature (§1.2.0, §1.3, the security-critical rule):** when `anchor_suite ∉
+    ///    suites` and this verifier *implements* the anchor suite
+    ///    ([`Suite::anchor_verifiable`]), the appended anchor signature MUST be present and MUST
+    ///    verify under `iks[anchor_suite]`; an absent or invalid anchor signature is rejected. This
+    ///    is what forces a forger of a new `Identity` version to break the conservative anchor as
+    ///    well as the operational suite — reusing the victim's anchor pubkey (to keep the key-name,
+    ///    §18.9.17) does **not** help, because the forger cannot produce the anchor signature.
+    /// 6. Hash-chain sanity: `version == 0` ⇒ no `prev`; `version > 0` ⇒ `prev` present, and if
     ///    a `pinned` previous-version id is supplied it must equal `prev` (§1.3, §3.4).
     pub fn verify(&self, pinned: Option<&ContentId>) -> Result<(), IdentityError> {
         if self.suites.is_empty() {
             return Err(IdentityError::Malformed("empty suite set"));
         }
-        if self.sig.len() != self.suites.len() {
-            return Err(IdentityError::Malformed("sig count != suite count"));
+        // §18.4.1 key 2: `iks` covers exactly `suites ∪ {anchor_suite}`. The anchor entry is MUST;
+        // no stray entries are permitted (a second key at an undeclared suite is a second key-name
+        // surface, §18.9.17).
+        if !self.iks.contains_key(&self.anchor_suite.as_u8()) {
+            return Err(IdentityError::Malformed("iks lacks an entry for anchor_suite"));
+        }
+        for k in self.iks.keys() {
+            let declared = self.suites.iter().any(|s| s.as_u8() == *k)
+                || *k == self.anchor_suite.as_u8();
+            if !declared {
+                return Err(IdentityError::Malformed("iks has an entry outside suites ∪ {anchor_suite}"));
+            }
+        }
+        // §18.4.1 key 13: retirement is unconditional — an object MUST NOT offer a signature under a
+        // retired suite. Reject if any operational suite, or the anchor suite, is listed as retired.
+        for retired in &self.classical_retired {
+            if self.suites.iter().any(|s| s.as_u8() == *retired)
+                || *retired == self.anchor_suite.as_u8()
+            {
+                return Err(IdentityError::Malformed(
+                    "a signature is offered under a classical_retired suite (§18.4.1 key 13)",
+                ));
+            }
+        }
+        // §18.4.1 key 10: sig count is one-per-operational-suite, plus one anchor sig iff the anchor
+        // is not itself an operational suite.
+        let anchor_separate = !self.suites.iter().any(|s| *s == self.anchor_suite);
+        let expected_sigs = self.suites.len() + usize::from(anchor_separate);
+        if self.sig.len() != expected_sigs {
+            return Err(IdentityError::Malformed("sig count != suites (+ anchor when disjoint)"));
         }
         let signing_body = self.signing_body();
         for (i, suite) in self.suites.iter().enumerate() {
@@ -477,6 +628,22 @@ impl Identity {
                 .get(&suite.as_u8())
                 .ok_or(IdentityError::Malformed("missing key for a declared suite"))?;
             verify_domain(key, IDENTITY_DS, &signing_body, &self.sig[i])?;
+        }
+        // The mandatory-to-verify anchor signature (§1.2.0, §1.3). Only checked when the anchor is a
+        // distinct suite AND this verifier implements it; a verifier that does not implement the
+        // anchor suite gains only the operational guarantee (the honest limit of §1.3), but the
+        // reference IS anchor-capable for `0x01`/`0x04` (see `Suite::anchor_verifiable`).
+        if anchor_separate && self.anchor_suite.anchor_verifiable() {
+            let anchor_key = self
+                .iks
+                .get(&self.anchor_suite.as_u8())
+                .ok_or(IdentityError::Malformed("iks lacks an entry for anchor_suite"))?;
+            // The anchor signature is the one appended after the `suites`-ordered signatures.
+            let anchor_sig = self
+                .sig
+                .get(self.suites.len())
+                .ok_or(IdentityError::Malformed("anchor signature absent"))?;
+            verify_domain(anchor_key, IDENTITY_DS, &signing_body, anchor_sig)?;
         }
         // Transitive device validity: each embedded `DeviceCert` must (a) carry a valid IK
         // signature over its own body and (b) be bound to THIS identity's IK for its suite — a
@@ -1496,6 +1663,61 @@ mod tests {
         assert_eq!(bytes, back.det_cbor());
     }
 
+    /// HIGH (the anchor-signature fix): when `anchor_suite ∉ suites`, `Identity.sig` MUST carry a
+    /// signature under `iks[anchor_suite]`, and an anchor-capable verifier MUST reject an Identity
+    /// lacking a valid one — forcing a forger of a new Identity version (who broke only the
+    /// operational suite and reuses the victim's anchor pubkey so the key-name still matches) to
+    /// also break the conservative anchor. Without this, breaking `0x02` alone forges an identity
+    /// version. (§18.4.1 key 10, §1.2.0, §1.3.)
+    #[test]
+    fn anchor_signature_is_mandatory_and_a_forged_version_without_it_is_rejected() {
+        let op_ik = IdentityKey::generate();
+        let anchor_ik = IdentityKey::generate();
+        let id = Identity::create_classical_with_anchor(
+            &op_ik,
+            &anchor_ik,
+            Suite::ReservedAnchorSlhDsa,
+            1,
+            vec![],
+            bundle(b"keypkgs"),
+            cid(b"recovery"),
+            vec!["alice@example.com".into()],
+            None,
+            1_700_000_000_000,
+            vec![],
+        );
+        // Correctly anchor-signed: sig = operational signature PLUS the appended anchor one.
+        assert!(id.verify(None).is_ok(), "a correctly anchor-signed identity must verify");
+        assert_eq!(id.sig.len(), 2, "operational + appended anchor signature");
+        assert_eq!(id, Identity::from_det_cbor(&id.det_cbor()).unwrap(), "round-trips with keys 12/13");
+
+        // (a) A forger who broke only the operational suite drops the anchor sig and re-signs `0x01`
+        //     over a higher-version body: the missing anchor signature is rejected.
+        let mut missing = id.clone();
+        missing.version = 2;
+        let body = missing.signing_body();
+        missing.sig = vec![op_ik.sign_domain(IDENTITY_DS, &body)];
+        assert!(
+            missing.verify(None).is_err(),
+            "an Identity version lacking the mandatory anchor signature MUST be rejected"
+        );
+
+        // (b) A forger who fabricates an anchor-slot signature with the operational key (it does not
+        //     hold the anchor key) is rejected on the cryptographic anchor check.
+        let mut wrong_anchor = id.clone();
+        wrong_anchor.version = 2;
+        let body2 = wrong_anchor.signing_body();
+        wrong_anchor.sig = vec![
+            op_ik.sign_domain(IDENTITY_DS, &body2),
+            op_ik.sign_domain(IDENTITY_DS, &body2), // anchor slot forged with the WRONG key
+        ];
+        assert_eq!(
+            wrong_anchor.verify(None),
+            Err(IdentityError::BadSignature),
+            "an anchor signature not made by the anchor key MUST be rejected"
+        );
+    }
+
     /// LOW: `Identity::verify` must transitively validate embedded device certs — each cert's own
     /// IK signature AND that its `ik` binds to THIS identity's IK. A cert for another identity's
     /// key, or one with a broken signature, must fail closed.
@@ -1582,6 +1804,8 @@ mod tests {
             prev: None,
             ts: 0,
             sig: vec![vec![0u8; 64]],
+            anchor_suite: Suite::PqHybrid,
+            classical_retired: Vec::new(),
         };
         assert_eq!(id.verify(None), Err(IdentityError::UnsupportedSuite(0x02)));
     }

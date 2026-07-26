@@ -298,6 +298,25 @@ impl Tier {
             Tier::Fast => 0,
         }
     }
+
+    /// The **wire tier byte** (§18.9.18 `Ack.tier`, §18 `DeliveryReceipt.tier` line 1829):
+    /// `1` = `private` (mixnet-peeled), `2` = `fast` (direct/low-hop). This is distinct from
+    /// [`privacy_rank`](Tier::privacy_rank) — the wire encoding is not the strength ordering.
+    pub fn wire(self) -> u8 {
+        match self {
+            Tier::Private => 1,
+            Tier::Fast => 2,
+        }
+    }
+
+    /// Decode a wire tier byte (§18.9.18), **failing closed** on any value other than `1`/`2`.
+    pub fn from_wire(b: u8) -> Option<Tier> {
+        match b {
+            1 => Some(Tier::Private),
+            2 => Some(Tier::Fast),
+            _ => None,
+        }
+    }
 }
 
 /// A [`tier_enforce`] failure (`ERR_PRIVATE_TIER_DOWNGRADE_REFUSED`, §21.5 `0x0310`).

@@ -62,6 +62,7 @@
 //! invariant. The multi-suite [`identity::Identity`] object machinery is still classical-only and
 //! **fails closed** on a `0x02`-only identity (a distinct, larger surface, unchanged here).
 
+pub mod ack;
 pub mod attestation;
 pub mod cad;
 pub mod capability;
