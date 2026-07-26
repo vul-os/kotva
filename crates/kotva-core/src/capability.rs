@@ -830,6 +830,37 @@ mod tests {
     }
 
     #[test]
+    fn capability_announcement_decode_is_panic_free_and_strictly_canonical() {
+        // §18.1: from_det_cbor must never panic on any input, and never accept a NON-canonical
+        // encoding — a malleable announcement would let a hop mint byte-different bytes for the same
+        // caps_version and defeat the §10.2 anti-rollback (which runs on the exact wire bytes).
+        let peer = key(0x55);
+        let valid =
+            CapabilityAnnouncement::issue(&peer, 7, vec![cap("ext:mls", "support")], 20).det_cbor();
+        let mut mutants: Vec<Vec<u8>> = Vec::new();
+        for i in 0..valid.len() {
+            for bit in [0x01u8, 0x08, 0x80, 0xff] {
+                let mut m = valid.clone();
+                m[i] ^= bit;
+                mutants.push(m);
+            }
+        }
+        for n in 0..valid.len() {
+            mutants.push(valid[..n].to_vec());
+        }
+        for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8]] {
+            let mut m = valid.clone();
+            m.extend_from_slice(&junk);
+            mutants.push(m);
+        }
+        for m in &mutants {
+            if let Ok(o) = CapabilityAnnouncement::from_det_cbor(m) {
+                assert_eq!(&o.det_cbor(), m, "announcement decoder accepted a non-canonical encoding");
+            }
+        }
+    }
+
+    #[test]
     fn announcement_anti_rollback_rejects_stale_version() {
         let peer = key(0x55);
         let a1 = CapabilityAnnouncement::issue(&peer, 5, vec![cap("ext:mls", "support")], 10);
