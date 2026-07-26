@@ -177,7 +177,8 @@ re-checkable by `make lint`. The **raw** figure — every capitalised MUST in th
 unclassified — is **75%** (403 MUST-bearing sections, 1744 MUSTs). Read the IMPL number as "most
 implementable surface has at least one case pointed at it, and the uncited gaps are enumerated by the
 tool", never as a pass mark or as complete coverage. `make coverage` is authoritative and these
-figures drift as the suite grows. The reference `dmtap-core` self-check test drives the vectors,
+figures drift as the suite grows — but `make lint` (check C14) recomputes them and fails the build if
+any figure quoted here disagrees, so they can never go silently stale. The reference `dmtap-core` self-check test drives the vectors,
 but the spec plus these three artifacts are authoritative (§10.4), not the reference.
 
 ## 10.3a Minimum viable implementation (the falsifiable Core boundary)

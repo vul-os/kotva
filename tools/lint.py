@@ -40,6 +40,11 @@ because a real defect got through review:
                                        documentation is stale has no standing to enforce anyone
                                        else's
                                        stopped covering the whole spec
+  C14 coverage figure drift          the raw/IMPL coverage figures quoted in README/SUITE/§10 went
+                                       stale twice — a normative edit shifts a MUST count and the
+                                       hand-copied number in the prose does not follow. C14
+                                       recomputes them and fails if any doc disagrees with
+                                       `--coverage`, so the figure and the tool travel together
 
 Exit status is non-zero if any ERROR-level finding fires, so this belongs in CI.
 WARN-level findings are reported but do not fail the build.
@@ -672,6 +677,63 @@ def coverage_report() -> int:
     return 0
 
 
+def _coverage_numbers() -> dict:
+    """The authoritative coverage figures, as data — the same computation
+    `coverage_report` prints, exposed so the docs that quote them can be guarded
+    (C11). Percentages are formatted exactly as the report formats them."""
+    cited: set[str] = set()
+    for ref in SECREF_RE.findall(read(ROOT / "conformance" / "SUITE.md")):
+        parts = ref.split(".")
+        for i in range(len(parts), 0, -1):
+            cited.add(".".join(parts[:i]))
+    per_section = _must_sections()
+    cls = load_scope()[0]
+    impl = {s: v for s, v in per_section.items() if cls.get(s, "IMPL") == "IMPL"}
+    uncovered = {s: v for s, v in impl.items() if s not in cited}
+    impl_musts = sum(n for n, _ in impl.values())
+    unc_musts = sum(n for n, _ in uncovered.values())
+    raw_musts = sum(n for n, _ in per_section.values())
+    raw_cited = sum(n for s, (n, _) in per_section.items() if s in cited)
+    return {
+        "raw_sections": len(per_section),
+        "raw_musts": raw_musts,
+        "raw_pct": f"{100 * raw_cited / raw_musts:.0f}" if raw_musts else "0",
+        "impl_pct": f"{100 * (impl_musts - unc_musts) / impl_musts:.0f}" if impl_musts else "0",
+        "uncovered_sections": len(uncovered),
+        "uncovered_musts": unc_musts,
+    }
+
+
+def check_coverage_figures() -> list[Finding]:
+    """C14: every coverage figure a doc quotes MUST equal what `--coverage` computes.
+
+    A normative edit that adds or removes a MUST shifts these figures, so without a
+    guard the prose silently goes stale — as it twice did. Fail-closed: the exact
+    correct string must be present, so a drifted number *or* a reword that drops the
+    figure both trip the check, forcing the doc and the number to travel together.
+    Markdown emphasis and line-wrapping are normalised away, so the guard is robust
+    to phrasing while strict on the value."""
+    n = _coverage_numbers()
+    needles = [
+        f"{n['impl_pct']}% of IMPL MUSTs",
+        f"{n['raw_pct']}% ({n['raw_sections']} MUST-bearing sections, {n['raw_musts']} MUSTs)",
+        f"{n['uncovered_sections']} IMPL sections ({n['uncovered_musts']} MUSTs)",
+    ]
+    out: list[Finding] = []
+    for rel in ("conformance/README.md", "conformance/SUITE.md", "10-conformance.md"):
+        p = ROOT / rel
+        if not p.exists():
+            continue
+        flat = re.sub(r"[*`]", "", re.sub(r"\s+", " ", read(p)))
+        for needle in needles:
+            if needle not in flat:
+                out.append(("ERROR", rel,
+                    f'C14 coverage figure drift: expected "{needle}" '
+                    f"(run `python3 tools/lint.py --coverage`) — update the doc, or "
+                    f"scope.json if the denominator moved"))
+    return out
+
+
 def main() -> int:
     if "--coverage" in sys.argv:
         return coverage_report()
@@ -692,6 +754,7 @@ def main() -> int:
     findings += check_param_drift()
     findings += check_case_schema()
     findings += check_self_documented()
+    findings += check_coverage_figures()
     findings += load_scope()[1]
 
     errors = [f for f in findings if f[0] == "ERROR"]

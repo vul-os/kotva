@@ -60,7 +60,8 @@ three structural limits, printed by the tool alongside it:
 
 The **raw** figure — over every capitalised MUST in the specification, unclassified — is **75%** (403
 MUST-bearing sections, 1744 MUSTs). `make coverage` is authoritative; these figures drift as the
-suite grows.
+suite grows, but they cannot go **silently** stale — `make lint` (check C14) recomputes them and
+fails the build if any figure quoted here disagrees, so the doc and the tool always match.
 
 ### How a third-party implementer uses the suite
 

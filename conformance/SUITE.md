@@ -205,7 +205,9 @@ in [`scope.json`](scope.json). That sentence is doing exact work and is easy to 
 
 The raw figure — every capitalised MUST in the specification, unclassified — is **75%** (403
 MUST-bearing sections, 1744 MUSTs). Both numbers are printed by `make coverage`, deliberately, so the
-curation can be checked rather than trusted; `make coverage` is authoritative and the figures drift
+curation can be checked rather than trusted; `make coverage` is authoritative and `make lint` (C14)
+fails the build if any coverage figure quoted here disagrees with it, so they never silently drift —
+the figures move
 as the suite grows.
 
 **Sync status:** `SUITE.md` and [`suite.json`](suite.json) are **in sync** — both carry the same
