@@ -826,17 +826,19 @@ impl MethodPredicate {
         let count = as_u64(f.req(2)?)?;
         f.deny_unknown()?;
         let n = u8::try_from(count).map_err(|_| CborError::IntRange)?;
-        // §1.4: `count` is at least 1, and exactly 1 for "ik" (which names no RecoveryMethod and
-        // so cannot be held "twice"). Both were previously accepted and silently normalised away:
-        // "ik" with count 2 decoded to `Ik`, and "device" with count 0 decoded to `Devices(0)` — a
-        // predicate no factor is needed to satisfy, sitting in a structure whose entire purpose is
-        // to say how many factors are needed. Fail closed instead of re-encoding the caller's
-        // object into something they did not send.
+        // §1.4: `count` is at least 1, and **exactly 1** for the single-factor kinds "ik" and
+        // "phrase" (each names one thing that cannot be held "twice"). A non-1 count on these was
+        // previously accepted and silently normalised away — e.g. "phrase" with count 9 decoded to
+        // `Phrase` and re-encoded as count 1 (§18.1 malleability: a byte-different encoding of the
+        // "same" object), and "device" with count 0 decoded to `Devices(0)`, a predicate no factor
+        // is needed to satisfy inside a structure whose whole purpose is to say how many are needed.
+        // Fail closed instead of re-encoding the caller's object into something they did not send.
         if n < 1 {
             return Err(CborError::IntRange);
         }
         Ok(match method.as_str() {
-            "phrase" => MethodPredicate::Phrase,
+            "phrase" if n == 1 => MethodPredicate::Phrase,
+            "phrase" => return Err(CborError::IntRange),
             "device" => MethodPredicate::Devices(n),
             "social" => MethodPredicate::Guardians(n),
             "ik" if n == 1 => MethodPredicate::Ik,
@@ -1921,6 +1923,52 @@ mod tests {
         let mut forged = cert.clone();
         forged.ik = dev.public();
         assert_eq!(forged.verify(), Err(IdentityError::BadSignature));
+    }
+
+    /// Adversarial decode robustness (§18.1) for `RecoveryPolicy` — it governs who can regain/rotate
+    /// an identity, so a malleable or panic-inducing decode is a takeover/DoS surface. Mutate a valid
+    /// signed policy (bit-flips, truncations, junk): from_det_cbor never panics and never accepts a
+    /// non-canonical encoding. (This test caught a real MethodPredicate strictness gap: "phrase" with
+    /// a non-1 count was silently normalised to 1 — now fixed, matching the "ik" discipline.)
+    #[test]
+    fn recovery_policy_decode_is_panic_free_and_strictly_canonical() {
+        let ik = IdentityKey::generate();
+        let mut p = RecoveryPolicy {
+            suite: Suite::Classical,
+            ik: ik.public(),
+            version: 1,
+            methods: vec![RecoveryMethod::Phrase { recovery_key: vec![1, 2, 3] }],
+            recover_threshold: Threshold { any_of: vec![MethodPredicate::Phrase] },
+            rotate_threshold: Threshold {
+                any_of: vec![MethodPredicate::Ik, MethodPredicate::Guardians(2)],
+            },
+            prev: None,
+            ts: 1,
+            sig: vec![],
+        };
+        p.sign(&ik);
+        let valid = p.det_cbor();
+        let mut mutants: Vec<Vec<u8>> = Vec::new();
+        for i in 0..valid.len() {
+            for bit in [0x01u8, 0x08, 0x80, 0xff] {
+                let mut m = valid.clone();
+                m[i] ^= bit;
+                mutants.push(m);
+            }
+        }
+        for n in 0..valid.len() {
+            mutants.push(valid[..n].to_vec());
+        }
+        for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8]] {
+            let mut m = valid.clone();
+            m.extend_from_slice(&junk);
+            mutants.push(m);
+        }
+        for m in &mutants {
+            if let Ok(o) = RecoveryPolicy::from_det_cbor(m) {
+                assert_eq!(&o.det_cbor(), m, "RecoveryPolicy decoder accepted a non-canonical encoding");
+            }
+        }
     }
 
     #[test]
