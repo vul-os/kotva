@@ -159,12 +159,14 @@
   .toc-list{ list-style:none; margin:0; padding:0; font-size:13px; }
   .toc-list li{ margin:0; }
   .toc-list a{
-    display:block; padding:6px 10px; margin:1px 0; border-radius:7px;
+    display:block; padding:6px 12px 6px 26px; margin:1px 0; border-radius:7px;
+    text-indent:-14px;
     color:var(--text-tertiary); text-decoration:none; border-left:2px solid transparent;
     transition:background .12s ease, color .12s ease, border-color .12s ease;
   }
   .toc-list a:hover{ background:var(--bg-elevated); color:var(--text-primary); }
   .toc-list a.active{ color:var(--accent-ink); background:var(--accent-bg); border-left-color:var(--accent); font-weight:600; }
+  .toc-list a.active::before{ content:''; }
   .toc-list .toc-sub{ list-style:none; margin:0 0 6px 0; padding:0 0 0 12px; }
   .toc-list .toc-sub a{ font-size:12px; padding:4px 10px; color:var(--text-faint); }
   .toc-group-title{ font-size:10.5px; text-transform:uppercase; letter-spacing:.1em; color:var(--text-faint); margin:18px 0 5px 10px; }
@@ -366,8 +368,12 @@
     figure, table{ break-inside:avoid; }
   }
 </style>
+  <style>
+  #kv-progress{ position:fixed; top:0; left:0; height:2px; width:0; z-index:60; background:var(--accent); box-shadow:0 0 8px color-mix(in srgb, var(--accent) 60%, transparent); transition:width .08s linear; }
+  </style>
 </head>
 <body>
+  <div id="kv-progress" aria-hidden="true"></div>
 <a class="skip-link" href="#maincontent">Skip to whitepaper content</a>
 
 <div class="shell">
@@ -380,10 +386,12 @@
       <a class="wp-home" href="https://vulos.org" target="_top">← Vulos</a>
       <a class="brand" href="#top">
         <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <circle cx="24" cy="10" r="5" stroke="var(--accent)" stroke-width="3"/>
-          <line x1="24" y1="15" x2="24" y2="40" stroke="var(--accent)" stroke-width="3"/>
-          <path d="M8 24C8 24 10 40 24 40C38 40 40 24 40 24" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
-          <line x1="13" y1="21" x2="35" y2="21" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="24" cy="11" r="4.4" stroke="var(--accent)" stroke-width="3"/>
+          <line x1="24" y1="15.4" x2="24" y2="39" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
+          <line x1="14" y1="20.5" x2="34" y2="20.5" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
+          <path d="M9 25c0 8.5 6.7 14 15 14s15-5.5 15-14" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
+          <path d="M9 25l-3 3.4M9 25l4 1" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
+          <path d="M39 25l3 3.4M39 25l-4 1" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
         </svg>
         <span>
           <span class="brand-text" style="display:block;">KOTVA</span>
@@ -1104,6 +1112,14 @@
       else { a.removeAttribute('aria-current'); }
     });
   }
+  var progressEl = document.getElementById('kv-progress');
+  function onProgress(){
+    var h = document.documentElement;
+    var max = (h.scrollHeight - h.clientHeight) || 1;
+    if (progressEl) progressEl.style.width = Math.min(100, (window.scrollY / max) * 100) + '%';
+  }
+  document.addEventListener('scroll', onProgress, { passive: true });
+  onProgress();
   document.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('resize', onScroll);
   onScroll();
