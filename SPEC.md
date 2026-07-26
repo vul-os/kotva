@@ -36,7 +36,7 @@ hard problem is never hard-wired — it is a swappable **binding** or a fenced *
 ```
                  ON TOP · applications (compose the base; bring-your-own)
    ┌───────────────────────────────────────────────────────────────────────────────┐
-   │  🟢 messaging · email/legacy     🟡 social · search · calls     🔴 market · cloud  │
+   │  🟢 messaging · email/legacy    🟡 social · search · calls · market    🔴 cloud   │
    └────────────────────────────────────────┬──────────────────────────────────────┘
                                             │ compose
        COORDINATION TOOLKIT · generic, opt-in vocabulary (standardised; a messaging node uses none)
@@ -70,11 +70,13 @@ Four strata, plus the seams that plug in from the side. The colours are the **ra
 2. **The coordination toolkit (generic vocabulary, opt-in).** `OFFER · MATCH · RESERVE · REPUTATION ·
    ESCROW · ATTEST` ([`primitives/`](primitives/)) — the shared schemas an *application* composes.
    **Opt-in, not base:** messaging uses none of them; a marketplace uses most. `ATTEST` is the most
-   foundational (device- and gateway-attestation ride it); `OFFER/MATCH/RESERVE/ESCROW` are the
+   foundational — it *generalises* the signed-claim pattern the base already uses in its **own**
+   device-attestation (§1.2a) and gateway-attestation (§18.9.11) objects, which are base mechanisms in
+   their own right and do **not** depend on the primitive; `OFFER/MATCH/RESERVE/ESCROW` are the
    commerce/coordination vocabulary. Standardised so apps interoperate — *not* part of the base a
    messaging node needs.
 3. **Applications — on top (maturity-tiered).** 🟢 **messaging + email/legacy** (the DMTAP-mail
-   reference app, implemented), 🟡 **social · search · calls**, 🔴 **marketplace (TRACT) · cloud
+   reference app, implemented), 🟡 **social · search · calls · marketplace (TRACT/WRAP)**, 🔴 **cloud
    (DEPOT)** ([`profiles/`](profiles/) + the numbered DMTAP-mail sections). These are **reference
    applications** — proof the base composes into real products, **bring-your-own**; the base never
    *requires* one. *Honest residual:* the thinner and more optional a profile, the more two apps risk

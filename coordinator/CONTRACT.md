@@ -211,15 +211,15 @@ many coordinator kinds exist" cites this table rather than re-deriving its own t
 | **infra-service** *(draft, [profiles/cloud.md](../profiles/cloud.md))* | Managed infrastructure — four primitives `box` / `bucket` / `volume` / `edge-fn`, with `database`, `queue` and the rest as **formulas** that compose them (profiles/cloud.md §3.2), not rows (`compute` is the general provisional case; DEPOT `edge-fn` is its managed-serverless profiling) | **per service** — `bucket`/`volume` `blind`, at `structural` **only for what the client encrypted** (§3.3) and `blind-routing` when a bucket serves public objects; `edge-fn`/`box` `terminating` (→ `attested` in a TEE), and a formula (a `database`) inherits the visibility of its parts |
 | **indexer** | Search / discovery / global product-and-price view | corpus is public plaintext (nothing to be blind about); query-channel `terminating` unless `attested` |
 | **labeler** | Moderation labels, opt-in, subscribable | n/a (labels public objects) |
-| **matcher** | Real-time supply↔demand matching (rides, delivery) | **terminating** (default) / **attested** (TEE) |
-| **compute** *(provisional)* | Hosted/outsourced computation (e.g. private-AI inference on rented GPU) | `terminating` (default) / `attested` (TEE, for blind compute) |
+| **matcher** | Real-time supply↔demand matching (rides, delivery) | **terminating** (always — the class, §3.1), optionally **attested** (the assurance level, §3.3, via TEE) |
+| **compute** *(provisional)* | Hosted/outsourced computation (e.g. private-AI inference on rented GPU) | `terminating` (always — the class), optionally `attested` (the assurance level, TEE, for blind compute) |
 | **arbiter** | Dispute resolution (staked jury) | `terminating` for evidence, disclosed |
 | **oracle** | Physical-world / real-fact attestation (delivered? ride done?) | `terminating`, disclosed |
 | **custodial-escrow** | Holds the trade float for a trade window ([primitives/ESCROW.md](../primitives/ESCROW.md) SEC-6a) | `terminating` for evidence, disclosed — the family's **one load-bearing exception** (§1), confined to the **commerce extension** (TRACT); **not** in Core v1 ([SPEC tiers](../SPEC.md)) |
 
 `gateway` (DMTAP §7) and the legacy `adapter`s (§26) are the first, fully-worked instances;
 every kind above inherits the four clauses and the visibility property unchanged. `custodial-escrow`
-satisfies all four clauses like every other kind but, uniquely, does not fade once hired — see §1
+satisfies all four clauses — three exactly like every other kind, and the **self-hostable** clause only via its disclosed regulatory-licensing exception (§2.3 clause 2, COORD-3), the one kind for which self-provisioning is not available at any skill level — and, uniquely, does not fade once hired — see §1
 and [primitives/ESCROW.md](../primitives/ESCROW.md) §9–§10 (SEC-6a, "the one honest load-bearing
 exception").
 

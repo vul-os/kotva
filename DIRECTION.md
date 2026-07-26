@@ -118,7 +118,7 @@ Coordinator kinds are all instances of the same contract: **gateway** (legacy br
 payload, but routing metadata visible, RFC 9605), **reachability-adapter** (ngrok-style
 subdomains), **indexer** (search / discovery), **labeler** (moderation), **matcher**
 (real-time matching), **compute** (rented blind inference, provisional), **arbiter** (dispute),
-**oracle** (physical-world attestation), and **custodial-escrow** (the one load-bearing exception, confined to the commerce extension — Core v1 has none; [SPEC.md ratification tiers](SPEC.md)).
+**oracle** (physical-world attestation), **infra-service** (managed infrastructure / DEPOT, draft), and **custodial-escrow** (the one load-bearing exception, confined to the commerce extension — Core v1 has none; [SPEC.md ratification tiers](SPEC.md)).
 Canonical, exhaustive list:
 [`coordinator/CONTRACT § 5`](coordinator/CONTRACT.md).
 

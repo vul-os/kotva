@@ -44,7 +44,7 @@ handling is imperfect; do not rely on it for seamless roaming.
 
 ```
 LocationRecord {
-  ik:        bytes,        // identity key (DHT key = hash(ik))
+  ik:        bytes,        // the anchor key iks[anchor_suite] (§18.9.17); DHT key = hash(ik) — one canonical location per identity
   peer_id:   bytes,        // node id, interpreted per `substrate`; MUST be per-epoch unlinkable (below)
   addrs:     [* multiaddr],// current reachability hints (may be relay circuits, mix addrs)
   seq:       u64,          // monotonic sequence number; reject older-or-equal (rollback defense, §16.2)

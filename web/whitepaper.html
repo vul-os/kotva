@@ -458,7 +458,7 @@
 
     <section id="abstract" aria-labelledby="abstract-h">
       <h2 id="abstract-h"><span class="secnum">§0</span> Abstract</h2>
-      <p><em>Kotva</em> is Slavic for <strong>anchor</strong>. The key is the anchor: identity is a keypair its holder controls, and every name, address, alias, or operator sitting above it is a swappable pointer. KOTVA itself is not a product — it is a family of protocols sharing one narrow waist, six capabilities small enough to read in an afternoon,<sup class="fn"><a href="#r3">[3]</a></sup> plus a keystone document, the <strong>coordinator contract</strong>,<sup class="fn"><a href="#r2">[2]</a></sup> that turns "some centralisation, done safely" into a checkable property instead of a marketing promise. Above the waist sit thin <strong>profiles</strong>: DMTAP (mail, the flagship and reference profile), TRACT (commerce), WRAP (work), and a set of further drafts — media, social, real-time calling, search, reachability, cloud infrastructure. Below the waist, KOTVA adopts rather than reinvents: Ed25519, HPKE, deterministic CBOR, MLS, libp2p, SFrame, WebRTC, and a slate of external bindings for recovery, reputation, payments, storage, and dispute.<sup class="fn"><a href="#r5">[5]</a></sup> The one piece of genuinely new normative engineering is <strong>Sync</strong> — a signed, multi-author CRDT operation algebra with deterministic, coordinator-free convergence. Everything else is composition, and every unavoidable point of centralisation is fenced: accountable, swappable, self-hostable, and never load-bearing.</p>
+      <p><em>Kotva</em> is Slavic for <strong>anchor</strong>. The key is the anchor: identity is a keypair its holder controls, and every name, address, alias, or operator sitting above it is a swappable pointer. KOTVA itself is not a product — it is a family of protocols sharing one narrow waist, six capabilities small enough to read in an afternoon,<sup class="fn"><a href="#r3">[3]</a></sup> plus a keystone document, the <strong>coordinator contract</strong>,<sup class="fn"><a href="#r2">[2]</a></sup> that turns "some centralisation, done safely" into a checkable property instead of a marketing promise. Above the waist sit thin <strong>profiles</strong>: DMTAP (mail, the flagship and reference profile), TRACT (commerce), WRAP (work), and a set of further drafts — media, social, real-time calling, search, reachability, cloud infrastructure. Below the waist, KOTVA adopts rather than reinvents: Ed25519, HPKE, deterministic CBOR, MLS, libp2p, SFrame, WebRTC, and a slate of external bindings for reputation, payments, storage, and dispute (Core-v1 recovery is self-contained — BIP39&nbsp;+&nbsp;FROST/Shamir, no external vendor).<sup class="fn"><a href="#r5">[5]</a></sup> The one piece of genuinely new normative engineering is <strong>Sync</strong> — a signed, multi-author CRDT operation algebra with deterministic, coordinator-free convergence. Everything else is composition, and every unavoidable point of centralisation is fenced: accountable, swappable, self-hostable, and never load-bearing.</p>
     </section>
 
     <hr class="rule">
@@ -780,7 +780,7 @@
         <div class="diagram-frame">
           <svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="layTitle layDesc">
             <title id="layTitle">A thin base, apps on top, swappable seams on the side</title>
-            <desc id="layDesc">ADOPT, SUBSTRATE, PRIMITIVES stack vertically as the shared floor; PROFILES sit on top; the coordinator contract and bindings sit as side seams that absorb hard problems.</desc>
+            <desc id="layDesc">A thin base (ADOPT + the six-capability substrate + the coordinator contract) sits at the floor; the six primitives are an opt-in coordination toolkit a messaging node uses none of; applications sit on top; coordinators and bindings are swappable side-seams that absorb hard problems.</desc>
             <g font-family="var(--font-mono)" font-size="12.5" text-anchor="middle">
               <rect x="140" y="10"  width="480" height="40" rx="8" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.3"></rect>
               <text x="380" y="35" fill="var(--accent-ink)" font-weight="700" font-size="11.5">⑥ PROFILES — nine thin profiles over one substrate</text>
@@ -818,7 +818,7 @@
       <div class="profile" id="p-mail">
         <div class="profile-head">
           <h3>DMTAP — mail, messaging &amp; the legacy gateway</h3>
-          <span class="badge b-live"><span class="dot"></span>flagship profile · spec §00–§27</span>
+          <span class="badge b-live"><span class="dot"></span>🟢 Core&nbsp;v1 · core §00–§21, §26</span>
         </div>
         <p class="profile-thesis">Email reimagined from the keypair up — the profile the waist was extracted <em>from</em>, now reframed as the first thing built on top of it rather than the whole protocol.</p>
         <dl>

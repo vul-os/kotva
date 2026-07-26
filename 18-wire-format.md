@@ -1275,7 +1275,7 @@ The self-certifying `key → location` value record stored in the DHT (IPNS patt
 
 ```cddl
 LocationRecord = {
-  1 => ik-pub,          ; ik        identity key (DHT key = multihash(ik))
+  1 => ik-pub,          ; ik        the anchor key iks[anchor_suite] (§18.9.17); DHT key = multihash(ik)
   2 => peer-id,         ; peer_id   node id per `substrate` (v0 libp2p PeerId; MAY be per-epoch/unlinkable, §6)
   3 => [* maddr],       ; addrs     current reachability hints
   4 => u64,             ; seq       monotonic sequence number (rollback defense, §16.2)
@@ -1288,7 +1288,7 @@ LocationRecord = {
 
 | Field | Key | Type | Presence | Meaning & constraints |
 |-------|----:|------|----------|-----------------------|
-| `ik` | 1 | `ik-pub` | MUST | Identity key; the DHT key is `multihash(ik)`. |
+| `ik` | 1 | `ik-pub` | MUST | The identity's **anchor key** `iks[anchor_suite]` (§18.9.17) — pinned so a multi-suite identity has **one** canonical DHT location, not one per suite; the DHT key is `multihash(ik)`. A resolver computes it from the same anchor entry it derives the key-name from. |
 | `peer_id` | 2 | `peer-id` | MUST | libp2p PeerId; MAY be a per-epoch, unlinkable id to decouple node from identity (§6.4). |
 | `addrs` | 3 | `[* maddr]` | MUST (MAY be empty) | Reachability hints (multiaddrs): direct, relay-circuit, or mix addresses. Order = preference. |
 | `seq` | 4 | `u64` | MUST | Monotonic sequence number; a resolver MUST reject a record whose `seq` is **older or equal** to one already seen (rollback/replay defence, §4.2, §16.2). |

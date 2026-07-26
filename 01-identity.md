@@ -249,9 +249,10 @@ Identity {
   recovery: RecoveryPolicyRef,   // hash of the current RecoveryPolicy (§1.4)
   names:    [* tstr],            // self-asserted name(s); trust only after forward name→ik verification (§3.9.4)
   deniable_prekeys: ?KeyPackageBundleRef, // OPTIONAL: X3DH/PQXDH prekeys for deniable 1:1 mode (§5.2.1)
+  classical_retired: ?[+ u8],   // OPTIONAL: suites retired from IK verification, rejected unconditionally (§1.3, §12.8.5, §18.4.1 key 13)
   prev:     ?bytes,             // hash of the previous Identity version (hash chain)
   ts:       u64,
-  sig:      [+ bytes],         // one signature per suite in `suites`, over all of the above
+  sig:      [+ bytes],         // one signature per suite in `suites` — PLUS one under iks[anchor_suite] when anchor_suite ∉ suites (§18.4.1, §1.3)
 }
 ```
 
