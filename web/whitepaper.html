@@ -116,7 +116,10 @@
 
   *,*::before,*::after{ box-sizing:border-box; }
   html{ background:var(--bg-base); }
-  html,body{ max-width:100%; overflow-x:hidden; }
+  /* overflow-x:clip (not hidden) contains horizontal overflow WITHOUT
+     establishing a scroll container — hidden would force overflow-y:auto and
+     break position:sticky on the TOC sidebar. */
+  html,body{ max-width:100%; overflow-x:clip; }
   body{
     margin:0; background:var(--bg-base); color:var(--text-primary);
     font-family:var(--font-sans); font-size:16.5px; line-height:1.7;
@@ -325,16 +328,19 @@
   @media (max-width:920px){
     .shell{ grid-template-columns:1fr; padding:0 20px; }
     nav.toc{
-      position:static; height:auto; padding:14px 0; border-bottom:1px solid var(--border-strong);
-      margin-bottom:8px;
+      position:sticky; top:0; z-index:40; height:auto; overflow:visible;
+      padding:6px 0; margin-bottom:8px;
+      background:var(--bg-base); border-bottom:1px solid var(--border-strong);
     }
     .toc-toggle{
       display:flex; align-items:center; justify-content:space-between; width:100%;
       font-family:var(--font-mono); font-weight:700; font-size:13.5px; background:none; border:none; color:var(--text-primary);
-      padding:10px 2px; cursor:pointer;
+      padding:12px 2px; cursor:pointer;
     }
+    /* Collapsed by default; opens as a bounded, scrollable dropdown so a long
+       TOC never buries the page. brand/back-link live in .toc-body on mobile. */
     .toc-body{ display:none; }
-    .toc-body.open{ display:block; }
+    .toc-body.open{ display:block; max-height:70vh; overflow-y:auto; padding-bottom:10px; }
     main{ padding-top:22px; }
     body{ font-size:16px; }
     h1.doctitle{ font-size:32px; }
