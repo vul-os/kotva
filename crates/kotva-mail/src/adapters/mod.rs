@@ -18,6 +18,11 @@
 //! aggregator, an attached modem). Nothing here holds credentials or makes live calls, so it runs in
 //! CI; the per-rail modules bind the transport.
 
+pub mod discord;
+pub mod slack;
+pub mod telegram;
+pub mod whatsapp_business;
+
 use kotva_core::mote::Payload;
 
 /// §26.3 field 1 — *can it initiate?* The load-bearing field: can this rail reach a stranger cold?
