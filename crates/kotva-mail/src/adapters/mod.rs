@@ -20,6 +20,7 @@
 
 pub mod discord;
 pub mod slack;
+pub mod sms_hardware;
 pub mod telegram;
 pub mod whatsapp_business;
 
