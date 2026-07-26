@@ -25,13 +25,13 @@ CAD/artifact profile `CAD` family, the wave-5 `VIDEO` family, the wave-6 anti-dr
 `MIXPROF`/`FLEET`/`GUARD`/`LOC`/`FLOOR`/`FAILCLASS`/`GWROLE` and the gateway families
 `GWOPS`/`GWSMTP`/`GWATT`/`GWNAME`/`GWFLOOR`/`GWLEG`, and the DMTAP-PUBSUB `PUBSUB` family (§25) are
 all mirrored) and MUST stay so.
-**58 cases are byte-runnable today** (52 backed by a `vectors.json` or `pub_vectors.json` entry, 6
-self-contained CBOR-reject cases whose bytes are inline); 287 are `construction-todo` — each
+**63 cases are byte-runnable today** (57 backed by a `vectors.json` or `pub_vectors.json` entry, 6
+self-contained CBOR-reject cases whose bytes are inline); 282 are `construction-todo` — each
 carries an exact construction recipe and the expected §21 error, and becomes byte-backed as its
 subsystem gains a fixed-input KAT (see [Coverage vs. deferred](#coverage-vs-deferred)); 19 are
 `manual-attestation` — client-UX, in-product-disclosure and deployment MUSTs with no wire bytes to
 recompute, each naming the review that settles it. The
-partition is exact: 52 + 6 + 287 + 19 = 364.
+partition is exact: 57 + 6 + 282 + 19 = 364.
 
 **Ratification-tier subset.** A second, orthogonal partition (the `ratification_tier` field in
 `suite.json`, tabulated in [`SUITE.md`](SUITE.md)) marks which cases a **Core-v1** implementation must
@@ -48,7 +48,7 @@ three structural limits, printed by the tool alongside it:
 1. It is **section-level, not MUST-level.** A section counts as covered if *any* case cites it, not
    if every MUST in it is exercised. It is a floor with **named gaps**: "most implementable surface
    has a case pointed at it, and the tool lists what does not", never "everything is checked".
-2. It counts cases that **exist**, not cases that **pass.** 58 of 364 are byte-runnable today and
+2. It counts cases that **exist**, not cases that **pass.** 63 of 364 are byte-runnable today and
    **no implementation has been run against the suite**. This file describes tests, not results.
 3. The denominator is a **judgement.** **96** sections are excluded from IMPL because their MUSTs are
    owned by another clause (the §21 registry Action column; the §19 operations appendix and §20 state
@@ -180,7 +180,7 @@ is what a conforming implementation MUST produce.
 |---|--------------|---------|----------------|
 | 1 | `content_address` | `content_address_{empty,small,phrase,multi_kib}` | Content address = `0x1e ‖ BLAKE3-256(bytes)` (spec §2.2, §18.1.5) for empty, small, phrase, and a 4096-byte input. |
 | 2 | `content_address_verify` | `mote_content_address_{ok,tampered}` | The §2.7 step-2 check: `id` recomputes from `ciphertext`, and a tampered ciphertext is rejected **before any decryption**. |
-| 3 | `keyname_verify` | `keyname_typo_rejected` | The zero-authority 8-word + checksum key-name (§3.9.1, §16.2): that a mistyped word fails the folded checksum (fail-closed). **The four known-answer names `keyname_{zero_key,key_ones,key_twos,real_pubkey}` were withdrawn** (see `vectors.json` → `withdrawn`): §18.9.17 rebound the derivation to `BLAKE3-256(0x01 ‖ 0x1e ‖ iks[anchor_suite])`, so `DMTAP-NAME-01..05` revert to construction-todo until the reference core regenerates them. |
+| 3 | `keyname_encode` / `keyname_verify` | `keyname_{zero_key,key_ones,key_twos,real_pubkey}`, `keyname_typo_rejected` | The zero-authority 8-word + checksum key-name (§3.9.1, §16.2, §18.9.17): determinism, distinctness (`key_ones` ≠ `key_twos`), and that a mistyped word fails the folded checksum (fail-closed). Generated under the §18.9.17 derivation `BLAKE3-256(0x01 ‖ 0x1e ‖ iks[anchor_suite])` — the reference core now regenerates them, so `DMTAP-NAME-01..05` are byte-runnable again. |
 | 4 | `safety_number` | `safety_number_pair_ab`, `safety_number_order_independent` | The §3.4.1 OOB safety number: a deterministic fingerprint of a **pair** of identity keys, **order-independent** (swapping the two keys yields the identical value). |
 | 5 | `ed25519_sign` / `ed25519_verify` | `ed25519_rfc8032_test{1,2}`, `ed25519_domain_separated`, `ed25519_verify_{ok,tampered_msg,tampered_sig}` | Deterministic Ed25519 signatures (incl. two RFC 8032 cross-checks and DMTAP's domain-separated `sign_domain`), and that verification fails closed on a tampered message or signature. |
 | 6 | `cbor_encode` | `cbor_{identity,device_cert,payload,envelope}` | Exact deterministic CBOR bytes of a signed `Identity` (+ its content address), a `DeviceCert`, a `Payload`, and an `Envelope`. The self-check additionally round-trips each (`decode(encode(x)) == x`, and re-encode is byte-identical). |

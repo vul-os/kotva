@@ -88,7 +88,7 @@ and on `reject` MUST map it to the named §21 error code with that code's `Actio
 | **Core** — content address (`ADDR`) | 6 | 6 | 0 | 0 | 0 |
 | **Core** — Ed25519 (`SIG`) | 6 | 6 | 0 | 0 | 0 |
 | **Core** — signing preimages (`PRE`) | 5 | 3 | 0 | 2 | 0 |
-| **Core** — key-name (`NAME`) | 7 | 1 | 0 | 5 | 1 |
+| **Core** — key-name (`NAME`) | 7 | 6 | 0 | 0 | 1 |
 | **Core** — safety number (`SAFE`) | 2 | 2 | 0 | 0 | 0 |
 | **Core** — suite fail-closed (`SUITE`) | 10 | 9 | 0 | 1 | 0 |
 <!-- NOTE (normative, §10.3a): the "**Core** — …" prefix in this table denotes the SPEC AREA a
@@ -151,9 +151,9 @@ and on `reject` MUST map it to the named §21 error code with that code's `Actio
 | **Core** — wire objects with no vector: decode & cross-field rules (`WIRE`) | 10 | 0 | 0 | 10 | 0 |
 | **Core** — §18 KATs: manifest, mix descriptor, Sphinx framing (`WIREKAT`) | 9 | 9 | 0 | 0 | 0 |
 | **Core** — DMTAP-PUBSUB extension, optional `pubsub-1` (`PUBSUB`) | 16 | 0 | 0 | 15 | 1 |
-| **Total** | **364** | **52** | **6** | **287** | **19** |
+| **Total** | **364** | **57** | **6** | **282** | **19** |
 
-The 52 vectored + 6 self-contained cases (**58**) are fully machine-runnable **today** from
+The 57 vectored + 6 self-contained cases (**63**) are fully machine-runnable **today** from
 `vectors.json` / `pub_vectors.json` + the inline bytes here, with **no reference implementation
 required**. They pin the entire deterministic, security-critical Core spine — canonical CBOR,
 content addressing, the two MOTE signature preimages (§18.9.1/§18.9.2), Ed25519 (with RFC 8032
@@ -193,7 +193,7 @@ in [`scope.json`](scope.json). That sentence is doing exact work and is easy to 
   if every MUST in it is exercised. The metric is a floor **with named gaps**: it says "most of the
   implementable spec has a case pointed at it, and the tool lists what does not", never "everything
   is checked".
-- It counts cases that **exist**, not cases that **pass.** Of 364 cases, 58 are byte-runnable
+- It counts cases that **exist**, not cases that **pass.** Of 364 cases, 63 are byte-runnable
   today; the rest carry a construction recipe or are settled by review. **No implementation has
   been run against this suite**, so the suite is a specification of tests, not a test result.
 - The denominator is **curated.** [`scope.json`](scope.json) classifies all **403** MUST-bearing
@@ -291,11 +291,11 @@ Core crypto/encoding case below is a prerequisite the higher levels inherit.
 
 | id | req | clause | checks | input | expect | status |
 |----|-----|--------|--------|-------|--------|--------|
-| DMTAP-NAME-01 | MUST | §3.9.6, §18.9.17, §16.2 | key-name is deterministic (+ checksum verifies) — all-zero key | construction: `keyname_digest = BLAKE3-256(0x01 ‖ 0x1e ‖ pubkey)` with `pubkey = 00×32`; take the leading 80 bits, render 8 words + folded checksum word over the curated ~1024-word list (§3.4.1) | match (`name`), accept (checksum) | construction-todo |
-| DMTAP-NAME-02 | MUST | §3.9.6, §18.9.17 | key-name of all-`0x01` key | construction: as NAME-01 with `pubkey = 01×32` | match | construction-todo |
-| DMTAP-NAME-03 | MUST | §3.9.6, §18.9.17 | key-name of all-`0x02` key | construction: as NAME-01 with `pubkey = 02×32` | match | construction-todo |
-| DMTAP-NAME-04 | MUST | §3.9.6, §18.9.17 | key-name of a real Ed25519 public key | construction: as NAME-01 with `pubkey = d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737` (Ed25519 public key of seed `0x11×32`) | match | construction-todo |
-| DMTAP-NAME-05 | MUST | §3.9.6, §18.9.17 | distinct keys ⇒ distinct names (NAME-02 ≠ NAME-03) | construction: derive both names per NAME-02 / NAME-03 and compare | accept (names differ) | construction-todo |
+| DMTAP-NAME-01 | MUST | §3.9.6, §18.9.17, §16.2 | key-name is deterministic (+ checksum verifies) — all-zero key | vector `keyname_zero_key` (`pubkey = 00×32`; reference core renders 8 words + folded checksum over the curated ~1024-word list, §3.4.1) | match (`name`), accept (checksum) | vectored |
+| DMTAP-NAME-02 | MUST | §3.9.6, §18.9.17 | key-name of all-`0x01` key | vector `keyname_key_ones` (`pubkey = 01×32`) | match | vectored |
+| DMTAP-NAME-03 | MUST | §3.9.6, §18.9.17 | key-name of all-`0x02` key | vector `keyname_key_twos` (`pubkey = 02×32`) | match | vectored |
+| DMTAP-NAME-04 | MUST | §3.9.6, §18.9.17 | key-name of a real Ed25519 public key | vector `keyname_real_pubkey` (Ed25519 public key of seed `0x11×32`) | match | vectored |
+| DMTAP-NAME-05 | MUST | §3.9.6, §18.9.17 | distinct keys ⇒ distinct names (NAME-02 ≠ NAME-03) | reuses `keyname_key_ones` / `keyname_key_twos` — derive both names and compare | accept (names differ) | vectored |
 | DMTAP-NAME-06 | MUST | §3.9.6, §18.9.17, §16.2 | a single mistyped word fails the folded checksum (fail closed) | vector `keyname_typo_rejected` | reject (checksum) | vectored |
 | DMTAP-NAME-07 | MUST | §3.9.6, §3.13.4, §6.6 | **A bare key-name is not a destination.** The key-name is a one-way digest, so a client MUST NOT accept one alone as a send destination for a stranger — the key cannot be recovered from it, and the key is what the HPKE seal, `DeliveryTag`, work-proof scope and DHT key all consume. Confirming an out-of-band key against a key-name is its actual purpose and MUST work | manual attestation: (a) key-name as sole destination for an uncontacted identity; (b) key-name used to confirm a key received via QR/contact card | (a) rejected, with the client stating the identity key is required and offering §3.13.5 paths — silently DHT-resolving and presenting that as resolution is non-conformant (§4.2.1); (b) accepted, confirming or rejecting by recomputing §18.9.17 | manual-attestation |
 

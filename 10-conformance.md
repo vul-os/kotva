@@ -148,7 +148,7 @@ fragmentation. The suite lives in `conformance/` as three coupled artifacts:
   wired to a case) and `pub_vectors.json` holds 15 vectors for the §22 DMTAP-PUB profile (all 15
   driven by `PUB` cases). DMTAP-PUBSUB (§25) generates no new vectors of its own (§10.3 below).
 
-58 cases are byte-runnable today (52 vector-backed against `vectors.json`/`pub_vectors.json` +
+63 cases are byte-runnable today (57 vector-backed against `vectors.json`/`pub_vectors.json` +
 6 self-contained canonical-CBOR reject cases); 17 further cases are verified by implementer or
 deployment attestation, having **no wire bytes to recompute at all** — an in-product disclosure
 (§22.7 publish consent, [docs/research/mixnet.md §4.4.10a](docs/research/mixnet.md)'s Bootstrap
@@ -163,14 +163,14 @@ display-data guards, the optional `PUSH` wake-signalling guards, the wave-6 anti
 (`MIXPROF`/`FLEET`/`GUARD`/`LOC`/`FLOOR`/`FAILCLASS`/`GWROLE`), the gateway families
 (`GWOPS`/`GWSMTP`/`GWATT`/`GWNAME`/`GWFLOOR`/`GWLEG`), the profile-level `CAD`/`VIDEO` checklists,
 and the DMTAP-PUBSUB guards (`PUBSUB`, §25) — see `conformance/README.md`). The partition is exact:
-58 + 19 + 287 = 364. An implementation conforms at a level iff it passes every `MUST` case of that
+63 + 19 + 282 = 364. An implementation conforms at a level iff it passes every `MUST` case of that
 level and of every level it composes.
 
 **On the coverage figure.** `make coverage` reports that **84%** of `IMPL` MUSTs (those an
 implementation must satisfy) **sit in a section some case cites** — and, conversely, that **56
 IMPL sections (212 MUSTs) are not yet cited** (e.g. §18.8a.1, §27.4.1, §8.6a). It is a
 **section-level denominator**: a section counts as covered if *any* case cites it, not if every MUST in
-it is exercised; it counts cases that **exist**, not cases that **pass** (58 of 364 are byte-runnable
+it is exercised; it counts cases that **exist**, not cases that **pass** (63 of 364 are byte-runnable
 today, and no implementation has yet been run against the suite); and it is measured against a
 **curated** denominator whose classification is a judgement, auditable in `conformance/scope.json` and
 re-checkable by `make lint`. The **raw** figure — every capitalised MUST in the specification,

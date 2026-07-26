@@ -647,9 +647,10 @@
         "outcome": "match",
         "field": "name"
       },
-      "status": "construction-todo",
+      "status": "vectored",
       "construction": "keyname_digest = BLAKE3-256(0x01 || 0x1e || pubkey) with pubkey = 00*32; take the leading 80 bits; render 8 words + folded checksum word over the curated ~1024-word list (§3.4.1)",
-      "withdrawn_vector_note": "§18.9.17 now binds the hash algorithm inside the key-name preimage, which changes every key-name; the committed keyname_* known answers were generated under the old bare-digest derivation and are withdrawn (vectors.json, withdrawn_vectors)"
+      "withdrawn_vector_note": "§18.9.17 now binds the hash algorithm inside the key-name preimage, which changes every key-name; the committed keyname_* known answers were generated under the old bare-digest derivation and are withdrawn (vectors.json, withdrawn_vectors)",
+      "vector": "keyname_zero_key"
     },
     {
       "id": "DMTAP-NAME-02",
@@ -667,9 +668,10 @@
         "outcome": "match",
         "field": "name"
       },
-      "status": "construction-todo",
+      "status": "vectored",
       "construction": "as DMTAP-NAME-01 with pubkey = 01*32",
-      "withdrawn_vector_note": "§18.9.17 now binds the hash algorithm inside the key-name preimage, which changes every key-name; the committed keyname_* known answers were generated under the old bare-digest derivation and are withdrawn (vectors.json, withdrawn_vectors)"
+      "withdrawn_vector_note": "§18.9.17 now binds the hash algorithm inside the key-name preimage, which changes every key-name; the committed keyname_* known answers were generated under the old bare-digest derivation and are withdrawn (vectors.json, withdrawn_vectors)",
+      "vector": "keyname_key_ones"
     },
     {
       "id": "DMTAP-NAME-03",
@@ -687,9 +689,10 @@
         "outcome": "match",
         "field": "name"
       },
-      "status": "construction-todo",
+      "status": "vectored",
       "construction": "as DMTAP-NAME-01 with pubkey = 02*32",
-      "withdrawn_vector_note": "§18.9.17 now binds the hash algorithm inside the key-name preimage, which changes every key-name; the committed keyname_* known answers were generated under the old bare-digest derivation and are withdrawn (vectors.json, withdrawn_vectors)"
+      "withdrawn_vector_note": "§18.9.17 now binds the hash algorithm inside the key-name preimage, which changes every key-name; the committed keyname_* known answers were generated under the old bare-digest derivation and are withdrawn (vectors.json, withdrawn_vectors)",
+      "vector": "keyname_key_twos"
     },
     {
       "id": "DMTAP-NAME-04",
@@ -707,9 +710,10 @@
         "outcome": "match",
         "field": "name"
       },
-      "status": "construction-todo",
+      "status": "vectored",
       "construction": "as DMTAP-NAME-01 with pubkey = d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737 (Ed25519 public key of seed 0x11*32)",
-      "withdrawn_vector_note": "§18.9.17 now binds the hash algorithm inside the key-name preimage, which changes every key-name; the committed keyname_* known answers were generated under the old bare-digest derivation and are withdrawn (vectors.json, withdrawn_vectors)"
+      "withdrawn_vector_note": "§18.9.17 now binds the hash algorithm inside the key-name preimage, which changes every key-name; the committed keyname_* known answers were generated under the old bare-digest derivation and are withdrawn (vectors.json, withdrawn_vectors)",
+      "vector": "keyname_real_pubkey"
     },
     {
       "id": "DMTAP-NAME-05",
@@ -727,9 +731,13 @@
         "outcome": "accept",
         "note": "the two names MUST differ"
       },
-      "status": "construction-todo",
+      "status": "vectored",
       "construction": "derive both names per DMTAP-NAME-02 / DMTAP-NAME-03 and compare",
-      "withdrawn_vector_note": "§18.9.17 now binds the hash algorithm inside the key-name preimage, which changes every key-name; the committed keyname_* known answers were generated under the old bare-digest derivation and are withdrawn (vectors.json, withdrawn_vectors)"
+      "withdrawn_vector_note": "§18.9.17 now binds the hash algorithm inside the key-name preimage, which changes every key-name; the committed keyname_* known answers were generated under the old bare-digest derivation and are withdrawn (vectors.json, withdrawn_vectors)",
+      "reuses_vector": [
+        "keyname_key_ones",
+        "keyname_key_twos"
+      ]
     },
     {
       "id": "DMTAP-NAME-06",
