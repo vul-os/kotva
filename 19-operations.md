@@ -1037,10 +1037,18 @@ sender-side retry loop (§4.7).
   learns, from the mere presence of a valid device-authorised signature, that *some device of the
   pinned recipient identity* produced this reply, which is strictly more identity commitment than a
   bare, unauthenticated confirmation carried. This is a real, narrow reduction in the recipient's
-  deniability on the **return** path only (it does not touch sender anonymity, SP-3/SP-4, and it
-  does not identify *which* device among the identity's cluster, since any authorised device key
-  qualifies) — it is not eliminated by picking a different mechanism, because *some* durable
-  authentication of "delivery actually happened" is precisely what an unforgeable ack requires. It
+  deniability on the **return** path only (it does not touch sender anonymity, SP-3/SP-4). **It does
+  identify *which* device**, and does so linkably: `ack_sig` is a plain detached signature (§18.9.18,
+  no ring/group/blinded construction and no shared cluster key), so an observer holding the
+  recipient's public `Identity.devices` roster verifies it by trying each `device_key` until exactly
+  one matches — naming the specific signing device and linking successive acks under that same
+  `device_key`. ("Any authorised device key *qualifies*" is the **acceptance** rule at the sender,
+  §18.9.18 — not an anonymity property; once made, the signature is device-attributable to anyone who
+  can already attribute it to the identity.) This durable per-device linkage on the return leg is the
+  §6.4-item-1 concern, disclosed here rather than hidden. The leak is **not** eliminated by picking a
+  different mechanism, because *some* durable authentication of "delivery actually happened" is
+  precisely what an unforgeable ack requires (a device-anonymous variant would need a ring/threshold
+  signature over the device roster, not specified in v0). It
   is disclosed, not hidden: the canonical residual statement belongs in §6.9 SP-2 (reported below;
   not made here, since this section does not own §6).
 

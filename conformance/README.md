@@ -39,9 +39,9 @@ pass: **293** are `core-v1` (the §00–§21/§26 DMTAP-mail heart) and **71** a
 in-tree DMTAP-PUB object family — `PUB`/`CAD`/`VIDEO`/`PUBSUB`). A Core-v1 implementation is fully
 conformant with **no extension present** ([SPEC ratification tiers](../SPEC.md)).
 
-**Normative coverage, and what it is not.** `make coverage` reports that **84% of IMPL sections are
-cited by at least one case** — and enumerates the **56 IMPL sections (212 MUSTs) that are not yet
-cited** — against the curated denominator in [`scope.json`](scope.json), which classifies all **402**
+**Normative coverage, and what it is not.** `make coverage` reports that **84% of IMPL MUSTs sit in a
+section some case cites** — and enumerates the **56 IMPL sections (212 MUSTs) that are not yet
+cited** — against the curated denominator in [`scope.json`](scope.json), which classifies all **403**
 MUST-bearing sections of the specification and states a one-line reason for each. The figure carries
 three structural limits, printed by the tool alongside it:
 
@@ -58,8 +58,8 @@ three structural limits, printed by the tool alongside it:
    `IMPL` and write the case; `make lint` fails the build if any MUST-bearing section is left
    unclassified.
 
-The **raw** figure — over every capitalised MUST in the specification, unclassified — is **75%** (402
-MUST-bearing sections, 1730 MUSTs). `make coverage` is authoritative; these figures drift as the
+The **raw** figure — over every capitalised MUST in the specification, unclassified — is **75%** (403
+MUST-bearing sections, 1744 MUSTs). `make coverage` is authoritative; these figures drift as the
 suite grows.
 
 ### How a third-party implementer uses the suite

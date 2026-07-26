@@ -143,7 +143,7 @@ and on `reject` MUST map it to the named §21 error code with that code's `Actio
 | **Core** — the operator seam & the inviolable rule (`SEAM`) | 4 | 0 | 0 | 4 | 0 |
 | **Core** — roles at scale: fleet, thin clients, buffers & status pages (`SCALE`) | 5 | 0 | 0 | 5 | 0 |
 | **Core** — hybrid-suite composition (`HYBRID`) | 1 | 0 | 0 | 1 | 0 |
-| **Core** — state-machine totality, the §20 [fill] rules (`FSM`) | 5 | 0 | 0 | 5 | 0 |
+| **Core** — state-machine totality, the §20 [fill] rules (`FSM`) | 7 | 0 | 0 | 7 | 0 |
 | **Core** — forward compatibility, the three unknown-value rules (`FWDCOMPAT`) | 3 | 0 | 0 | 3 | 0 |
 | **Core** — DMTAP-PUB publication guards, optional `pub-1` (`PUBGUARD`) | 3 | 0 | 0 | 2 | 1 |
 | **Core** — CAD assembly structure, optional `pub-1` (`CADASM`) | 1 | 0 | 0 | 1 | 0 |
@@ -185,7 +185,7 @@ is the honest status, not a placeholder for a vector that could exist.
 
 ### Normative coverage, and what it is not
 
-`make coverage` reports that **84% of IMPL sections are cited by at least one case**, and enumerates
+`make coverage` reports that **84% of IMPL MUSTs sit in a section some case cites**, and enumerates
 the **56 IMPL sections (212 MUSTs) that are not yet cited**, measured against the curated denominator
 in [`scope.json`](scope.json). That sentence is doing exact work and is easy to over-read, so:
 
@@ -196,15 +196,15 @@ in [`scope.json`](scope.json). That sentence is doing exact work and is easy to 
 - It counts cases that **exist**, not cases that **pass.** Of 364 cases, 58 are byte-runnable
   today; the rest carry a construction recipe or are settled by review. **No implementation has
   been run against this suite**, so the suite is a specification of tests, not a test result.
-- The denominator is **curated.** [`scope.json`](scope.json) classifies all **402** MUST-bearing
+- The denominator is **curated.** [`scope.json`](scope.json) classifies all **403** MUST-bearing
   sections and states a reason for each; the **96** non-IMPL sections are excluded because their MUSTs
   are owned by another clause (the §21 registry Action column, the §19/§20 appendices), bind a
   future registrant or an operator's process, or are not requirements at all. Inclusion is the
   default and every exclusion names its owner — but the classification is a judgement, and the
   intended response to disagreeing with one is to reclassify it `IMPL` and write the case.
 
-The raw figure — every capitalised MUST in the specification, unclassified — is **75%** (402
-MUST-bearing sections, 1730 MUSTs). Both numbers are printed by `make coverage`, deliberately, so the
+The raw figure — every capitalised MUST in the specification, unclassified — is **75%** (403
+MUST-bearing sections, 1744 MUSTs). Both numbers are printed by `make coverage`, deliberately, so the
 curation can be checked rather than trusted; `make coverage` is authoritative and the figures drift
 as the suite grows.
 
@@ -1151,7 +1151,7 @@ literally nothing.
 
 | id | req | clause | checks | input | expect | status |
 |----|-----|--------|--------|-------|--------|--------|
-| DMTAP-ANCHOR-01 | MUST | §1.2.0, §1.3, §21.15 | **Verify each signature under the suite of the key that made it.** An `Identity` carries an `anchor_suite` governing `IK` and every signature `IK` itself makes, independent of the operational `suite` governing everything below. A conformant implementation MUST accept an anchor suite that differs from the operational suite, and MUST NOT verify under a single per-object suite assumed to cover both — the intended anchor profile is SLH-DSA (`0x04`), whose ~7.9 KB signatures are irrelevant at anchor-signing frequency and whose security rests on no algebraic structure | construction: an `Identity` with `anchor_suite = 0x04` and operational `suite = 0x02`, carrying an `IK`-made `DeviceCert` signature under `0x04` and a device-made `Payload.sig` under `0x02` | accept (both verify, each under its own key's suite); rejecting the object because the two suites differ, or attempting the `IK` signature under `0x02`, is non-conformant → `ERR_IDENTITY_SIG_INVALID` (0x0103) would be the wrong answer here | construction-todo |
+| DMTAP-ANCHOR-01 | MUST | §1.2.0, §1.3, §18.4.1 | **The anchor signature over the Identity root is mandatory-to-verify for an anchor-capable verifier.** When `anchor_suite ∉ suites`, `Identity.sig` carries a final signature under `iks[anchor_suite]` (§18.4.1); a verifier that **implements** `anchor_suite` MUST verify it and MUST reject an `Identity` whose anchor signature is absent or invalid. This makes the cold anchor's conservatism **load-bearing**: breaking only an operational suite cannot forge a new `Identity` version reusing the victim's key-name (the intended anchor is SLH-DSA `0x04`, resting on no algebraic structure) | construction: a higher-version `Identity` for a victim's key-name with `suites=[0x02]`, `anchor_suite=0x04`, reusing the victim's `iks[0x04]` anchor pubkey so the key-name matches, signed **only** under `0x02` (no valid `0x04` anchor signature), presented to a `0x04`-capable verifier; plus a well-formed variant carrying the valid `iks[0x04]` anchor signature | reject the anchor-absent forgery → `ERR_IDENTITY_SIG_INVALID` (0x0103); accept the well-formed anchor-signed variant | construction-todo |
 | DMTAP-ANCHOR-02 | MUST | §3.1, §3.2, §4.2 | **DNS points; it never locates and never proves.** DNS holds the stable `name → key` pointer and MUST NOT hold location — that is the mesh's job (§4) — and it is never the proof: KT plus pinning are. A resolver that accepts an address out of a `_dmtap` record has folded the dynamic layer into the static, cacheable one and has made a stale or hostile zone into a routing authority | construction: a `_dmtap` TXT carrying an address/multiaddr-shaped parameter alongside `ik`; and a valid `ik` binding presented with no KT verification available | accept the pointer while ignoring any location-shaped parameter (the mesh `LocationRecord` remains the only source of `addrs`); reject → `ERR_KT_UNREACHABLE` (0x0106), FAIL_CLOSED_BLOCK for the unverifiable binding — a DNS record alone MUST NOT be TOFU-pinned silently | construction-todo |
 | DMTAP-ANCHOR-03 | MUST | §3.2, §13.6, §3.4 | **A `did.json` is byte-consistent with DNS + KT, or it is nothing.** Where an identity is also published as a `did:web` document, that document's key MUST be byte-consistent with the DNS `name → key` binding and its KT entry — same `IK`, same `Identity` hash — and a verifier MUST cross-check the two and pin. The DID document is the same discovery-only pointer as DNS, never proof on its own | construction: `did.json` whose `IK` matches DNS but whose pinned `Identity` hash names an older version; variant: a `did.json` published for an identity with no DNS binding at all | reject → `ERR_STALE_ROLLBACK` (0x0105), FAIL_CLOSED_BLOCK for the stale hash; the DNS-less variant is simply unresolved (`ERR_NAME_RESOLUTION_FAILED`, 0x0109) — a DID document cannot substitute for the binding it is supposed to mirror | construction-todo |
 | DMTAP-ANCHOR-04 | MUST | §3.8, §3.10.1 | **DNS is a generated projection, never hand-authored.** The identity is a key and DNS is an auto-managed projection of it; a conformant client SHOULD default to Tier B and **never require a user to author DNS**. For a Tier C own-domain user the domain's own DNS must carry MX/SPF/DKIM/DMARC (DMARC alignment is defined on the `From:` domain — unavoidable while legacy exists), but that requirement MUST NOT be pushed onto the user as manual record editing | construction: complete onboarding at each tier and record every step that requires the user to type a DNS record by hand; for Tier C, verify the generated zone carries MX/SPF/DKIM/DMARC | accept (no tier requires hand-authored DNS, and Tier C's generated projection is complete); an onboarding flow that hands the user a record to paste into a registrar as a required step is non-conformant | construction-todo |

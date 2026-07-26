@@ -95,8 +95,14 @@ into one algorithm choice:
 
 An `Identity` therefore carries an **anchor suite** (`Identity.anchor_suite`, §1.3) that is
 **independent of** the operational `suite` used for messages, and MAY differ from it. Both are
-drawn from the same registry (§21.15); the anchor suite governs `IK` and every signature `IK`
-itself makes, the operational suite governs everything below.
+drawn from the same registry (§21.15); the anchor suite governs `IK` and the **`Identity`-root
+signature** it makes — `sig` carries a signature under `iks[anchor_suite]` over the whole `Identity`
+(§18.4.1, §1.3), the binding that ties the key-name, `devices`, `recovery` and `anchor_suite`
+together — while the operational suite governs the per-message and per-object signatures below. That
+anchor signature is what makes the conservatism below *real*: without it the anchor key would only
+*name* the identity (via the key-name, §18.9.17) while every actual signature rode the operational
+suite, so a break of the operational suite alone would forge a new `Identity` version — the anchor
+signature is the mechanism that forces an attacker to break the conservative anchor as well.
 
 - A conformant implementation MUST accept an anchor suite that differs from the operational
   suite, and MUST verify each signature under the suite of the key that made it — never under a
@@ -263,12 +269,14 @@ so an identity can hold classical and PQ keys simultaneously during migration. R
   highest suite it has seen that contact use or advertise (in a validated `Identity`/KeyPackage).
   A subsequent MOTE from that contact using a suite **below** the high-water-mark MUST be rejected
   (`ERR_SUITE_DOWNGRADE`, §21.4) — routed to the requests area with a security warning, never
-  silently accepted. The high-water-mark only ratchets **up**; it lowers solely through an
-  explicit, `IK`-authorised rotation the owner performs (a genuine suite retirement, §1.5), never
-  through an inbound message. An owner MAY additionally publish a signed **`classical_retired`**
-  marker in `Identity` that makes rejection of the retired suite unconditional (not merely
-  below-high-water-mark). This is the analogue of TLS's downgrade-sentinel: migration to a PQ
-  suite delivers protection at **receipt**, not only once the old keys are globally unpublished.
+  silently accepted. The high-water-mark only ratchets **up**; the **one** way it lowers is an
+  explicit, `IK`-authorised suite retirement the owner publishes as a signed **`classical_retired`**
+  marker in the `Identity` object (§18.4.1 key 13, §12.8.5) — it travels in the signed `Identity`,
+  **not** the key-rotation path (§1.5, which rotates `IK`→`IK′` and does not lower a high-water-mark),
+  and it never lowers through an inbound message. A suite named in `classical_retired` is rejected
+  **unconditionally** (not merely below-high-water-mark). This is the analogue of TLS's
+  downgrade-sentinel: migration to a PQ suite delivers protection at **receipt**, not only once the
+  old keys are globally unpublished.
 - During transition the `Identity` MUST carry a signature under **every** suite in `suites`
   (`sig` is a list), so a verifier trusting either the classical or the PQ key can validate the
   object — this is what lets the network migrate without a flag day.
@@ -350,6 +358,18 @@ so an identity can hold classical and PQ keys simultaneously during migration. R
   `suites` itself), **stripping** a suite from the offered set alters the signed body and remains
   detectable under every surviving signature — a stripped-suite `Identity` fails validation
   rather than passing as a legitimately narrower one.
+- **The anchor signature is mandatory-to-verify for an anchor-capable verifier (normative).** When
+  `anchor_suite ∉ suites`, `sig` carries a final signature under `iks[anchor_suite]` (§18.4.1) in
+  addition to the operational-suite signatures. A verifier that **implements `anchor_suite`** MUST
+  verify that anchor signature and MUST reject an `Identity` whose anchor signature is absent or
+  invalid — this is what makes the anchor's cryptanalytic conservatism *load-bearing* rather than
+  inert: an adversary who breaks only an operational suite (e.g. `0x02`) can forge a signature under
+  that suite but **cannot** forge the anchor signature, so a new `Identity` version reusing the
+  victim's key-name is rejected by every anchor-capable verifier (and, unforged, is caught in KT,
+  §3.5). A verifier that does **not** implement the anchor suite validates the operational suites as
+  above; it gains the operational-suite guarantee but not the anchor's — the honest limit that anchor
+  protection is available only to a verifier able to check the anchor suite (§1.2.0). This is the
+  same fail-closed-vs-legacy trade the multi-suite list already makes, applied to the anchor.
 
 **`deniable_prekeys` (OPTIONAL).** An identity that offers the deniable 1:1 mode (§5.2.1)
 publishes a `DeniablePrekeyBundle` (§18.4.8) and references it here (same `KeyPackageBundleRef`
