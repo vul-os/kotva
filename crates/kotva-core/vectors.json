@@ -56,7 +56,7 @@
       },
       "expected": {
         "checksum_verifies": true,
-        "name": "fero-lozo-gelo-leki-pifi-kego-fima-sale-kudu"
+        "name": "ruga-ruto-fafi-difi-bamo-puma-fami-gazu-penu"
       },
       "note": "all-zero 32-byte key"
     },
@@ -68,7 +68,7 @@
       },
       "expected": {
         "checksum_verifies": true,
-        "name": "pase-kizi-guzi-disa-vuza-gota-dapi-lozo-roni"
+        "name": "vugo-napo-viri-dari-noku-kopa-vona-vuni-kake"
       },
       "note": "all-0x01 key (distinct from below)"
     },
@@ -80,7 +80,7 @@
       },
       "expected": {
         "checksum_verifies": true,
-        "name": "vino-kubu-ruka-katu-roli-keze-badu-rero-sazu"
+        "name": "sima-fima-vuli-zebi-fisu-foze-bebe-gisu-dizu"
       },
       "note": "all-0x02 key (distinct from above → different name)"
     },
@@ -92,7 +92,7 @@
       },
       "expected": {
         "checksum_verifies": true,
-        "name": "kake-veta-misi-dabu-bimi-pipe-suda-kota-nite"
+        "name": "pidi-geno-nume-feno-ruto-tedo-veme-bigi-zisi"
       },
       "note": "key-name of the Ed25519 public key derived from seed 0x11*32"
     },
@@ -100,7 +100,7 @@
       "name": "keyname_typo_rejected",
       "operation": "keyname_verify",
       "input": {
-        "name": "vuli-teze-baba-lovu-fali-nuge-bafu-kopa-fide"
+        "name": "fori-mola-karu-fabo-vavo-tuko-buzu-nepa-kake"
       },
       "expected": {
         "checksum_verifies": false

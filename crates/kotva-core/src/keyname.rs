@@ -87,7 +87,14 @@ fn checksum_index(hash: &[u8; 32]) -> u16 {
 /// `"ma: bafu-…-…"` (data words derived from `BLAKE3(pubkey)`).
 pub fn encode(pubkey: &[u8]) -> String {
     let wl = wordlist();
-    let hash: [u8; 32] = *blake3::hash(pubkey).as_bytes();
+    // §18.9.17: bind the derivation-version byte (0x01) and the BLAKE3-256 multihash prefix (0x1e)
+    // INSIDE the preimage, over the anchor key `iks[anchor_suite]` the caller supplies — so a future
+    // hash migration yields a distinguishable key-name instead of silently replacing every existing
+    // one without any key rotating. Preimage: 0x01 ‖ 0x1e ‖ ik_pub_bytes.
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(&[0x01u8, 0x1e]);
+    hasher.update(pubkey);
+    let hash: [u8; 32] = *hasher.finalize().as_bytes();
     let idx = indices_from_hash(&hash);
     let cksum = checksum_index(&hash);
 
