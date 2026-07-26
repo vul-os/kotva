@@ -474,7 +474,7 @@ extension procedure in §21.25. Allocation policies use the standard terms of RF
 | **Registry name** | DMTAP Error/Status Codes |
 | **Reference** | §21.1–§21.11 (this document) |
 | **Allocation policy** | New subsystem byte (`0x09`–`0xEF`): Standards Action. New code point within an existing subsystem (`NN` = `0x01`–`0x7F`): Specification Required. `NN` = `0x80`–`0xFE` within any subsystem: Private Use (implementation-local diagnostics; MUST map to the nearest standard code's Responder Action, §21.2, for any behaviour visible to another implementation). `SS`/`NN` = `0x00` or `0xFF`: Reserved. |
-| **Initial contents** | The 144 codes enumerated in §21.3–§21.11. |
+| **Initial contents** | The **155** codes enumerated in §21.3–§21.11a — **152** across the eight core subsystems (§21.3–§21.11) plus **3** legacy-adapter codes (`0x0B01`–`0x0B03`, §21.11a). (`tools/lint.py` is the authoritative counter and reports every registered code across the spec and substrate; hand-maintained tallies here are reconciled against it.) |
 | **Registry discipline** | Append-only. A retired code MUST be marked Deprecated, never deleted or reassigned to a different meaning (mirroring the append-only philosophy of the KT log, §3.5). |
 
 ## 21.15 Algorithm Suites Registry (`suite` u8)
@@ -836,13 +836,13 @@ fragmenting."
 
 ## 21.26 Summary
 
-- **Error/status codes defined:** 145 (`0x0101`–`0x0126`: 38, incl. the KT-v1 detection codes
+- **Error/status codes defined:** 152 across the eight core subsystems (plus 3 legacy-adapter codes `0x0B01`–`0x0B03` in §21.11a = **155** total; `tools/lint.py` is the authoritative counter). By subsystem: (`0x0101`–`0x0127`: 39, incl. the KT-v1 detection codes
   `0x0110`–`0x0112`, the org-administration codes `0x0113`–`0x0115` (§3.10), `0x0116`
   device-attestation and `0x0118` attestation-expired (§1.2a), `0x0117` KT leaf-hash mismatch
   (§3.5, §18.4.9), the `Profile` display-data codes `0x0119` (signature invalid), `0x011A`
   (avatar content-address mismatch) and `0x011B` (avatar URL unsafe / SSRF guard) (§3.9.5,
   §18.4.12), and the alias codes `0x011C` (self-asserted alias fails forward-verify) and `0x011D`
-  (independently-revocable alias revoked) (§3.9.4, §3.11), the resolver codes `0x011E` (name-chain bidirectional binding unverified, §3.12.5(b)), `0x011F` (resolver-type unsupported, §3.12.2) and `0x0120` (inter-resolver disagreement, §3.12.3) (§3.12), and `0x0121` key-rotation-unauthorised (stolen-`IK` / `recover_threshold`-only takeover defence, §1.5), the confusable-name codes `0x0122` (mixed-script label) and `0x0123` (confusable-skeleton collision with a pin) (§3.9.7), and `0x0124` device-unauthorised (well-attested but not §1.4-policy-authorised); `0x0201`–`0x0211`: 17, incl. `0x020F` suite-downgrade, `0x0210`
+  (independently-revocable alias revoked) (§3.9.4, §3.11), the resolver codes `0x011E` (name-chain bidirectional binding unverified, §3.12.5(b)), `0x011F` (resolver-type unsupported, §3.12.2) and `0x0120` (inter-resolver disagreement, §3.12.3) (§3.12), and `0x0121` key-rotation-unauthorised (stolen-`IK` / `recover_threshold`-only takeover defence, §1.5), the confusable-name codes `0x0122` (mixed-script label) and `0x0123` (confusable-skeleton collision with a pin) (§3.9.7), and `0x0124` device-unauthorised (well-attested but not §1.4-policy-authorised); `0x0201`–`0x0213`: 19, incl. `0x020F` suite-downgrade, `0x0210`
   hybrid-suite-incomplete (intra-suite PQ-strip defence, §1.3), and `0x0211` envelope-context-mismatch (envelope `kind`/`ts`/`to` bound into `Payload.sig`, §18.9.2);
   `0x0301`–`0x0316`: 22, incl. `0x030A` capability-announce
   rollback (§10.2), the mixnet codes `0x030B`–`0x0311` — directory/descriptor/path (`0x030B`–`0x030D`),
@@ -851,13 +851,13 @@ fragmenting."
   (`0x0311`, [docs/research/mixnet.md §4.4.2](docs/research/mixnet.md)) — and the OPTIONAL push wake-signalling codes `0x0312`–`0x0316` (§4.9):
   subscription-not-authenticated, WakePing-content-present, WakePing-auth-failed,
   WakePing-rate-limited (emitter + receiver), and WakePing-replay (relay-replay battery-drain);
-  `0x0401`–`0x0414`: 20, incl. the deniable-mode codes `0x040B`–`0x040F` (§5.2.1) — prekey
+  `0x0401`–`0x0417`: 23, incl. the deniable-mode codes `0x040B`–`0x040F` (§5.2.1) — prekey
   invalid/exhausted, X3DH/PQXDH failure, ratchet-MAC failure, mode-unavailable, and the
   signature-forbidden guard — the device-cluster sync codes `0x0410`–`0x0413` (§5.6):
   cluster-device-unauthorised, reconciliation-summary-invalid, journal-chain-broken (own-log fork),
   and cluster-CRDT-op-invalid — and `0x0414` MLS-ciphersuite-downgrade (message-PQ policed on the
   MLS ciphersuite, separate from `Envelope.suite`, §5.1);
-  `0x0501`–`0x050B`: 11, incl. `0x050B` capability-revoked (§13.5, §18.7.3); `0x0601`–`0x0609`: 9,
+  `0x0501`–`0x050B`: 11, incl. `0x050B` capability-revoked (§13.5, §18.7.3); `0x0601`–`0x060A`: 10,
   incl. the gateway-alias codes `0x0605` (legacy→native alias unmappable) and `0x0606` (encoded
   alias non-reversible/over-length) (§7.10) and the outbound open-relay-prevention code `0x0607`
   (`ERR_GATEWAY_SENDER_UNAUTHENTICATED`, the §7.11.2/§9.10 authenticated-sender floor), and the
@@ -870,13 +870,14 @@ fragmenting."
   and `0x080D` file-size-tier-violation (attachment delivery-mechanism/size self-inconsistent, §5.5.1)),
   spanning the 8 requested subsystems, with every code resolving to exactly one of the 13
   defined responder actions (§21.2) — no undefined behaviour remains.
-- **IANA registries defined:** **12 registries + 1 extension/versioning procedure** — the 8
+- **IANA registries defined:** **13 registries + 1 extension/versioning procedure** — the 8
   requested registries (Algorithm Suites, Message Kinds, Challenge Types, Identity Resolver Types, KT Log
-  Types, `Headers.ext` Keys, DNS Parameters, Capability Tokens), the **Mix Parameters** registry
+  Types, `Headers.ext` Keys, DNS Parameters, Capability Tokens), the **`PubAnnounce.meta` Keys**
+  registry (§21.20a) for the PUB-announce metadata seam (§22.3), the **Mix Parameters** registry
   (§21.23) and **Transport Substrates** registry (§21.24) added for the mixnet and substrate seams
   ([docs/research/mixnet.md §4.4](docs/research/mixnet.md), §4.1), the **Gateway Attestation Discriminators** registry (§21.24a) added for the
   `GatewayAttestation.disc` extension seam (§7.2a, §18.3.11), and the DMTAP Error/Status Code
-  Registry itself (§21.14, needed to make Part 1 durable against future extension) = **12
+  Registry itself (§21.14, needed to make Part 1 durable against future extension) = **13
   registries**; plus the **extension/versioning procedure** (§21.25) that governs all of them — a
   procedure, **not** a registry. (This count includes only genuine registries; the §21.25 procedure
   is deliberately not counted among them.)

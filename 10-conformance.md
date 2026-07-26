@@ -166,15 +166,18 @@ and the DMTAP-PUBSUB guards (`PUBSUB`, §25) — see `conformance/README.md`). T
 58 + 19 + 285 = 362. An implementation conforms at a level iff it passes every `MUST` case of that
 level and of every level it composes.
 
-**On the coverage figure.** `make coverage` reports that **100%** of `IMPL` MUSTs sit in a section
-some case cites. That is a **floor and a section-level measure**: a section counts as covered if
-*any* case cites it, not if every MUST in it is exercised; it counts cases that **exist**, not
-cases that **pass** (58 of 362 are byte-runnable today, and no implementation has yet been run
-against the suite); and it is measured against a **curated** denominator whose classification is a
-judgement, auditable in `conformance/scope.json` and re-checkable by `make lint` (check C10, which
-fails the build if a MUST-bearing section is left unclassified). The uncurated figure over every
-capitalised MUST is **84%**. Read the number as "nothing implementable is entirely
-unattended", never as a pass mark. The reference `dmtap-core` self-check test drives the vectors,
+**On the coverage figure.** `make coverage` reports that **84%** of `IMPL` sections (those whose
+MUSTs an implementation must satisfy) are cited by at least one case — and, conversely, that **56
+IMPL sections (212 MUSTs) are not yet cited** (e.g. §18.8a.1, §27.4.1, §8.6a). It is a
+**section-level measure**: a section counts as covered if *any* case cites it, not if every MUST in
+it is exercised; it counts cases that **exist**, not cases that **pass** (58 of 362 are byte-runnable
+today, and no implementation has yet been run against the suite); and it is measured against a
+**curated** denominator whose classification is a judgement, auditable in `conformance/scope.json` and
+re-checkable by `make lint`. The **raw** figure — every capitalised MUST in the specification,
+unclassified — is **75%** (402 MUST-bearing sections, 1730 MUSTs). Read the IMPL number as "most
+implementable surface has at least one case pointed at it, and the uncited gaps are enumerated by the
+tool", never as a pass mark or as complete coverage. `make coverage` is authoritative and these
+figures drift as the suite grows. The reference `dmtap-core` self-check test drives the vectors,
 but the spec plus these three artifacts are authoritative (§10.4), not the reference.
 
 ## 10.3a Minimum viable implementation (the falsifiable Core boundary)

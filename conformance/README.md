@@ -39,25 +39,28 @@ pass: **291** are `core-v1` (the §00–§21/§26 DMTAP-mail heart) and **71** a
 in-tree DMTAP-PUB object family — `PUB`/`CAD`/`VIDEO`/`PUBSUB`). A Core-v1 implementation is fully
 conformant with **no extension present** ([SPEC ratification tiers](../SPEC.md)).
 
-**Normative coverage, and what it is not.** `make coverage` reports **100% of IMPL MUSTs sit in a
-section some case cites**, against the curated denominator in [`scope.json`](scope.json) — which
-classifies all 347 MUST-bearing sections of the specification and states a one-line reason for
-each. The figure carries three structural limits, printed by the tool alongside it:
+**Normative coverage, and what it is not.** `make coverage` reports that **84% of IMPL sections are
+cited by at least one case** — and enumerates the **56 IMPL sections (212 MUSTs) that are not yet
+cited** — against the curated denominator in [`scope.json`](scope.json), which classifies all **402**
+MUST-bearing sections of the specification and states a one-line reason for each. The figure carries
+three structural limits, printed by the tool alongside it:
 
 1. It is **section-level, not MUST-level.** A section counts as covered if *any* case cites it, not
-   if every MUST in it is exercised. The metric is a floor: "nothing implementable is entirely
-   unattended", never "everything is checked".
+   if every MUST in it is exercised. It is a floor with **named gaps**: "most implementable surface
+   has a case pointed at it, and the tool lists what does not", never "everything is checked".
 2. It counts cases that **exist**, not cases that **pass.** 58 of 362 are byte-runnable today and
    **no implementation has been run against the suite**. This file describes tests, not results.
-3. The denominator is a **judgement.** 89 sections are excluded because their MUSTs are owned by
-   another clause (the §21 registry Action column; the §19 operations appendix and §20 state
+3. The denominator is a **judgement.** **96** sections are excluded from IMPL because their MUSTs are
+   owned by another clause (the §21 registry Action column; the §19 operations appendix and §20 state
    machines, which §10.4 makes subordinate to the narrative), bind a future registrant or an
    operator's process, or are not requirements at all — `scope.json` names the owner in every
    case. Inclusion is the default there. If you disagree with a classification, reclassify it
-   `IMPL` and write the case; `make lint` check C10 fails the build if any MUST-bearing section is
-   left unclassified.
+   `IMPL` and write the case; `make lint` fails the build if any MUST-bearing section is left
+   unclassified.
 
-The uncurated figure, over every capitalised MUST in the specification, is **84%**.
+The **raw** figure — over every capitalised MUST in the specification, unclassified — is **75%** (402
+MUST-bearing sections, 1730 MUSTs). `make coverage` is authoritative; these figures drift as the
+suite grows.
 
 ### How a third-party implementer uses the suite
 

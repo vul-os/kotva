@@ -790,12 +790,23 @@ what makes offboarding a name-revocation rather than a mailbox seizure (§3.10.5
 **escrows** the account key (e.g. as a guardian/quorum in the account's `RecoveryPolicy`, §1.4).
 This buys admin password-reset, compliance hold, and legal discovery — at the cost that **the org
 CAN access the account and CAN impersonate the user.** That capability MUST be **disclosed and
-machine-visible**: the directory entry and the member's `Identity` carry `custody = "org-managed"`
-(§18.4.7), rendered to the user and to correspondents as an honest limit exactly like a
-legacy-origin marker (§3.9.4). A message from an org-managed identity carries less individual
-assurance than a sovereign one and MUST NOT be silently presented as equivalent. **Undisclosed
-escrow** — an org-managed account presented as sovereign — MUST fail closed
-(`ERR_ORG_MANAGED_UNDISCLOSED`, §21).
+machine-visible where the marker travels**: the **directory entry** carries `custody = "org-managed"`
+(§18.4.7), rendered to the org's own members and to any client with directory access as an honest
+limit exactly like a legacy-origin marker (§3.9.4). A client that can see the marker MUST NOT
+silently present an org-managed identity as equivalent to a sovereign one, and **undisclosed
+escrow** — an org-managed account presented as sovereign to a client that holds the marker — MUST
+fail closed (`ERR_ORG_MANAGED_UNDISCLOSED`, §21).
+
+**Residual — correspondent-invisibility (disclosed limit).** `custody` rides the `DirEntry`
+(§18.4.7), which a members-only directory does **not** serve to non-members; the `Identity` object
+itself carries no `custody` field (§18.4.1). An **external correspondent** who resolves the identity
+directly (§3.10.3, §3.3 — needing no directory access) therefore receives an object that does **not**
+carry the marker and cannot key the disclosure on it. The org-managed guarantee is thus
+**directory-scoped, not universal**: it protects the org's own members and directory-resolving
+clients, not an arbitrary outside correspondent. Making it correspondent-visible would require
+carrying `custody` on the published `Identity` object — a deliberate broadcast of a member's
+org-management status to everyone who resolves them, **not adopted here** to avoid that
+always-on disclosure.
 
 Org-managed is opt-in per account, chosen deliberately for a stated compliance need, never the
 silent default. Even org-managed does not weaken transport crypto or metadata privacy (§12.3): the

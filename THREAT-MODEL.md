@@ -158,9 +158,12 @@ A profile MUST NOT describe Sybil resistance as solved. *Residual: R-7.*
 every merge is an idempotent join, so a re-delivered object changes nothing (SYNC §2.2; WRAP §14.4).
 **Transport freshness** rides the substrate wire's own authentication, never a per-profile nonce
 cache. Ordering MUST NOT be forgeable: the HLC skew bound is **one-sided and fail-closed** — an op
-dated too far into the *future* is rejected, a past-dated offline op is accepted (SYNC §3), so
-neither a fast clock nor a stale-clock attacker can win an LWW race or refuse a legitimate offline
-backlog. **No silent downgrade, anywhere**: unknown crypto suites are rejected not guessed (SEC-1);
+dated too far into the *future* is rejected, a past-dated offline op is accepted (SYNC §3). A fast
+clock therefore cannot win an **unbounded** LWW race — its advantage is **capped at the skew window**
+(default 120 s, [§16](16-parameters.md)), within which it can still win concurrent races; that
+residual window is the tiebreak budget SYNC §3 **bounds, not zeroes** (SYNC §3 is explicit: it
+"bounds the tiebreak budget an author would otherwise spend to win every LWW race"). A stale-clock
+attacker cannot refuse a legitimate offline backlog. *Residual within-window LWW advantage: R-8.* **No silent downgrade, anywhere**: unknown crypto suites are rejected not guessed (SEC-1);
 a coordinator that can run `blind` MUST NOT run `terminating` without disclosure
 ([CONTRACT §3.2](coordinator/CONTRACT.md)); a TLS/mesh path MUST NOT fall back to plaintext
 unannounced. *Residual: R-8.*
@@ -255,10 +258,15 @@ profile author cannot silently assume them away:
   a replayed vouch is charged against the *subject's* budget, the replay MUST be surfaced to the
   recipient rather than silently rate-limited into invisibility — otherwise the mechanism becomes a
   way to frame the vouched-for party (§9.2a).
-- **R-8 (replay/downgrade).** Object-replay inertness holds **only because** merges are idempotent
-  joins; a profile that adds non-idempotent side effects on receipt reintroduces replay and MUST carry
-  its own freshness. Downgrade is closed against **protocol** paths; a user who manually overrides a
-  disclosed `terminating` opt-in has made a choice the protocol cannot unmake.
+- **R-8 (replay/downgrade/LWW-tiebreak).** Object-replay inertness holds **only because** merges are
+  idempotent joins; a profile that adds non-idempotent side effects on receipt reintroduces replay and
+  MUST carry its own freshness. Downgrade is closed against **protocol** paths; a user who manually
+  overrides a disclosed `terminating` opt-in has made a choice the protocol cannot unmake.
+  **LWW residual:** the HLC skew bound caps but does not eliminate a fast clock's tiebreak advantage —
+  an attacker dating an op up to the skew window (default 120 s) ahead of the receiver still wins a
+  *concurrent* LWW race within that window (SYNC §3/§4.4). The bound converts an unbounded advantage
+  into a bounded one; it is a budget, not a shield. Fields where a 120 s adversarial LWW win is
+  consequential SHOULD use an append/merge type rather than raw last-writer-wins.
 - **R-9 (metadata).** Sealed sender does **not** hide IP, and is eroded by timing/receipt side
   channels; the **buffered/offline** path is a polled shared store an observer can watch (delivery tag,
   time, volume) — the untrusted-store access-pattern problem PIR exists for, **not** solved here (§6.4

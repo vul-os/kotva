@@ -185,26 +185,28 @@ is the honest status, not a placeholder for a vector that could exist.
 
 ### Normative coverage, and what it is not
 
-`make coverage` reports **100% of IMPL MUSTs sit in a section some case cites**, measured against
-the curated denominator in [`scope.json`](scope.json). That sentence is doing exact work and is
-easy to over-read, so:
+`make coverage` reports that **84% of IMPL sections are cited by at least one case**, and enumerates
+the **56 IMPL sections (212 MUSTs) that are not yet cited**, measured against the curated denominator
+in [`scope.json`](scope.json). That sentence is doing exact work and is easy to over-read, so:
 
 - It is **section-level, not MUST-level.** A section counts as covered if *any* case cites it, not
-  if every MUST in it is exercised. The metric is a deliberately generous floor: it says "nothing
-  in the implementable spec is entirely unattended", never "everything is checked".
+  if every MUST in it is exercised. The metric is a floor **with named gaps**: it says "most of the
+  implementable spec has a case pointed at it, and the tool lists what does not", never "everything
+  is checked".
 - It counts cases that **exist**, not cases that **pass.** Of 362 cases, 58 are byte-runnable
   today; the rest carry a construction recipe or are settled by review. **No implementation has
   been run against this suite**, so the suite is a specification of tests, not a test result.
-- The denominator is **curated.** [`scope.json`](scope.json) classifies all 347 MUST-bearing
-  sections and states a reason for each; the 89 non-IMPL sections are excluded because their MUSTs
+- The denominator is **curated.** [`scope.json`](scope.json) classifies all **402** MUST-bearing
+  sections and states a reason for each; the **96** non-IMPL sections are excluded because their MUSTs
   are owned by another clause (the §21 registry Action column, the §19/§20 appendices), bind a
   future registrant or an operator's process, or are not requirements at all. Inclusion is the
   default and every exclusion names its owner — but the classification is a judgement, and the
   intended response to disagreeing with one is to reclassify it `IMPL` and write the case.
 
-The raw figure — every capitalised MUST in the specification, unclassified — is **84%**. Both
-numbers are printed by `make coverage`, deliberately, so the curation can be checked rather than
-trusted.
+The raw figure — every capitalised MUST in the specification, unclassified — is **75%** (402
+MUST-bearing sections, 1730 MUSTs). Both numbers are printed by `make coverage`, deliberately, so the
+curation can be checked rather than trusted; `make coverage` is authoritative and the figures drift
+as the suite grows.
 
 **Sync status:** `SUITE.md` and [`suite.json`](suite.json) are **in sync** — both carry the same
 **362** case ids, and `make lint` (check C5) fails the build if they ever disagree, or if any
