@@ -1677,7 +1677,7 @@ mod tests {
             &op_ik,
             &anchor_ik,
             Suite::ReservedAnchorSlhDsa,
-            1,
+            0,
             vec![],
             bundle(b"keypkgs"),
             cid(b"recovery"),
@@ -1691,21 +1691,20 @@ mod tests {
         assert_eq!(id.sig.len(), 2, "operational + appended anchor signature");
         assert_eq!(id, Identity::from_det_cbor(&id.det_cbor()).unwrap(), "round-trips with keys 12/13");
 
-        // (a) A forger who broke only the operational suite drops the anchor sig and re-signs `0x01`
-        //     over a higher-version body: the missing anchor signature is rejected.
+        // (a) A forger who broke only the operational suite drops the anchor sig and re-signs `0x01`:
+        //     the missing anchor signature is rejected (the chain is untouched, so this isolates the
+        //     anchor check).
         let mut missing = id.clone();
-        missing.version = 2;
         let body = missing.signing_body();
         missing.sig = vec![op_ik.sign_domain(IDENTITY_DS, &body)];
         assert!(
             missing.verify(None).is_err(),
-            "an Identity version lacking the mandatory anchor signature MUST be rejected"
+            "an Identity lacking the mandatory anchor signature MUST be rejected"
         );
 
         // (b) A forger who fabricates an anchor-slot signature with the operational key (it does not
         //     hold the anchor key) is rejected on the cryptographic anchor check.
         let mut wrong_anchor = id.clone();
-        wrong_anchor.version = 2;
         let body2 = wrong_anchor.signing_body();
         wrong_anchor.sig = vec![
             op_ik.sign_domain(IDENTITY_DS, &body2),
