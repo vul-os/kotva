@@ -975,7 +975,7 @@ not name a `RecoveryMethod`.
 | | `device_key` | 1 | `ik-pub` | MUST | The device signing key acting as a recovery factor. |
 | | `label` | 2 | `tstr` | MUST | Human label. |
 | `SocialMethod` | disc | 0 | `3` | MUST | Social/guardian factor. |
-| | `guardians` | 1 | `[+ ik-pub]` | MUST | Guardian keys holding VSS shares. Changing this set MUST trigger **redistribution/resharing** (§1.4 rule 3), not proactive refresh. FROST (RFC 9591) RECOMMENDED so the secret is never reassembled. |
+| | `guardians` | 1 | `[+ ik-pub]` | MUST | Guardian keys holding VSS shares. Changing this set MUST trigger **redistribution/resharing** (§1.4 rule 3), not proactive refresh. FROST (RFC 9591) is **REQUIRED** (§1.4 rule 5) so the secret is never reassembled; a plain-Shamir path that can materialize a takeover-capable `IK` in one place MUST NOT be used. The signing scheme is not wire-encoded, so this is an implementation-conformance rule, not machine-checkable from these bytes. |
 | | `threshold` | 2 | `u8` | MUST | Number of guardian shares required (`M` of `N`). |
 | `Threshold` | `any_of` | 1 | `[+ MethodPredicate]` | MUST | Disjunction: satisfied if **any** listed predicate is met (e.g. 1 phrase OR 2 devices OR 2 guardians, §1.4). |
 | `MethodPredicate` | `method` | 1 | `method-type` | MUST | One of `"phrase"`, `"device"`, `"social"`, `"ik"` — mapping the §1.4 predicates `Phrase`/`Devices(n)`/`Guardians(n)`/`Ik`. `"ik"` is satisfied by an `IK` signature and names no `RecoveryMethod`. |

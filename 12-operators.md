@@ -369,8 +369,9 @@ DMTAP does not invent ceremony crypto; it composes §1/§3/§5 primitives, and R
   (phrase + devices + social guardians) so no single loss is fatal, and set `rotate_threshold` **>**
   `recover_threshold` so a single recovered factor cannot rewrite the policy. Use **Verifiable**
   secret sharing (Feldman/Pedersen VSS), **SLIP-0039** for the mnemonic⊕Shamir encoding, and
-  **strongly prefer FROST (RFC 9591)** so guardians *authorise* recovery without ever reassembling
-  the key in one place. Publish the policy to KT and confirm the owner's monitor devices alert on
+  **FROST (RFC 9591)** — **REQUIRED** for `SocialMethod` recovery (§1.4 rule 5) — so guardians
+  *authorise* recovery without ever reassembling the key in one place. Publish the policy to KT and
+  confirm the owner's monitor devices alert on
   changes (§1.4 rule 6, §3.5).
 - **Domain-authority threshold ceremony (§3.10.1, §5.8.6).** For an org controlling `@domain`, the
   authority key SHOULD be **threshold-held by the domain-owner/admin set** (FROST-style over the §1.4

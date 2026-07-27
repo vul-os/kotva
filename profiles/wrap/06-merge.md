@@ -34,7 +34,7 @@ to one substrate primitive:
 | `Bid` | OR-Set, add-wins observed-remove (SYNC §4.3) | `target = "bids"` | union; withdraw = observed-remove |
 | `Assignment` | LWW register (SYNC §4.4) | `target = "assignment"`, `field = ""` | highest HLC among *authorised* ops |
 | `Progress` | OR-Set add / append (SYNC §4.3) | `target = "progress"` | union; current state folded at read (§6.3) |
-| `Attestation` | Author-feed entry (FEEDS §4) | the subject's feed | append-only, anti-rollback (FEEDS §4.3) |
+| `Attestation` | Author-feed entry (FEEDS §4) | the **author's (attestor's)** feed, keyed by the author `IK` | append-only, anti-rollback **per publisher** (FEEDS §4.3) |
 
 Each row **replaces** something the old draft hand-rolled with the substrate
 primitive that already existed for it:
