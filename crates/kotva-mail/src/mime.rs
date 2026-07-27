@@ -339,7 +339,19 @@ pub fn strip_trust_boundary_headers(raw_headers: &[u8]) -> Vec<u8> {
         if !is_continuation {
             dropping = match content.iter().position(|&b| b == b':') {
                 Some(colon) => {
-                    let name = &content[..colon];
+                    // Match the field name the SAME lenient way `parse_header_block` does. RFC 5322
+                    // forbids WSP before the colon, but the parser (and most MUAs/verifiers) accept
+                    // it via `line[..colon].trim()`. If this denylist did NOT trim, a hostile sender
+                    // could smuggle `Authentication-Results :dkim=pass header.d=trusted.com` (one
+                    // space/tab before the colon) past the strip — the name would be
+                    // `"Authentication-Results "` and match nothing — yet a downstream trimming
+                    // consumer would read a passing trust-boundary verdict the gateway never
+                    // computed, riding byte-for-byte into a gateway-signed wrap (§7.2c). A denylist
+                    // MUST NOT match more strictly than the consumer normalizes.
+                    let raw_name = &content[..colon];
+                    let end =
+                        raw_name.iter().rposition(|&b| b != b' ' && b != b'\t').map_or(0, |p| p + 1);
+                    let name = &raw_name[..end];
                     TRUST_BOUNDARY_HEADERS.iter().any(|h| name.eq_ignore_ascii_case(h.as_bytes()))
                 }
                 // Not a `name:` line (e.g. the blank separator, or malformed input) — never a
@@ -1106,6 +1118,32 @@ body\r\n";
             "a forged Authentication-Results must not survive into the byte-exact carriage"
         );
         assert!(rendered_str.contains("X-Custom: v1"), "non-trust-boundary headers still carry through");
+    }
+
+    #[test]
+    fn trust_boundary_strip_handles_whitespace_before_colon() {
+        // Security regression: a denylist MUST NOT match more strictly than the consumer normalizes.
+        // RFC 5322 forbids WSP before the colon, but parse_header_block trims it, so a space/tab
+        // before the colon (and the ARC-* variants) must still be stripped — otherwise a forged
+        // trust-boundary verdict rides byte-for-byte into a gateway-signed wrap (§7.2c).
+        for raw in [
+            &b"Authentication-Results :dkim=pass header.d=trusted.com\r\nX-Keep: 1\r\n"[..],
+            &b"Authentication-Results\t:dkim=pass header.d=trusted.com\r\nX-Keep: 1\r\n"[..],
+            &b"ARC-Authentication-Results :i=1; dkim=pass\r\nX-Keep: 1\r\n"[..],
+            &b"ARC-Seal \t:i=1; a=rsa-sha256; cv=none\r\nX-Keep: 1\r\n"[..],
+        ] {
+            let s = String::from_utf8_lossy(&strip_trust_boundary_headers(raw)).to_ascii_lowercase();
+            assert!(
+                !s.contains("dkim=pass") && !s.contains("cv=none"),
+                "WSP-before-colon trust-boundary header survived the strip: {}",
+                String::from_utf8_lossy(raw)
+            );
+            assert!(s.contains("x-keep: 1"), "a non-trust-boundary header must still carry through");
+        }
+        // A field whose name merely has a trust-boundary name as a prefix is NOT stripped (the trim
+        // only removes trailing WSP, never a name suffix).
+        let keep = strip_trust_boundary_headers(b"Authentication-Results-Extra: keep me\r\n");
+        assert!(String::from_utf8_lossy(&keep).contains("Authentication-Results-Extra"));
     }
 
     #[test]
