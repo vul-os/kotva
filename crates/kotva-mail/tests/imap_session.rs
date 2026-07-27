@@ -465,6 +465,19 @@ fn catenate_append_builds_message() {
 }
 
 #[test]
+fn append_with_out_of_range_date_does_not_panic() {
+    // Regression: a huge/malformed INTERNALDATE in APPEND must not overflow-panic
+    // parse_internal_date (era*146097 / days*86400 in a debug build) — a reachable DoS. The date is
+    // treated as malformed (timestamp defaulted); the command returns a tagged response, never panics.
+    let mut session = logged_in_selected(1);
+    let resp = run(
+        &mut session,
+        "z1 APPEND INBOX \"31-Dec-999999999999 00:00:00 +0000\" {5}\r\nhello\r\n",
+    );
+    assert!(resp.contains("z1 "), "APPEND with an out-of-range date must return a tagged response: {resp}");
+}
+
+#[test]
 fn catenate_append_is_bounded_against_amplification() {
     // Security regression: a small CATENATE command that references a stored message many times must
     // not amplify into an unbounded in-memory build. A ~10 MiB message referenced 7× would assemble

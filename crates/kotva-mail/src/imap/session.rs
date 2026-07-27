@@ -1659,6 +1659,13 @@ fn parse_internal_date(s: &str) -> Option<u64> {
     let h: i64 = t.next().unwrap_or("0").parse().unwrap_or(0);
     let mi: i64 = t.next().unwrap_or("0").parse().unwrap_or(0);
     let sec: i64 = t.next().unwrap_or("0").parse().unwrap_or(0);
+    // Validate the RFC 3501 date-time ranges before any arithmetic. A malicious APPEND date with a
+    // huge year (or day/hour) would otherwise overflow the i64 conversion (`era * 146097` inside
+    // days_from_civil, or `days * 86400` here) and PANIC in a debug build — a reachable DoS. An
+    // out-of-range field is treated as a malformed date (None → the caller defaults the timestamp).
+    if !(1..=31).contains(&day) || !(1..=9999).contains(&year) || h > 23 || mi > 59 || sec > 60 {
+        return None;
+    }
     let days = days_from_civil(year, mon, day);
     let total = days * 86400 + h * 3600 + mi * 60 + sec;
     Some((total.max(0) as u64) * 1000)
