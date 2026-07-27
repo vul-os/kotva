@@ -626,12 +626,23 @@ fn suite_from_cv(cv: Cv) -> Result<Suite, CborError> {
     Suite::from_u8(b).ok_or(CborError::UnknownSuite(b))
 }
 
-/// Derive a blinded delivery tag `BT = HKDF(shared_secret, epoch_day)` (spec §2.2a). The
-/// recipient's node recognizes it but it is unlinkable across time to the persistent key.
+/// Derive a blinded delivery tag (spec §2.2a, construction pinned in §18.3.2). The recipient's node
+/// recognizes it but it is unlinkable across time to the persistent key.
+///
+/// §18.3.2 pins this as a **normative, MUST-interop** primitive — two conformant implementations
+/// MUST derive the identical `BT` for the same `(shared_secret, epoch_day)`:
+///
+/// > `BT = HKDF-SHA256(IKM = shared_secret, salt = ASCII "DMTAP-v0/blinded-tag",
+/// >                   info = epoch_day-as-8-byte-big-endian-uint64, L = 16)`
+///
+/// The operands are fixed: the fixed label is the Extract **salt** (domain separation) and the epoch
+/// is the Expand **info** (context). They must NOT be swapped, and the label is exactly
+/// `DMTAP-v0/blinded-tag` — otherwise this node computes a different tag and cannot recognise a
+/// spec-conformant peer's `BlindedTag` envelope (misclassifying a known contact as COLD).
 pub fn blinded_tag(shared_secret: &[u8], epoch_day: u64) -> Vec<u8> {
-    let hk = Hkdf::<Sha256>::new(Some(&epoch_day.to_be_bytes()), shared_secret);
+    let hk = Hkdf::<Sha256>::new(Some(b"DMTAP-v0/blinded-tag"), shared_secret);
     let mut okm = [0u8; 16];
-    hk.expand(b"dmtap-blinded-tag-v0", &mut okm)
+    hk.expand(&epoch_day.to_be_bytes(), &mut okm)
         .expect("16 bytes is a valid HKDF-SHA256 output length");
     okm.to_vec()
 }
@@ -3075,6 +3086,20 @@ mod tests {
         let ss = b"shared secret from first contact";
         assert_eq!(blinded_tag(ss, 100), blinded_tag(ss, 100));
         assert_ne!(blinded_tag(ss, 100), blinded_tag(ss, 101));
+    }
+
+    #[test]
+    fn blinded_tag_matches_pinned_18_3_2_construction() {
+        // Conformance: §18.3.2 pins BT = HKDF-SHA256(IKM=shared_secret, salt="DMTAP-v0/blinded-tag",
+        // info=epoch_day-as-8-byte-BE, L=16) as a MUST-interop primitive — two conformant impls MUST
+        // derive the identical BT. This GOLDEN value is computed independently (RFC 5869 HKDF, not the
+        // crate under test); it fails if the Extract salt / Expand info operands are ever swapped or
+        // the label drifts (the exact regression that made a known contact misclassify as COLD).
+        let secret = b"kotva-blinded-tag-golden-secret!"; // 32 bytes
+        let bt = blinded_tag(secret, 20000);
+        let got: String = bt.iter().map(|b| format!("{b:02x}")).collect();
+        assert_eq!(got, "9e843da7ba583dbf3afa8e70b5f8c90e");
+        assert_eq!(bt.len(), 16, "BT is L=16 bytes");
     }
 
     #[test]
