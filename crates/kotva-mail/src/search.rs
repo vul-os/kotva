@@ -52,15 +52,30 @@ pub enum SearchKey {
     ModSeq(u64),
 }
 
+/// Maximum SEARCH-key nesting depth. `parse_search_key`/`parse_one` recurse once per parenthesised
+/// sub-program and once per `NOT`/`OR`, all reached at PARSE time — before the auth/selected-state
+/// check — so an uncapped descent lets an unauthenticated client send `SEARCH ((((…))))` (a few KB,
+/// well under MAX_LINE) and overflow the thread stack: a **non-catchable** stack overflow aborts the
+/// whole process (SIGABRT), killing every connection. Bounded here so over-deep nesting fails closed
+/// to a tagged BAD instead. Matches `mime::MAX_MIME_DEPTH`. SORT/THREAD share this parser.
+const MAX_SEARCH_DEPTH: usize = 100;
+
 /// Parse a full (top-level) search program; a sequence of keys is ANDed together.
 pub fn parse_search_key(toks: &[Token]) -> Result<SearchKey, ParseError> {
+    parse_search_key_depth(toks, 0)
+}
+
+fn parse_search_key_depth(toks: &[Token], depth: usize) -> Result<SearchKey, ParseError> {
+    if depth > MAX_SEARCH_DEPTH {
+        return Err(ParseError::Syntax("search nesting too deep"));
+    }
     if toks.is_empty() {
         return Ok(SearchKey::All);
     }
     let mut keys = Vec::new();
     let mut rest = toks;
     while !rest.is_empty() {
-        let (key, next) = parse_one(rest)?;
+        let (key, next) = parse_one(rest, depth)?;
         keys.push(key);
         rest = next;
     }
@@ -71,12 +86,15 @@ fn s(t: &Token) -> Result<String, ParseError> {
     t.as_str().map(str::to_string).ok_or(ParseError::Syntax("expected search argument"))
 }
 
-fn parse_one(toks: &[Token]) -> Result<(SearchKey, &[Token]), ParseError> {
-    let head = &toks[0];
-    // A parenthesised sub-program.
+fn parse_one(toks: &[Token], depth: usize) -> Result<(SearchKey, &[Token]), ParseError> {
+    // A NOT/OR operand keyword at the end of the program hands an EMPTY tail here; guard the index
+    // (and every other `toks[0]`) so `SEARCH NOT` / `SEARCH OR ANSWERED` fail closed with BAD instead
+    // of an index-out-of-bounds panic.
+    let head = toks.first().ok_or(ParseError::Syntax("missing search key"))?;
+    // A parenthesised sub-program — descend with depth+1 so nesting is bounded (MAX_SEARCH_DEPTH).
     if matches!(head, Token::LParen) {
         let end = close_paren(toks)?;
-        let inner = parse_search_key(&toks[1..end])?;
+        let inner = parse_search_key_depth(&toks[1..end], depth + 1)?;
         return Ok((inner, &toks[end + 1..]));
     }
     let kw = head.as_str().ok_or(ParseError::Syntax("bad search key"))?.to_ascii_uppercase();
@@ -160,12 +178,12 @@ fn parse_one(toks: &[Token]) -> Result<(SearchKey, &[Token]), ParseError> {
             Ok((SearchKey::Uid(set), &rest[1..]))
         }
         "NOT" => {
-            let (inner, next) = parse_one(rest)?;
+            let (inner, next) = parse_one(rest, depth + 1)?;
             Ok((SearchKey::Not(Box::new(inner)), next))
         }
         "OR" => {
-            let (a, next1) = parse_one(rest)?;
-            let (b, next2) = parse_one(next1)?;
+            let (a, next1) = parse_one(rest, depth + 1)?;
+            let (b, next2) = parse_one(next1, depth + 1)?;
             Ok((SearchKey::Or(Box::new(a), Box::new(b)), next2))
         }
         _ => {

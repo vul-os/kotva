@@ -465,6 +465,22 @@ fn catenate_append_builds_message() {
 }
 
 #[test]
+fn degenerate_and_deeply_nested_search_fail_closed_not_panic() {
+    // Security regression: NOT/OR with a missing operand must not index-panic, and a deeply-nested
+    // parenthesised SEARCH must not stack-overflow (an unauth process-crash DoS, since SEARCH is
+    // parsed before the auth/selected check). Both must fail closed to a BAD.
+    let mut session = logged_in_selected(2);
+    for cmd in ["x1 SEARCH NOT\r\n", "x2 SEARCH OR\r\n", "x3 SEARCH OR ANSWERED\r\n"] {
+        let resp = run(&mut session, cmd);
+        assert!(resp.contains("BAD"), "degenerate SEARCH must fail closed (BAD), not panic: {resp}");
+    }
+    // ~5000 nested parens: without MAX_SEARCH_DEPTH this stack-overflows and aborts the process.
+    let deep = format!("x4 SEARCH {}ALL{}\r\n", "(".repeat(5000), ")".repeat(5000));
+    let resp = run(&mut session, &deep);
+    assert!(resp.contains("BAD"), "deeply-nested SEARCH must fail closed with BAD: {resp}");
+}
+
+#[test]
 fn store_modified_reports_sequence_numbers_not_uids() {
     // RFC 7162 §3.1.3: the MODIFIED response code carries message SEQUENCE numbers for a plain
     // (non-UID) STORE. After an EXPUNGE shifts seq below uid, a failing UNCHANGEDSINCE must report
