@@ -166,7 +166,19 @@ fn header_val<'a>(headers: &'a [(String, String)], name: &str) -> Option<&'a str
     headers.iter().find(|(k, _)| k.eq_ignore_ascii_case(name)).map(|(_, v)| v.as_str())
 }
 
+/// Maximum MIME nesting depth. `parse_structure` recurses once per `multipart/*` level, so an
+/// uncapped descent on a small message nesting `multipart` tens of thousands deep would overflow the
+/// thread stack — a **non-catchable** SIGSEGV that crashes the whole process (not an unwindable
+/// panic), i.e. a single crafted inbound message (well under the size cap) is a remote node-crash
+/// DoS. Beyond this depth a part is treated as an opaque leaf: bounded, and faithful enough (no real
+/// message nests this deep; typical MUAs cap far lower).
+const MAX_MIME_DEPTH: usize = 100;
+
 fn parse_structure(headers: &[(String, String)], body: &[u8]) -> BodyPart {
+    parse_structure_depth(headers, body, 0)
+}
+
+fn parse_structure_depth(headers: &[(String, String)], body: &[u8], depth: usize) -> BodyPart {
     let (mt, st, params) = content_type(headers);
     let encoding = header_val(headers, "Content-Transfer-Encoding")
         .unwrap_or("7BIT")
@@ -175,14 +187,14 @@ fn parse_structure(headers: &[(String, String)], body: &[u8]) -> BodyPart {
     let id = header_val(headers, "Content-ID").map(str::to_string);
     let description = header_val(headers, "Content-Description").map(str::to_string);
 
-    if mt == "multipart" {
+    if mt == "multipart" && depth < MAX_MIME_DEPTH {
         let boundary = params.iter().find(|(k, _)| k == "boundary").map(|(_, v)| v.clone());
         let parts = match boundary {
             Some(b) => split_multipart(body, &b)
                 .into_iter()
                 .map(|seg| {
                     let (h, bd) = split_headers(seg);
-                    parse_structure(&h, bd)
+                    parse_structure_depth(&h, bd, depth + 1)
                 })
                 .collect(),
             None => Vec::new(),
@@ -947,6 +959,27 @@ mod tests {
         assert_eq!(ok.len(), 1);
         assert_eq!(ok[0].mailbox.as_deref(), Some("real"));
         assert_eq!(ok[0].host.as_deref(), Some("host.example"));
+    }
+
+    #[test]
+    fn deeply_nested_multipart_does_not_stack_overflow() {
+        // Security regression: an uncapped recursive parse of a message nesting multipart tens of
+        // thousands deep overflows the thread stack — a NON-catchable SIGSEGV that crashes the whole
+        // process (would abort this test binary, not fail an assertion). MAX_MIME_DEPTH caps the
+        // descent so a crafted small message parses without crashing. Built inside-out iteratively
+        // (O(n)); a recursive builder would itself overflow. ~50k levels, well past the ~8 MB stack.
+        const DEPTH: usize = 50_000;
+        let mut msg = String::with_capacity(DEPTH * 96);
+        for i in 0..DEPTH {
+            msg.push_str(&format!("Content-Type: multipart/mixed; boundary=b{i}\r\n\r\n--b{i}\r\n"));
+        }
+        msg.push_str("Content-Type: text/plain\r\n\r\nhi");
+        for i in (0..DEPTH).rev() {
+            msg.push_str(&format!("\r\n--b{i}--\r\n"));
+        }
+        // Must return (bounded descent), never SIGSEGV.
+        let parsed = ParsedMessage::parse(msg.as_bytes());
+        assert!(matches!(parsed.structure, BodyPart::Multipart { .. }), "top level is multipart");
     }
 
     #[test]

@@ -688,6 +688,11 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
 
     fn cmd_close(&mut self, tag: &str, expunge: bool) -> Vec<u8> {
         let verb = if expunge { "CLOSE" } else { "UNSELECT" };
+        // CLOSE and UNSELECT are selected-state-only (RFC 9051): reject in the wrong state rather
+        // than return OK and force Authenticated, mirroring require_selected / cmd_expunge.
+        if self.selected.is_none() {
+            return bad(tag, &format!("{verb} without a selected mailbox"));
+        }
         if let (true, Some(name)) = (expunge && !self.read_only, self.selected_name()) {
             if let Some(mb) = self.store.mailbox_mut(&name) {
                 // CLOSE expunges silently, but still records the vanished UIDs (QRESYNC / JMAP).
@@ -1046,10 +1051,13 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
         for i in resolve_targets(mb, &set, sc.uid) {
             let seq = (i + 1) as u32;
             let uid = mb.messages[i].uid;
-            // CONDSTORE UNCHANGEDSINCE guard (RFC 7162 §3.1).
+            // CONDSTORE UNCHANGEDSINCE guard (RFC 7162 §3.1). The MODIFIED response code carries
+            // message SEQUENCE numbers for a plain STORE and UIDs only for a UID STORE (§3.1.3) — the
+            // same seq/uid selection the untagged FETCH below uses; emitting UIDs for a plain STORE
+            // would make the client mis-identify which messages failed the UNCHANGEDSINCE test.
             if let Some(uc) = sc.unchangedsince {
                 if mb.messages[i].modseq > uc {
-                    modified.push(uid);
+                    modified.push(if sc.uid { uid } else { seq });
                     continue;
                 }
             }
@@ -1093,6 +1101,12 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
             let new_uid = dmb.append(msg.raw, msg.flags, msg.internal_date);
             src_uids.push(src_uid.to_string());
             dst_uids.push(new_uid.to_string());
+        }
+        // No message matched (an out-of-range sequence set, or a UID set matching nothing): RFC
+        // 4315/9051 require a non-empty uid-set in COPYUID, so omit the response code entirely rather
+        // than emit a malformed `[COPYUID v  ]` with empty sets (matching Dovecot).
+        if src_uids.is_empty() {
+            return ok(tag, "COPY completed");
         }
         ok(
             tag,
@@ -1143,12 +1157,18 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
             Some(m) => m,
             None => return bad(tag, "no mailbox selected"),
         };
-        let mut out = untagged(&format!(
-            "OK [COPYUID {} {} {}] MOVE",
-            dst_valid,
-            compact(&src_uids, src_valid),
-            dst_uids.join(",")
-        ));
+        // Omit the COPYUID resp-code when nothing was moved — an empty uid-set is ungrammatical
+        // (RFC 4315/9051), same as cmd_copy above.
+        let mut out = if src_uids.is_empty() {
+            Vec::new()
+        } else {
+            untagged(&format!(
+                "OK [COPYUID {} {} {}] MOVE",
+                dst_valid,
+                compact(&src_uids, src_valid),
+                dst_uids.join(",")
+            ))
+        };
         let mut indices: Vec<usize> =
             moved_uids.iter().filter_map(|u| smb.index_of_uid(*u)).collect();
         indices.sort_unstable();

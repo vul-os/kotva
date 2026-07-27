@@ -465,6 +465,47 @@ fn catenate_append_builds_message() {
 }
 
 #[test]
+fn store_modified_reports_sequence_numbers_not_uids() {
+    // RFC 7162 §3.1.3: the MODIFIED response code carries message SEQUENCE numbers for a plain
+    // (non-UID) STORE. After an EXPUNGE shifts seq below uid, a failing UNCHANGEDSINCE must report
+    // the seq, not the uid.
+    let mut session = logged_in_selected(3);
+    // Bump message 2's modseq so a later UNCHANGEDSINCE below it fails.
+    run(&mut session, "s1 STORE 2 +FLAGS (\\Flagged)\r\n");
+    // Expunge message 1 → remaining uids {2,3} become seqs {1,2}; uid 2 is now seq 1.
+    run(&mut session, "s2 STORE 1 +FLAGS (\\Deleted)\r\n");
+    run(&mut session, "s3 EXPUNGE\r\n");
+    // Plain STORE on seq 1 (= uid 2, modseq > 1) with UNCHANGEDSINCE 1 → fails: MODIFIED = seq "1".
+    let resp = run(&mut session, "s4 STORE 1 (UNCHANGEDSINCE 1) +FLAGS (\\Seen)\r\n");
+    assert!(resp.contains("[MODIFIED 1]"), "MODIFIED must carry the sequence number 1: {resp}");
+    assert!(!resp.contains("MODIFIED 2"), "must not report the UID (2): {resp}");
+}
+
+#[test]
+fn close_and_unselect_require_a_selected_mailbox() {
+    // RFC 9051: CLOSE/UNSELECT are selected-state only. Before any SELECT they must be refused (BAD),
+    // not accepted with OK and a forced Authenticated state.
+    let (store, auth) = setup();
+    let mut session = Session::new(store, auth, true);
+    run(&mut session, "a1 LOGIN owner@dmtap.local app-password-xyz\r\n");
+    assert!(run(&mut session, "a2 CLOSE\r\n").contains("a2 BAD"), "CLOSE without SELECT must be BAD");
+    assert!(run(&mut session, "a3 UNSELECT\r\n").contains("a3 BAD"), "UNSELECT without SELECT must be BAD");
+    run(&mut session, "a4 SELECT INBOX\r\n");
+    assert!(run(&mut session, "a5 CLOSE\r\n").contains("a5 OK"), "CLOSE after SELECT succeeds");
+}
+
+#[test]
+fn copy_and_move_of_empty_set_omit_copyuid() {
+    // RFC 4315/9051: COPYUID requires a non-empty uid-set. A COPY/MOVE whose sequence set matches
+    // nothing (out of range) must NOT emit a malformed `[COPYUID v  ]` — the response code is omitted.
+    let mut session = logged_in_selected(3);
+    let copy = run(&mut session, "a3 COPY 999 Archive\r\n");
+    assert!(copy.contains("a3 OK") && !copy.contains("COPYUID"), "empty COPY must omit COPYUID: {copy}");
+    let mv = run(&mut session, "a4 MOVE 999 Trash\r\n");
+    assert!(mv.contains("a4 OK") && !mv.contains("COPYUID"), "empty MOVE must omit COPYUID: {mv}");
+}
+
+#[test]
 fn append_with_out_of_range_date_does_not_panic() {
     // Regression: a huge/malformed INTERNALDATE in APPEND must not overflow-panic
     // parse_internal_date (era*146097 / days*86400 in a debug build) — a reachable DoS. The date is
