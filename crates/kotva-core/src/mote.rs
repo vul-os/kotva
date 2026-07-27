@@ -1987,6 +1987,54 @@ mod tests {
     }
 
     #[test]
+    fn mote_envelope_and_manifest_decode_are_panic_free_and_strictly_canonical() {
+        // §18.1: from_det_cbor must never panic on any input and must reject any NON-canonical
+        // encoding. A malleable Envelope or Manifest would let a relay mint byte-different bytes for
+        // the same content address (0x1e‖BLAKE3 over the bytes), breaking content-addressed
+        // integrity and the anti-replay keyed on those bytes. Envelope is a real build_mote output
+        // (all fields incl. optional headers/manifest); Manifest carries a multi-chunk list.
+        let (env, _rk, _seal) = round(Kind::Chat);
+        let env_bytes = env.det_cbor();
+        let manifest_bytes = Manifest {
+            id: ContentId::of(b"manifest-root"),
+            size: 3 * 1024 * 1024,
+            chunk_sz: 1024 * 1024,
+            chunks: vec![ContentId::of(b"c0"), ContentId::of(b"c1"), ContentId::of(b"c2")],
+            suite: Suite::Classical,
+        }
+        .det_cbor();
+
+        for valid in [&env_bytes, &manifest_bytes] {
+            let mut mutants: Vec<Vec<u8>> = Vec::new();
+            for i in 0..valid.len() {
+                for bit in [0x01u8, 0x08, 0x80, 0xff] {
+                    let mut m = valid.clone();
+                    m[i] ^= bit;
+                    mutants.push(m);
+                }
+            }
+            for n in 0..valid.len() {
+                mutants.push(valid[..n].to_vec());
+            }
+            for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8], vec![0xa1, 0x00, 0x00]] {
+                let mut m = valid.clone();
+                m.extend_from_slice(&junk);
+                mutants.push(m);
+            }
+            for m in &mutants {
+                if let Ok(o) = Envelope::from_det_cbor(m) {
+                    assert_eq!(&o.det_cbor(), m, "Envelope decoder accepted a non-canonical encoding");
+                }
+                if let Ok(o) = Manifest::from_det_cbor(m) {
+                    assert_eq!(&o.det_cbor(), m, "Manifest decoder accepted a non-canonical encoding");
+                }
+            }
+        }
+        assert_eq!(Envelope::from_det_cbor(&env_bytes).unwrap().det_cbor(), env_bytes);
+        assert_eq!(Manifest::from_det_cbor(&manifest_bytes).unwrap().det_cbor(), manifest_bytes);
+    }
+
+    #[test]
     fn envelope_cbor_round_trip() {
         let (env, _r, _s) = round(Kind::Mail);
         let buf = env.det_cbor();

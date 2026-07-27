@@ -1044,6 +1044,84 @@ mod tests {
         assert_eq!(FeedHead::from_det_cbor(&h.det_cbor()).unwrap_err(), PubError::UnsupportedVersion);
     }
 
+    #[test]
+    fn pubobj_decoders_are_panic_free_and_strictly_canonical() {
+        // §18.1: from_det_cbor must never panic on any input and must reject any NON-canonical
+        // encoding. A malleable PubAnnounce/FeedHead/PubManifest would let a serving node mint
+        // byte-different bytes for the same announce/head, defeating the §22.4 anti-rollback keyed on
+        // the exact signed bytes. Optionals populated (meta, supersedes, non-empty topic) so
+        // mutations reach every decode path.
+        let k = IdentityKey::from_seed(&[9u8; 32]);
+        let mut ann = PubAnnounce {
+            v: PUB_V0,
+            suite: Suite::Classical,
+            publisher: k.public(),
+            roots: vec![ContentId::of(b"root-a"), ContentId::of(b"root-b")],
+            meta: vec![("app".to_string(), Cv::Text("hi".into()))],
+            supersedes: Some(ContentId::of(b"prev")),
+            ts: 1_700_000_000_000,
+            signer: k.public(),
+            sig: vec![],
+        };
+        ann.sign(&k);
+        let ann_bytes = ann.det_cbor();
+
+        let mut head = FeedHead {
+            v: PUB_V0,
+            suite: Suite::Classical,
+            publisher: k.public(),
+            seq: 7,
+            tip: ContentId::of(b"tip"),
+            ts: 1_700_000_000_000,
+            signer: k.public(),
+            sig: vec![],
+            topic: "news".into(),
+        };
+        head.sign(&k);
+        let head_bytes = head.det_cbor();
+
+        let manifest_bytes = PubManifest::new(
+            3 * 1024 * 1024,
+            1024 * 1024,
+            vec![ContentId::of(b"c0"), ContentId::of(b"c1"), ContentId::of(b"c2")],
+            Suite::Classical,
+        )
+        .det_cbor();
+
+        for valid in [&ann_bytes, &head_bytes, &manifest_bytes] {
+            let mut mutants: Vec<Vec<u8>> = Vec::new();
+            for i in 0..valid.len() {
+                for bit in [0x01u8, 0x08, 0x80, 0xff] {
+                    let mut m = valid.clone();
+                    m[i] ^= bit;
+                    mutants.push(m);
+                }
+            }
+            for n in 0..valid.len() {
+                mutants.push(valid[..n].to_vec());
+            }
+            for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8], vec![0xa1, 0x00, 0x00]] {
+                let mut m = valid.clone();
+                m.extend_from_slice(&junk);
+                mutants.push(m);
+            }
+            for m in &mutants {
+                if let Ok(o) = PubAnnounce::from_det_cbor(m) {
+                    assert_eq!(&o.det_cbor(), m, "PubAnnounce decoder accepted a non-canonical encoding");
+                }
+                if let Ok(o) = FeedHead::from_det_cbor(m) {
+                    assert_eq!(&o.det_cbor(), m, "FeedHead decoder accepted a non-canonical encoding");
+                }
+                if let Ok(o) = PubManifest::from_det_cbor(m) {
+                    assert_eq!(&o.det_cbor(), m, "PubManifest decoder accepted a non-canonical encoding");
+                }
+            }
+        }
+        assert_eq!(PubAnnounce::from_det_cbor(&ann_bytes).unwrap().det_cbor(), ann_bytes);
+        assert_eq!(FeedHead::from_det_cbor(&head_bytes).unwrap().det_cbor(), head_bytes);
+        assert_eq!(PubManifest::from_det_cbor(&manifest_bytes).unwrap().det_cbor(), manifest_bytes);
+    }
+
     use super::*;
 
     fn cid(hexs: &str) -> ContentId {
