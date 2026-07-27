@@ -1686,6 +1686,12 @@ fn msg_id(m: &Message) -> Option<String> {
 
 /// The message-ids a message references (In-Reply-To + References), for REFERENCES threading.
 fn msg_refs(m: &Message) -> Vec<String> {
+    // A References/In-Reply-To value is one header line, bounded only by the ~64 MiB message size
+    // (MAX_HEADER_LINES caps the entry COUNT, not one value's length; MAX_ADDRESSES applies only to
+    // From/To/Cc via parse_address_list, which this inline tokenizer bypasses). Without a cap a
+    // `<a@b> <a@b> …` header yields millions of heap Strings — rebuilt uncached for every matched
+    // message on every THREAD command. A real References chain is short; bound the token count.
+    const MAX_REFS: usize = 1_000;
     let p = m.parsed_cached();
     let mut out = Vec::new();
     for h in ["In-Reply-To", "References"] {
@@ -1694,6 +1700,9 @@ fn msg_refs(m: &Message) -> Vec<String> {
                 let t = tok.trim();
                 if !t.is_empty() && t.contains('@') {
                     out.push(t.to_string());
+                    if out.len() >= MAX_REFS {
+                        return out;
+                    }
                 }
             }
         }
@@ -1867,6 +1876,30 @@ mod tests {
         assert_eq!(to_sequence_set(&[1, 3, 4, 5, 8]), "1,3:5,8");
         assert_eq!(to_sequence_set(&[7]), "7");
         assert_eq!(to_sequence_set(&[]), "");
+    }
+
+    #[test]
+    fn msg_refs_token_count_is_bounded() {
+        use crate::store::{MailStore, MemoryStore};
+        // Security regression: msg_refs tokenized the References header inline (bypassing MAX_ADDRESSES)
+        // with no cap — a `<a@b> <a@b> …` header yields one heap String per token, rebuilt uncached for
+        // every matched message on every THREAD command. Capped at MAX_REFS (1 000).
+        let mut refs = String::from("References: ");
+        for _ in 0..50_000 {
+            refs.push_str("<a@b> ");
+        }
+        let mut raw = refs.into_bytes();
+        raw.extend_from_slice(b"\r\n\r\nbody");
+        let mut store = MemoryStore::empty();
+        store.deliver_raw("INBOX", raw, vec![], 0);
+        let mb = store.mailbox("INBOX").unwrap();
+        let refs = msg_refs(&mb.messages[0]);
+        assert!(refs.len() <= 1_000, "msg_refs token count must be bounded, got {}", refs.len());
+        // A normal short References chain is preserved in full.
+        let mut store2 = MemoryStore::empty();
+        store2.deliver_raw("INBOX", b"References: <a@b> <c@d>\r\n\r\nx".to_vec(), vec![], 0);
+        let mb2 = store2.mailbox("INBOX").unwrap();
+        assert_eq!(msg_refs(&mb2.messages[0]), vec!["a@b".to_string(), "c@d".to_string()]);
     }
 
     #[test]

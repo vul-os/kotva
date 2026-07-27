@@ -1021,11 +1021,30 @@ fn search_snippet_get<S: MailStore>(store: &S, account: &str, args: &Value) -> R
     Ok(json!({ "accountId": account, "list": list, "notFound": [] }))
 }
 
-/// Collect the text terms from a JMAP Email filter (`text`/`subject`/`body`/`from`/`to`).
+/// Maximum filter terms collected from one JMAP filter. A FilterOperator `conditions` array is
+/// bounded only by the request body size (serde_json caps nesting depth, not array width), so an
+/// uncapped collect would return millions of terms — and highlight() calls find_ci once PER term PER
+/// requested email, each rebuilding an O(text) tagged Vec, an O(terms·emails·text) CPU/allocation
+/// blow-up. A real search carries a handful; beyond the cap, further terms are ignored.
+const MAX_FILTER_TERMS: usize = 64;
+
+/// Collect the text terms from a JMAP Email filter (`text`/`subject`/`body`/`from`/`to`), bounded at
+/// [`MAX_FILTER_TERMS`] so a wide `conditions` array cannot amplify snippet highlighting.
 fn collect_filter_terms(filter: &Value) -> Option<Vec<String>> {
     let mut out = Vec::new();
+    collect_filter_terms_into(filter, &mut out);
+    Some(out)
+}
+
+fn collect_filter_terms_into(filter: &Value, out: &mut Vec<String>) {
+    if out.len() >= MAX_FILTER_TERMS {
+        return;
+    }
     if let Some(obj) = filter.as_object() {
         for key in ["text", "subject", "body", "from", "to"] {
+            if out.len() >= MAX_FILTER_TERMS {
+                return;
+            }
             if let Some(v) = obj.get(key).and_then(Value::as_str) {
                 out.push(v.to_string());
             }
@@ -1033,13 +1052,13 @@ fn collect_filter_terms(filter: &Value) -> Option<Vec<String>> {
         // FilterOperator (AND/OR/NOT) with nested conditions.
         if let Some(conds) = obj.get("conditions").and_then(|v| v.as_array()) {
             for c in conds {
-                if let Some(mut inner) = collect_filter_terms(c) {
-                    out.append(&mut inner);
+                if out.len() >= MAX_FILTER_TERMS {
+                    return;
                 }
+                collect_filter_terms_into(c, out);
             }
         }
     }
-    Some(out)
 }
 
 /// Case-insensitively locate `needle_lower` (already lowercased, as a `char` slice) inside
@@ -1758,6 +1777,19 @@ mod tests {
         // A single get of the same message (~6 MB < 50 MB) still succeeds.
         let ok = call(&mut s, "Email/get", json!({ "accountId": "acct1", "ids": ["INBOX|1"] }));
         assert_eq!(ok["list"][0]["id"], json!("INBOX|1"), "single get still works: {ok}");
+    }
+
+    #[test]
+    fn filter_term_count_is_bounded() {
+        // Security regression: a wide FilterOperator `conditions` array yielded one term per
+        // condition with no cap, amplifying highlight() into O(terms·emails·text). Capped at
+        // MAX_FILTER_TERMS.
+        let conds: Vec<Value> = (0..(MAX_FILTER_TERMS * 10)).map(|_| json!({ "text": "a" })).collect();
+        let terms = collect_filter_terms(&json!({ "operator": "AND", "conditions": conds })).unwrap();
+        assert!(terms.len() <= MAX_FILTER_TERMS, "filter term count must be bounded, got {}", terms.len());
+        // A normal small filter still collects its terms.
+        let ok = collect_filter_terms(&json!({ "subject": "hi", "from": "bob" })).unwrap();
+        assert_eq!(ok.len(), 2);
     }
 
     #[test]
