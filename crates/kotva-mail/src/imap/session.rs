@@ -127,6 +127,7 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
             if self.store.mailbox(&name).is_none() {
                 self.selected = None;
                 self.state = State::Authenticated;
+                self.saved_search.clear(); // $ is bound to the (now-gone) mailbox — RFC 5182 §2.1
             }
         }
         match pc.command {
@@ -386,6 +387,10 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
         }
 
         self.selected = Some(name.to_string());
+        // RFC 5182 §2.1: the saved search result ($) is scoped to the mailbox that produced it —
+        // reset it on every SELECT/EXAMINE so a `$` reference can never resolve against a different
+        // mailbox's UIDs (which would mutate/delete entirely unrelated messages).
+        self.saved_search.clear();
         self.read_only = read_only;
         self.state = State::Selected;
         let code = if read_only { "[READ-ONLY]" } else { "[READ-WRITE]" };
@@ -710,6 +715,7 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
         }
         self.selected = None;
         self.state = State::Authenticated;
+        self.saved_search.clear(); // RFC 5182 §2.1: reset $ on CLOSE/UNSELECT
         ok(tag, &format!("{verb} completed"))
     }
 

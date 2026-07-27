@@ -465,6 +465,32 @@ fn catenate_append_builds_message() {
 }
 
 #[test]
+fn saved_search_result_is_reset_on_mailbox_change() {
+    // RFC 5182 §2.1 (data-loss regression): the saved search result ($) is scoped to the mailbox
+    // that produced it. SELECT A; SEARCH RETURN (SAVE); SELECT B; UID MOVE $ must move NOTHING —
+    // never apply A's UIDs to B's messages (which would delete/move entirely unrelated mail).
+    let owner = IdentityKey::generate();
+    let mut store = MemoryStore::new();
+    for i in 0..3 {
+        store.deliver_raw("INBOX", format!("Subject: A{i}\r\n\r\nx\r\n").into_bytes(), vec![], 0);
+        store.deliver_raw("Archive", format!("Subject: B{i}\r\n\r\ny\r\n").into_bytes(), vec![], 0);
+    }
+    let mut auth = StaticAuthenticator::new();
+    auth.issue("owner@dmtap.local", "app-password-xyz", owner.public(), "iphone");
+    let mut session = Session::new(store, auth, true);
+    run(&mut session, "a1 LOGIN owner@dmtap.local app-password-xyz\r\n");
+    run(&mut session, "a2 SELECT INBOX\r\n");
+    run(&mut session, "a3 SEARCH RETURN (SAVE) ALL\r\n"); // saves INBOX uids 1,2,3
+    run(&mut session, "a4 SELECT Archive\r\n"); // must reset $ to empty
+    let mv = run(&mut session, "a5 UID MOVE $ Trash\r\n");
+    // Without the reset, Archive's uids 1,2,3 would be moved to Trash. With it, $ is empty.
+    assert!(!mv.contains("COPYUID"), "stale $ must move nothing (no COPYUID): {mv}");
+    assert_eq!(session.store().mailbox("Archive").unwrap().exists(), 3, "Archive must be untouched by a stale $");
+    assert_eq!(session.store().mailbox("INBOX").unwrap().exists(), 3, "INBOX must be untouched");
+    assert_eq!(session.store().mailbox("Trash").map(|m| m.exists()).unwrap_or(0), 0, "Trash must be empty");
+}
+
+#[test]
 fn degenerate_and_deeply_nested_search_fail_closed_not_panic() {
     // Security regression: NOT/OR with a missing operand must not index-panic, and a deeply-nested
     // parenthesised SEARCH must not stack-overflow (an unauth process-crash DoS, since SEARCH is
