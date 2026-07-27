@@ -247,28 +247,51 @@ fn build_all() -> VectorFile {
     }
 
     // === 3. Safety number — OOB key verification (spec §3.4.1) ==============================
-    let ik_a = IdentityKey::from_seed(&SEED_A).public_array();
-    let ik_b = IdentityKey::from_seed(&SEED_B).public_array();
+    // Computed over each party's WHOLE-Identity content address (0x1e ‖ BLAKE3-256(det_cbor),
+    // §18.9.4 / §3.4.1), NOT a bare ik — so it commits to every suite key at once. Two signed
+    // single-suite Identities from the fixed seeds give deterministic content addresses.
+    let safety_id_a = Identity::create_classical(
+        &IdentityKey::from_seed(&SEED_A),
+        0,
+        vec![],
+        KeyPackageBundleRef::new("/mesh/keypkgs", ContentId::of(b"keypkgs-bundle-a")),
+        ContentId::of(b"recovery-policy-a"),
+        vec!["alice@example.com".into()],
+        None,
+        1_700_000_000_000,
+    );
+    let safety_id_b = Identity::create_classical(
+        &IdentityKey::from_seed(&SEED_B),
+        0,
+        vec![],
+        KeyPackageBundleRef::new("/mesh/keypkgs", ContentId::of(b"keypkgs-bundle-b")),
+        ContentId::of(b"recovery-policy-b"),
+        vec!["bob@example.com".into()],
+        None,
+        1_700_000_000_000,
+    );
+    let addr_a = safety_id_a.content_id();
+    let addr_b = safety_id_b.content_id();
     vectors.push(v(
         "safety_number_pair_ab",
         "safety_number",
-        json!({ "ik_a_hex": hex(&ik_a), "ik_b_hex": hex(&ik_b) }),
+        json!({ "id_a_addr_hex": hex(addr_a.as_bytes()), "id_b_addr_hex": hex(addr_b.as_bytes()) }),
         json!({
-            "safety_number": safety::safety_number(&ik_a, &ik_b),
-            "fingerprint_hex": safety::safety_number_hex(&ik_a, &ik_b),
+            "safety_number": safety::safety_number(&addr_a, &addr_b),
+            "fingerprint_hex": safety::safety_number_hex(&addr_a, &addr_b),
         }),
-        "safety number of the (seed 0x11, seed 0x22) identity-key pair",
+        "safety number over the content addresses of the (seed 0x11, seed 0x22) identities",
     ));
     // Order independence: swapping the pair yields the identical value.
     vectors.push(v(
         "safety_number_order_independent",
         "safety_number",
-        json!({ "ik_a_hex": hex(&ik_b), "ik_b_hex": hex(&ik_a) }),
+        json!({ "id_a_addr_hex": hex(addr_b.as_bytes()), "id_b_addr_hex": hex(addr_a.as_bytes()) }),
         json!({
-            "safety_number": safety::safety_number(&ik_b, &ik_a),
-            "fingerprint_hex": safety::safety_number_hex(&ik_b, &ik_a),
+            "safety_number": safety::safety_number(&addr_b, &addr_a),
+            "fingerprint_hex": safety::safety_number_hex(&addr_b, &addr_a),
         }),
-        "same pair, keys swapped → MUST equal safety_number_pair_ab (order-independent)",
+        "same pair, addresses swapped → MUST equal safety_number_pair_ab (order-independent)",
     ));
 
     // === 4. Ed25519 sign / verify (deterministic, RFC 8032) ================================
@@ -1103,8 +1126,10 @@ fn recheck_against_reference(vf: &VectorFile) {
                 assert_eq!(keyname::verify(nm), exp["checksum_verifies"].as_bool().unwrap(), "{}", vec.name);
             }
             "safety_number" => {
-                let a = unhex(inp["ik_a_hex"].as_str().unwrap());
-                let b = unhex(inp["ik_b_hex"].as_str().unwrap());
+                // Inputs are whole-Identity content addresses (0x1e ‖ BLAKE3-256(det_cbor), §3.4.1),
+                // not bare iks — the render binds every suite key at once.
+                let a = ContentId(unhex(inp["id_a_addr_hex"].as_str().unwrap()));
+                let b = ContentId(unhex(inp["id_b_addr_hex"].as_str().unwrap()));
                 assert_eq!(safety::safety_number(&a, &b), exp["safety_number"].as_str().unwrap(), "{}", vec.name);
                 assert_eq!(safety::safety_number_hex(&a, &b), exp["fingerprint_hex"].as_str().unwrap(), "{}", vec.name);
             }

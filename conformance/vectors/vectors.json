@@ -111,27 +111,27 @@
       "name": "safety_number_pair_ab",
       "operation": "safety_number",
       "input": {
-        "ik_a_hex": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737",
-        "ik_b_hex": "a09aa5f47a6759802ff955f8dc2d2a14a5c99d23be97f864127ff9383455a4f0"
+        "id_a_addr_hex": "1ea83d67aad6e2b1e326954dce77e73634ac0384ea1d4673e092631b548f43a88a",
+        "id_b_addr_hex": "1eedc240757e2c21bb184790dd1cd06a76b352574d5902ecfeb3ac067a039f7311"
       },
       "expected": {
-        "fingerprint_hex": "769ff5af12d5a15f2ce5f51d79b20efb1cfadfa8dfa44edd1765d2082ba14e96",
-        "safety_number": "19410 03237 02222 94600 38839 47713"
+        "fingerprint_hex": "1d65036c8f9f6e026a7a941edb3da5cd350d008d57d39525096af3e9228dd3fd",
+        "safety_number": "74799 52154 44453 40237 21673 75597"
       },
-      "note": "safety number of the (seed 0x11, seed 0x22) identity-key pair"
+      "note": "safety number over the content addresses of the (seed 0x11, seed 0x22) identities"
     },
     {
       "name": "safety_number_order_independent",
       "operation": "safety_number",
       "input": {
-        "ik_a_hex": "a09aa5f47a6759802ff955f8dc2d2a14a5c99d23be97f864127ff9383455a4f0",
-        "ik_b_hex": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737"
+        "id_a_addr_hex": "1eedc240757e2c21bb184790dd1cd06a76b352574d5902ecfeb3ac067a039f7311",
+        "id_b_addr_hex": "1ea83d67aad6e2b1e326954dce77e73634ac0384ea1d4673e092631b548f43a88a"
       },
       "expected": {
-        "fingerprint_hex": "769ff5af12d5a15f2ce5f51d79b20efb1cfadfa8dfa44edd1765d2082ba14e96",
-        "safety_number": "19410 03237 02222 94600 38839 47713"
+        "fingerprint_hex": "1d65036c8f9f6e026a7a941edb3da5cd350d008d57d39525096af3e9228dd3fd",
+        "safety_number": "74799 52154 44453 40237 21673 75597"
       },
-      "note": "same pair, keys swapped → MUST equal safety_number_pair_ab (order-independent)"
+      "note": "same pair, addresses swapped → MUST equal safety_number_pair_ab (order-independent)"
     },
     {
       "name": "ed25519_rfc8032_test1",
