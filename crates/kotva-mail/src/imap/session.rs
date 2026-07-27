@@ -153,15 +153,20 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
                 out.extend(ok(&tag, "ID completed"));
                 out
             }
-            Command::Enable(caps) => self.cmd_enable(&tag, &caps),
             Command::Login { user, pass } => self.cmd_login(&tag, &user, &pass),
             Command::Authenticate { mechanism, initial } => self.cmd_authenticate(&tag, &mechanism, initial),
+            _ if self.identity.is_none() => no(&tag, "Not authenticated"),
+            // ENABLE mutates session state (CONDSTORE/QRESYNC) and NAMESPACE exposes structure —
+            // both are authenticated-state-only (RFC 9051 §6.3.1 / RFC 2342), so they sit BELOW the
+            // auth guard above: an unauthenticated client matches the guard and gets "Not
+            // authenticated" rather than mutating session state pre-auth. (Login/Authenticate stay
+            // above the guard because identity is None during authentication.)
+            Command::Enable(caps) => self.cmd_enable(&tag, &caps),
             Command::Namespace => {
                 let mut out = untagged("NAMESPACE ((\"\" \"/\")) NIL NIL");
                 out.extend(ok(&tag, "NAMESPACE completed"));
                 out
             }
-            _ if self.identity.is_none() => no(&tag, "Not authenticated"),
             Command::Select { mailbox, condstore, qresync } => {
                 self.cmd_select(&tag, &mailbox, false, condstore, qresync)
             }
@@ -1096,6 +1101,13 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
             Some(n) => n,
             None => return bad(tag, "no mailbox selected"),
         };
+        // MOVE removes messages from the source (EXPUNGE/VANISHED), so it is forbidden on a
+        // read-only (EXAMINE-opened) mailbox — otherwise MOVE would silently delete from a mailbox
+        // the client only opened for reading. Fail closed before any append, matching cmd_store and
+        // cmd_expunge. (COPY needs no such guard — it does not touch the source.)
+        if self.read_only {
+            return no(tag, "mailbox is read-only");
+        }
         let (copied, src_valid) = match self.collect_for_copy(&set, uid_mode) {
             Some(v) => v,
             None => return bad(tag, "no mailbox selected"),

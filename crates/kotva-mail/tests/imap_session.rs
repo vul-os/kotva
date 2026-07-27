@@ -126,6 +126,42 @@ fn copy_move_and_expunge_uidplus() {
     assert_eq!(session.store().mailbox("Trash").unwrap().exists(), 1);
 }
 
+#[test]
+fn examine_forbids_move_no_data_loss() {
+    // Security/data-loss regression: MOVE mutates the source (EXPUNGE), so an EXAMINE-opened
+    // (read-only) mailbox MUST refuse it, exactly like STORE/EXPUNGE — otherwise a client that
+    // opened INBOX read-only could still permanently delete from it.
+    let (store, auth) = setup();
+    let mut session = Session::new(store, auth, true);
+    run(&mut session, "a1 LOGIN owner@dmtap.local app-password-xyz\r\n");
+    let ex = run(&mut session, "a2 EXAMINE INBOX\r\n");
+    assert!(ex.contains("[READ-ONLY]"), "examine should announce read-only: {ex}");
+
+    let mv = run(&mut session, "a3 MOVE 1 Trash\r\n");
+    assert!(mv.contains("a3 NO"), "MOVE on a read-only mailbox must be refused: {mv}");
+    assert!(mv.contains("read-only"), "refusal should name the read-only cause: {mv}");
+    // The source is untouched and nothing was created in the destination.
+    assert_eq!(session.store().mailbox("INBOX").unwrap().exists(), 1, "source must be intact");
+    assert!(session.store().mailbox("Trash").map(|m| m.exists()).unwrap_or(0) == 0);
+}
+
+#[test]
+fn enable_and_namespace_require_authentication() {
+    // Wrong-state regression: ENABLE mutates session state (CONDSTORE/QRESYNC) and NAMESPACE
+    // exposes structure — both are authenticated-only. An unauthenticated client must be refused,
+    // not silently allowed to flip session flags before login.
+    let (store, auth) = setup();
+    let mut session = Session::new(store, auth, true);
+    let en = run(&mut session, "z1 ENABLE CONDSTORE\r\n");
+    assert!(en.contains("z1 NO") && en.contains("Not authenticated"), "pre-auth ENABLE: {en}");
+    let ns = run(&mut session, "z2 NAMESPACE\r\n");
+    assert!(ns.contains("z2 NO") && ns.contains("Not authenticated"), "pre-auth NAMESPACE: {ns}");
+    // After login, both succeed.
+    run(&mut session, "z3 LOGIN owner@dmtap.local app-password-xyz\r\n");
+    assert!(run(&mut session, "z4 ENABLE CONDSTORE\r\n").contains("z4 OK"));
+    assert!(run(&mut session, "z5 NAMESPACE\r\n").contains("z5 OK"));
+}
+
 /// Build a store with `n` deliverable messages in INBOX (uids 1..=n) + the owner's credentials.
 fn setup_n(n: usize) -> (MemoryStore, StaticAuthenticator) {
     let owner = IdentityKey::generate();
