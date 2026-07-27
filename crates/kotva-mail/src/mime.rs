@@ -382,11 +382,22 @@ pub fn strip_trust_boundary_headers(raw_headers: &[u8]) -> Vec<u8> {
                     // `line[..colon].trim()` — a leading-WSP first line reaches here (it is parsed as
                     // a header, not a continuation), and its name carries the leading WSP.
                     let raw_name = &content[..colon];
-                    let is_wsp = |&b: &u8| b == b' ' || b == b'\t';
-                    let start = raw_name.iter().position(|b| !is_wsp(b)).unwrap_or(raw_name.len());
-                    let end = raw_name.iter().rposition(|b| !is_wsp(b)).map_or(start, |p| p + 1);
-                    let name = &raw_name[start..end];
-                    TRUST_BOUNDARY_HEADERS.iter().any(|h| name.eq_ignore_ascii_case(h.as_bytes()))
+                    // Normalize the field name EXACTLY as the consumer does. `parse_header_block`
+                    // takes a lossy UTF-8 view of these same bytes (line ~116) and applies
+                    // `str::trim()`, which strips the FULL Unicode White_Space set — not just space
+                    // and tab, but CR, LF, vertical-tab (U+000B), form-feed (U+000C), NBSP, … .
+                    // Trimming a SMALLER set here than the consumer would let a name like
+                    // `\x0BAuthentication-Results` (a leading vertical-tab, or a trailing one) slip
+                    // past this denylist yet be read downstream as a genuine trust-boundary verdict
+                    // via `ParsedMessage::header(...)` — exactly the §7.2c forgery this strip exists
+                    // to prevent. The decode drives ONLY this drop/keep decision; the emitted header
+                    // bytes stay byte-exact (the `out.extend_from_slice(raw…)` below is untouched).
+                    // A colon is ASCII and a `\n` precedes `line_start`, so both edges of `raw_name`
+                    // are clean UTF-8 boundaries — decoding it in isolation yields the same trimmed
+                    // name the consumer sees when it decodes the whole block.
+                    let decoded = String::from_utf8_lossy(raw_name);
+                    let name = decoded.trim();
+                    TRUST_BOUNDARY_HEADERS.iter().any(|h| name.eq_ignore_ascii_case(h))
                 }
                 // Not a `name:` line (e.g. the blank separator, or malformed input) — never a
                 // match, and never left "dropping" from a previous field by accident.
@@ -1213,6 +1224,15 @@ body\r\n";
             // strip must NOT skip it as a continuation.
             &b" Authentication-Results: mx; dkim=pass header.d=paypal.com\r\nX-Keep: 1\r\n"[..],
             &b"\tAuthentication-Results: mx; dkim=pass header.d=paypal.com\r\nX-Keep: 1\r\n"[..],
+            // FULL Unicode-whitespace bypass: parse_header_block trims via str::trim(), which removes
+            // vertical-tab (0x0B) and form-feed (0x0C) too — not just space/tab. A byte-trim that knew
+            // only space/tab would KEEP these yet the consumer still reads "Authentication-Results"
+            // and a passing verdict rides into the gateway-signed wrap (§7.2c). Both a leading and a
+            // before-colon occurrence must be stripped.
+            &b"\x0BAuthentication-Results: mx; dkim=pass header.d=paypal.com\r\nX-Keep: 1\r\n"[..],
+            &b"\x0CAuthentication-Results: mx; dkim=pass header.d=paypal.com\r\nX-Keep: 1\r\n"[..],
+            &b"Authentication-Results\x0B: mx; dkim=pass header.d=paypal.com\r\nX-Keep: 1\r\n"[..],
+            &b"ARC-Seal\x0C: i=1; a=rsa-sha256; cv=none\r\nX-Keep: 1\r\n"[..],
         ] {
             let s = String::from_utf8_lossy(&strip_trust_boundary_headers(raw)).to_ascii_lowercase();
             assert!(
