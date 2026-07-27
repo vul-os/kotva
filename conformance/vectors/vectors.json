@@ -111,12 +111,12 @@
       "name": "safety_number_pair_ab",
       "operation": "safety_number",
       "input": {
-        "id_a_addr_hex": "1ea83d67aad6e2b1e326954dce77e73634ac0384ea1d4673e092631b548f43a88a",
-        "id_b_addr_hex": "1eedc240757e2c21bb184790dd1cd06a76b352574d5902ecfeb3ac067a039f7311"
+        "id_a_addr_hex": "1e5ea010a100b3864e8595217c67e3ccf38ec1263668c02ace2c3bae6e44c68ebd",
+        "id_b_addr_hex": "1e7bee7c093ef7b1e340fb69f7dbbd01eda17aac49bcf684daf4301f752df66b92"
       },
       "expected": {
-        "fingerprint_hex": "1d65036c8f9f6e026a7a941edb3da5cd350d008d57d39525096af3e9228dd3fd",
-        "safety_number": "74799 52154 44453 40237 21673 75597"
+        "fingerprint_hex": "092744dc8b2a5796def0b605885a47be1a154db2da3b648c901bfb2b7bb7e7a9",
+        "safety_number": "29995 31696 69959 90002 15856 47927"
       },
       "note": "safety number over the content addresses of the (seed 0x11, seed 0x22) identities"
     },
@@ -124,12 +124,12 @@
       "name": "safety_number_order_independent",
       "operation": "safety_number",
       "input": {
-        "id_a_addr_hex": "1eedc240757e2c21bb184790dd1cd06a76b352574d5902ecfeb3ac067a039f7311",
-        "id_b_addr_hex": "1ea83d67aad6e2b1e326954dce77e73634ac0384ea1d4673e092631b548f43a88a"
+        "id_a_addr_hex": "1e7bee7c093ef7b1e340fb69f7dbbd01eda17aac49bcf684daf4301f752df66b92",
+        "id_b_addr_hex": "1e5ea010a100b3864e8595217c67e3ccf38ec1263668c02ace2c3bae6e44c68ebd"
       },
       "expected": {
-        "fingerprint_hex": "1d65036c8f9f6e026a7a941edb3da5cd350d008d57d39525096af3e9228dd3fd",
-        "safety_number": "74799 52154 44453 40237 21673 75597"
+        "fingerprint_hex": "092744dc8b2a5796def0b605885a47be1a154db2da3b648c901bfb2b7bb7e7a9",
+        "safety_number": "29995 31696 69959 90002 15856 47927"
       },
       "note": "same pair, addresses swapped → MUST equal safety_number_pair_ab (order-independent)"
     },
@@ -226,7 +226,7 @@
       },
       "expected": {
         "cbor_hex": "aa01810102a1015820d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c97787370300048005a2016d2f6d6573682f6b6579706b67730258211e4f242fb78e0942ca9cd96887ed930511386f7729427e9b7435ba23370e6100520658211e08a744bb9a1b09722cc94f3794fa5d44251da66ecdb0ad52dce7c0df241736be078171616c696365406578616d706c652e636f6d091b0000018bcfe568000a81584049955ae51483abf4c484b398008d25abdb18fe902081c88aa981e5b06ebf2598c8986f93c13641da0cb577c7bc2fc786dec2992b60e45e566dfd4ddc6684d00b0c01",
-        "content_id_hex": "1e404df55eb6233bc7b44b5f456dc7abc448482f98d84d03e7f9134f8cf02e1251"
+        "content_id_hex": "1e7757be9319241aab7911bf16e10173fc091ac1e9bae74fa3698b57a8bf87d9dc"
       },
       "note": "§18-canonical integer-keyed CBOR of a signed single-suite Identity; also its §18.9.4 content address"
     },

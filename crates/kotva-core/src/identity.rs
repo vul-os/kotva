@@ -555,9 +555,14 @@ impl Identity {
     }
 
     /// Content address of this identity (spec §18.9.4) — the value contacts pin (§3.4):
-    /// `0x1e ‖ BLAKE3-256(det_cbor(Identity))` over the complete, signed object.
+    /// `0x1e ‖ BLAKE3-256(det_cbor(Identity ∖ {10}))` over the **signature-EXCLUDED** body, the same
+    /// one the DS-tagged `sig` covers. §1.3 forbids deriving an identifier from a signature: the
+    /// hybrid AND-composition is EUF-CMA, not SUF-CMA, so a valid `sig` is malleable and hashing the
+    /// signed object would give one identity version two anchors (a re-sign, or a second authorised
+    /// multi-suite signer — see `create_classical_with_anchor`), splitting the DNS/KT pin (§3.2), the
+    /// safety-number input (§3.4.1), and the KT leaf (§18.4.9) this anchor exists to make singular.
     pub fn content_id(&self) -> ContentId {
-        ContentId::of(&self.det_cbor())
+        ContentId::of(&self.signing_body())
     }
 
     /// Verify the identity (spec §1.3, §1.2.0, §3.4):

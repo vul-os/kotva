@@ -123,7 +123,8 @@ and the one thing that closes a first-contact MITM immediately.
   DMTAP identity carries **multiple suite keys** — `iks` is a map `{ suite → ik-pub }` (§1.3,
   §18.4.1), e.g. a classical `0x01` key and a PQ `0x02` key — a safety number MUST be computed
   over the **content-address of the entire `Identity` object** (`Identity_id = prefix ‖
-  BLAKE3-256(det_cbor(Identity))`, §18.9.4), which **commits to every suite key** at once, not
+  BLAKE3-256(det_cbor(Identity ∖ {10}))`, the signature-excluded body, §18.9.4), which **commits to
+  every suite key** at once, not
   over any one `ik`. Fingerprinting a single suite key would let an attacker who has injected a
   **rogue additional suite key** (e.g. a forged PQ `0x02` entry) sit *behind* a pin the user
   verified only against the classical key. Taking the fingerprint over the whole `Identity`
