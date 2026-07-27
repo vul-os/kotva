@@ -96,7 +96,7 @@ and on `reject` MUST map it to the named §21 error code with that code's `Actio
      It does NOT mean the category is required at the Core conformance LEVEL — several area-Core
      rows below are explicitly optional extensions (`pub-1`, `pubsub-1`). The Core LEVEL boundary
      is only the "## Core level" case block. -->
-| **Core** — §2.7 validation pipeline (`VAL`) | 15 | 0 (2 reuse ADDR/PRE) | 0 | 15 | 0 |
+| **Core** — §2.7 validation pipeline (`VAL`) | 18 | 0 (2 reuse ADDR/PRE) | 0 | 18 | 0 |
 | **Core** — identity / KT / naming (`IDENT`) | 8 | 0 | 0 | 8 | 0 |
 | **Core** — aliases (`ALIAS`) | 3 | 0 | 0 | 3 | 0 |
 | **Core** — resolver framework (`RESOLVE`) | 3 | 0 | 0 | 3 | 0 |

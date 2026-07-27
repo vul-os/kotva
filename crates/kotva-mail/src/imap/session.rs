@@ -626,6 +626,12 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
     /// common "resent/redirect" case, `imap://…/mailbox;UID=n[/;SECTION=…]`); a URL that names a
     /// message we do not hold is rejected with `[BADURL]` rather than silently dropped.
     fn build_catenate(&self, parts: &[CatPart]) -> Result<Vec<u8>, &'static str> {
+        // Bound the ASSEMBLED message independently of the per-literal transport cap: a small
+        // CATENATE command can reference a stored message — or the same UID — many times, amplifying
+        // into a multi-gigabyte in-memory build even though the command bytes are small. Stop at the
+        // single-message ceiling (64 MiB, the same APPEND intent the `net` reader's MAX_LITERAL
+        // enforces per literal; kept local here because the `net` module is feature-gated).
+        const MAX_APPEND_BYTES: usize = 64 * 1024 * 1024;
         let mut out = Vec::new();
         for part in parts {
             match part {
@@ -634,6 +640,9 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
                     Some(bytes) => out.extend_from_slice(&bytes),
                     None => return Err("[BADURL] CATENATE URL not resolvable on this node"),
                 },
+            }
+            if out.len() > MAX_APPEND_BYTES {
+                return Err("[LIMIT] CATENATE message exceeds the append size limit");
             }
         }
         Ok(out)

@@ -24,6 +24,13 @@ pub const MAX_LITERAL: usize = 64 * 1024 * 1024;
 /// Hard cap on a single command line before a literal (defends against an unbounded line flood).
 const MAX_LINE: usize = 1024 * 1024;
 
+/// Hard cap on a single **assembled** command — all lines and literals of one logical command. The
+/// per-line (`MAX_LINE`) and per-literal (`MAX_LITERAL`) caps bound each *piece*, but nothing else
+/// bounds the *number* of pieces: an `APPEND … CATENATE (TEXT {n} … TEXT {n} …)` or a chain of
+/// `{MAX_LITERAL}` literals could otherwise buffer gigabytes into `buf` before `session.process` is
+/// ever called — a pre-auth memory-exhaustion DoS. One message plus generous protocol headroom.
+const MAX_COMMAND: usize = MAX_LITERAL + 8 * 1024 * 1024;
+
 /// Read one complete IMAP command (assembling synchronizing/non-sync literals) from `reader`,
 /// prompting on `writer`. Returns `Ok(None)` at clean EOF. Oversized literals/lines are refused
 /// with a `BAD` and surfaced as an error so the caller drops the connection (fail closed).
@@ -44,11 +51,23 @@ pub fn read_imap_command<R: BufRead, W: Write>(
             return Err(io::Error::new(io::ErrorKind::InvalidData, "command line too long"));
         }
         buf.extend_from_slice(&line);
+        if buf.len() > MAX_COMMAND {
+            let _ = writer.write_all(b"* BAD command too large\r\n");
+            let _ = writer.flush();
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "assembled command exceeds MAX_COMMAND"));
+        }
         match trailing_literal(&line) {
             Some((size, _sync)) if size > MAX_LITERAL => {
                 let _ = writer.write_all(b"* BAD literal too large\r\n");
                 let _ = writer.flush();
                 return Err(io::Error::new(io::ErrorKind::InvalidData, "literal exceeds MAX_LITERAL"));
+            }
+            // Reject before allocating: the running buffer plus this literal must fit the aggregate
+            // cap, so a chain of literals cannot force an unbounded `vec![0u8; size]` allocation.
+            Some((size, _sync)) if buf.len().saturating_add(size) > MAX_COMMAND => {
+                let _ = writer.write_all(b"* BAD command too large\r\n");
+                let _ = writer.flush();
+                return Err(io::Error::new(io::ErrorKind::InvalidData, "assembled command exceeds MAX_COMMAND"));
             }
             Some((size, sync)) => {
                 if sync {

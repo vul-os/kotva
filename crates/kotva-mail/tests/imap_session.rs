@@ -465,6 +465,32 @@ fn catenate_append_builds_message() {
 }
 
 #[test]
+fn catenate_append_is_bounded_against_amplification() {
+    // Security regression: a small CATENATE command that references a stored message many times must
+    // not amplify into an unbounded in-memory build. A ~10 MiB message referenced 7× would assemble
+    // ~70 MiB; the 64 MiB append ceiling stops it with [LIMIT] rather than letting one small command
+    // drive the server toward OOM.
+    let owner = IdentityKey::generate();
+    let mut store = MemoryStore::new();
+    store.deliver_raw("INBOX", vec![b'x'; 10 * 1024 * 1024], vec![], 1_752_000_000_000);
+    let mut auth = StaticAuthenticator::new();
+    auth.issue("owner@dmtap.local", "app-password-xyz", owner.public(), "iphone");
+    let mut session = Session::new(store, auth, true);
+    run(&mut session, "a1 LOGIN owner@dmtap.local app-password-xyz\r\n");
+    run(&mut session, "a2 SELECT INBOX\r\n");
+
+    let url = "URL \"imap://h/INBOX;UID=1\"";
+    let parts = std::iter::repeat(url).take(7).collect::<Vec<_>>().join(" ");
+    let resp = run(&mut session, &format!("a3 APPEND Drafts CATENATE ({parts})\r\n"));
+    assert!(
+        resp.contains("a3 NO") && resp.contains("[LIMIT]"),
+        "an amplified CATENATE must be refused with [LIMIT]: {resp}"
+    );
+    // Nothing was written to the destination.
+    assert_eq!(session.store().mailbox("Drafts").map(|m| m.exists()).unwrap_or(0), 0);
+}
+
+#[test]
 fn esearch_count_and_all() {
     let mut session = logged_in_selected(5);
     let r = run(&mut session, "e1 SEARCH RETURN (COUNT) ALL\r\n");
