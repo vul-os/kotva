@@ -530,6 +530,13 @@ pub fn parse_address_list(v: &str) -> Vec<Address> {
     out
 }
 
+/// Maximum addresses parsed from one address-list header. Each split piece becomes an [`Address`]
+/// (several heap Strings); a single fully attacker-controlled `To:`/`Cc:` value of `a@b,a@b,…` (a
+/// header value is bounded only by the message size, not by MAX_HEADER_LINES which caps entry COUNT)
+/// would otherwise materialize millions of Address structs — on the per-FETCH ENVELOPE render and per
+/// `Email/get`. Real messages carry far fewer; beyond the cap the trailing addresses are dropped.
+const MAX_ADDRESSES: usize = 10_000;
+
 /// Split on commas that are not inside quotes or angle brackets.
 fn split_addresses(v: &str) -> Vec<String> {
     let mut out = Vec::new();
@@ -552,6 +559,10 @@ fn split_addresses(v: &str) -> Vec<String> {
             }
             ',' if !in_quote && !in_angle => {
                 out.push(std::mem::take(&mut cur));
+                // Bound the address count (and stop scanning) — see MAX_ADDRESSES.
+                if out.len() >= MAX_ADDRESSES {
+                    return out;
+                }
             }
             _ => cur.push(c),
         }
@@ -1114,6 +1125,19 @@ mod tests {
         if let BodyPart::Multipart { parts, .. } = ok.structure {
             assert_eq!(parts.len(), 1);
         }
+    }
+
+    #[test]
+    fn address_list_count_is_bounded() {
+        // Security regression: split_addresses/parse_address_list had no cap — a single huge
+        // attacker-controlled To/Cc value (`a@b,a@b,…`) materialized one Address per comma on the
+        // per-FETCH ENVELOPE and per Email/get. Capped at MAX_ADDRESSES.
+        let huge = vec!["a@b"; MAX_ADDRESSES * 2].join(",");
+        let addrs = parse_address_list(&huge);
+        assert!(addrs.len() <= MAX_ADDRESSES, "address count must be bounded, got {}", addrs.len());
+        // A normal short list still parses fully.
+        let ok = parse_address_list("Alice <a@x.example>, bob@y.example");
+        assert_eq!(ok.len(), 2, "normal address list still parses");
     }
 
     #[test]
