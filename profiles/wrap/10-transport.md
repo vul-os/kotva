@@ -15,8 +15,10 @@ The two surfaces a WRAP deployment uses are the substrate's:
   `GET /sync/vector`, `POST /sync/pull`, `POST /sync/ops`, scoped to the work
   order's namespace `wrap:‖id` (§7.2). Sparse sync (SYNC §7) means a node
   exchanges only the jobs it is party to.
-- **Attestation feeds** — a subject's reputation history — publish and fetch over
-  the Feeds HTTP surface ([`FEEDS.md`](https://github.com/vul-os/dmtap/blob/main/substrate/FEEDS.md) §5) at
+- **Attestation feeds** — each attestor's append-only feed of outcomes about
+  counterparties, keyed by the author `IK`, from which a subject's reputation is
+  aggregated (§9.4) — publish and fetch over the Feeds HTTP surface
+  ([`FEEDS.md`](https://github.com/vul-os/dmtap/blob/main/substrate/FEEDS.md) §5) at
   `/.well-known/dmtap-pub/*`.
 
 Both are servable over **plain HTTPS with no mesh present** — the substrate's HTTP

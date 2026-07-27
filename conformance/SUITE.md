@@ -1446,7 +1446,7 @@ against itself before a single chunk is fetched.
 ## Vector cross-reference
 
 Every `vectored` case above maps to an existing entry in `vectors/vectors.json`
-(**42 of the 68 vectors** in the file are referenced by cases). Cross-check (case → vector):
+(**44 of the 70 vectors** in the file are referenced by cases). Cross-check (case → vector):
 
 | vectors.json entry | driven by case(s) |
 |--------------------|-------------------|
