@@ -107,6 +107,13 @@ fn split_headers(raw: &[u8]) -> (Vec<(String, String)>, &[u8]) {
     (parse_header_block(hdr_bytes), body)
 }
 
+/// Maximum number of header entries materialized from one header block. `parse_header_block` pushes
+/// one heap `(String, String)` per `name:value` line; a ~64 MiB block of minimal `a:b\n` lines is
+/// ~16.7M tuples (~1 GB resident, and the parse is memoized in the store), and `headers_only()`
+/// re-parses it UNCACHED per FETCH — the same amplification class as `MAX_MIME_PARTS`, on the header
+/// axis. Real messages carry well under this; beyond it the trailing lines are ignored (bounded).
+const MAX_HEADER_LINES: usize = 10_000;
+
 fn parse_header_block(bytes: &[u8]) -> Vec<(String, String)> {
     // Headers are an ASCII superset, so the *split* below is byte-safe either way — but the values
     // must not be UTF-8-lossy'd first: legacy senders still emit raw 8-bit ISO-8859-1 headers, and
@@ -129,6 +136,12 @@ fn parse_header_block(bytes: &[u8]) -> Vec<(String, String)> {
             last.1.push(' ');
             last.1.push_str(line.trim());
         } else if let Some(colon) = line.find(':') {
+            // Cap the header-entry count (and stop scanning) — a ~64 MiB block of `a:b` lines would
+            // otherwise materialize millions of heap tuples (memoized, and re-parsed uncached per
+            // FETCH). See MAX_HEADER_LINES. No real message reaches this.
+            if out.len() >= MAX_HEADER_LINES {
+                break;
+            }
             let name = line[..colon].trim().to_string();
             let val = line[colon + 1..].trim().to_string();
             out.push((name, val));
@@ -1101,6 +1114,23 @@ mod tests {
         if let BodyPart::Multipart { parts, .. } = ok.structure {
             assert_eq!(parts.len(), 1);
         }
+    }
+
+    #[test]
+    fn header_line_count_is_bounded() {
+        // Security regression: parse_header_block pushed one heap tuple per header line with no cap —
+        // a ~64 MiB block of `a:b` lines materialized millions of tuples (memoized; and headers_only
+        // re-parses uncached per FETCH). Capped at MAX_HEADER_LINES.
+        let mut block = Vec::new();
+        for _ in 0..(MAX_HEADER_LINES * 2) {
+            block.extend_from_slice(b"a:b\n");
+        }
+        let hdrs = parse_header_block(&block);
+        assert!(hdrs.len() <= MAX_HEADER_LINES, "header count must be bounded, got {}", hdrs.len());
+        // A normal small header block still parses fully (with folded-continuation handling intact).
+        let ok = parse_header_block(b"Subject: Hi\r\nFrom: a@b\r\n\tfolded\r\n");
+        assert_eq!(ok.len(), 2, "normal headers still parse");
+        assert!(ok[1].1.contains("folded"), "continuation still folds onto the previous value");
     }
 
     #[test]
