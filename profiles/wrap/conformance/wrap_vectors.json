@@ -491,7 +491,7 @@
       "object": "prog_started"
     },
     {
-      "description": "Attestation maps to an author-feed entry (FEEDS \u00a74) on the subject's feed; address = 0x1e\u2016BLAKE3-256(canonical_bytes).",
+      "description": "Attestation maps to an author-feed entry (FEEDS \u00a74) in the author's (attestor's) feed, keyed by the author IK; address = 0x1e\u2016BLAKE3-256(canonical_bytes).",
       "expect": {
         "address_hex": "1ed784f7484082e18f705b45f112ee9d0e16d9f02ba1f94a9e272507abf3b8bb0d",
         "field": "subject",

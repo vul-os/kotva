@@ -341,7 +341,7 @@ vectors += [
      "expect": {"primitive": "or-set-add", "ns": ns_of(WO1_ID),
                 "target": "progress", "field": None, "address_hex": prog_started["id_hex"]}},
     {"id": "map-attestation", "group": "map", "object": "att1",
-     "description": "Attestation maps to an author-feed entry (FEEDS §4) on the subject's feed; address = 0x1e‖BLAKE3-256(canonical_bytes).",
+     "description": "Attestation maps to an author-feed entry (FEEDS §4) in the author's (attestor's) feed, keyed by the author IK; address = 0x1e‖BLAKE3-256(canonical_bytes).",
      "expect": {"primitive": "author-feed-entry", "ns": None,
                 "target": "feed", "field": "subject", "subject_hex": pub("performer"),
                 "address_hex": ATT1_ID}},
