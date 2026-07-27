@@ -218,6 +218,16 @@ fn parse_structure_depth(headers: &[(String, String)], body: &[u8], depth: usize
 
 /// Split a multipart body into its part segments on `--boundary` delimiters (RFC 2046 §5.1).
 fn split_multipart<'a>(body: &'a [u8], boundary: &str) -> Vec<&'a [u8]> {
+    // RFC 2046 §5.1.1 bounds a boundary to 1..=70 characters. Enforce it: the delimiter compare below
+    // is `&text[i..i+m] == bytes` at every offset, so an UNBOUNDED boundary length m against an
+    // adversarial body (e.g. all-`-` bytes, which match the delimiter prefix at every position) is
+    // O(n·m) ≈ O(n²) — a CPU-stall DoS from one crafted DELIVERED MOTE, borne by the victim node when
+    // its own client FETCHes BODYSTRUCTURE / a body section (render_rfc5322 copies the attacker's
+    // Content-Type boundary and body verbatim). A malformed over-length boundary yields no valid
+    // parts, so returning empty (opaque body) both matches the RFC and caps m to a constant → O(n).
+    if boundary.is_empty() || boundary.len() > 70 {
+        return Vec::new();
+    }
     let delim = format!("--{boundary}");
     let text = body;
     let bytes = delim.as_bytes();
@@ -959,6 +969,29 @@ mod tests {
         assert_eq!(ok.len(), 1);
         assert_eq!(ok[0].mailbox.as_deref(), Some("real"));
         assert_eq!(ok[0].host.as_deref(), Some("host.example"));
+    }
+
+    #[test]
+    fn oversized_multipart_boundary_yields_no_parts_not_quadratic() {
+        // Security regression: an over-length boundary (RFC 2046 caps at 70) against an all-dashes
+        // body would make split_multipart's naive `&text[i..i+m] == delim` scan O(n·m) ≈ O(n²) — a
+        // CPU-stall DoS from one crafted delivered MOTE. The boundary length is capped, so an
+        // over-length boundary yields no sub-parts and the O(n·m) scan never runs.
+        let boundary = "-".repeat(500); // far over the RFC 70-char limit
+        let body = "-".repeat(50_000); // all dashes: matches the delimiter prefix at every offset
+        let raw = format!("Content-Type: multipart/mixed; boundary=\"{boundary}\"\r\n\r\n{body}");
+        let p = ParsedMessage::parse(raw.as_bytes());
+        if let BodyPart::Multipart { parts, .. } = &p.structure {
+            assert!(parts.is_empty(), "an over-length boundary must produce no parts");
+        }
+        // A normal (in-range) multipart still splits correctly.
+        let ok = ParsedMessage::parse(
+            b"Content-Type: multipart/mixed; boundary=B\r\n\r\n--B\r\nContent-Type: text/plain\r\n\r\nhi\r\n--B--\r\n",
+        );
+        match ok.structure {
+            BodyPart::Multipart { parts, .. } => assert_eq!(parts.len(), 1, "normal multipart still splits"),
+            _ => panic!("expected multipart"),
+        }
     }
 
     #[test]
