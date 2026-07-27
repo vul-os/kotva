@@ -188,7 +188,7 @@ fn dispatch<S: MailStore>(
     match name {
         // Core/echo (RFC 8620 §4): the request arguments are returned verbatim.
         "Core/echo" => Ok(("Core/echo".into(), args.clone())),
-        "Mailbox/get" => Ok(("Mailbox/get".into(), mailbox_get(store, account, args))),
+        "Mailbox/get" => mailbox_get(store, account, args).map(|v| ("Mailbox/get".into(), v)),
         "Mailbox/query" => Ok(("Mailbox/query".into(), mailbox_query(store, account))),
         "Mailbox/changes" => Ok(("Mailbox/changes".into(), changes(store, account, JmapObj::Mailbox, args))),
         "Mailbox/set" => mailbox_set(store, account, args).map(|v| ("Mailbox/set".into(), v)),
@@ -308,12 +308,25 @@ fn eval_pointer(value: &Value, path: &str) -> Option<Value> {
 
 // --- Mailbox --------------------------------------------------------------------------------
 
-fn mailbox_get<S: MailStore>(store: &S, account: &str, args: &Value) -> Value {
-    let ids_filter = args.get("ids").and_then(|v| v.as_array());
+fn mailbox_get<S: MailStore>(store: &S, account: &str, args: &Value) -> Result<Value, Value> {
+    // Enforce maxObjectsInGet like Email/Thread/SearchSnippet get: an unbounded `ids` array otherwise
+    // drives an O(mailboxes × ids) scan (`filter.iter().any(...)` per mailbox), request-size-amplified
+    // and with no cap on the mailbox count either (CREATE has no per-account limit). Reject an
+    // oversized id list, and index the filter into a set so the scan is O(mailboxes + ids), not the
+    // product.
+    let id_set: Option<std::collections::HashSet<&str>> = match args.get("ids").and_then(|v| v.as_array()) {
+        Some(f) => {
+            if f.len() > MAX_OBJECTS_IN_GET {
+                return Err(json!({ "type": "requestTooLarge", "description": "more than maxObjectsInGet ids requested" }));
+            }
+            Some(f.iter().filter_map(|v| v.as_str()).collect())
+        }
+        None => None,
+    };
     let mut list = Vec::new();
     for name in store.mailbox_names() {
-        if let Some(filter) = ids_filter {
-            if !filter.iter().any(|v| v.as_str() == Some(name.as_str())) {
+        if let Some(set) = &id_set {
+            if !set.contains(name.as_str()) {
                 continue;
             }
         }
@@ -341,12 +354,12 @@ fn mailbox_get<S: MailStore>(store: &S, account: &str, args: &Value) -> Value {
             "isSubscribed": mb.subscribed
         }));
     }
-    json!({
+    Ok(json!({
         "accountId": account,
         "state": state_string(store),
         "list": list,
         "notFound": []
-    })
+    }))
 }
 
 fn mailbox_query<S: MailStore>(store: &S, account: &str) -> Value {
@@ -1062,6 +1075,16 @@ fn highlight(text: &str, terms: &[String]) -> Value {
     if text.is_empty() {
         return Value::Null;
     }
+    // A snippet is a preview, and the subject it highlights is attacker-controlled and unbounded in
+    // size (a header value is not capped by MAX_HEADER_LINES). find_ci below builds a per-char tagged
+    // Vec (~24 B/char), so a multi-MiB subject would drive a ~24× transient allocation per
+    // SearchSnippet/get. Cap the highlighted text to a display-reasonable prefix (char-boundary safe);
+    // no real subject/preview approaches this (preview itself is already 200 chars).
+    const MAX_HIGHLIGHT_CHARS: usize = 10_000;
+    let text: &str = match text.char_indices().nth(MAX_HIGHLIGHT_CHARS) {
+        Some((byte_idx, _)) => &text[..byte_idx],
+        None => text,
+    };
     let mut result = text.to_string();
     for term in terms {
         if term.is_empty() {
@@ -1735,5 +1758,41 @@ mod tests {
         // A single get of the same message (~6 MB < 50 MB) still succeeds.
         let ok = call(&mut s, "Email/get", json!({ "accountId": "acct1", "ids": ["INBOX|1"] }));
         assert_eq!(ok["list"][0]["id"], json!("INBOX|1"), "single get still works: {ok}");
+    }
+
+    #[test]
+    fn mailbox_get_enforces_max_objects_in_get() {
+        // Security regression: mailbox_get had no maxObjectsInGet cap and scanned every mailbox against
+        // the full ids array (O(mailboxes × ids)) — request-size-amplified. It now rejects an oversized
+        // id list like the sibling get handlers and uses set membership.
+        let mut s = store_with_mail();
+        let ids: Vec<Value> = (0..(MAX_OBJECTS_IN_GET + 1))
+            .map(|i| Value::String(format!("z{i}")))
+            .collect();
+        let r = call(&mut s, "Mailbox/get", json!({ "accountId": "acct1", "ids": ids }));
+        assert_eq!(r["type"], json!("requestTooLarge"), "oversized Mailbox/get ids must fail closed: {r}");
+        // A normal request (filter by real id) still returns that mailbox.
+        let ok = call(&mut s, "Mailbox/get", json!({ "accountId": "acct1", "ids": ["INBOX"] }));
+        assert_eq!(ok["list"][0]["id"], json!("INBOX"), "normal Mailbox/get works: {ok}");
+    }
+
+    #[test]
+    fn search_snippet_highlight_is_length_bounded() {
+        // Security regression: search_snippet_get highlighted the FULL decoded subject, and
+        // find_ci builds a per-char tagged Vec (~24 B/char) — a multi-MiB Subject drove a proportional
+        // transient allocation per request. highlight() now caps the text it processes.
+        let mut s = MemoryStore::empty();
+        let mut raw = b"From: a@b\r\nSubject: ".to_vec();
+        raw.extend(std::iter::repeat(b'x').take(4 * 1024 * 1024)); // ~4 MiB Subject header
+        raw.extend_from_slice(b"\r\n\r\nbody");
+        s.deliver_raw("INBOX", raw, vec![], 1_752_000_000_000);
+        let r = call(
+            &mut s,
+            "SearchSnippet/get",
+            json!({ "accountId": "acct1", "filter": { "subject": "x" }, "emailIds": ["INBOX|1"] }),
+        );
+        // Must complete and return a bounded snippet (the highlighted subject is capped, not ~4 MiB).
+        let subj = r["list"][0]["subject"].as_str().unwrap_or("");
+        assert!(subj.len() < 100_000, "highlighted subject must be length-bounded, got {}", subj.len());
     }
 }
