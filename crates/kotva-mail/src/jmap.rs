@@ -199,7 +199,7 @@ fn dispatch<S: MailStore>(
         "Email/set" => email_set(store, account, args).map(|v| ("Email/set".into(), v)),
         "Thread/get" => thread_get(store, account, args).map(|v| ("Thread/get".into(), v)),
         "Thread/changes" => Ok(("Thread/changes".into(), changes(store, account, JmapObj::Thread, args))),
-        "SearchSnippet/get" => Ok(("SearchSnippet/get".into(), search_snippet_get(store, account, args))),
+        "SearchSnippet/get" => search_snippet_get(store, account, args).map(|v| ("SearchSnippet/get".into(), v)),
         "Identity/get" => Ok(("Identity/get".into(), identity_get(account, args))),
         "Identity/changes" => Ok(("Identity/changes".into(), identity_changes(account, args))),
         "Identity/set" => Ok(("Identity/set".into(), identity_set(account, args))),
@@ -949,7 +949,7 @@ fn email_query_changes<S: MailStore>(store: &S, account: &str, args: &Value) -> 
 
 /// `SearchSnippet/get`: return subject/preview snippets for the given emails, highlighting the
 /// filter's text terms with `<mark>…</mark>` (a reference highlighter over the plaintext body).
-fn search_snippet_get<S: MailStore>(store: &S, account: &str, args: &Value) -> Value {
+fn search_snippet_get<S: MailStore>(store: &S, account: &str, args: &Value) -> Result<Value, Value> {
     let terms: Vec<String> = args
         .get("filter")
         .and_then(collect_filter_terms)
@@ -959,23 +959,29 @@ fn search_snippet_get<S: MailStore>(store: &S, account: &str, args: &Value) -> V
         .and_then(|v| v.as_array())
         .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
         .unwrap_or_default();
+    // RFC 8620 §5.1 (same cap as the sibling /get handlers): a snippet request is per-email work, so
+    // bound the id count BEFORE the parse loop — a duplicate-packed emailIds list would otherwise
+    // force one uncached MIME parse + body decode per id, an amplification DoS.
+    if ids.len() > MAX_OBJECTS_IN_GET {
+        return Err(json!({ "type": "requestTooLarge", "description": "more than maxObjectsInGet emailIds requested" }));
+    }
     let mut list = Vec::new();
     for id in ids {
         let msg = parse_email_id(&id).and_then(|(mb, uid)| store.mailbox(&mb).and_then(|m| m.by_uid(uid)));
         let (subject, preview) = match msg {
             Some(m) => {
-                let p = ParsedMessage::parse(&m.raw);
+                let p = m.parsed_cached();
                 (
                     // Snippets highlight what the user sees — the decoded subject, not raw 2047.
                     highlight(&crate::mime::decode_encoded_words(p.header("Subject").unwrap_or("")), &terms),
-                    highlight(&preview(&p), &terms),
+                    highlight(&preview(p), &terms),
                 )
             }
             None => (Value::Null, Value::Null),
         };
         list.push(json!({ "emailId": id, "subject": subject, "preview": preview }));
     }
-    json!({ "accountId": account, "list": list, "notFound": [] })
+    Ok(json!({ "accountId": account, "list": list, "notFound": [] }))
 }
 
 /// Collect the text terms from a JMAP Email filter (`text`/`subject`/`body`/`from`/`to`).
@@ -1234,6 +1240,14 @@ mod tests {
             assert_eq!(resp.method_responses[0].0, "error", "{method} over-limit must be an error");
             assert_eq!(resp.method_responses[0].1["type"], json!("requestTooLarge"), "{method}");
         }
+        // SearchSnippet/get shares the cap but keys on `emailIds`.
+        let snip = Request {
+            using: vec![CAP_MAIL.into()],
+            method_calls: vec![("SearchSnippet/get".into(), json!({ "emailIds": over }), "c1".into())],
+        };
+        let sr = process(&mut store, "acct1", &snip);
+        assert_eq!(sr.method_responses[0].0, "error", "SearchSnippet/get over-limit must be an error");
+        assert_eq!(sr.method_responses[0].1["type"], json!("requestTooLarge"));
         // An at-limit Email/get is processed normally (not an error).
         let at: Vec<Value> = (0..MAX_OBJECTS_IN_GET).map(|i| json!(format!("x_{i}"))).collect();
         let req = Request {
