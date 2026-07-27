@@ -1133,7 +1133,7 @@ fn merkle_tree_head(leaves: &[[u8; 32]]) -> [u8; 32] {
 /// numeric thresholds are v0 parameters.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileTier {
-    /// ≤ 64 KiB — inlined in `Attachment.inline`, rides the message (§2.5).
+    /// ≤ 48 KiB — inlined in `Attachment.inline`, rides the message (§2.5).
     Inline,
     /// > inline, ≤ 4 MiB — manifest in MOTE, chunks via the mixnet (full privacy).
     Normal,
@@ -1143,7 +1143,7 @@ pub enum FileTier {
 
 /// Classify a file by size into its handling tier (spec §16.4 v0 thresholds).
 pub fn file_tier(size: u64) -> FileTier {
-    const INLINE_MAX: u64 = 64 * 1024;
+    const INLINE_MAX: u64 = 48 * 1024;
     const NORMAL_MAX: u64 = 4 * 1024 * 1024;
     if size <= INLINE_MAX {
         FileTier::Inline
@@ -1156,12 +1156,14 @@ pub fn file_tier(size: u64) -> FileTier {
 
 // --- Delivery tiers & durability contract (§5.5.1, §5.5.2, §16.4) ---------------------------
 
-/// Inline **delivery**-tier cap (§5.5.1, §16.4): ≤ 64 KiB rides *inside* the sealed MOTE
-/// (`Attachment.inline`, durable-by-delivery). Deliberately the top Sphinx bucket rung (§16.3) —
-/// a larger inline cap would push the MOTE above the top bucket and off the `private` mixnet.
-pub const INLINE_TIER_MAX: u64 = 64 * 1024;
+/// Inline **delivery**-tier cap (§5.5.1, §16.4): ≤ 48 KiB of content rides *inside* the sealed
+/// MOTE (`Attachment.inline`, durable-by-delivery). The *padded* MOTE then occupies the 64 KiB top
+/// Sphinx bucket rung (§16.3): 65 536 − ~11 967 B PQ envelope leaves ~48 KiB for content. A larger
+/// inline cap would push the padded MOTE above the top bucket and off the opt-in `private` mixnet
+/// (do NOT conflate the 48 KiB **content** cap with the 64 KiB **bucket** rung — §16.4, CHANGELOG).
+pub const INLINE_TIER_MAX: u64 = 48 * 1024;
 
-/// Attached **delivery**-tier cap (§5.5.1, §16.4): > 64 KiB and ≤ 25 MiB is content-addressed +
+/// Attached **delivery**-tier cap (§5.5.1, §16.4): > 48 KiB and ≤ 25 MiB is content-addressed +
 /// chunked and **pushed with the message** into the recipient's store (a durable recipient copy
 /// that survives the sender dropping). Above this the file is Referenced (pull-on-demand).
 pub const ATTACHED_TIER_MAX: u64 = 25 * 1024 * 1024;
@@ -1173,9 +1175,9 @@ pub const ATTACHED_TIER_MAX: u64 = 25 * 1024 * 1024;
 /// push-vs-pull governs durability, mixnet-vs-bulk governs metadata privacy (§5.5.1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeliveryTier {
-    /// ≤ 64 KiB — bytes ride inside the sealed MOTE (`Attachment.inline`); durable-by-delivery.
+    /// ≤ 48 KiB — bytes ride inside the sealed MOTE (`Attachment.inline`); durable-by-delivery.
     Inline,
-    /// > 64 KiB, ≤ 25 MiB — chunks pushed with the message into the recipient's store; a durable
+    /// > 48 KiB, ≤ 25 MiB — chunks pushed with the message into the recipient's store; a durable
     /// recipient copy. MAY carry a `durability` descriptor but is durable by construction.
     Attached,
     /// > 25 MiB — `ManifestRef` + key travel in the MOTE; chunks pulled on demand from a holder.
@@ -2741,11 +2743,19 @@ mod tests {
 
     #[test]
     fn delivery_tier_boundaries() {
-        // Inline: ≤ 64 KiB (each side of the boundary).
+        // Conformance: the v0 inline cap is fixed at 48 KiB of content across §2.5, §5.5.1, §16.4,
+        // §18.3.7, §19 (the 64 KiB is the padded-MOTE *top bucket rung*, not the content cap). A
+        // regression to 64 KiB would let a 60 KiB file ride inline, pushing the padded MOTE above
+        // the top Sphinx bucket and off the opt-in `private` mixnet (§16.4, CHANGELOG 64→48).
+        assert_eq!(INLINE_TIER_MAX, 48 * 1024, "spec fixes the inline content cap at 48 KiB");
+        // Inline: ≤ 48 KiB (each side of the boundary).
         assert_eq!(DeliveryTier::classify(0), DeliveryTier::Inline);
-        assert_eq!(DeliveryTier::classify(INLINE_TIER_MAX), DeliveryTier::Inline); // 64 KiB exact
+        assert_eq!(DeliveryTier::classify(INLINE_TIER_MAX), DeliveryTier::Inline); // 48 KiB exact
         assert_eq!(DeliveryTier::classify(INLINE_TIER_MAX + 1), DeliveryTier::Attached);
-        // Attached: > 64 KiB, ≤ 25 MiB (each side of the boundary).
+        // A 60 KiB file (> 48 KiB) is Attached, never Inline — the exact §5.5.1/§16.4 invariant.
+        assert_eq!(DeliveryTier::classify(60 * 1024), DeliveryTier::Attached);
+        assert_eq!(file_tier(60 * 1024), FileTier::Normal); // and its §16.4 privacy sub-tier
+        // Attached: > 48 KiB, ≤ 25 MiB (each side of the boundary).
         assert_eq!(DeliveryTier::classify(ATTACHED_TIER_MAX), DeliveryTier::Attached); // 25 MiB exact
         assert_eq!(DeliveryTier::classify(ATTACHED_TIER_MAX + 1), DeliveryTier::Referenced);
         // Referenced: > 25 MiB (any size).
