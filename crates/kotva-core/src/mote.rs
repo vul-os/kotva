@@ -1642,6 +1642,21 @@ fn prefixed_blake3(bytes: &[u8]) -> [u8; 33] {
 /// PQ half is missing/stripped/tampered is rejected here — the underlying hybrid check raises
 /// `ERR_HYBRID_SUITE_INCOMPLETE` (`0x0210`, exposed via [`crate::pq::HybridError`]), never accepted
 /// on the classical half. Suite `0x01`'s path is byte-for-byte the prior behavior.
+/// The §18.9.1/§18.9.2 suite-aware signing preimage body. Under a **composite** suite (`0x02`+) the
+/// `u8(suite)` byte is prepended to `body` INSIDE the preimage (after the DS tag, which `sign_domain`
+/// adds) — "the suite byte is INSIDE" and is "the only difference between the two preimages; omitting
+/// it under 0x02 produces a signature no conformant implementation will accept" (§18.9.1). The legacy
+/// single-component `0x01` form has no suite byte. Both the `sender_sig` (§18.9.1) and `Payload.sig`
+/// (§18.9.2) preimages use this rule; sign and verify MUST apply it identically.
+fn suite_preimage(suite: Suite, body: &[u8]) -> Vec<u8> {
+    let mut p = Vec::with_capacity(1 + body.len());
+    if suite != Suite::Classical {
+        p.push(suite.as_u8());
+    }
+    p.extend_from_slice(body);
+    p
+}
+
 fn verify_sig_for_suite(
     suite: Suite,
     pk: &[u8],
@@ -1652,7 +1667,9 @@ fn verify_sig_for_suite(
     match suite {
         Suite::Classical => verify_domain(pk, domain, msg, sig).map_err(|_| MoteError::BadSignature),
         Suite::PqHybrid => {
-            verify_hybrid_domain(pk, domain, msg, sig).map_err(|_| MoteError::BadSignature)
+            // Composite preimage: u8(suite) ‖ body (§18.9.1/§18.9.2), non-separable AND-composition.
+            let pre = suite_preimage(suite, msg);
+            verify_hybrid_domain(pk, domain, &pre, sig).map_err(|_| MoteError::BadSignature)
         }
         // `0x03` (AEAD-diverse), `0x04` (signature-diverse / anchor), and `0x05` (hash-diverse) are
         // RESERVED, unimplemented code points (§1.1, §1.2.0, §16.7, §21.15): no verifier exists for
@@ -1779,7 +1796,8 @@ pub fn build_mote_hybrid(
         expires: draft.expires,
     };
     let ph = payload_hash(&payload, draft.kind, draft.ts, &to_cbor);
-    payload.sig = sender_hybrid.sign_domain(PAYLOAD_SIG_DS, &ph);
+    // Composite Payload.sig preimage: u8(suite) ‖ payload_hash (§18.9.2 composite form).
+    payload.sig = sender_hybrid.sign_domain(PAYLOAD_SIG_DS, &suite_preimage(suite, &ph));
 
     // 2. Serialize (canonical §18 CBOR) + X-Wing-seal the payload, binding it via AAD.
     let pt = payload.det_cbor();
@@ -1805,7 +1823,8 @@ pub fn build_mote_hybrid(
         sender_eph: Some(ephemeral_hybrid.public()),
     };
     let authed = sender_authed_bytes(&env);
-    env.sender_sig = Some(ephemeral_hybrid.sign_domain(ENVELOPE_SENDER_DS, &authed));
+    // Composite sender_sig preimage: u8(suite) ‖ body (§18.9.1 composite form).
+    env.sender_sig = Some(ephemeral_hybrid.sign_domain(ENVELOPE_SENDER_DS, &suite_preimage(suite, &authed)));
     Ok(env)
 }
 
@@ -2212,6 +2231,31 @@ mod tests {
             build_mote_hybrid(&HybridSeal, &sender, &eph, &recipient_ik, seal.public(), draft)
                 .unwrap();
         (env, recipient_ik, seal)
+    }
+
+    #[test]
+    fn composite_sender_sig_binds_the_suite_byte() {
+        // §18.9.1/§18.9.2: under a composite suite the preimage is `DS ‖ 0x00 ‖ u8(suite) ‖ body` —
+        // the suite byte is INSIDE, and "omitting it under 0x02 produces a signature no conformant
+        // implementation will accept." A plain hybrid round-trip cannot catch a both-sides-omit
+        // regression (that is exactly how the bug round-tripped), so pin the exact preimage here.
+        let (env, _rk, _seal) = round_hybrid();
+        assert_eq!(env.suite, Suite::PqHybrid);
+        let eph = env.sender_eph.clone().unwrap();
+        let sig = env.sender_sig.clone().unwrap();
+        let body = sender_authed_bytes(&env);
+        // Correct composite preimage (u8(suite) ‖ body) verifies.
+        verify_hybrid_domain(&eph, ENVELOPE_SENDER_DS, &suite_preimage(env.suite, &body), &sig)
+            .expect("composite sender_sig must verify over the suite-byte-prefixed preimage");
+        // The suite-less bare body (the §18.9.1 single-component 0x01 form) MUST NOT verify — else
+        // the composite is separable and a 0x01 signature would be accepted under 0x02.
+        assert!(
+            verify_hybrid_domain(&eph, ENVELOPE_SENDER_DS, &body, &sig).is_err(),
+            "composite sender_sig must NOT verify against the suite-less preimage"
+        );
+        // The helper inserts the byte for composite suites and omits it for the legacy 0x01 form.
+        assert_eq!(suite_preimage(Suite::PqHybrid, b"x"), vec![0x02, b'x']);
+        assert_eq!(suite_preimage(Suite::Classical, b"x"), vec![b'x']);
     }
 
     #[test]
