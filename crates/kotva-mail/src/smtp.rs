@@ -84,6 +84,11 @@ pub struct SmtpSession<A: Authenticator> {
     data_oversized: bool,
     pending_auth: Option<SmtpPendingAuth>,
     submissions: Vec<Submission>,
+    /// Set only when the QUIT **command** is processed (Command phase). The transport consults
+    /// [`Self::wants_close`] instead of sniffing the raw line, so a DATA body line that happens to
+    /// be `QUIT` is buffered as content (RFC 5321 §4.1.1.10) rather than tearing down the
+    /// connection mid-message and silently dropping the mail.
+    should_close: bool,
 }
 
 enum SmtpPendingAuth {
@@ -111,7 +116,15 @@ impl<A: Authenticator> SmtpSession<A> {
             data_oversized: false,
             pending_auth: None,
             submissions: Vec::new(),
+            should_close: false,
         }
+    }
+
+    /// Whether the session has processed a QUIT **command** and the transport should close the
+    /// connection. Distinguishes a real QUIT from a `QUIT` line inside a DATA body (which is buffered
+    /// as message content, never a close).
+    pub fn wants_close(&self) -> bool {
+        self.should_close
     }
 
     /// Override the advertised/enforced SIZE limit (RFC 1870).
@@ -180,7 +193,10 @@ impl<A: Authenticator> SmtpSession<A> {
             }
             "NOOP" => "250 2.0.0 OK\r\n".into(),
             "VRFY" => "252 2.1.5 Cannot VRFY, but will accept and attempt delivery\r\n".into(),
-            "QUIT" => "221 2.0.0 Bye\r\n".into(),
+            "QUIT" => {
+                self.should_close = true;
+                "221 2.0.0 Bye\r\n".into()
+            }
             "HELP" => "214 2.0.0 Envoir DMTAP submission\r\n".into(),
             _ => "500 5.5.1 Command unrecognized\r\n".into(),
         }
@@ -731,6 +747,41 @@ mod tests {
         assert_eq!(subs.len(), 1);
         assert_eq!(subs[0].rcpt_to, vec!["bob@example.net"]);
         assert!(subs[0].data.windows(9).any(|w| w == b"Hello Bob"));
+    }
+
+    #[test]
+    fn quit_line_in_data_body_does_not_close_connection() {
+        // Correctness/availability regression: the transport used to compute
+        // `quit = line.eq_ignore_ascii_case(b"QUIT")` for EVERY line and drop the connection when
+        // true — but during DATA, feed_line_bytes buffers the line as content. A body line equal to
+        // `QUIT` therefore tore the connection down mid-message: the terminating `.` was never
+        // reached and the mail was silently lost. Close is now the session's decision (wants_close),
+        // set ONLY by the QUIT command in Command phase.
+        let mut s = authed_session();
+        s.feed_line("EHLO c");
+        let cred = base64_encode(b"\0alice@dmtap.local\0pw");
+        assert!(s.feed_line(&format!("AUTH PLAIN {cred}")).starts_with("235"));
+        assert!(s.feed_line("MAIL FROM:<alice@dmtap.local>").starts_with("250"));
+        assert!(s.feed_line("RCPT TO:<bob@example.net>").starts_with("250"));
+        assert!(s.feed_line("DATA").starts_with("354"));
+        assert!(!s.wants_close(), "not closing before any QUIT");
+        s.feed_line("Subject: Hi");
+        s.feed_line("");
+        s.feed_line("QUIT"); // a bare QUIT line INSIDE the body — must be buffered, not a close
+        assert!(!s.wants_close(), "a DATA-body QUIT line must NOT request connection close");
+        s.feed_line("still here");
+        assert!(s.feed_line(".").starts_with("250"), "message completes normally");
+        let subs = s.take_submissions();
+        assert_eq!(subs.len(), 1, "the message is delivered, not lost");
+        // The buffered body carries the literal QUIT line byte-exact.
+        assert!(subs[0].data.windows(4).any(|w| w == b"QUIT"), "QUIT line kept as content");
+        assert!(subs[0].data.windows(10).any(|w| w == b"still here"));
+
+        // A real QUIT *command* (Command phase) does request close.
+        let mut s2 = authed_session();
+        s2.feed_line("EHLO c");
+        assert!(s2.feed_line("QUIT").starts_with("221"));
+        assert!(s2.wants_close(), "the QUIT command requests close");
     }
 
     #[test]

@@ -253,13 +253,16 @@ where
                     break; // fail closed: drop the connection
                 }
                 strip_crlf(&mut line);
-                let quit = line.eq_ignore_ascii_case(b"QUIT");
+                // Close on QUIT is the SESSION's decision, not a raw-line sniff: while phase == Data,
+                // feed_line_bytes buffers the line as message content, so a body line equal to `QUIT`
+                // must NOT tear the connection down mid-DATA (which would silently drop the mail).
+                // wants_close() is set only when the QUIT *command* is processed (Command phase).
                 let resp = session.feed_line_bytes(&line);
                 if !resp.is_empty() && writer.write_all(resp.as_bytes()).is_err() {
                     break;
                 }
                 let _ = writer.flush();
-                if quit {
+                if session.wants_close() {
                     break;
                 }
             }
