@@ -86,7 +86,7 @@ is the carrier's claim and the multiplier is the protocol's.
 
 | Parameter | Value | Class | Expires into | Note |
 |---|---:|---|---|---|
-| `FUND_TIMEOUT` | 24 h | Fixed | order `cancelled` | An unfunded escrow holds nothing, so expiry costs nobody anything. |
+| `FUND_TIMEOUT` | 24 h | Fixed | order `cancelled` | Bounds the *unfunded* wait: an unfunded escrow holds nothing, so this expiry costs nobody anything. A *funded* escrow whose order later cancels before dispatch is refunded via the `funded → refunded` edge (§18.5), not by this timeout. |
 | `DISPUTE_TIMEOUT` | operator-declared *(PROVISIONAL slot)* | Declared | operator ruling | **Custodial rail only.** A non-custodial rail has no ruling available, and §18.5 requires the resulting behaviour — default-to-one-party, or indefinite lock — to be **disclosed before the trade** rather than discovered at dispute time (§21.5, §21.11). |
 
 `FUND_TIMEOUT` is Fixed. `DISPUTE_TIMEOUT` is Declared by the operator, and TRACT sets no default:

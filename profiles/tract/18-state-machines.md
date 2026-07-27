@@ -239,6 +239,7 @@ its timeouts are §19.4 parameters.
 |---|---|---|---|---|
 | — | `funded` | buyer pays | operator attests | `FUND_TIMEOUT` → order `cancelled` (§18.3) |
 | `funded` | `held` | seller dispatches | operator attests | — |
+| `funded` | `refunded` | order reaches `cancelled` (8) before dispatch (§18.3 `accepted → cancelled`, or `FULFIL_TIMEOUT`) | operator | — |
 | `held` | `released` | buyer confirms, or order reaches `closed` (7) | operator | `CONFIRM_TIMEOUT` (§18.3) → `released` |
 | `held` | `refunded` | order reaches `cancelled` (8), or ruling | operator | — |
 | `held` | `split` | ruling | operator | — |
@@ -248,9 +249,12 @@ Normative rules for the machine:
 
 - The escrow lifecycle is **fund → hold → release / refund / split** (§9.4.3). It advances in
   lock-step with the order machine (§18.3): an order reaching `closed` (7) releases a `held` escrow,
-  and an order reaching `cancelled` (8) refunds it. An implementation MUST NOT release a `held`
-  escrow while its order is still open and undisputed, and MUST NOT leave an escrow `held` after its
-  order has reached `closed` (7) or `cancelled` (8).
+  and an order reaching `cancelled` (8) refunds the escrow **whether it is `funded` or `held`** — a
+  buyer who has paid in but whose order cancels before the seller dispatches (an early
+  `accepted → cancelled`, or a `FULFIL_TIMEOUT`) is refunded from `funded`, so paid-in funds are
+  never stranded. An implementation MUST NOT release a `held` escrow while its order is still open
+  and undisputed, and MUST NOT leave an escrow in `funded` **or** `held` after its order has reached
+  `closed` (7) or `cancelled` (8).
 - The `RailClass` (§9.3, §16.5.4 key 6) elected for the trade MUST be honoured by this machine and
   MUST NOT be substituted mid-trade without a fresh recorded agreement (§9.3,
   `ERR_TRACT_RAIL_CLASS_SUBSTITUTED`).

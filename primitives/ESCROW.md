@@ -120,8 +120,10 @@ kind / key numbers are a profile-and-registry concern, deliberately not fixed he
 - **N-4 — Every transition is signed and lock-stepped.** Each `EscrowState` transition MUST be a
   signed `EscrowTransition` whose signer is determinate (TRACT §18.6). It MUST advance in lock-step
   with the order machine: reaching order `closed` releases a `held` escrow, reaching order
-  `cancelled` refunds it; an implementation MUST NOT release a `held` escrow while its order is open
-  and undisputed, nor leave one `held` after the order closed or cancelled (TRACT §18.5).
+  `cancelled` refunds the escrow whether it is `funded` or `held` (a cancel before the seller
+  dispatches refunds from `funded`, so paid-in funds are never stranded); an implementation MUST NOT
+  release a `held` escrow while its order is open and undisputed, nor leave one in `funded` or `held`
+  after the order closed or cancelled (TRACT §18.5).
 - **N-5 — Expiry has a named destination.** `ReleaseCondition.deadline` MUST expire *into* a named
   state (release / refund / a ruling), never "expire" alone (TRACT §18.1, §18.6). On a custodial
   rail a dispute deadline expires into the operator's ruling; on an arbiter-cosigned non-custodial
