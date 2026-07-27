@@ -184,9 +184,22 @@ const MAX_MIME_DEPTH: usize = 100;
 /// parts are simply not enumerated (faithful for any real message — none carries thousands of parts).
 const MAX_MIME_PARTS: usize = 10_000;
 
+/// Maximum total **byte-comparisons** split_multipart may spend across a whole parse. The delimiter
+/// compare short-circuits at the first mismatch, so real content costs ~1 comparison per offset; an
+/// adversarial near-miss body (bytes matching the first m-1 delimiter chars at every offset — e.g.
+/// an all-`-` leaf against a boundary of 68 `-` + a digit) costs ~m per offset, AND every one of the
+/// up-to-MAX_MIME_DEPTH nesting levels re-scans the same inner bytes, so the naive total is
+/// O(depth · m · n) — a CPU-stall from one crafted message even with the depth/part/boundary caps in
+/// place (none of them bounds scan WORK). Charging this shared budget per byte compared and stopping
+/// when it is exhausted bounds whole-parse scan CPU to a constant. A legitimate message mismatches
+/// early (≈ n comparisons/level, a few levels) and never approaches it; a hostile near-miss hits it in
+/// the first level and the rest is treated as opaque. ~0.5 s of comparison work at ~1e9 cmp/s.
+const MAX_MIME_SCAN: usize = 512 * 1024 * 1024;
+
 fn parse_structure(headers: &[(String, String)], body: &[u8]) -> BodyPart {
     let mut budget = MAX_MIME_PARTS;
-    parse_structure_depth(headers, body, 0, &mut budget)
+    let mut scan = MAX_MIME_SCAN;
+    parse_structure_depth(headers, body, 0, &mut budget, &mut scan)
 }
 
 fn parse_structure_depth(
@@ -194,6 +207,7 @@ fn parse_structure_depth(
     body: &[u8],
     depth: usize,
     budget: &mut usize,
+    scan: &mut usize,
 ) -> BodyPart {
     let (mt, st, params) = content_type(headers);
     let encoding = header_val(headers, "Content-Transfer-Encoding")
@@ -210,13 +224,13 @@ fn parse_structure_depth(
                 // Cap TOTAL parts across the whole tree (shared &mut budget), not per-level: nested
                 // multiparts would otherwise multiply. Once exhausted, stop enumerating siblings.
                 let mut parts = Vec::new();
-                for seg in split_multipart(body, &b) {
+                for seg in split_multipart(body, &b, scan) {
                     if *budget == 0 {
                         break;
                     }
                     *budget -= 1;
                     let (h, bd) = split_headers(seg);
-                    parts.push(parse_structure_depth(&h, bd, depth + 1, budget));
+                    parts.push(parse_structure_depth(&h, bd, depth + 1, budget, scan));
                 }
                 parts
             }
@@ -239,15 +253,16 @@ fn parse_structure_depth(
     }
 }
 
-/// Split a multipart body into its part segments on `--boundary` delimiters (RFC 2046 §5.1).
-fn split_multipart<'a>(body: &'a [u8], boundary: &str) -> Vec<&'a [u8]> {
+/// Split a multipart body into its part segments on `--boundary` delimiters (RFC 2046 §5.1). `scan`
+/// is a shared byte-comparison budget (see [`MAX_MIME_SCAN`]) charged per byte compared and stopping
+/// the scan when exhausted, so a near-miss body — or the same body re-scanned once per nesting level —
+/// cannot amplify into O(depth · m · n) CPU.
+fn split_multipart<'a>(body: &'a [u8], boundary: &str, scan: &mut usize) -> Vec<&'a [u8]> {
     // RFC 2046 §5.1.1 bounds a boundary to 1..=70 characters. Enforce it: the delimiter compare below
-    // is `&text[i..i+m] == bytes` at every offset, so an UNBOUNDED boundary length m against an
-    // adversarial body (e.g. all-`-` bytes, which match the delimiter prefix at every position) is
-    // O(n·m) ≈ O(n²) — a CPU-stall DoS from one crafted DELIVERED MOTE, borne by the victim node when
-    // its own client FETCHes BODYSTRUCTURE / a body section (render_rfc5322 copies the attacker's
-    // Content-Type boundary and body verbatim). A malformed over-length boundary yields no valid
-    // parts, so returning empty (opaque body) both matches the RFC and caps m to a constant → O(n).
+    // runs at every offset, so an UNBOUNDED boundary length m against an adversarial body (e.g. all-`-`
+    // bytes, which match the delimiter prefix at every position) is O(n·m) per level — and re-scanned
+    // per nesting level. A malformed over-length boundary yields no valid parts, so returning empty
+    // (opaque body) both matches the RFC and caps m to a constant.
     if boundary.is_empty() || boundary.len() > 70 {
         return Vec::new();
     }
@@ -257,8 +272,23 @@ fn split_multipart<'a>(body: &'a [u8], boundary: &str) -> Vec<&'a [u8]> {
     let mut segments = Vec::new();
     let mut positions = Vec::new();
     let mut i = 0;
-    while i + bytes.len() <= text.len() {
-        if &text[i..i + bytes.len()] == bytes {
+    'scan: while i + bytes.len() <= text.len() {
+        // Manual compare so each byte examined is charged to the shared scan budget (a slice `==`
+        // hides the count). Short-circuits at the first mismatch exactly like `==`; exhausting the
+        // budget mid-scan stops here (the rest of this body — and any deeper level — is left opaque),
+        // bounding whole-parse scan CPU regardless of near-miss length or nesting depth.
+        let mut k = 0;
+        while k < bytes.len() {
+            if *scan == 0 {
+                break 'scan;
+            }
+            *scan -= 1;
+            if text[i + k] != bytes[k] {
+                break;
+            }
+            k += 1;
+        }
+        if k == bytes.len() {
             positions.push(i);
             i += bytes.len();
             // Cap segment BREADTH at the shared primitive, not just in parse_structure_depth: one
@@ -296,7 +326,11 @@ pub fn part_segments(raw: &[u8]) -> Vec<Vec<u8>> {
         return Vec::new();
     }
     match params.iter().find(|(k, _)| k == "boundary").map(|(_, v)| v.clone()) {
-        Some(b) => split_multipart(body, &b).into_iter().map(|s| s.to_vec()).collect(),
+        // A fresh scan budget per FETCH bounds this single (un-memoized) request's split cost.
+        Some(b) => {
+            let mut scan = MAX_MIME_SCAN;
+            split_multipart(body, &b, &mut scan).into_iter().map(|s| s.to_vec()).collect()
+        }
         None => Vec::new(),
     }
 }
@@ -1094,6 +1128,53 @@ mod tests {
         let s = String::from_utf8_lossy(&strip_trust_boundary_headers(raw)).to_ascii_lowercase();
         assert!(!s.contains("dkim=pass"), "post-strip UTF-8-flip smuggle survived: {s}");
         assert!(s.contains("x-keep: 1"), "an unrelated header must still carry through");
+    }
+
+    #[test]
+    fn nested_multipart_scan_is_bounded_not_depth_amplified() {
+        // Security regression: split_multipart is O(m·n) per level and parse re-scans each level's
+        // full body, so a deep nest around a large near-miss leaf is O(depth·m·n) — unbounded by the
+        // depth, part, or boundary caps. The shared MAX_MIME_SCAN byte-comparison budget now bounds
+        // whole-parse scan CPU: once it is exhausted, deeper levels are left opaque. Assert that
+        // DETERMINISTICALLY — the budget truncates the nesting well below the constructed depth
+        // (machine-independent), with a generous wall-clock guard against a hang.
+        use std::time::Instant;
+        const DEPTH: usize = 60;
+        // 1 MiB all-`-` leaf: matches the first 70 chars of every 68-`-`+digit boundary (a near-miss),
+        // so each of the ~60 re-scans costs ~71 comparisons per byte — ~4e9 total before the cap.
+        let leaf = vec![b'-'; 1024 * 1024];
+        let mut inner = b"Content-Type: text/plain\r\n\r\n".to_vec();
+        inner.extend_from_slice(&leaf);
+        for d in 0..DEPTH {
+            let boundary = format!("{}{}", "-".repeat(68), d % 10); // 69-char near-miss boundary (≤70)
+            let mut wrapped =
+                format!("Content-Type: multipart/mixed; boundary=\"{boundary}\"\r\n\r\n").into_bytes();
+            wrapped.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
+            wrapped.extend_from_slice(&inner);
+            wrapped.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
+            inner = wrapped;
+        }
+
+        fn multipart_depth(bp: &BodyPart) -> usize {
+            match bp {
+                BodyPart::Multipart { parts, .. } => {
+                    1 + parts.iter().map(multipart_depth).max().unwrap_or(0)
+                }
+                _ => 0,
+            }
+        }
+
+        let start = Instant::now();
+        let p = ParsedMessage::parse(&inner);
+        let elapsed = start.elapsed();
+        // The scan budget runs out after a handful of full-leaf re-scans, so the deeper levels never
+        // get parsed as multipart — the observed nesting is far below the constructed DEPTH.
+        let parsed_depth = multipart_depth(&p.structure);
+        assert!(
+            parsed_depth < DEPTH,
+            "scan budget must truncate the nest below the constructed depth ({parsed_depth} vs {DEPTH})"
+        );
+        assert!(elapsed.as_secs() < 10, "nested-multipart parse must not hang, took {elapsed:?}");
     }
 
     #[test]
