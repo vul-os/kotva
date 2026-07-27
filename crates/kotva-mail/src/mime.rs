@@ -160,6 +160,13 @@ fn content_type(headers: &[(String, String)]) -> (String, String, Vec<(String, S
     parse_content_type(ct)
 }
 
+/// Maximum Content-Type parameters materialized from one header value. A single Content-Type value
+/// is one header line, bounded only by the ~64 MiB message size (NOT by `MAX_HEADER_LINES`, which
+/// caps the entry COUNT), so a `text/plain; a=b;a=b;…` value would otherwise push millions of heap
+/// `(String, String)` param tuples — stored in `BodyPart` (memoized) AND rebuilt uncached per FETCH
+/// via `part_segments`→`content_type`. Real messages carry a handful; beyond the cap params are dropped.
+const MAX_MIME_PARAMS: usize = 1_000;
+
 /// Parse a Content-Type value like `multipart/mixed; boundary="x"; charset=utf-8`.
 pub fn parse_content_type(v: &str) -> (String, String, Vec<(String, String)>) {
     let mut parts = v.split(';');
@@ -170,6 +177,10 @@ pub fn parse_content_type(v: &str) -> (String, String, Vec<(String, String)>) {
         if let Some((k, val)) = p.split_once('=') {
             let val = val.trim().trim_matches('"').to_string();
             params.push((k.trim().to_ascii_lowercase(), val));
+            // Cap the parameter count — see MAX_MIME_PARAMS. No real Content-Type reaches this.
+            if params.len() >= MAX_MIME_PARAMS {
+                break;
+            }
         }
     }
     (mt.trim().to_ascii_lowercase(), st.trim().to_ascii_lowercase(), params)
@@ -1125,6 +1136,23 @@ mod tests {
         if let BodyPart::Multipart { parts, .. } = ok.structure {
             assert_eq!(parts.len(), 1);
         }
+    }
+
+    #[test]
+    fn content_type_param_count_is_bounded() {
+        // Security regression: parse_content_type pushed one heap tuple per `;k=v` piece with no cap
+        // — a single ~64 MiB Content-Type value materialized millions of param tuples (memoized in
+        // BodyPart, and rebuilt uncached per FETCH via part_segments). Capped at MAX_MIME_PARAMS.
+        let mut v = String::from("text/plain");
+        for _ in 0..(MAX_MIME_PARAMS * 2) {
+            v.push_str(";a=b");
+        }
+        let (mt, st, params) = parse_content_type(&v);
+        assert_eq!((mt.as_str(), st.as_str()), ("text", "plain"));
+        assert!(params.len() <= MAX_MIME_PARAMS, "param count must be bounded, got {}", params.len());
+        // A normal Content-Type still parses its params.
+        let (_, _, ok) = parse_content_type("multipart/mixed; boundary=\"x\"; charset=utf-8");
+        assert_eq!(ok.len(), 2);
     }
 
     #[test]
