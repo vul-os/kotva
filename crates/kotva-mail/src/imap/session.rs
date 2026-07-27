@@ -750,16 +750,23 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
             Some(m) => m,
             None => return bad(tag, "no mailbox selected"),
         };
-        let max_uid = mb.max_uid();
-        // Collect the sequence numbers to expunge (removed descending, so seq numbers stay valid).
-        let mut to_remove: Vec<usize> = Vec::new();
-        for (i, m) in mb.messages.iter().enumerate() {
-            let deleted = m.has_flag(&Flag::Deleted);
-            let in_set = uid_set.as_ref().map(|s| s.contains(m.uid, max_uid)).unwrap_or(true);
-            if deleted && in_set {
-                to_remove.push(i);
-            }
-        }
+        // Collect the message indices to expunge (removed descending, so seq numbers stay valid).
+        // Membership goes through the hardened resolve_targets (binary-searched, MAX_RANGES-capped,
+        // O(n log n) with peak memory ≤ n), NOT a per-message SequenceSet::contains scan. A `$`
+        // reference materializes via the uncapped from_uids (one point-range per saved UID), so the
+        // old `contains`-per-message path was O(n·ranges) = O(n²) and bypassed MAX_RANGES entirely:
+        // `UID EXPUNGE $` over an all-UIDs saved set was a repeatable CPU-exhaustion DoS. Sharing
+        // resolve_targets with FETCH/STORE/COPY keeps this near-linear. resolve_targets returns
+        // ascending indices, so `to_remove` stays sorted for the descending removal below.
+        let to_remove: Vec<usize> = match uid_set.as_ref() {
+            Some(s) => resolve_targets(mb, s, true)
+                .into_iter()
+                .filter(|&i| mb.messages[i].has_flag(&Flag::Deleted))
+                .collect(),
+            None => (0..mb.messages.len())
+                .filter(|&i| mb.messages[i].has_flag(&Flag::Deleted))
+                .collect(),
+        };
         let mut out = Vec::new();
         let mut vanished: Vec<u32> = Vec::new();
         for &i in to_remove.iter().rev() {

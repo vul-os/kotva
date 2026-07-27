@@ -675,3 +675,41 @@ fn large_mailbox_targeted_fetch_is_sublinear() {
         "targeted 200× fetch ({targeted_dur:?}) should beat one full scan ({full_dur:?}) — linear scan regression?"
     );
 }
+
+#[test]
+fn uid_expunge_saved_set_is_not_quadratic() {
+    // Security regression: `UID EXPUNGE $` materialized the SEARCHRES set via the uncapped from_uids
+    // (one point-range per saved UID) and tested membership with an O(ranges) SequenceSet::contains
+    // per message → O(n²), bypassing MAX_RANGES — a repeatable CPU-exhaustion DoS. The `$` path now
+    // routes through the binary-searched, MAX_RANGES-capped resolve_targets shared with FETCH/STORE.
+    use std::time::Instant;
+    const N: usize = 10_000;
+    let mut session = logged_in_selected(N);
+
+    // Save every UID as the SEARCHRES `$` set (an N-element saved list — the worst case).
+    let saved = run(&mut session, "s1 SEARCH RETURN (SAVE) ALL\r\n");
+    assert!(saved.contains("OK"), "SEARCH RETURN (SAVE) ALL failed: {saved}");
+
+    // Baseline: one full FLAGS fetch is inherently O(n) (it emits n rows).
+    let t = Instant::now();
+    let full = run(&mut session, "b1 FETCH 1:* (FLAGS)\r\n");
+    let full_dur = t.elapsed();
+    assert_eq!(full.matches("* ").count(), N, "baseline full fetch must return all rows");
+
+    // `UID EXPUNGE $` with nothing \Deleted: touches all N messages against the N-element saved set.
+    let t = Instant::now();
+    let e = run(&mut session, "e1 UID EXPUNGE $\r\n");
+    let expunge_dur = t.elapsed();
+    assert!(e.contains("OK"), "UID EXPUNGE $ failed: {e}");
+    // No message is \Deleted, so nothing is removed (correctness of the new membership path). The
+    // untagged report is `* <n> EXPUNGE\r\n`; the tagged `OK EXPUNGE completed` must not be mistaken
+    // for one, so match the untagged form specifically.
+    assert!(!e.contains(" EXPUNGE\r\n"), "no \\Deleted message → nothing expunged: {e}");
+
+    // An O(n²) scan over N=10k would be ~N× worse than one linear pass; the hardened path stays
+    // within a small factor. Generous margin so it is not flaky under CI load.
+    assert!(
+        expunge_dur < full_dur * 5,
+        "UID EXPUNGE $ ({expunge_dur:?}) should stay near-linear vs one full scan ({full_dur:?}) — O(n²) regression?"
+    );
+}
