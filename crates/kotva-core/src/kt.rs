@@ -661,6 +661,59 @@ mod tests {
     }
 
     #[test]
+    fn kt_decoders_are_panic_free_and_strictly_canonical() {
+        // §18.1: from_det_cbor must never panic on any input and reject any NON-canonical encoding. A
+        // malleable STH/proof would let a log serve byte-different bytes for the same tree state,
+        // defeating the split-view/consistency checks (§6) keyed on the exact signed STH bytes.
+        // Covers the signed SignedTreeHead, InclusionProof (non-empty audit_path), and
+        // ConsistencyProof (non-empty proof_path) so mutations reach every nested decode path.
+        let sth = SignedTreeHead::issue(&key(0x11), 7, 1_700_000_000_000, ContentId::of(b"kt-root")).det_cbor();
+        let incl = InclusionProof {
+            tree_size: 9,
+            leaf_index: 4,
+            leaf_hash: ContentId::of(b"leaf"),
+            audit_path: vec![ContentId::of(b"s0"), ContentId::of(b"s1"), ContentId::of(b"s2")],
+        }
+        .det_cbor();
+        let cons = ConsistencyProof {
+            first_size: 3,
+            second_size: 9,
+            proof_path: vec![ContentId::of(b"p0"), ContentId::of(b"p1")],
+        }
+        .det_cbor();
+
+        for valid in [&sth, &incl, &cons] {
+            let mut mutants: Vec<Vec<u8>> = Vec::new();
+            for i in 0..valid.len() {
+                for bit in [0x01u8, 0x08, 0x80, 0xff] {
+                    let mut m = valid.clone();
+                    m[i] ^= bit;
+                    mutants.push(m);
+                }
+            }
+            for n in 0..valid.len() {
+                mutants.push(valid[..n].to_vec());
+            }
+            for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8], vec![0xa1, 0x00, 0x00]] {
+                let mut m = valid.clone();
+                m.extend_from_slice(&junk);
+                mutants.push(m);
+            }
+            for m in &mutants {
+                if let Ok(o) = SignedTreeHead::from_det_cbor(m) {
+                    assert_eq!(&o.det_cbor(), m, "SignedTreeHead decoder accepted a non-canonical encoding");
+                }
+                if let Ok(o) = InclusionProof::from_det_cbor(m) {
+                    assert_eq!(&o.det_cbor(), m, "InclusionProof decoder accepted a non-canonical encoding");
+                }
+                if let Ok(o) = ConsistencyProof::from_det_cbor(m) {
+                    assert_eq!(&o.det_cbor(), m, "ConsistencyProof decoder accepted a non-canonical encoding");
+                }
+            }
+        }
+    }
+
+    #[test]
     fn identity_leaf_hash_is_prefixed_and_deterministic() {
         let ik = key(0x22).public();
         let id = ContentId::of(b"the-identity");
