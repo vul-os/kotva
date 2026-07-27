@@ -442,12 +442,15 @@ fn email_get<S: MailStore>(store: &S, account: &str, args: &Value) -> Result<Val
     };
     // RFC 8620 §5.1: bound the number of objects fetched (advertised maxObjectsInGet). Enforced
     // BEFORE the per-id parse loop, so a huge or duplicate-packed id list (or a null-ids "fetch all"
-    // over a large store) cannot drive unbounded MIME parses / response building — a CPU/memory DoS.
+    // over a large store) cannot drive unbounded MIME parses. NOTE: this bounds the object COUNT, not
+    // the response BYTES — each object embeds the full decoded body, so the cumulative-byte bound in
+    // the loop below is what stops a duplicate-packed id list from copying one large message N times.
     if want_ids.len() > MAX_OBJECTS_IN_GET {
         return Err(json!({ "type": "requestTooLarge", "description": "more than maxObjectsInGet ids requested" }));
     }
     let mut list = Vec::new();
     let mut not_found = Vec::new();
+    let mut resp_bytes = 0usize;
     for id in &want_ids {
         match parse_email_id(id).and_then(|(mb, uid)| store.mailbox(&mb).and_then(|m| m.by_uid(uid)).map(|msg| (mb, msg))) {
             Some((mailbox, msg)) => {
@@ -462,7 +465,7 @@ fn email_get<S: MailStore>(store: &S, account: &str, args: &Value) -> Result<Val
                     .filter_map(keyword_of)
                     .map(|k| (k.to_string(), Value::Bool(true)))
                     .collect();
-                list.push(json!({
+                let obj = json!({
                     "id": id,
                     "blobId": id,
                     "threadId": thread_id(&parsed, msg.uid),
@@ -481,7 +484,16 @@ fn email_get<S: MailStore>(store: &S, account: &str, args: &Value) -> Result<Val
                         "1": { "value": body_text, "isEncodingProblem": encoding_problem, "isTruncated": false }
                     },
                     "textBody": [ { "partId": "1", "type": "text/plain" } ]
-                }));
+                });
+                // Bound cumulative response BYTES during the loop, matching resolve_references. The
+                // count cap alone permits N duplicate ids each embedding the full decoded body (or N
+                // distinct large messages), materializing GBs before process()'s post-hoc byte check
+                // — an OOM. Fail closed once this call's output would exceed the response ceiling.
+                resp_bytes = resp_bytes.saturating_add(obj.to_string().len());
+                list.push(obj);
+                if resp_bytes > MAX_RESPONSE_BYTES {
+                    return Err(json!({ "type": "requestTooLarge", "description": "Email/get response exceeds the response-size limit" }));
+                }
             }
             None => not_found.push(id.clone()),
         }
@@ -1697,5 +1709,31 @@ mod tests {
         )
         .expect("a single in-budget back-reference resolves");
         assert!(ok.get("a").is_some(), "normal back-reference resolution still works");
+    }
+
+    #[test]
+    fn email_get_bounds_response_bytes_against_duplicate_ids() {
+        // Security regression: email_get capped only the id COUNT (MAX_OBJECTS_IN_GET), not response
+        // BYTES — each object embeds the full decoded body, so N duplicate ids each copy one large
+        // message, materializing GBs before process()'s post-hoc MAX_RESPONSE_BYTES check. A
+        // cumulative-byte bound in the loop now fails closed.
+        let mut s = MemoryStore::empty();
+        let mut raw = b"From: a@b\r\nSubject: big\r\n\r\n".to_vec();
+        raw.extend(std::iter::repeat(b'x').take(6 * 1024 * 1024)); // ~6 MB body
+        s.deliver_raw("INBOX", raw, vec![], 1_752_000_000_000);
+
+        // 30 duplicate ids → a ~180 MB would-be response (> MAX_RESPONSE_BYTES = 50 MB) → fail closed.
+        let ids: Vec<Value> =
+            std::iter::repeat(Value::String("INBOX|1".into())).take(30).collect();
+        let r = call(&mut s, "Email/get", json!({ "accountId": "acct1", "ids": ids }));
+        assert_eq!(
+            r["type"],
+            json!("requestTooLarge"),
+            "duplicate-packed large Email/get must fail closed, got: {r}"
+        );
+
+        // A single get of the same message (~6 MB < 50 MB) still succeeds.
+        let ok = call(&mut s, "Email/get", json!({ "accountId": "acct1", "ids": ["INBOX|1"] }));
+        assert_eq!(ok["list"][0]["id"], json!("INBOX|1"), "single get still works: {ok}");
     }
 }
