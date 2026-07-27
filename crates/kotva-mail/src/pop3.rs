@@ -40,8 +40,21 @@ enum SaslStep {
 
 impl<S: MailStore, A: Authenticator> Pop3Session<S, A> {
     pub fn new(store: S, auth: A, tls: bool) -> Self {
-        // The APOP banner timestamp — a unique msg-id per RFC 1939 §7.
-        let banner = "<envoir.1.1@mail.dmtap.local>".to_string();
+        // The APOP challenge (RFC 1939 §7) MUST be unique per connection. A CONSTANT banner makes
+        // md5(banner ‖ secret) a fixed value forever, so — because APOP is permitted in cleartext
+        // (the plaintext secret is never sent) — an on-path eavesdropper who observes a single
+        // `APOP <user> <digest>` line could replay that exact digest on any later session and
+        // authenticate, fully defeating the challenge-response. A per-session monotonic sequence
+        // combined with the wall-clock time makes each session's challenge, and thus its expected
+        // digest, unique — a captured digest no longer matches a fresh session's banner.
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static APOP_SEQ: AtomicU64 = AtomicU64::new(0);
+        let seq = APOP_SEQ.fetch_add(1, Ordering::Relaxed);
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let banner = format!("<{seq}.{nanos}@mail.dmtap.local>");
         Pop3Session {
             store,
             auth,
@@ -392,6 +405,30 @@ mod tests {
         let digest = hex(&md5(format!("{}pw", s.banner).as_bytes()));
         assert!(s.feed_line(&format!("APOP alice {digest}")).starts_with("+OK"));
         assert!(s.is_authenticated());
+    }
+
+    #[test]
+    fn apop_banner_is_unique_per_session() {
+        // Security regression: a CONSTANT APOP challenge makes md5(banner ‖ secret) a fixed value
+        // forever, so a digest captured over cleartext could be replayed on a later session. Each
+        // session MUST issue a distinct challenge, so a digest from one session does not authenticate
+        // on another.
+        let s1 = session();
+        let s2 = session();
+        assert_ne!(s1.banner, s2.banner, "each POP3 session must issue a unique APOP challenge");
+        assert!(
+            s1.banner.starts_with('<') && s1.banner.ends_with('>') && s1.banner.contains('@'),
+            "banner must be a well-formed msg-id: {}",
+            s1.banner
+        );
+        // A digest computed against s1's banner must NOT authenticate a fresh session (s2).
+        let stale_digest = hex(&md5(format!("{}pw", s1.banner).as_bytes()));
+        let mut victim = session(); // its own distinct banner
+        assert!(
+            !victim.feed_line(&format!("APOP alice {stale_digest}")).starts_with("+OK"),
+            "a digest captured for another session's challenge must not replay"
+        );
+        assert!(!victim.is_authenticated());
     }
 
     #[test]
