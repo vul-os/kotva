@@ -21,6 +21,12 @@ stateDiagram-v2
   in_progress --> failed
   completed --> disputed
   failed --> disputed
+  %% A valid outcome=3 Attestation is an override (§6.3 step 1, top priority): it can
+  %% make any assigned-or-later order disputed, so these dispute edges are non-exhaustive.
+  assigned --> disputed
+  started --> disputed
+  in_progress --> disputed
+  cancelled --> disputed
   expired --> [*]
   cancelled --> [*]
   failed --> [*]

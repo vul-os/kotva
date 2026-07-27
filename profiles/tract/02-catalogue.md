@@ -67,9 +67,13 @@ normative rules that govern how they are populated. It does not restate the CDDL
 carry: a `name` and `description` (slots 1–2), an `attributes` array (slot 3), and an
 `identity` ladder (slot 4); it MAY carry a `group` reference (slot 5, §2.3d) and a `components`
 list (slot 6, §2.3e). A `ProductRecord` is a **public** object and therefore MUST NOT carry any
-personal data — no name of a person, address, or contact detail — a prohibition the §16.4 grammar
-enforces structurally rather than by reviewer discipline. A record belongs to nobody: it names no
-seller and its authenticity comes from convergence, not from a signature over it.
+personal data — no name of a person, address, or contact detail. The §16.4 grammar enforces part of
+this **structurally** — it defines no seller field and no address production, so those cannot be
+represented — but the free-text `name`/`description` (slots 1–2) can still hold a person's name or
+contact detail; the grammar cannot prevent that, so for those fields the prohibition rests on
+client/index discipline and the `MAX_PRODUCT_RECORD` bound (§19.5), exactly as §10.2/§16.5.5 state
+for `Review.body`, not on a production that makes personal data unrepresentable. A record belongs to
+nobody: it names no seller and its authenticity comes from convergence, not from a signature over it.
 
 **`Offer` (§16.5.2).** An offer MUST carry all four axes — `Item`, `Availability`, `Fulfilment`,
 `Consideration` (slots 1–4) — plus `sell_to` territories (slot 5) and a `published` timestamp

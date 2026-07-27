@@ -242,8 +242,12 @@ SOCIAL inherits [`THREAT-MODEL.md`](../THREAT-MODEL.md) unchanged; the invariant
 
 - **SEC-2 (intrinsic authenticity).** Every social object is signed and content-addressed; it verifies
   identically over any transport, trusting no server. A malicious indexer or serving node can
-  **withhold or stall** (detectable via `seq`/chain discontinuity, §22.4.3) but can **never forge** a
-  post (that needs the author's key) nor **hide** a published one without a reader noticing a gap.
+  **withhold or stall** but can **never forge** a post (that needs the author's key) nor **hide** a
+  published one without a reader noticing a `seq`/chain discontinuity **against another source, or
+  against a higher `seq` it already holds** (§22.4.2, §22.4.3). The qualifier is load-bearing: a
+  first-contact or eclipsed reader with no retained tip and no second source **cannot** detect a
+  genuine, correctly-signed *stale* head — anti-rollback rejects only a `seq` strictly below one
+  already accepted, and "absence in a current highest-`seq` head is inconclusive" (§22.4.2).
 - **SEC-4 (declared content-visibility).** Every intermediary declares what it sees:
 
 | Intermediary | Class (CONTRACT §5) | What it sees |
