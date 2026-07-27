@@ -230,16 +230,18 @@ check("pub_announce_signing_preimage/body_suite1", decoded_body[2] == ("uint", 1
 check("pub_announce_signing_preimage/body_pub_is_pk", decoded_body[3][1] == pk)
 
 v_id = byname["pub_announce_id"]
-full = bytes.fromhex(v_id["input"]["bytes_hex"])
-check("pub_announce_id/id", ca(full).hex() == v_id["expected"]["id_hex"])
-decoded_full, consumed = cbor_decode_map(full)
-check("pub_announce_id/full_consumed", consumed == len(full))
-check("pub_announce_id/full_keys", list(decoded_full.keys()) == [1, 2, 3, 4, 5, 7, 8, 9])
-check("pub_announce_id/sig_matches_preimage_vector", decoded_full[9][1].hex() == v_pre["expected"]["sig_hex"])
-# and that stripping key 9 (rebuilding the map header for one fewer field, not just
-# truncating bytes — the header's field-count nibble differs) reproduces the exact
-# signing-preimage msg bytes
-check("pub_announce_id/strip_sig_equals_preimage_msg", cbor_strip_key(full, 9) == msg)
+# §22.3.1/§1.3: announce_id is the content address of the SIGNATURE-EXCLUDED body (keys 1..8, key 9
+# EXCLUDED), NOT the complete signed object — hybrid AND-composition is EUF-CMA not SUF-CMA, so a
+# valid sig is malleable and hashing the signed object would give one announce two ids.
+body_id = bytes.fromhex(v_id["input"]["bytes_hex"])
+check("pub_announce_id/id", ca(body_id).hex() == v_id["expected"]["id_hex"])
+decoded_body_id, consumed = cbor_decode_map(body_id)
+check("pub_announce_id/consumed", consumed == len(body_id))
+check("pub_announce_id/body_keys_no_sig", list(decoded_body_id.keys()) == [1, 2, 3, 4, 5, 7, 8])
+check("pub_announce_id/9_absent", 9 not in decoded_body_id)
+# The id's preimage bytes ARE exactly the signing-preimage msg (the DS-tagged sig covers the same
+# body), so the content address is taken over precisely what the signature attests.
+check("pub_announce_id/bytes_equal_preimage_msg", body_id == msg)
 
 # ── 7: supersede same-author / cross-author ───────────────────────────────────────────────
 v_same = byname["pub_announce_supersede_same_author_valid"]

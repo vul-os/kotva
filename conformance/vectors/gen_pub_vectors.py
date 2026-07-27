@@ -286,7 +286,7 @@ announce_A0_full = enc_map(
         (8, enc_bstr(PK_A)), (9, enc_bstr(sig_A0)),
     ]
 )
-announce_A0_id = content_address(announce_A0_full)
+announce_A0_id = content_address(announce_A0_body)
 
 add(
     "pub_announce_signing_preimage",
@@ -307,12 +307,12 @@ add(
 add(
     "pub_announce_id",
     "content_address",
-    {"bytes_hex": announce_A0_full.hex()},
+    {"bytes_hex": announce_A0_body.hex()},
     {"id_hex": announce_A0_id.hex()},
-    "§22.3.1: announce_id = 0x1e || BLAKE3-256(det_cbor(PubAnnounce)) over the "
-    "COMPLETE, SIGNED object (including key 9 sig) — the derived-anchor rule of "
-    "§18.9.4, applied to announce A0 above (full CBOR bytes = "
-    "det_cbor with keys 1,2,3,4,5,7,8,9 ascending).",
+    "§22.3.1: announce_id = 0x1e || BLAKE3-256(det_cbor(PubAnnounce minus key 9)) over the "
+    "SIGNATURE-EXCLUDED body (the same one the DS-tagged sig covers) — §1.3 forbids deriving "
+    "an id from a (malleable) signature; applied to announce A0 above (bytes_hex = "
+    "det_cbor with keys 1,2,3,4,5,7,8 ascending, key 9 sig EXCLUDED).",
 )
 
 # 2b. same-author supersedes (VALID): announce A1 by publisher A, supersedes = announce_A0_id
@@ -325,7 +325,7 @@ announce_A1_full = enc_map(
         (7, enc_uint(TS_FIXED + 1000)), (8, enc_bstr(PK_A)), (9, enc_bstr(sig_A1)),
     ]
 )
-announce_A1_id = content_address(announce_A1_full)
+announce_A1_id = content_address(announce_A1_body)
 
 add(
     "pub_announce_supersede_same_author_valid",
@@ -352,7 +352,7 @@ announce_B0_full = enc_map(
         (7, enc_uint(TS_FIXED + 2000)), (8, enc_bstr(PK_B)), (9, enc_bstr(sig_B0)),
     ]
 )
-announce_B0_id = content_address(announce_B0_full)
+announce_B0_id = content_address(announce_B0_body)
 
 add(
     "pub_announce_supersede_cross_author_invalid",

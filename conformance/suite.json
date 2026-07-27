@@ -3467,7 +3467,7 @@
         "§22.3.1",
         "§18.9.4"
       ],
-      "checks": "announce_id = 0x1e||BLAKE3-256(det_cbor(PubAnnounce)) over the complete, signed object (derived-anchor rule; no self-id field)",
+      "checks": "announce_id = 0x1e||BLAKE3-256(det_cbor(PubAnnounce minus key 9)) over the SIGNATURE-EXCLUDED body (the body the DS-tagged sig covers; §1.3 forbids deriving an id from a malleable sig; no self-id field)",
       "operation": "content_address",
       "vector": "pub_announce_id",
       "expect": {

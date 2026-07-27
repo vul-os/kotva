@@ -450,10 +450,13 @@ impl PubAnnounce {
         cbor::encode(&self.to_cv(true))
     }
 
-    /// `announce_id = 0x1e ‖ BLAKE3-256(det_cbor(PubAnnounce))` over the **complete, signed** object
-    /// — the derived-anchor rule of §18.9.4 (an object cannot contain its own hash, §22.3.1).
+    /// `announce_id = 0x1e ‖ BLAKE3-256(det_cbor(PubAnnounce ∖ {9}))` — the **signature-EXCLUDED**
+    /// body, the same one the DS-tagged `sig` covers (§22.3.1, §18.9.4). §1.3 forbids deriving any
+    /// identifier from a signature: hybrid AND-composition is EUF-CMA, not SUF-CMA, so a valid `sig`
+    /// is malleable and hashing the signed object would give one semantic announce two different ids
+    /// (splitting the pin / letting a `supersedes` reference or fetch-by-id miss a mauled copy).
     pub fn announce_id(&self) -> ContentId {
-        ContentId::of(&self.det_cbor())
+        ContentId::of(&self.signing_preimage())
     }
 
     /// Sign this announce: `signer_key` produces `sig` over the DS-tagged preimage (§22.3.1). The
@@ -1202,7 +1205,7 @@ mod tests {
             "4e2ac80c0ac66668b4efdb058dc1c4c92ffad16f0db73e84118f6c9b7baeb10f0194daad7cff28669e0a9efbccd20057126abb929c69576853e779162cec1202"
         );
         let id = a.announce_id();
-        assert_eq!(hexs(id.as_bytes()), "1e5928d22f36318ece11ae4b307456a4dc120e63c4deb749c35a87cc12443ccd30");
+        assert_eq!(hexs(id.as_bytes()), "1e88e7539fa0eb355e49a9f18406a13c26c2657c47002fcb538b8684476a38337f");
         // Full verify against the derived id.
         a.verify(&id).expect("announce verifies");
         // A one-byte mutation of the fetched-by address is rejected (0x0905): the recomputed
@@ -1234,25 +1237,25 @@ mod tests {
 
     #[test]
     fn kat_feed_entry_chain() {
-        let entry0 = cid("a301000258211e5928d22f36318ece11ae4b307456a4dc120e63c4deb749c35a87cc12443ccd30041b0000018bcfe62b50").0;
-        let entry1 = cid("a401010258211e93b2a0f58389a40c269021b596b16e104fa486d7560a32022569725c1c3dfcb30358211ebb9bb7604544aed78ee40bc1949cb8cb06b49946aaf0f41f88d59e7eeb9ae591041b0000018bcfe62f38").0;
-        let entry2 = cid("a401020258211e5928d22f36318ece11ae4b307456a4dc120e63c4deb749c35a87cc12443ccd300358211e7c793c9de9a7e7beddaf08c291787845f5145c6b8d41bbd4fb8b9e00aebcc4b2041b0000018bcfe63320").0;
+        let entry0 = cid("a301000258211e88e7539fa0eb355e49a9f18406a13c26c2657c47002fcb538b8684476a38337f041b0000018bcfe62b50").0;
+        let entry1 = cid("a401010258211e0b173b023168f223c1ce0f2b9fa5610365387c6ff7acb20d45a76e3a4c4dc8e30358211e285cd94e439ba81e16c202cc62fd3c2064664597e6acd793849ae7ad4772afdc041b0000018bcfe62f38").0;
+        let entry2 = cid("a401020258211e88e7539fa0eb355e49a9f18406a13c26c2657c47002fcb538b8684476a38337f0358211e9981ab3edde575757958c949a8feecffd493492feba97c84973f97f3349c89e7041b0000018bcfe63320").0;
         let e0 = FeedEntry::from_det_cbor(&entry0).unwrap();
         let e1 = FeedEntry::from_det_cbor(&entry1).unwrap();
         let e2 = FeedEntry::from_det_cbor(&entry2).unwrap();
-        assert_eq!(hexs(e0.entry_id().as_bytes()), "1ebb9bb7604544aed78ee40bc1949cb8cb06b49946aaf0f41f88d59e7eeb9ae591");
-        assert_eq!(hexs(e1.entry_id().as_bytes()), "1e7c793c9de9a7e7beddaf08c291787845f5145c6b8d41bbd4fb8b9e00aebcc4b2");
-        assert_eq!(hexs(e2.entry_id().as_bytes()), "1e5b1ed9cb2801ffab0e62900292e4239838694dfcf8ce59209c8d680c5710dd44");
+        assert_eq!(hexs(e0.entry_id().as_bytes()), "1e285cd94e439ba81e16c202cc62fd3c2064664597e6acd793849ae7ad4772afdc");
+        assert_eq!(hexs(e1.entry_id().as_bytes()), "1e9981ab3edde575757958c949a8feecffd493492feba97c84973f97f3349c89e7");
+        assert_eq!(hexs(e2.entry_id().as_bytes()), "1e274e1734af848fcac69cab72e3ed8b71cae912db8b184989c7ee99d4eb94e97b");
         verify_feed_chain(&[e0, e1, e2]).expect("valid prev-chain");
     }
 
     #[test]
     fn kat_feed_entry_malformed_genesis_and_nongenesis() {
         // Genesis (seq=0) carrying prev → CHAIN_BROKEN.
-        let genesis_with_prev = cid("a401000258211e5928d22f36318ece11ae4b307456a4dc120e63c4deb749c35a87cc12443ccd300358211ebb9bb7604544aed78ee40bc1949cb8cb06b49946aaf0f41f88d59e7eeb9ae591041b0000018bcfe62b50").0;
+        let genesis_with_prev = cid("a401000258211e88e7539fa0eb355e49a9f18406a13c26c2657c47002fcb538b8684476a38337f0358211e285cd94e439ba81e16c202cc62fd3c2064664597e6acd793849ae7ad4772afdc041b0000018bcfe62b50").0;
         assert_eq!(FeedEntry::from_det_cbor(&genesis_with_prev), Err(PubError::FeedChainBroken));
         // Non-genesis (seq=1) missing prev → CHAIN_BROKEN.
-        let nongenesis_no_prev = cid("a301010258211e93b2a0f58389a40c269021b596b16e104fa486d7560a32022569725c1c3dfcb3041b0000018bcfe62f38").0;
+        let nongenesis_no_prev = cid("a301010258211e0b173b023168f223c1ce0f2b9fa5610365387c6ff7acb20d45a76e3a4c4dc8e3041b0000018bcfe62f38").0;
         assert_eq!(FeedEntry::from_det_cbor(&nongenesis_no_prev), Err(PubError::FeedChainBroken));
     }
 
@@ -1260,7 +1263,7 @@ mod tests {
     fn kat_feed_head_signing() {
         let sk = IdentityKey::from_seed(&[0xAAu8; 32]);
         let pk = sk.public();
-        let tip = cid("1e7c793c9de9a7e7beddaf08c291787845f5145c6b8d41bbd4fb8b9e00aebcc4b2");
+        let tip = cid("1e9981ab3edde575757958c949a8feecffd493492feba97c84973f97f3349c89e7");
         let mut head = FeedHead {
             v: 0,
             suite: Suite::Classical,
@@ -1274,12 +1277,12 @@ mod tests {
         };
         assert_eq!(
             hexs(&head.signing_preimage()),
-            "a701000201035820e734ea6c2b6257de72355e472aa05a4c487e6b463c029ed306df2f01b5636b5804010558211e7c793c9de9a7e7beddaf08c291787845f5145c6b8d41bbd4fb8b9e00aebcc4b2061b0000018bcfe6312c075820e734ea6c2b6257de72355e472aa05a4c487e6b463c029ed306df2f01b5636b58"
+            "a701000201035820e734ea6c2b6257de72355e472aa05a4c487e6b463c029ed306df2f01b5636b5804010558211e9981ab3edde575757958c949a8feecffd493492feba97c84973f97f3349c89e7061b0000018bcfe6312c075820e734ea6c2b6257de72355e472aa05a4c487e6b463c029ed306df2f01b5636b58"
         );
         head.sign(&sk);
         assert_eq!(
             hexs(&head.sig),
-            "51bdb93c2b0094534f7376254d679c76ccb7d0160a9dfcd960aaf6028b2d559096ef59127c7779b48969caf7eb2c4d301c41cf8a72f1d6f528a0c157a8b89707"
+            "629ea7ff94cbc9ced033c199e4a9fb6a1cec2d6c4db7baf69905ab0ba149b86cf532ff31e1d4482b897f3a26356f2f9d2a3df7cabb986c3901232ea196290407"
         );
         head.verify().expect("head verifies");
         let mut bad = head.clone();
@@ -1289,10 +1292,10 @@ mod tests {
 
     #[test]
     fn kat_anti_rollback() {
-        let tip1 = cid("1e7c793c9de9a7e7beddaf08c291787845f5145c6b8d41bbd4fb8b9e00aebcc4b2");
+        let tip1 = cid("1e9981ab3edde575757958c949a8feecffd493492feba97c84973f97f3349c89e7");
         // seq=0 presented after accepting seq=1 → rollback.
         assert_eq!(
-            check_anti_rollback(1, Some(&tip1), 0, &cid("1ebb9bb7604544aed78ee40bc1949cb8cb06b49946aaf0f41f88d59e7eeb9ae591")),
+            check_anti_rollback(1, Some(&tip1), 0, &cid("1e285cd94e439ba81e16c202cc62fd3c2064664597e6acd793849ae7ad4772afdc")),
             Err(PubError::FeedRollback)
         );
         // equal seq, identical tip → idempotent accept.
