@@ -371,6 +371,46 @@ mod tests {
     }
 
     #[test]
+    fn push_decoders_are_panic_free_and_strictly_canonical() {
+        // §18.1: from_det_cbor must never panic on any input and reject any NON-canonical encoding.
+        // PushSubscription is a signed object (deny_unknown, §18.1.2); WakePing is stricter still —
+        // it rejects ANY field beyond the token as forbidden content (§18.5.6). Both must be
+        // canonical: a malleable decode would let a relay mint byte-different bytes for the same
+        // subscription/ping.
+        let device = IdentityKey::from_seed(&[6u8; 32]);
+        let sub_bytes = sub(&device).det_cbor();
+        let ping_bytes = WakePing::new(vec![0x42; 16]).det_cbor();
+        for valid in [&sub_bytes, &ping_bytes] {
+            let mut mutants: Vec<Vec<u8>> = Vec::new();
+            for i in 0..valid.len() {
+                for bit in [0x01u8, 0x08, 0x80, 0xff] {
+                    let mut m = valid.clone();
+                    m[i] ^= bit;
+                    mutants.push(m);
+                }
+            }
+            for n in 0..valid.len() {
+                mutants.push(valid[..n].to_vec());
+            }
+            for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8], vec![0xa1, 0x00, 0x00]] {
+                let mut m = valid.clone();
+                m.extend_from_slice(&junk);
+                mutants.push(m);
+            }
+            for m in &mutants {
+                if let Ok(o) = PushSubscription::from_det_cbor(m) {
+                    assert_eq!(&o.det_cbor(), m, "PushSubscription decoder accepted a non-canonical encoding");
+                }
+                if let Ok(o) = WakePing::from_det_cbor(m) {
+                    assert_eq!(&o.det_cbor(), m, "WakePing decoder accepted a non-canonical encoding");
+                }
+            }
+        }
+        assert_eq!(PushSubscription::from_det_cbor(&sub_bytes).unwrap().det_cbor(), sub_bytes);
+        assert_eq!(WakePing::from_det_cbor(&ping_bytes).unwrap().det_cbor(), ping_bytes);
+    }
+
+    #[test]
     fn subscription_round_trip_and_verify() {
         let device = IdentityKey::generate();
         let s = sub(&device);

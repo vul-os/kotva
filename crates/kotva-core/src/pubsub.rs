@@ -530,6 +530,45 @@ mod tests {
     }
 
     #[test]
+    fn pubsub_decoders_are_panic_free_and_strictly_canonical() {
+        // §18.1: from_det_cbor must never panic on any input and reject any NON-canonical encoding.
+        // Subscription and SubscriptionRevoke are signed objects (deny_unknown), so a malleable
+        // decode would let a relay mint byte-different bytes for the same subscription/revocation and
+        // break the subscription_id pin (§25) that binds a revoke to its target.
+        let ik = IdentityKey::from_seed(&[5u8; 32]);
+        let s = sub(&ik, &[9u8; 32], 9_000);
+        let sub_bytes = s.det_cbor();
+        let rev_bytes = revoke(&s.subscription_id(), &ik).det_cbor();
+        for valid in [&sub_bytes, &rev_bytes] {
+            let mut mutants: Vec<Vec<u8>> = Vec::new();
+            for i in 0..valid.len() {
+                for bit in [0x01u8, 0x08, 0x80, 0xff] {
+                    let mut m = valid.clone();
+                    m[i] ^= bit;
+                    mutants.push(m);
+                }
+            }
+            for n in 0..valid.len() {
+                mutants.push(valid[..n].to_vec());
+            }
+            for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8], vec![0xa1, 0x00, 0x00]] {
+                let mut m = valid.clone();
+                m.extend_from_slice(&junk);
+                mutants.push(m);
+            }
+            for m in &mutants {
+                if let Ok(o) = Subscription::from_det_cbor(m) {
+                    assert_eq!(&o.det_cbor(), m, "Subscription decoder accepted a non-canonical encoding");
+                }
+                if let Ok(o) = SubscriptionRevoke::from_det_cbor(m) {
+                    assert_eq!(&o.det_cbor(), m, "SubscriptionRevoke decoder accepted a non-canonical encoding");
+                }
+            }
+        }
+        assert_eq!(Subscription::from_det_cbor(&sub_bytes).unwrap().det_cbor(), sub_bytes);
+    }
+
+    #[test]
     fn subscription_round_trips_and_verifies() {
         let ik = IdentityKey::generate();
         let s = sub(&ik, &[9u8; 32], 9_000);
