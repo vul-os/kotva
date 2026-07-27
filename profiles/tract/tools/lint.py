@@ -41,8 +41,10 @@ SECTION_RE = re.compile(r"^(\d\d)-.*\.md$")
 # 6041-*.md.
 SECTION_REF_RE = re.compile(r"§(\d{1,2})(?!\d)")
 RFC_RE = re.compile(r"RFC\s*(\d{3,5})")
-STUB_MARK = "Drafting status"
 REQ_KEYWORDS = ("MUST NOT", "MUST", "SHALL", "SHOULD", "REQUIRED", "MAY")
+# A section is a non-normative *stub* only if its status banner explicitly says so. The banner
+# itself is universal ("> **Drafting status …**" / "> **Status …**") and is NOT a stub sentinel.
+STUB_DECLARATIONS = ("non-normative", "placeholder", "not yet authored", "not normative", " stub")
 
 findings: list[tuple[str, str, str]] = []  # (level, file, message)
 
@@ -89,14 +91,33 @@ def check_document_map(secs: dict[int, tuple[str, str]]) -> None:
         err("00-overview.md", f"§{phantom} is in the §0.8 document map but has no file")
 
 
+def _status_banner(text: str) -> str:
+    """The section's status-banner line (first blockquote naming a Drafting-status/Status), or ""."""
+    for ln in text.splitlines():
+        s = ln.lstrip()
+        if s.startswith(">") and ("Drafting status" in s or "Status:" in s or "**Status" in s):
+            return ln
+    return ""
+
+
 def check_stub_discipline(secs: dict[int, tuple[str, str]]) -> None:
     """T3/T4 — a section is either a marked stub or has requirement language, never both/neither."""
     for num, (name, text) in sorted(secs.items()):
         if num == 0:
             continue  # the overview is normative prose by construction
-        is_stub = STUB_MARK in text
-        # Only count keywords after the stub banner, so the banner's own wording is not a hit.
-        body = text.split(STUB_MARK, 1)[-1] if is_stub else text
+        # Every TRACT section opens with a "> **Drafting status …**" banner, so banner PRESENCE is not
+        # a stub marker — treating it as one T3-errored on every settled section's legitimate MUSTs.
+        # A section is a non-normative *stub* only when its banner explicitly declares itself so; a
+        # banner claiming normative force — including "partially normative" — is not a stub even
+        # though it, too, opens with "Drafting status".
+        banner = _status_banner(text)
+        low = banner.lower()
+        declares_nonnormative = any(m in low for m in STUB_DECLARATIONS)
+        declares_normative = "normative" in low.replace("non-normative", "").replace("not normative", "")
+        is_stub = declares_nonnormative and not declares_normative
+        # Exclude the banner line itself from the keyword scan, so its own wording (e.g. a banner that
+        # spells out "The key words MUST, MUST NOT, SHOULD …") is never counted as a requirement hit.
+        body = text.replace(banner, "", 1) if banner else text
         hits = [k for k in REQ_KEYWORDS if re.search(rf"\b{re.escape(k)}\b", body)]
         if is_stub and hits:
             err(name, f"carries RFC 2119 keyword(s) {sorted(set(hits))} while still marked "
