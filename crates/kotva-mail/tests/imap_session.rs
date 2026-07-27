@@ -465,6 +465,20 @@ fn catenate_append_builds_message() {
 }
 
 #[test]
+fn fetch_with_excessive_ranges_fails_closed_no_oom() {
+    // Security regression: a sequence set with a huge number of ranges (1:*,1:*,…) must not drive
+    // resolve_targets into a ranges×messages allocation. The range cap rejects it fail-closed at
+    // parse, and the marker-Vec bounds memory to the mailbox size regardless of range count.
+    let mut session = logged_in_selected(50);
+    let many = std::iter::repeat("1:*").take(20_000).collect::<Vec<_>>().join(",");
+    let resp = run(&mut session, &format!("f1 FETCH {many} FLAGS\r\n"));
+    assert!(resp.contains("f1 BAD"), "an excessive-range FETCH must fail closed, not OOM");
+    // A normal ranged FETCH still works.
+    let ok = run(&mut session, "f2 FETCH 1:5 FLAGS\r\n");
+    assert!(ok.contains("f2 OK") && ok.contains("FLAGS"), "normal FETCH still works: {ok}");
+}
+
+#[test]
 fn list_wildcard_bounds_pattern_name_product_no_oom() {
     // Security regression: wildcard_match's DP is O(pattern·name) in memory AND time; without a cap,
     // a large CREATE'd name matched against a large LIST pattern allocates ~GB and aborts the whole

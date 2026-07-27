@@ -47,7 +47,7 @@ pub fn session_resource(account_id: &str, base_url: &str, state: &str) -> Value 
                 "maxConcurrentUpload": 4,
                 "maxSizeRequest": 10_000_000u64,
                 "maxConcurrentRequests": 4,
-                "maxCallsInRequest": 16,
+                "maxCallsInRequest": MAX_CALLS_IN_REQUEST,
                 "maxObjectsInGet": 500,
                 "maxObjectsInSet": 500,
                 "collationAlgorithms": ["i;ascii-casemap", "i;unicode-casemap"]
@@ -97,10 +97,34 @@ impl StateChange {
     }
 }
 
+/// RFC 8620 §3.6: the advertised — and now enforced — cap on method calls per request. Shared with
+/// `session_resource`'s `maxCallsInRequest` so the advertised and enforced values can never drift.
+pub(crate) const MAX_CALLS_IN_REQUEST: usize = 16;
+
+/// Defense-in-depth cap on cumulative response size. Even within `MAX_CALLS_IN_REQUEST`, a chain of
+/// back-referencing `Core/echo` calls can double the response each step (`eval_pointer` returns a full
+/// clone for an empty JSON-pointer path, and echo returns it verbatim) — up to `2^N` amplification
+/// from a tiny request body. Bounding the running total stops the amplification building gigabytes.
+const MAX_RESPONSE_BYTES: usize = 50_000_000;
+
 /// Process a JMAP request against a store, dispatching each method call (RFC 8620 §3.3), with
 /// back-reference (`#`) resolution (§3.7) so a client can chain e.g. `Email/query` → `Email/get`.
 pub fn process<S: MailStore>(store: &mut S, account_id: &str, req: &Request) -> Response {
+    // RFC 8620 §3.6: reject a request that exceeds the advertised call limit (a request-level error,
+    // not a per-call methodResponse). Unbounded dispatch enables a Core/echo back-reference
+    // amplification DoS, so this is load-bearing, not cosmetic.
+    if req.method_calls.len() > MAX_CALLS_IN_REQUEST {
+        return Response {
+            method_responses: vec![(
+                "error".to_string(),
+                serde_json::json!({ "type": "requestTooLarge", "description": "too many method calls in one request" }),
+                "0".to_string(),
+            )],
+            session_state: state_string(store),
+        };
+    }
     let mut responses: Vec<Invocation> = Vec::new();
+    let mut total_bytes = 0usize;
     for (name, args, call_id) in &req.method_calls {
         // Resolve any `#name`/ResultReference arguments against the responses so far (§3.7).
         let resolved = match resolve_references(args, &responses) {
@@ -110,9 +134,20 @@ pub fn process<S: MailStore>(store: &mut S, account_id: &str, req: &Request) -> 
                 continue;
             }
         };
-        match dispatch(store, account_id, name, &resolved) {
-            Ok((rname, rargs)) => responses.push((rname, rargs, call_id.clone())),
-            Err(err) => responses.push(("error".to_string(), err, call_id.clone())),
+        let inv = match dispatch(store, account_id, name, &resolved) {
+            Ok((rname, rargs)) => (rname, rargs, call_id.clone()),
+            Err(err) => ("error".to_string(), err, call_id.clone()),
+        };
+        // Bound cumulative response size against back-reference amplification.
+        total_bytes = total_bytes.saturating_add(inv.1.to_string().len());
+        responses.push(inv);
+        if total_bytes > MAX_RESPONSE_BYTES {
+            responses.push((
+                "error".to_string(),
+                serde_json::json!({ "type": "requestTooLarge", "description": "cumulative response too large" }),
+                call_id.clone(),
+            ));
+            break;
         }
     }
     Response { method_responses: responses, session_state: state_string(store) }
@@ -1139,6 +1174,30 @@ mod tests {
         let s = session_resource("acct1", "https://node.dmtap.local", "0");
         assert_eq!(s["primaryAccounts"][CAP_MAIL], json!("acct1"));
         assert!(s["apiUrl"].as_str().unwrap().ends_with("/jmap/api/"));
+        // The advertised call limit is the shared enforced constant (no advertise/enforce drift).
+        assert_eq!(s["capabilities"]["urn:ietf:params:jmap:core"]["maxCallsInRequest"], json!(MAX_CALLS_IN_REQUEST));
+    }
+
+    #[test]
+    fn rejects_request_over_max_calls_in_request() {
+        // Security regression (RFC 8620 §3.6): a request with more than maxCallsInRequest method
+        // calls must be rejected with a single request-level `requestTooLarge` error, not dispatched
+        // call-by-call — unbounded dispatch enables a Core/echo back-reference amplification DoS.
+        let mut store = store_with_mail();
+        let too_many: Vec<Invocation> = (0..=MAX_CALLS_IN_REQUEST)
+            .map(|i| ("Core/echo".to_string(), json!({ "n": i }), format!("c{i}")))
+            .collect();
+        let req = Request { using: vec![CAP_MAIL.into()], method_calls: too_many };
+        let resp = process(&mut store, "acct1", &req);
+        assert_eq!(resp.method_responses.len(), 1, "over-limit request yields one request-level error");
+        assert_eq!(resp.method_responses[0].0, "error");
+        assert_eq!(resp.method_responses[0].1["type"], json!("requestTooLarge"));
+        // A request exactly at the limit still runs every call.
+        let at_limit: Vec<Invocation> = (0..MAX_CALLS_IN_REQUEST)
+            .map(|i| ("Core/echo".to_string(), json!({ "n": i }), format!("c{i}")))
+            .collect();
+        let resp2 = process(&mut store, "acct1", &Request { using: vec![CAP_MAIL.into()], method_calls: at_limit });
+        assert_eq!(resp2.method_responses.len(), MAX_CALLS_IN_REQUEST, "at-limit request runs all calls");
     }
 
     #[test]

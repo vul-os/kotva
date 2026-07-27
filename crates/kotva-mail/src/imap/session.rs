@@ -1379,15 +1379,21 @@ fn compact(uids: &[String], _valid: u32) -> String {
 /// this binary-searches the UID-sorted messages for each range boundary (`O(k log n)`), so a
 /// targeted `UID FETCH 5` touches ~`log n` messages, not all `n` (the large-mailbox hot path).
 fn resolve_targets(mb: &Mailbox, set: &SequenceSet, uid_mode: bool) -> Vec<usize> {
-    let mut idx = Vec::new();
+    // Mark hits in a `Vec<bool>` of length = message count rather than pushing one index per matched
+    // slot per range. The old form accumulated ranges × messages before dedup — a product of two
+    // separately-bounded attacker inputs (a `1:*,1:*,…` set of ~250k ranges from one MAX_LINE-sized
+    // FETCH against a large mailbox is a multi-GB `Vec<usize>` that OOM-aborts the process). A marker
+    // caps memory at the mailbox size regardless of range count and gives dedup for free.
+    let n = mb.messages.len();
+    let mut hit = vec![false; n];
     if uid_mode {
         let max = mb.max_uid();
         for (lo, hi) in set.ranges_resolved(max) {
             // messages are UID-sorted → binary-search the window's left edge, then walk it.
             let start = mb.messages.partition_point(|m| m.uid < lo);
             let mut i = start;
-            while i < mb.messages.len() && mb.messages[i].uid <= hi {
-                idx.push(i);
+            while i < n && mb.messages[i].uid <= hi {
+                hit[i] = true;
                 i += 1;
             }
         }
@@ -1397,13 +1403,11 @@ fn resolve_targets(mb: &Mailbox, set: &SequenceSet, uid_mode: bool) -> Vec<usize
             let lo = lo.max(1);
             let hi = hi.min(count);
             for s in lo..=hi {
-                idx.push((s - 1) as usize);
+                hit[(s - 1) as usize] = true;
             }
         }
     }
-    idx.sort_unstable();
-    idx.dedup();
-    idx
+    (0..n).filter(|&i| hit[i]).collect()
 }
 
 /// Render a sorted UID list as a compact IMAP sequence-set, collapsing contiguous runs into

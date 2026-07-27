@@ -46,6 +46,14 @@ impl SequenceSet {
         if s == "$" {
             return Some(SequenceSet { ranges: Vec::new(), saved: true });
         }
+        // Cap the number of comma-separated ranges. A real client sends at most a handful, but a
+        // `1:*,1:*,…` set of hundreds of thousands still fits in one MAX_LINE-sized command and would
+        // otherwise drive resolve_targets into a ranges × window scan (a CPU-exhaustion complement to
+        // the memory blowup the marker-Vec now bounds). Fail closed on an absurd count.
+        const MAX_RANGES: usize = 10_000;
+        if s.split(',').count() > MAX_RANGES {
+            return None;
+        }
         let mut ranges = Vec::new();
         for item in s.split(',') {
             let range = match item.split_once(':') {
