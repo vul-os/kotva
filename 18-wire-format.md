@@ -2080,6 +2080,10 @@ to it.
 | `DeviceCert` | `sig` (k8) | `DMTAP-v0/device-cert` | `det_cbor(DeviceCert ∖ {8})` |
 | `RecoveryPolicy` | `sig` (k9) | `DMTAP-v0/recovery-policy` | `det_cbor(RecoveryPolicy ∖ {9})` |
 | `KeyRotation` | `sig` (k7) | `DMTAP-v0/key-rotation` | `det_cbor(KeyRotation ∖ {7})` |
+| `KeyRotation` | `rotate_quorum` co-sig (k8, §1.5 path (a)) | `DMTAP-v0/key-rotation-quorum` | `det_cbor(KeyRotation ∖ {7,8})` — a recovery-guardian **quorum** co-signature authorising immediate rotation (§18.4.5, §1.4). Distinct tag so it can never be replayed as the `old_ik` `sig` nor as a recovery approval. |
+| `KeyRotation` | veto co-sig (§1.5 path (b), out-of-band) | `DMTAP-v0/key-rotation-veto` | `det_cbor(KeyRotation ∖ {7,8})` — a recovery-guardian **veto** of a published-and-delayed rotation before its §16.8 window elapses (§18.4.5, §1.4). |
+| `RecoveryPolicy` (weakening change) | guardian approval (§1.4 rule 3, out-of-band) | `DMTAP-v0/recovery-approval` | content-address of the **next** `RecoveryPolicy` (`0x1e ‖ BLAKE3-256(det_cbor(next))`, §18.9.4) — a guardian **approval** of a recovery-weakening change (§18.4.5, §1.4). |
+| `RecoveryPolicy` (weakening change) | guardian veto (§1.4 rule 4, out-of-band) | `DMTAP-v0/recovery-veto` | content-address of the **next** `RecoveryPolicy` — a guardian **veto** of a recovery-weakening change within the §16.8 72 h window (§1.4). |
 | `MoveRecord` | `sig` (k7) | `DMTAP-v0/move-record` | `det_cbor(MoveRecord ∖ {7})` |
 | `DomainDirectory` | `sig` (k9) | `DMTAP-v0/domain-directory` | `det_cbor(DomainDirectory ∖ {9})` |
 | `Profile` | `sig` (k10) | `DMTAP-v0/profile` | `det_cbor(Profile ∖ {10})` (§18.4.12) |
@@ -2221,6 +2225,23 @@ IK **or** a satisfied `rotate_threshold` quorum for `RecoveryPolicy`; **`old_ik`
 an authorised **device key** for `LocationRecord`; the **domain authority IK** (threshold-held,
 §3.10.1/§5.8.6) for `DomainDirectory`; IK **or** an `IK`-authorised device key for `Profile`
 (§3.9.5, §18.4.12).
+
+The **recovery-guardian counter-signatures** mandated by §18.4.5 (`KeyRotation`) and §1.4 rules 3–4
+(recovery-weakening `RecoveryPolicy` changes) are the exception to the general body rule above — each
+is signed by a **recovery guardian's key**, and its DS-tag and body are registered explicitly in the
+table above rather than derived from `∖ {sig-key}`:
+
+- `DMTAP-v0/key-rotation-quorum` (path (a) approval) and `DMTAP-v0/key-rotation-veto` (path (b) veto)
+  both sign `det_cbor(KeyRotation ∖ {7,8})` — the rotation body with **both** the `old_ik` `sig` (k7)
+  **and** the `rotate_quorum` co-signature slot (k8) excluded, so co-signers sign identical bytes.
+- `DMTAP-v0/recovery-approval` and `DMTAP-v0/recovery-veto` both sign the **content-address of the
+  next `RecoveryPolicy`** (`0x1e ‖ BLAKE3-256(det_cbor(next))`, §18.9.4).
+
+Each is a **distinct** tag so a co-signature produced for one role can never be replayed as another
+(the cross-protocol-replay separation §18.1.6 exists for). These are the exact tags and bodies the
+reference signs and verifies; an implementation of the §18.4.5/§1.4 obligations interoperates only by
+using them — a divergent tag or body makes every cross-party quorum or veto signature fail to verify,
+so an identity with a published `RecoveryPolicy` could never complete an interoperable rotation.
 
 ### 18.9.4 Object content addresses (`Envelope.id`, `Identity` anchor)
 
