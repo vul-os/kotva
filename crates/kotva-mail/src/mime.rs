@@ -423,12 +423,18 @@ fn split_addresses(v: &str) -> Vec<String> {
 }
 
 fn parse_one_address(raw: &str) -> Address {
-    let (name, addr) = if let (Some(lt), Some(gt)) = (raw.find('<'), raw.rfind('>')) {
-        let name = raw[..lt].trim().trim_matches('"').trim();
-        let addr = raw[lt + 1..gt].trim();
-        (if name.is_empty() { None } else { Some(name.to_string()) }, addr.to_string())
-    } else {
-        (None, raw.trim().to_string())
+    let (name, addr) = match (raw.find('<'), raw.rfind('>')) {
+        // Angle-addr form "Name <mbox@host>" — ONLY when '<' actually precedes '>'. The header is
+        // fully attacker-controlled (any From/To/Cc of a received message), so a malformed token
+        // where '>' comes first (e.g. "><" or "> x <") must not reach `raw[lt + 1..gt]`: that would
+        // be an inverted slice range and PANIC, crashing ENVELOPE projection. Fall through to the
+        // bare-address branch instead.
+        (Some(lt), Some(gt)) if gt > lt => {
+            let name = raw[..lt].trim().trim_matches('"').trim();
+            let addr = raw[lt + 1..gt].trim();
+            (if name.is_empty() { None } else { Some(name.to_string()) }, addr.to_string())
+        }
+        _ => (None, raw.trim().to_string()),
     };
     let (mailbox, host) = match addr.split_once('@') {
         Some((m, h)) => (Some(m.to_string()), Some(h.to_string())),
@@ -901,6 +907,22 @@ mod tests {
         assert_eq!(addrs[0].mailbox.as_deref(), Some("foo"));
         assert_eq!(addrs[0].host.as_deref(), Some("bar.com"));
         assert_eq!(addrs[1].mailbox.as_deref(), Some("baz"));
+    }
+
+    #[test]
+    fn malformed_angle_addresses_do_not_panic() {
+        // Regression: a header token where '>' precedes '<' (fully attacker-controlled on any
+        // From/To/Cc of a received message) must not slice an inverted range and panic. Each of
+        // these previously crashed ENVELOPE projection; now they parse as bare/empty addresses.
+        for header in ["><", "> x <", ">", "><@", "a >b< c", "To-junk >@<"] {
+            let addrs = parse_address_list(header); // must not panic
+            let _ = addrs; // any result is acceptable, the point is no panic
+        }
+        // A well-formed address still parses correctly after the guard.
+        let ok = parse_address_list("Real Name <real@host.example>");
+        assert_eq!(ok.len(), 1);
+        assert_eq!(ok[0].mailbox.as_deref(), Some("real"));
+        assert_eq!(ok[0].host.as_deref(), Some("host.example"));
     }
 
     #[test]

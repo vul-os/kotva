@@ -74,7 +74,7 @@
 //! media.md` and disagrees with it, the spec governs (§10.4) and the disagreement is fixed here,
 //! not carried forward — see the `dmtap-envoir` change log for what changed and why.
 
-use crate::cbor::{self, as_array, as_bool, as_bytes, as_text, as_u64, as_u8, CborError, Cv, Fields};
+use crate::cbor::{self, as_array, as_bool, as_bytes, as_text, as_u32, as_u64, as_u8, CborError, Cv, Fields};
 use crate::suite::Suite;
 
 /// Message kind for a sealed [`RtcSignal`] (§27.4.1, §21.16 extension range). Registered as the
@@ -1208,11 +1208,14 @@ impl RtcCapacity {
     /// `system` MOTE / `caps_version` rollback check — see the type docs).
     pub fn decode(bytes: &[u8]) -> Result<Self, RtcError> {
         let mut f = Fields::from_cv(cbor::decode(bytes)?)?;
-        let max_tracks = as_u64(f.req(1)?)? as u32;
+        // u32 ceilings MUST reject an out-of-range wire value, not silently truncate it (a lossy
+        // `as u32` would wrap 2^32+1 → 1). as_u32 surfaces CborError::IntRange → 0x020D, matching
+        // every other narrow-integer field (as_u8 etc.).
+        let max_tracks = as_u32(f.req(1)?)?;
         let max_aggregate_bps = as_u64(f.req(2)?)?;
-        let max_tracks_per_participant = as_u64(f.req(3)?)? as u32;
+        let max_tracks_per_participant = as_u32(f.req(3)?)?;
         let max_bps_per_track = as_u64(f.req(4)?)?;
-        let advisory_max_participants = f.take(5).map(as_u64).transpose()?.map(|v| v as u32);
+        let advisory_max_participants = f.take(5).map(as_u32).transpose()?;
         let sframe_required = as_bool(f.req(6)?)?;
         Ok(RtcCapacity {
             max_tracks,
@@ -1238,5 +1241,53 @@ impl RtcCapacity {
             return Err(RtcError::CapacityExceeded);
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod capacity_tests {
+    use super::*;
+
+    fn sample() -> RtcCapacity {
+        RtcCapacity {
+            max_tracks: 50,
+            max_aggregate_bps: 20_000_000,
+            max_tracks_per_participant: 3,
+            max_bps_per_track: 2_500_000,
+            advisory_max_participants: Some(100),
+            sframe_required: true,
+        }
+    }
+
+    #[test]
+    fn capacity_round_trips() {
+        let back = RtcCapacity::decode(&sample().det_cbor()).unwrap();
+        assert_eq!(back.max_tracks, 50);
+        assert_eq!(back.max_tracks_per_participant, 3);
+        assert_eq!(back.advisory_max_participants, Some(100));
+        assert!(back.sframe_required);
+    }
+
+    #[test]
+    fn capacity_rejects_out_of_range_u32_ceiling() {
+        // A u32 ceiling (key 1/3, or the advisory key 5) above u32::MAX MUST be rejected as
+        // malformed, not silently truncated — a lossy `as u32` would wrap 2^32+1 -> 1, advertising
+        // an unrelated ceiling.
+        let over = (u32::MAX as u64) + 1;
+        for key in [1u64, 3] {
+            let m = Cv::Map(vec![
+                (1, Cv::U64(if key == 1 { over } else { 10 })),
+                (2, Cv::U64(1_000)),
+                (3, Cv::U64(if key == 3 { over } else { 2 })),
+                (4, Cv::U64(1_000)),
+                (6, Cv::Bool(false)),
+            ]);
+            assert!(RtcCapacity::decode(&cbor::encode(&m)).is_err(), "key {key} overflow must reject");
+        }
+        let advisory = Cv::Map(vec![
+            (1, Cv::U64(10)), (2, Cv::U64(1_000)), (3, Cv::U64(2)), (4, Cv::U64(1_000)),
+            (5, Cv::U64(over)), (6, Cv::Bool(false)),
+        ]);
+        assert!(RtcCapacity::decode(&cbor::encode(&advisory)).is_err(), "advisory overflow must reject");
     }
 }

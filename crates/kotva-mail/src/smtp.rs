@@ -358,8 +358,17 @@ fn parse_path_param(rest: &str, keyword: &str) -> Option<String> {
     let idx = up.find(&kw)?;
     let after = &rest[idx + kw.len()..];
     let after = after.trim_start();
-    if let (Some(lt), Some(gt)) = (after.find('<'), after.find('>')) {
-        Some(after[lt + 1..gt].to_string())
+    // Angle-addr "<addr>" only when '<' precedes '>'. A malformed path where '>' comes first
+    // (e.g. `MAIL FROM:><`, `RCPT TO:> x <`) must not reach `after[lt + 1..gt]` — that inverted
+    // slice range would PANIC and kill the per-connection session (a remote DoS). `get()` yields
+    // None on the inverted range, and `filter(gt > lt)` keeps the bare-address fallback for it.
+    if let Some(addr) = after
+        .find('<')
+        .zip(after.find('>'))
+        .filter(|&(lt, gt)| gt > lt)
+        .and_then(|(lt, gt)| after.get(lt + 1..gt))
+    {
+        Some(addr.to_string())
     } else {
         // Bare address up to first space.
         after.split_whitespace().next().map(str::to_string)
@@ -630,6 +639,20 @@ mod tests {
         let mut s = SmtpSession::new(a, true);
         let _ = s.greeting();
         s
+    }
+
+    #[test]
+    fn malformed_path_param_does_not_panic() {
+        // Regression: a MAIL FROM / RCPT TO path where '>' precedes '<' must not slice an inverted
+        // range and panic the per-connection session (a remote DoS). Each must return without
+        // crashing; the extracted value is best-effort.
+        for rest in ["FROM:><", "FROM:> x <", "TO:>", "TO:> <a@b>", "FROM: >bad<"] {
+            let kw = if rest.starts_with("TO") { "TO" } else { "FROM" };
+            let _ = parse_path_param(rest, kw); // must not panic
+        }
+        // A well-formed path still extracts the address.
+        assert_eq!(parse_path_param("FROM:<a@b.example>", "FROM").as_deref(), Some("a@b.example"));
+        assert_eq!(parse_path_param("TO:<x@y.example> SIZE=10", "TO").as_deref(), Some("x@y.example"));
     }
 
     #[test]
