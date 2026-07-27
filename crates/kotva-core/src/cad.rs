@@ -187,6 +187,8 @@ impl ArtifactFormat {
         let role = as_u64(f.req(3).map_err(CadError::Cbor)?)?;
         let derived_from_format = f.take(4).map(as_bytes).transpose()?.map(ContentId);
         let format_version = f.take(5).map(as_text).transpose()?;
+        // Unsigned application map (§23.3.1): ignore unrecognized keys, do NOT deny_unknown (forward
+        // compatibility, matching Units/ArtifactMetadata). Non-canonical bytes are rejected upstream.
         Ok(ArtifactFormat { format_id, manifest_root, role, derived_from_format, format_version })
     }
 }
@@ -384,6 +386,9 @@ impl AssemblyChild {
             return Err(CadError::Structural("assembly child quantity must be >= 1 (§23.6.2)".into()));
         }
         let transform = f.take(4).map(as_bytes).transpose()?;
+        // Unsigned, content-addressed map (§23.3.1): ignore unrecognized keys, do NOT deny_unknown —
+        // forward compatibility, matching Units/ArtifactMetadata. Non-canonical *bytes* are still
+        // rejected upstream by cbor::decode; an added key changes the content address, not identity.
         Ok(AssemblyChild { ref_kind, reference, quantity, transform })
     }
 }
@@ -414,6 +419,9 @@ impl AssemblyStructure {
         if children.is_empty() {
             return Err(CadError::Structural("assembly must have >= 1 child (§23.6.2)".into()));
         }
+        // Unsigned, content-addressed map (§23.3.1): ignore unrecognized top-level keys, do NOT
+        // deny_unknown (forward compatibility). Non-canonical bytes are rejected upstream by
+        // cbor::decode; an added key changes the content address, not the assembly's identity.
         Ok(AssemblyStructure { children })
     }
 }
@@ -661,5 +669,55 @@ mod tests {
         let resolve = |r: &ContentId| -> Option<AssemblyStructure> { if r == &sub_id { Some(sub2.clone()) } else { None } };
         let bom = walk_bom(&outer, &resolve).unwrap();
         assert_eq!(bom.get(bolt.as_bytes()), Some(&12));
+    }
+
+    #[test]
+    fn cad_decoders_are_panic_free() {
+        // The CAD maps are deliberately **forward-compatible**: Units and ArtifactMetadata document
+        // "ignore unrecognized keys, do NOT deny_unknown" (§23.3.1), and the unsigned content-
+        // addressed AssemblyStructure/AssemblyChild/ArtifactFormat follow the same rule. So — unlike
+        // a signed object — decode-then-re-encode is intentionally lossy for an unknown key (the key
+        // is dropped), and a strict `det_cbor() == input` check does NOT apply here. Non-canonical
+        // *bytes* (out-of-order/non-shortest/indefinite) are still rejected upstream by cbor::decode,
+        // and an added key changes the content address, so there is no identity confusion. What this
+        // test locks is the property that DOES hold universally: from_det_cbor must never PANIC on
+        // arbitrary adversarial input. Covers ArtifactMetadata (nested ArtifactFormat list) and
+        // AssemblyStructure (children with pin/track ref_kinds and an optional transform).
+        let md = part_with(vec![fmt(format_id::NATIVE, role::CANONICAL_SOURCE, None)], artifact_kind::PART)
+            .det_cbor();
+        let asm = AssemblyStructure {
+            children: vec![
+                AssemblyChild { ref_kind: ref_kind::PIN, reference: ContentId::of(b"child-a"), quantity: 2, transform: None },
+                AssemblyChild { ref_kind: ref_kind::TRACK, reference: ContentId::of(b"child-b"), quantity: 5, transform: Some(vec![0xde, 0xad]) },
+            ],
+        }
+        .det_cbor();
+
+        for valid in [&md, &asm] {
+            let mut mutants: Vec<Vec<u8>> = Vec::new();
+            for i in 0..valid.len() {
+                for bit in [0x01u8, 0x08, 0x80, 0xff] {
+                    let mut m = valid.clone();
+                    m[i] ^= bit;
+                    mutants.push(m);
+                }
+            }
+            for n in 0..valid.len() {
+                mutants.push(valid[..n].to_vec());
+            }
+            for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8], vec![0xa1, 0x00, 0x00]] {
+                let mut m = valid.clone();
+                m.extend_from_slice(&junk);
+                mutants.push(m);
+            }
+            for m in &mutants {
+                // The only assertion is that neither decoder panics; Ok/Err are both acceptable.
+                let _ = ArtifactMetadata::from_det_cbor(m);
+                let _ = AssemblyStructure::from_det_cbor(m);
+            }
+        }
+        // The canonical fixtures still decode to the original value.
+        assert_eq!(ArtifactMetadata::from_det_cbor(&md).unwrap().det_cbor(), md);
+        assert_eq!(AssemblyStructure::from_det_cbor(&asm).unwrap().det_cbor(), asm);
     }
 }

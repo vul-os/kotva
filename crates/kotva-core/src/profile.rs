@@ -453,6 +453,38 @@ mod tests {
     }
 
     #[test]
+    fn profile_decode_is_panic_free_and_strictly_canonical() {
+        // §18.1: from_det_cbor must never panic on any input and reject any NON-canonical encoding.
+        // A malleable profile would let a relay mint byte-different bytes for the same version,
+        // forking the prev-chain (key 8) that pins profile history. The sample carries the OPTIONAL
+        // given/family name and an avatar-with-hash, so mutations reach every nested decode path.
+        let p = sample(&IdentityKey::from_seed(&[7u8; 32]));
+        let valid = p.det_cbor();
+        let mut mutants: Vec<Vec<u8>> = Vec::new();
+        for i in 0..valid.len() {
+            for bit in [0x01u8, 0x08, 0x80, 0xff] {
+                let mut m = valid.clone();
+                m[i] ^= bit;
+                mutants.push(m);
+            }
+        }
+        for n in 0..valid.len() {
+            mutants.push(valid[..n].to_vec());
+        }
+        for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8], vec![0xa1, 0x00, 0x00]] {
+            let mut m = valid.clone();
+            m.extend_from_slice(&junk);
+            mutants.push(m);
+        }
+        for m in &mutants {
+            if let Ok(o) = Profile::from_det_cbor(m) {
+                assert_eq!(&o.det_cbor(), m, "profile decoder accepted a non-canonical encoding");
+            }
+        }
+        assert_eq!(Profile::from_det_cbor(&valid).unwrap(), p);
+    }
+
+    #[test]
     fn minimal_profile_omits_optionals() {
         let ik = IdentityKey::generate();
         let p = Profile::create(&ik, 3, "Bob", None, None, None, None, 42);
