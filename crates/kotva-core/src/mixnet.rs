@@ -644,4 +644,52 @@ mod tests {
         assert_eq!(tr.last_version(&a.public()), Some(9));
         assert_eq!(tr.last_version(&b.public()), Some(1));
     }
+
+    /// §18.1: both mixnet decoders must be panic-free on arbitrary input and reject any NON-canonical
+    /// encoding (an accepted mutant MUST re-encode to identical bytes). A malleable descriptor or
+    /// directory would let a relay mint byte-different bytes for the same fleet view, forking the
+    /// directory hash-chain (`prev`) that pins the anti-rollback floor (§4.4.4). The descriptor here
+    /// carries the OPTIONAL substrate (key 8) and operator (key 9); the directory embeds three
+    /// descriptors, so mutations reach every nested decode path.
+    #[test]
+    fn mixnet_decoders_are_panic_free_and_strictly_canonical() {
+        let desc = MixNodeDescriptor::issue(
+            &key(0x11),
+            vec!["/ip4/10.0.0.1/tcp/443".into()],
+            vec![MixKeyEntry { epoch: 42, mix_key: vec![0x11; 32], valid_until: 1_700_000_600_000 }],
+            1,
+            1_700_000_000_000,
+            Some(0x02),
+            Some(key(0x77).public()),
+        )
+        .det_cbor();
+        let dir = directory_at(&key(0x22), 9).det_cbor();
+
+        for valid in [&desc, &dir] {
+            let mut mutants: Vec<Vec<u8>> = Vec::new();
+            for i in 0..valid.len() {
+                for bit in [0x01u8, 0x08, 0x80, 0xff] {
+                    let mut m = valid.clone();
+                    m[i] ^= bit;
+                    mutants.push(m);
+                }
+            }
+            for n in 0..valid.len() {
+                mutants.push(valid[..n].to_vec());
+            }
+            for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8], vec![0xa1, 0x00, 0x00]] {
+                let mut m = valid.clone();
+                m.extend_from_slice(&junk);
+                mutants.push(m);
+            }
+            for m in &mutants {
+                if let Ok(o) = MixNodeDescriptor::from_det_cbor(m) {
+                    assert_eq!(&o.det_cbor(), m, "descriptor decoder accepted a non-canonical encoding");
+                }
+                if let Ok(o) = MixDirectory::from_det_cbor(m) {
+                    assert_eq!(&o.det_cbor(), m, "directory decoder accepted a non-canonical encoding");
+                }
+            }
+        }
+    }
 }

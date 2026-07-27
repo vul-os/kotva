@@ -390,4 +390,52 @@ mod tests {
         assert!(Visibility::from_str("world").is_err());
         assert!(Custody::from_str("hosted").is_err());
     }
+
+    #[test]
+    fn directory_decode_is_panic_free_and_strictly_canonical() {
+        // §18.1: from_det_cbor must never panic on any input, and never accept a NON-canonical
+        // encoding. A malleable directory would let a relay mint byte-different bytes for the same
+        // (version, entries), forking the KT hash-chain (`prev`, key 7) that pins directory history.
+        // Uses a directory with a populated entry (nested DirEntry decoder), the OPTIONAL roles
+        // (DirEntry key 5) and prev (key 7) present, so mutations reach every decode path.
+        let dir = DomainDirectory::issue(
+            &key(0x11),
+            "abc.com",
+            9,
+            Visibility::Public,
+            vec![
+                entry("alice@abc.com", 0x22, Custody::Sovereign, Some(vec!["admin".into()])),
+                entry("bob@abc.com", 0x33, Custody::OrgManaged, None),
+            ],
+            Some(ContentId::of(b"prev-directory")),
+            1_700_000_000_000,
+        );
+        let valid = dir.det_cbor();
+        let mut mutants: Vec<Vec<u8>> = Vec::new();
+        // Single-bit / byte flips across the whole encoding.
+        for i in 0..valid.len() {
+            for bit in [0x01u8, 0x08, 0x80, 0xff] {
+                let mut m = valid.clone();
+                m[i] ^= bit;
+                mutants.push(m);
+            }
+        }
+        // Every truncation prefix (tests short/greedy reads).
+        for n in 0..valid.len() {
+            mutants.push(valid[..n].to_vec());
+        }
+        // Trailing junk (a canonical decoder must reject unconsumed bytes / extra items).
+        for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8], vec![0xa1, 0x00, 0x00]] {
+            let mut m = valid.clone();
+            m.extend_from_slice(&junk);
+            mutants.push(m);
+        }
+        for m in &mutants {
+            if let Ok(o) = DomainDirectory::from_det_cbor(m) {
+                assert_eq!(&o.det_cbor(), m, "directory decoder accepted a non-canonical encoding");
+            }
+        }
+        // The unmutated bytes still round-trip exactly (guards against an over-eager reject above).
+        assert_eq!(DomainDirectory::from_det_cbor(&valid).unwrap(), dir);
+    }
 }

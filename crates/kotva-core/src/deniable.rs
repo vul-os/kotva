@@ -511,4 +511,63 @@ mod tests {
         let leaky = cbor::encode(&Cv::Map(m));
         assert_eq!(DeniablePayload::from_det_cbor(&leaky), Err(CborError::UnknownKey(8)));
     }
+
+    /// §18.1: every decoder here must be panic-free on arbitrary input and reject any NON-canonical
+    /// encoding (an accepted mutant MUST re-encode to identical bytes). Covers the signed, network-
+    /// decoded `DeniablePrekeyBundle` and the deeply-nested `DeniableFrame::Init` (embedded message,
+    /// two ContentId refs, optional opk/kem fields) so mutations reach every nested decode path.
+    #[test]
+    fn deniable_decoders_are_panic_free_and_strictly_canonical() {
+        let bundle = DeniablePrekeyBundle::issue(
+            &key(0x11),
+            vec![0xcd; 32],
+            vec![0xab; 32],
+            vec![vec![1u8; 32], vec![2u8; 32]],
+            3,
+            1_700_000_000_000,
+        )
+        .det_cbor();
+        let ika = key(0x11);
+        let idk_a = vec![0x44; 32];
+        let init = DeniableFrame::Init(DeniableInit {
+            suite: Suite::Classical,
+            ik_a: ika.public(),
+            idk_a: idk_a.clone(),
+            idk_a_cert: ika.sign_domain(DENIABLE_IDK_DS, &idk_a),
+            ek_a: vec![0x33; 32],
+            spk_ref: ContentId::of(b"responder-spk"),
+            opk_ref: Some(ContentId::of(b"responder-opk")),
+            kem_ct: None,
+            kem_ref: None,
+            msg: sample_message(),
+        })
+        .det_cbor();
+
+        for valid in [&bundle, &init] {
+            let mut mutants: Vec<Vec<u8>> = Vec::new();
+            for i in 0..valid.len() {
+                for bit in [0x01u8, 0x08, 0x80, 0xff] {
+                    let mut m = valid.clone();
+                    m[i] ^= bit;
+                    mutants.push(m);
+                }
+            }
+            for n in 0..valid.len() {
+                mutants.push(valid[..n].to_vec());
+            }
+            for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8], vec![0xa1, 0x00, 0x00]] {
+                let mut m = valid.clone();
+                m.extend_from_slice(&junk);
+                mutants.push(m);
+            }
+            for m in &mutants {
+                if let Ok(o) = DeniablePrekeyBundle::from_det_cbor(m) {
+                    assert_eq!(&o.det_cbor(), m, "bundle decoder accepted a non-canonical encoding");
+                }
+                if let Ok(o) = DeniableFrame::from_det_cbor(m) {
+                    assert_eq!(&o.det_cbor(), m, "frame decoder accepted a non-canonical encoding");
+                }
+            }
+        }
+    }
 }
