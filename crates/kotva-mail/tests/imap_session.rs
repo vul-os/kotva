@@ -465,6 +465,21 @@ fn catenate_append_builds_message() {
 }
 
 #[test]
+fn list_haschildren_correct_after_prefix_set_optimization() {
+    // Regression: \HasChildren detection now uses a one-pass prefix set (O(N)) instead of an O(N^2)
+    // rescan-with-format!-alloc per name; verify it still classifies parent vs leaf correctly.
+    let (store, auth) = setup();
+    let mut session = Session::new(store, auth, true);
+    run(&mut session, "a1 LOGIN owner@dmtap.local app-password-xyz\r\n");
+    run(&mut session, "a2 CREATE Parent\r\n");
+    run(&mut session, "a3 CREATE Parent/Child\r\n");
+    let resp = run(&mut session, "a4 LIST \"\" *\r\n");
+    assert!(resp.contains("\\HasChildren"), "Parent must be reported \\HasChildren: {resp}");
+    assert!(resp.contains("\\HasNoChildren"), "leaf mailboxes must be \\HasNoChildren");
+    assert!(resp.contains("a4 OK"), "LIST completes");
+}
+
+#[test]
 fn fetch_with_excessive_ranges_fails_closed_no_oom() {
     // Security regression: a sequence set with a huge number of ranges (1:*,1:*,…) must not drive
     // resolve_targets into a ranges×messages allocation. The range cap rejects it fail-closed at

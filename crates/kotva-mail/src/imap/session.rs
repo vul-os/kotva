@@ -473,6 +473,21 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
         let status_items = self.list_status_items(&up);
 
         let names = self.store.mailbox_names();
+        // Precompute, in one O(total-name-bytes) pass, the set of mailbox names that HAVE children (a
+        // name has children iff some other mailbox has it as a strict "<name>/" prefix). This
+        // replaces an O(N) rescan-with-`format!`-allocation per matched name — an O(N^2) time and
+        // O(N^2) transient-allocation LIST when the mailbox count N is large. N is attacker-controlled
+        // and uncapped (CREATE has no per-account mailbox limit), so `LIST "" *` over tens of
+        // thousands of folders was a distinct amplification DoS from the wildcard-DP product cap.
+        let mut have_children: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        for n in &names {
+            let mut idx = 0;
+            while let Some(rel) = n[idx..].find('/') {
+                idx += rel;
+                have_children.insert(&n[..idx]);
+                idx += 1;
+            }
+        }
         let mut status_lines = Vec::new();
         for name in &names {
             if !wildcard_match(pattern, name) {
@@ -495,7 +510,7 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
             // \HasChildren / \HasNoChildren (RFC 3348 CHILDREN): a child is any mailbox prefixed
             // with "<name>/". Always reported for LIST; gated on CHILDREN for the wire is optional.
             let _ = want_children;
-            if names.iter().any(|n| n.starts_with(&format!("{name}/"))) {
+            if have_children.contains(name.as_str()) {
                 attrs.push("\\HasChildren".into());
             } else {
                 attrs.push("\\HasNoChildren".into());

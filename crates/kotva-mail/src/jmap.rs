@@ -101,6 +101,13 @@ impl StateChange {
 /// `session_resource`'s `maxCallsInRequest` so the advertised and enforced values can never drift.
 pub(crate) const MAX_CALLS_IN_REQUEST: usize = 16;
 
+/// RFC 8620 §5.1: the advertised — and now enforced — cap on objects returned by a `/get`. Shared
+/// with `session_resource`'s `maxObjectsInGet` so advertised and enforced cannot drift. A `/get`
+/// (Email, Thread, …) with more requested ids than this — or a null-ids "fetch all" that would
+/// exceed it — is rejected with `requestTooLarge` BEFORE the per-id parse loop, so an unbounded or
+/// duplicate-packed id list cannot drive unbounded MIME parses / response building.
+pub(crate) const MAX_OBJECTS_IN_GET: usize = 500;
+
 /// Defense-in-depth cap on cumulative response size. Even within `MAX_CALLS_IN_REQUEST`, a chain of
 /// back-referencing `Core/echo` calls can double the response each step (`eval_pointer` returns a full
 /// clone for an empty JSON-pointer path, and echo returns it verbatim) — up to `2^N` amplification
@@ -166,12 +173,12 @@ fn dispatch<S: MailStore>(
         "Mailbox/query" => Ok(("Mailbox/query".into(), mailbox_query(store, account))),
         "Mailbox/changes" => Ok(("Mailbox/changes".into(), changes(store, account, JmapObj::Mailbox, args))),
         "Mailbox/set" => Ok(("Mailbox/set".into(), mailbox_set(store, account, args))),
-        "Email/get" => Ok(("Email/get".into(), email_get(store, account, args))),
+        "Email/get" => email_get(store, account, args).map(|v| ("Email/get".into(), v)),
         "Email/query" => Ok(("Email/query".into(), email_query(store, account, args))),
         "Email/changes" => Ok(("Email/changes".into(), changes(store, account, JmapObj::Email, args))),
         "Email/queryChanges" => Ok(("Email/queryChanges".into(), email_query_changes(store, account, args))),
         "Email/set" => Ok(("Email/set".into(), email_set(store, account, args))),
-        "Thread/get" => Ok(("Thread/get".into(), thread_get(store, account, args))),
+        "Thread/get" => thread_get(store, account, args).map(|v| ("Thread/get".into(), v)),
         "Thread/changes" => Ok(("Thread/changes".into(), changes(store, account, JmapObj::Thread, args))),
         "SearchSnippet/get" => Ok(("SearchSnippet/get".into(), search_snippet_get(store, account, args))),
         "Identity/get" => Ok(("Identity/get".into(), identity_get(account, args))),
@@ -384,7 +391,7 @@ fn email_query<S: MailStore>(store: &S, account: &str, args: &Value) -> Value {
     })
 }
 
-fn email_get<S: MailStore>(store: &S, account: &str, args: &Value) -> Value {
+fn email_get<S: MailStore>(store: &S, account: &str, args: &Value) -> Result<Value, Value> {
     let want_ids: Vec<String> = match args.get("ids").and_then(|v| v.as_array()) {
         Some(arr) => arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect(),
         None => {
@@ -402,6 +409,12 @@ fn email_get<S: MailStore>(store: &S, account: &str, args: &Value) -> Value {
             all
         }
     };
+    // RFC 8620 §5.1: bound the number of objects fetched (advertised maxObjectsInGet). Enforced
+    // BEFORE the per-id parse loop, so a huge or duplicate-packed id list (or a null-ids "fetch all"
+    // over a large store) cannot drive unbounded MIME parses / response building — a CPU/memory DoS.
+    if want_ids.len() > MAX_OBJECTS_IN_GET {
+        return Err(json!({ "type": "requestTooLarge", "description": "more than maxObjectsInGet ids requested" }));
+    }
     let mut list = Vec::new();
     let mut not_found = Vec::new();
     for id in &want_ids {
@@ -442,12 +455,12 @@ fn email_get<S: MailStore>(store: &S, account: &str, args: &Value) -> Value {
             None => not_found.push(id.clone()),
         }
     }
-    json!({
+    Ok(json!({
         "accountId": account,
         "state": state_string(store),
         "list": list,
         "notFound": not_found
-    })
+    }))
 }
 
 fn jmap_addresses(p: &ParsedMessage, header: &str) -> Value {
@@ -709,30 +722,36 @@ fn apply_email_update<S: MailStore>(store: &mut S, mb: &str, uid: u32, patch: &V
     true
 }
 
-fn thread_get<S: MailStore>(store: &S, account: &str, args: &Value) -> Value {
-    let ids = args.get("ids").and_then(|v| v.as_array()).cloned().unwrap_or_default();
-    let list: Vec<Value> = ids
+fn thread_get<S: MailStore>(store: &S, account: &str, args: &Value) -> Result<Value, Value> {
+    let want: Vec<String> = args
+        .get("ids")
+        .and_then(|v| v.as_array())
+        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .unwrap_or_default();
+    // RFC 8620 §5.1: bound the requested-id count before ANY per-message work. The old form was
+    // O(requested_ids × total_messages) FULL MIME parses — a small (or duplicate-packed) id list
+    // forced ~1e9 parses, an amplification DoS.
+    if want.len() > MAX_OBJECTS_IN_GET {
+        return Err(json!({ "type": "requestTooLarge", "description": "more than maxObjectsInGet ids requested" }));
+    }
+    // Build threadId -> [emailId] in a SINGLE pass over all messages, each parsed at most once via
+    // the memoized cache (shared with the IMAP path), so answering R ids is O(M + R), not O(R × M).
+    let mut by_thread: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+    for name in store.mailbox_names() {
+        let mb = match store.mailbox(&name) {
+            Some(m) => m,
+            None => continue,
+        };
+        for m in &mb.messages {
+            let tid = thread_id(m.parsed_cached(), m.uid);
+            by_thread.entry(tid).or_default().push(email_id(&name, m.uid));
+        }
+    }
+    let list: Vec<Value> = want
         .iter()
-        .filter_map(|v| v.as_str())
-        .map(|tid| {
-            // Gather emails whose thread matches (reference: single-message threads).
-            let mut email_ids = Vec::new();
-            for name in store.mailbox_names() {
-                let mb = match store.mailbox(&name) {
-                    Some(m) => m,
-                    None => continue,
-                };
-                for m in &mb.messages {
-                    let parsed = ParsedMessage::parse(&m.raw);
-                    if thread_id(&parsed, m.uid) == tid {
-                        email_ids.push(email_id(&name, m.uid));
-                    }
-                }
-            }
-            json!({ "id": tid, "emailIds": email_ids })
-        })
+        .map(|tid| json!({ "id": tid, "emailIds": by_thread.get(tid).cloned().unwrap_or_default() }))
         .collect();
-    json!({ "accountId": account, "state": state_string(store), "list": list, "notFound": [] })
+    Ok(json!({ "accountId": account, "state": state_string(store), "list": list, "notFound": [] }))
 }
 
 fn submission_set(account: &str, args: &Value) -> Value {
@@ -1176,6 +1195,31 @@ mod tests {
         assert!(s["apiUrl"].as_str().unwrap().ends_with("/jmap/api/"));
         // The advertised call limit is the shared enforced constant (no advertise/enforce drift).
         assert_eq!(s["capabilities"]["urn:ietf:params:jmap:core"]["maxCallsInRequest"], json!(MAX_CALLS_IN_REQUEST));
+    }
+
+    #[test]
+    fn get_handlers_enforce_max_objects_in_get() {
+        // Security regression (RFC 8620 §5.1): Email/get and Thread/get must reject an id list larger
+        // than maxObjectsInGet with requestTooLarge BEFORE any per-id MIME parse — else an unbounded
+        // or duplicate-packed id list drives an O(ids) or O(ids×messages) parse DoS.
+        let mut store = store_with_mail();
+        let over: Vec<Value> = (0..=MAX_OBJECTS_IN_GET).map(|i| json!(format!("x_{i}"))).collect();
+        for method in ["Email/get", "Thread/get"] {
+            let req = Request {
+                using: vec![CAP_MAIL.into()],
+                method_calls: vec![(method.to_string(), json!({ "ids": over }), "c1".into())],
+            };
+            let resp = process(&mut store, "acct1", &req);
+            assert_eq!(resp.method_responses[0].0, "error", "{method} over-limit must be an error");
+            assert_eq!(resp.method_responses[0].1["type"], json!("requestTooLarge"), "{method}");
+        }
+        // An at-limit Email/get is processed normally (not an error).
+        let at: Vec<Value> = (0..MAX_OBJECTS_IN_GET).map(|i| json!(format!("x_{i}"))).collect();
+        let req = Request {
+            using: vec![CAP_MAIL.into()],
+            method_calls: vec![("Email/get".into(), json!({ "ids": at }), "c1".into())],
+        };
+        assert_eq!(process(&mut store, "acct1", &req).method_responses[0].0, "Email/get");
     }
 
     #[test]
