@@ -165,7 +165,7 @@ root, the announce and feed-head signing preimages, `announce_id`, the prev-chai
 type-incompatibility with sealed manifests, the same-author supersede rule, and feed anti-rollback
 incl. the idempotent-refetch and fork/equivocation branches).
 
-The 281 `construction-todo` cases give the exact recipe and expected §21 error for every remaining
+The 282 `construction-todo` cases give the exact recipe and expected §21 error for every remaining
 normative branch — the full §2.7 pipeline, identity/KT fail-closed, the higher levels, the
 hardening families (`DENIABLE`/`ORG`/`KTV1`/`ATTEST`), the `PROFILE` display-data guards, the
 pluggable-resolver guards (`RESOLVE`), the optional `PUSH` wake-signalling guards, the `FILE`
@@ -215,8 +215,8 @@ as the suite grows.
 document states a different count. The changed deniable objects (§5.2.1 dedicated-`idk`) are still
 to be re-vectored when the reference regenerates `vectors.json`.
 
-> All 56 vectored cases correspond one-for-one to entries in `vectors.json` (44 cases / 43 of its
-> 69 vectors — several vectors drive more than one case; the remaining 26 are pre-generated for
+> All 57 vectored cases correspond one-for-one to entries in `vectors.json` (45 cases / 44 of its
+> 70 vectors — several vectors drive more than one case; the remaining 26 are pre-generated for
 > construction-todo families not yet wired to a case) or `pub_vectors.json` (12 cases / all 15 of
 > its vectors — several `PUB` cases reference more than one `pub_vectors.json` entry). No case
 > references a vector entry that does not exist in its file; see

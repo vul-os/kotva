@@ -143,20 +143,20 @@ fragmentation. The suite lives in `conformance/` as three coupled artifacts:
   policies bind a future registrant). Inclusion is the default: a section is `IMPL` unless the
   reason names what owns the requirement instead.
 - **`conformance/vectors/`** — the byte-exact known-answer vectors the cases dispatch on:
-  `vectors.json` holds 69 core vectors (derived from the §18 canonical CBOR; 43 of them are
+  `vectors.json` holds 70 core vectors (derived from the §18 canonical CBOR; 44 of them are
   driven by cases today, the other 26 are pre-generated for construction-todo families not yet
   wired to a case) and `pub_vectors.json` holds 15 vectors for the §22 DMTAP-PUB profile (all 15
   driven by `PUB` cases). DMTAP-PUBSUB (§25) generates no new vectors of its own (§10.3 below).
 
 63 cases are byte-runnable today (57 vector-backed against `vectors.json`/`pub_vectors.json` +
-6 self-contained canonical-CBOR reject cases); 17 further cases are verified by implementer or
+6 self-contained canonical-CBOR reject cases); 19 further cases are verified by implementer or
 deployment attestation, having **no wire bytes to recompute at all** — an in-product disclosure
 (§22.7 publish consent, [docs/research/mixnet.md §4.4.10a](docs/research/mixnet.md)'s Bootstrap
 degradation notice for an implementation offering the opt-in mixnet, §25.9's bounded-lifetime /
 cooperative-revoke disclosure), a client's own claims about a session or an address (§7.10.6,
 §7.15.3), a process boundary (§7.1b), or the population a deployment actually serves (§7.15.4);
 they are the rows marked `manual-attestation` in `conformance/SUITE.md`, each naming the review
-that settles it. The remaining 263 carry an exact construction recipe and expected §21 error for the
+that settles it. The remaining 282 carry an exact construction recipe and expected §21 error for the
 branches whose subsystems are not yet vectored (mixnet/MLS/gateway/auth, plus the wave-2
 deniable/KT-v1/org/device-attestation families, the `FILE` durability guards, the `PROFILE`
 display-data guards, the optional `PUSH` wake-signalling guards, the wave-6 anti-drift families

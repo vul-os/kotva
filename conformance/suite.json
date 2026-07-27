@@ -29,9 +29,9 @@
     "manual-attestation": "a client-UX, in-product-disclosure or deployment/process MUST with no wire bytes to recompute (§22.7's explicit-publish-act and irrevocability disclosures; docs/research/mixnet.md §4.4.10a's Bootstrap degradation disclosure and no-anonymity-claim rule, for an implementation offering the opt-in mixnet; §7.11.4/§9.11's gateway posture; §7.1b's process/privilege separation); verified by implementer/deployment review, not by a byte-level runner"
   },
   "vectors_file": "vectors/vectors.json",
-  "vectors_count": 69,
-  "referenced_vectors_count": 43,
-  "vectors_count_note": "vectors_count is the number of entries in vectors/vectors.json; referenced_vectors_count (43) is how many of them the byte-backed cases currently drive (several drive more than one case). The remaining 26 are pre-generated for construction-todo families not yet wired to a case.",
+  "vectors_count": 70,
+  "referenced_vectors_count": 44,
+  "vectors_count_note": "vectors_count is the number of entries in vectors/vectors.json; referenced_vectors_count (44) is how many of them the byte-backed cases currently drive (several drive more than one case). The remaining 26 are pre-generated for construction-todo families not yet wired to a case.",
   "notes": [
     "reject cases map to spec §21 (144-code registry); error_code + error_name + disposition (Action column) are normative.",
     "self-contained CBOR reject cases assert a deterministic-CBOR (RFC 8949 §4.2 / §18.1.1) decoder rejects the given bytes.",
