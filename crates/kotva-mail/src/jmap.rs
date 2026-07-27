@@ -48,8 +48,8 @@ pub fn session_resource(account_id: &str, base_url: &str, state: &str) -> Value 
                 "maxSizeRequest": 10_000_000u64,
                 "maxConcurrentRequests": 4,
                 "maxCallsInRequest": MAX_CALLS_IN_REQUEST,
-                "maxObjectsInGet": 500,
-                "maxObjectsInSet": 500,
+                "maxObjectsInGet": MAX_OBJECTS_IN_GET,
+                "maxObjectsInSet": MAX_OBJECTS_IN_SET,
                 "collationAlgorithms": ["i;ascii-casemap", "i;unicode-casemap"]
             },
             CAP_MAIL: {
@@ -107,6 +107,25 @@ pub(crate) const MAX_CALLS_IN_REQUEST: usize = 16;
 /// exceed it — is rejected with `requestTooLarge` BEFORE the per-id parse loop, so an unbounded or
 /// duplicate-packed id list cannot drive unbounded MIME parses / response building.
 pub(crate) const MAX_OBJECTS_IN_GET: usize = 500;
+
+/// RFC 8620 §5.3: the advertised — and now enforced — cap on the number of objects a `/set` may
+/// create + update + destroy in one call. Shared with `session_resource`'s `maxObjectsInSet`.
+pub(crate) const MAX_OBJECTS_IN_SET: usize = 500;
+
+/// Enforce `maxObjectsInSet` (RFC 8620 §5.3) BEFORE a `/set` mutates anything: the total of
+/// `create` + `update` + `destroy` must not exceed the cap, or the whole method is rejected with
+/// `requestTooLarge` — so an unbounded create/update/destroy map cannot drive unbounded object
+/// construction, store mutation, and response building.
+fn enforce_set_limit(args: &Value) -> Result<(), Value> {
+    let objs = |k: &str| args.get(k).and_then(|v| v.as_object()).map_or(0, |m| m.len());
+    let n = objs("create")
+        + objs("update")
+        + args.get("destroy").and_then(|v| v.as_array()).map_or(0, |a| a.len());
+    if n > MAX_OBJECTS_IN_SET {
+        return Err(json!({ "type": "requestTooLarge", "description": "more than maxObjectsInSet objects in one /set" }));
+    }
+    Ok(())
+}
 
 /// Defense-in-depth cap on cumulative response size. Even within `MAX_CALLS_IN_REQUEST`, a chain of
 /// back-referencing `Core/echo` calls can double the response each step (`eval_pointer` returns a full
@@ -172,12 +191,12 @@ fn dispatch<S: MailStore>(
         "Mailbox/get" => Ok(("Mailbox/get".into(), mailbox_get(store, account, args))),
         "Mailbox/query" => Ok(("Mailbox/query".into(), mailbox_query(store, account))),
         "Mailbox/changes" => Ok(("Mailbox/changes".into(), changes(store, account, JmapObj::Mailbox, args))),
-        "Mailbox/set" => Ok(("Mailbox/set".into(), mailbox_set(store, account, args))),
+        "Mailbox/set" => mailbox_set(store, account, args).map(|v| ("Mailbox/set".into(), v)),
         "Email/get" => email_get(store, account, args).map(|v| ("Email/get".into(), v)),
         "Email/query" => Ok(("Email/query".into(), email_query(store, account, args))),
         "Email/changes" => Ok(("Email/changes".into(), changes(store, account, JmapObj::Email, args))),
         "Email/queryChanges" => Ok(("Email/queryChanges".into(), email_query_changes(store, account, args))),
-        "Email/set" => Ok(("Email/set".into(), email_set(store, account, args))),
+        "Email/set" => email_set(store, account, args).map(|v| ("Email/set".into(), v)),
         "Thread/get" => thread_get(store, account, args).map(|v| ("Thread/get".into(), v)),
         "Thread/changes" => Ok(("Thread/changes".into(), changes(store, account, JmapObj::Thread, args))),
         "SearchSnippet/get" => Ok(("SearchSnippet/get".into(), search_snippet_get(store, account, args))),
@@ -497,7 +516,8 @@ fn preview(p: &ParsedMessage) -> String {
     text.chars().take(200).collect()
 }
 
-fn email_set<S: MailStore>(store: &mut S, account: &str, args: &Value) -> Value {
+fn email_set<S: MailStore>(store: &mut S, account: &str, args: &Value) -> Result<Value, Value> {
+    enforce_set_limit(args)?;
     let mut created = serde_json::Map::new();
     let mut not_created = serde_json::Map::new();
     let mut updated = serde_json::Map::new();
@@ -569,7 +589,7 @@ fn email_set<S: MailStore>(store: &mut S, account: &str, args: &Value) -> Value 
         }
     }
 
-    json!({
+    Ok(json!({
         "accountId": account,
         "oldState": "0",
         "newState": state_string(store),
@@ -579,7 +599,7 @@ fn email_set<S: MailStore>(store: &mut S, account: &str, args: &Value) -> Value 
         "notCreated": Value::Object(not_created),
         "notUpdated": Value::Object(not_updated),
         "notDestroyed": Value::Object(not_destroyed)
-    })
+    }))
 }
 
 /// Compose a JMAP `Email` create object (RFC 8621 §4.6) into RFC 5322 bytes and file it into the
@@ -821,7 +841,8 @@ fn changes<S: MailStore>(store: &S, account: &str, obj: JmapObj, args: &Value) -
 /// `Mailbox/set`: create / update (rename, subscribe) / destroy mailboxes, mapping onto the
 /// [`MailStore`] mutators. Roles and `parentId` from the create object are honored where the store
 /// supports them (folder names are the ids in this projection).
-fn mailbox_set<S: MailStore>(store: &mut S, account: &str, args: &Value) -> Value {
+fn mailbox_set<S: MailStore>(store: &mut S, account: &str, args: &Value) -> Result<Value, Value> {
+    enforce_set_limit(args)?;
     let mut created = serde_json::Map::new();
     let mut not_created = serde_json::Map::new();
     let mut updated = serde_json::Map::new();
@@ -884,7 +905,7 @@ fn mailbox_set<S: MailStore>(store: &mut S, account: &str, args: &Value) -> Valu
         }
     }
 
-    json!({
+    Ok(json!({
         "accountId": account,
         "oldState": "0",
         "newState": state_string(store),
@@ -894,7 +915,7 @@ fn mailbox_set<S: MailStore>(store: &mut S, account: &str, args: &Value) -> Valu
         "notCreated": Value::Object(not_created),
         "notUpdated": Value::Object(not_updated),
         "notDestroyed": Value::Object(not_destroyed)
-    })
+    }))
 }
 
 // --- Email/queryChanges (RFC 8621 §4.5) ----------------------------------------------------
@@ -1220,6 +1241,27 @@ mod tests {
             method_calls: vec![("Email/get".into(), json!({ "ids": at }), "c1".into())],
         };
         assert_eq!(process(&mut store, "acct1", &req).method_responses[0].0, "Email/get");
+    }
+
+    #[test]
+    fn set_handlers_enforce_max_objects_in_set() {
+        // Security regression (RFC 8620 §5.3): Email/set and Mailbox/set must reject a
+        // create/update/destroy batch larger than maxObjectsInSet with requestTooLarge BEFORE
+        // mutating anything — else an unbounded create map drives unbounded object construction.
+        let mut store = store_with_mail();
+        let mut create = serde_json::Map::new();
+        for i in 0..=MAX_OBJECTS_IN_SET {
+            create.insert(format!("c{i}"), json!({ "name": format!("Folder{i}") }));
+        }
+        for method in ["Mailbox/set", "Email/set"] {
+            let req = Request {
+                using: vec![CAP_MAIL.into()],
+                method_calls: vec![(method.to_string(), json!({ "create": create }), "c1".into())],
+            };
+            let resp = process(&mut store, "acct1", &req);
+            assert_eq!(resp.method_responses[0].0, "error", "{method} over-limit /set must error");
+            assert_eq!(resp.method_responses[0].1["type"], json!("requestTooLarge"), "{method}");
+        }
     }
 
     #[test]
