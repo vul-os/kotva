@@ -229,6 +229,14 @@ fn resolve_references(args: &Value, prior: &[Invocation]) -> Result<Value, Value
         None => return Ok(args.clone()),
     };
     let mut out = serde_json::Map::new();
+    // Bound the total bytes materialized by back-reference resolution WITHIN this single call.
+    // eval_pointer with an empty path returns a full clone of a prior response (§3.7), and a call
+    // may carry any number of `#`-keys — so a call with thousands of distinct `#`-keys each cloning
+    // the same large prior response allocates N×R bytes BEFORE process()'s MAX_RESPONSE_BYTES check
+    // (which runs only after resolve+dispatch, and only gates SUBSEQUENT calls). Accumulate resolved
+    // size here and fail closed once it exceeds the same ceiling, so one call cannot balloon transient
+    // memory and OOM the connection thread. Distinct from the cross-call chain-doubling that cap gates.
+    let mut resolved_bytes = 0usize;
     for (k, v) in obj {
         // The wire spelling of a back-reference argument is `#<realArgName>`.
         if let Some(real) = k.strip_prefix('#') {
@@ -245,6 +253,10 @@ fn resolve_references(args: &Value, prior: &[Invocation]) -> Result<Value, Value
                 .find(|(n, _, cid)| n == mname && cid == result_of)
                 .ok_or_else(|| ref_error("ResultReference target not found"))?;
             let resolved = eval_pointer(&source.1, path).ok_or_else(|| ref_error("bad ResultReference path"))?;
+            resolved_bytes = resolved_bytes.saturating_add(resolved.to_string().len());
+            if resolved_bytes > MAX_RESPONSE_BYTES {
+                return Err(ref_error("resolved back-references exceed the response-size limit"));
+            }
             out.insert(real.to_string(), resolved);
         } else {
             out.insert(k.clone(), v.clone());
@@ -1655,5 +1667,35 @@ mod tests {
         let resp = process(&mut s, "acct1", &req);
         let get = &resp.method_responses[1].1;
         assert_eq!(get["list"][0]["subject"], json!("Hello"), "back-ref get: {get}");
+    }
+
+    #[test]
+    fn resolve_references_bounds_single_call_fanout() {
+        // Security regression: a single call carrying many `#`-keys, each cloning a large prior
+        // response via an empty-path back-reference (a full clone), allocated N×R bytes before any
+        // size check — process()'s MAX_RESPONSE_BYTES runs only after resolve+dispatch and gates only
+        // subsequent calls. resolve_references now bounds cumulative resolved size, failing closed.
+        let big = "x".repeat(6_000_000); // ~6 MB response body
+        let prior: Vec<Invocation> =
+            vec![("Core/echo".to_string(), json!({ "data": big }), "c1".to_string())];
+
+        // 12 back-references × ~6 MB ≈ 72 MB > MAX_RESPONSE_BYTES (50 MB) → must fail closed.
+        let mut args = serde_json::Map::new();
+        for i in 0..12 {
+            args.insert(
+                format!("#a{i}"),
+                json!({ "resultOf": "c1", "name": "Core/echo", "path": "" }),
+            );
+        }
+        let err = resolve_references(&Value::Object(args), &prior).unwrap_err();
+        assert_eq!(err["type"], json!("invalidResultReference"), "over-budget fan-out must fail closed");
+
+        // A single in-budget back-reference to the same response still resolves normally.
+        let ok = resolve_references(
+            &json!({ "#a": { "resultOf": "c1", "name": "Core/echo", "path": "/data" } }),
+            &prior,
+        )
+        .expect("a single in-budget back-reference resolves");
+        assert!(ok.get("a").is_some(), "normal back-reference resolution still works");
     }
 }
