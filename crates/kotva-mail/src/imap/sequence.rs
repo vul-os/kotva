@@ -117,6 +117,51 @@ impl SequenceSet {
             })
             .collect()
     }
+
+    /// Build an `O(log R)`-membership view (see [`Membership`]) by sorting and coalescing the
+    /// resolved ranges. Use this instead of repeated [`Self::contains`] when probing MANY values
+    /// against a set whose range count may be large — notably a SEARCHRES `$` set materialized via
+    /// [`Self::from_uids`], which has one range per saved UID and bypasses the `MAX_RANGES` cap. A
+    /// per-probe `contains` is `O(R)`, so probing `V` values is `O(V·R)` ≈ `O(n²)`; this makes it
+    /// `O(R log R)` to build + `O(V log R)` to probe — the same asymmetric-DoS class the
+    /// `resolve_targets` binary-search path already eliminated for FETCH/STORE/COPY/EXPUNGE.
+    pub fn membership(&self, max: u32) -> Membership {
+        let mut r = self.ranges_resolved(max);
+        r.sort_unstable_by_key(|&(lo, _)| lo);
+        let mut coalesced: Vec<(u32, u32)> = Vec::with_capacity(r.len());
+        for (lo, hi) in r {
+            match coalesced.last_mut() {
+                // Merge overlapping OR adjacent ranges so the search sees disjoint, ordered spans.
+                Some(last) if lo <= last.1.saturating_add(1) => last.1 = last.1.max(hi),
+                _ => coalesced.push((lo, hi)),
+            }
+        }
+        Membership { ranges: coalesced }
+    }
+}
+
+/// A sorted, coalesced view of a [`SequenceSet`]'s concrete ranges supporting `O(log R)` membership
+/// tests. Built once via [`SequenceSet::membership`] and probed many times — the bounded-cost
+/// alternative to calling [`SequenceSet::contains`] (an `O(R)` linear scan) in a hot loop.
+pub struct Membership {
+    ranges: Vec<(u32, u32)>,
+}
+
+impl Membership {
+    /// Does `uid` fall in the set? `O(log R)` binary search over the disjoint, ordered ranges.
+    pub fn contains(&self, uid: u32) -> bool {
+        self.ranges
+            .binary_search_by(|&(lo, hi)| {
+                if uid < lo {
+                    std::cmp::Ordering::Greater
+                } else if uid > hi {
+                    std::cmp::Ordering::Less
+                } else {
+                    std::cmp::Ordering::Equal
+                }
+            })
+            .is_ok()
+    }
 }
 
 fn parse_point(s: &str) -> Option<Point> {
@@ -142,6 +187,27 @@ mod tests {
     fn range_is_order_independent() {
         let set = SequenceSet::parse("5:3").unwrap();
         assert_eq!(set.resolve_seqs(10), vec![3, 4, 5]);
+    }
+
+    #[test]
+    fn membership_matches_contains() {
+        // The O(log R) membership view must be identical to the O(R) contains scan it replaces on
+        // the QRESYNC/VANISHED hot paths — including reversed ranges, `*`, and a `$`-style from_uids
+        // set (one point-range per UID, the uncapped case membership was introduced to bound).
+        let set = SequenceSet::parse("5,1:3,10:8,2:*").unwrap();
+        let m = set.membership(100);
+        for uid in 0..=110u32 {
+            assert_eq!(m.contains(uid), set.contains(uid, 100), "divergence at uid {uid}");
+        }
+        // from_uids (the `$` materialization) with duplicate/unordered points coalesces correctly.
+        let f = SequenceSet::from_uids(&[100, 3, 3, 4, 5, 50]);
+        let fm = f.membership(200);
+        for uid in [3u32, 4, 5, 50, 100] {
+            assert!(fm.contains(uid), "missing {uid}");
+        }
+        for uid in [0u32, 2, 6, 49, 51, 99, 101] {
+            assert!(!fm.contains(uid), "false positive {uid}");
+        }
     }
 
     #[test]

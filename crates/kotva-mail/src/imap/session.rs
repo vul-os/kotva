@@ -415,11 +415,18 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
         let max_uid = mb.max_uid();
         let mut out = Vec::new();
 
+        // Intersect against the client's known-uids via the O(log R) membership view, NOT a per-item
+        // k.contains: known_uids is a client-supplied set capped only at MAX_RANGES (10 000), so a
+        // linear contains over N survivors + V vanished is O((N+V)·10 000) — a super-linear SELECT
+        // from one ~10 000-range QRESYNC known-uid set. Building the sorted view once makes it
+        // O((N+V) log R), matching the resolve_targets discipline used everywhere else.
+        let known = known_uids.map(|k| k.membership(max_uid));
+
         // VANISHED (EARLIER): UIDs expunged after the client's modseq, intersected with what it knew.
         let mut vanished: Vec<u32> = mb
             .vanished_since(modseq)
             .into_iter()
-            .filter(|u| known_uids.map(|k| k.contains(*u, max_uid)).unwrap_or(true))
+            .filter(|u| known.as_ref().map(|m| m.contains(*u)).unwrap_or(true))
             .collect();
         vanished.sort_unstable();
         if !vanished.is_empty() {
@@ -431,7 +438,7 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
             if m.modseq <= modseq {
                 continue;
             }
-            if known_uids.map(|k| !k.contains(m.uid, max_uid)).unwrap_or(false) {
+            if known.as_ref().map(|m2| !m2.contains(m.uid)).unwrap_or(false) {
                 continue;
             }
             let seq = i + 1;
@@ -1021,10 +1028,16 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
         // the requested set that were expunged since that modseq before the surviving-message data.
         if vanished {
             if let Some(cs) = changedsince {
+                // Probe the expunged log against the requested set via the O(log R) membership view,
+                // NOT set.contains per UID: a `$` set is materialized by from_uids (one range per
+                // saved UID, uncapped by MAX_RANGES), so a per-UID linear contains over a large
+                // vanished log is O(V·N) ≈ O(n²) — the same repeatable CPU-exhaustion the expunge
+                // fix removed (a single `UID FETCH $ ... VANISHED` weaponized it here).
+                let member = set.membership(max_uid);
                 let mut v: Vec<u32> = mb
                     .vanished_since(cs)
                     .into_iter()
-                    .filter(|u| set.contains(*u, max_uid))
+                    .filter(|u| member.contains(*u))
                     .collect();
                 v.sort_unstable();
                 if !v.is_empty() {
