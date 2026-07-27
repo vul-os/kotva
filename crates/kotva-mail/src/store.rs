@@ -459,6 +459,13 @@ impl Delivery {
 pub struct MemoryStore {
     mailboxes: BTreeMap<String, Mailbox>,
     order: Vec<String>,
+    /// Monotonic UIDVALIDITY allocator (RFC 9051 §2.3.1.1). Every mailbox *creation* — including a
+    /// delete-then-recreate of the same name — draws a strictly larger value than any prior mailbox,
+    /// so UIDs can never be reused under an unchanged UIDVALIDITY and a client's cached
+    /// (UIDVALIDITY, UID) pairs are correctly invalidated. Deterministic (a plain counter), and
+    /// never decremented on delete, so a name that is recreated always advertises a fresh value.
+    /// RENAME does not draw from it — it preserves the mailbox's UIDVALIDITY, per the RFC.
+    next_uid_validity: u32,
 }
 
 impl Default for MemoryStore {
@@ -470,26 +477,35 @@ impl Default for MemoryStore {
 impl MemoryStore {
     /// A store pre-populated with INBOX and the SPECIAL-USE folders (spec §8 auto-mapping).
     pub fn new() -> Self {
-        let mut s = MemoryStore { mailboxes: BTreeMap::new(), order: Vec::new() };
-        s.insert(Mailbox::new("INBOX", Some(SpecialUse::Inbox)));
-        s.insert(Mailbox::new("Sent", Some(SpecialUse::Sent)));
-        s.insert(Mailbox::new("Drafts", Some(SpecialUse::Drafts)));
-        s.insert(Mailbox::new("Trash", Some(SpecialUse::Trash)));
-        s.insert(Mailbox::new("Junk", Some(SpecialUse::Junk)));
-        s.insert(Mailbox::new("Archive", Some(SpecialUse::Archive)));
+        let mut s = MemoryStore { mailboxes: BTreeMap::new(), order: Vec::new(), next_uid_validity: 1 };
+        s.insert_fresh(Mailbox::new("INBOX", Some(SpecialUse::Inbox)));
+        s.insert_fresh(Mailbox::new("Sent", Some(SpecialUse::Sent)));
+        s.insert_fresh(Mailbox::new("Drafts", Some(SpecialUse::Drafts)));
+        s.insert_fresh(Mailbox::new("Trash", Some(SpecialUse::Trash)));
+        s.insert_fresh(Mailbox::new("Junk", Some(SpecialUse::Junk)));
+        s.insert_fresh(Mailbox::new("Archive", Some(SpecialUse::Archive)));
         s
     }
 
     /// An empty store with only INBOX (for tests that want a minimal layout).
     pub fn empty() -> Self {
-        let mut s = MemoryStore { mailboxes: BTreeMap::new(), order: Vec::new() };
-        s.insert(Mailbox::new("INBOX", Some(SpecialUse::Inbox)));
+        let mut s = MemoryStore { mailboxes: BTreeMap::new(), order: Vec::new(), next_uid_validity: 1 };
+        s.insert_fresh(Mailbox::new("INBOX", Some(SpecialUse::Inbox)));
         s
     }
 
+    /// Insert a mailbox, preserving its `uid_validity` (used by RENAME, which keeps UIDVALIDITY).
     fn insert(&mut self, mb: Mailbox) {
         self.order.push(mb.name.clone());
         self.mailboxes.insert(mb.name.clone(), mb);
+    }
+
+    /// Insert a freshly *created* mailbox, assigning it the next monotonic UIDVALIDITY so a
+    /// recreated name never reuses a prior one's (UIDVALIDITY, UID) space (RFC 9051 §2.3.1.1).
+    fn insert_fresh(&mut self, mut mb: Mailbox) {
+        mb.uid_validity = self.next_uid_validity;
+        self.next_uid_validity = self.next_uid_validity.wrapping_add(1);
+        self.insert(mb);
     }
 
     /// Project a decrypted MOTE payload (spec §2.4) into the store as an RFC 5322 message.
@@ -560,7 +576,7 @@ impl MailStore for MemoryStore {
         if self.mailboxes.contains_key(name) {
             return Err(StoreError::AlreadyExists);
         }
-        self.insert(Mailbox::new(name, None));
+        self.insert_fresh(Mailbox::new(name, None));
         Ok(())
     }
     fn delete(&mut self, name: &str) -> Result<(), StoreError> {
@@ -691,6 +707,31 @@ mod tests {
         }
         // System flags are case-insensitive.
         assert_eq!(Flag::parse("\\SEEN"), Flag::Seen);
+    }
+
+    #[test]
+    fn recreated_mailbox_gets_a_fresh_uidvalidity() {
+        // RFC 9051 §2.3.1.1: a delete-then-recreate of the same name MUST NOT reuse UIDs under an
+        // unchanged UIDVALIDITY, or a client's cached (UIDVALIDITY, UID) pairs silently conflate old
+        // and new messages (and QRESYNC fast-resync wrongly skips the full resync). Each creation
+        // draws a strictly larger UIDVALIDITY.
+        let mut s = MemoryStore::empty();
+        s.create("Work").unwrap();
+        let uv1 = s.mailbox("Work").unwrap().uid_validity;
+        s.deliver_raw("Work", b"one".to_vec(), vec![], 0);
+        assert_eq!(s.mailbox("Work").unwrap().max_uid(), 1);
+
+        s.delete("Work").unwrap();
+        s.create("Work").unwrap();
+        let uv2 = s.mailbox("Work").unwrap().uid_validity;
+        assert!(uv2 > uv1, "recreated mailbox must advertise a strictly larger UIDVALIDITY ({uv1} -> {uv2})");
+        // UID assignment restarts at 1, so without the bump a client would conflate the two messages.
+        s.deliver_raw("Work", b"different".to_vec(), vec![], 0);
+        assert_eq!(s.mailbox("Work").unwrap().max_uid(), 1);
+
+        // Distinct mailboxes also get distinct UIDVALIDITY (the allocator is global-monotonic).
+        s.create("Other").unwrap();
+        assert_ne!(s.mailbox("Other").unwrap().uid_validity, uv2);
     }
 
     #[test]
