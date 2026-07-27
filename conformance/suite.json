@@ -12,7 +12,7 @@
   ],
   "ratification_tiers": {
     "definition": "Ratification tier per SPEC.md 'Ratification tiers'. Orthogonal to 'level' (which is DMTAP feature grouping). A vector is 'stable-extension' iff any of its clauses lives in an in-tree extension section (§22 DMTAP-PUB, §23-§24 Published-Artifact/video, §25 DMTAP-PUBSUB, §27 Real-Time Media); otherwise 'core-v1' (§00-§21 + §26 legacy interop).",
-    "core-v1": 293,
+    "core-v1": 296,
     "stable-extension": 71,
     "draft": 0,
     "note": "No DEPOT (draft/deferred), RTC, or commerce/escrow vectors exist in this suite — those surfaces carry no protocol wire (SEAM-02), so Core-v1 conformance is testable in full without any extension present."
@@ -1360,6 +1360,69 @@
         "outcome": "reject",
         "error_code": "0x020B",
         "error_name": "ERR_EXPIRED_MOTE",
+        "action": "DROP_SILENT"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-VAL-16",
+      "level": "Core",
+      "ratification_tier": "core-v1",
+      "category": "VAL",
+      "req": "MUST",
+      "clause": [
+        "§2.7 step 3a",
+        "§20.1",
+        "§16.10"
+      ],
+      "checks": "the §2.7 step-3a PAST bound: a validly-signed MOTE whose Envelope.ts is older than the durable seen-id horizon (§16.10, 20 days) is rejected even after its id has aged out of the §2.6 dedup cache — the only default-path defence against replay of a captured MOTE. Distinct from 0x020C (future skew) and 0x020E (duplicate within the horizon)",
+      "operation": "mote_validate",
+      "construction": "a previously-acked, validly-signed MOTE with Envelope.ts = now - 20d - 1min, re-presented AFTER its id has aged out of the §2.6 dedup cache (so dedup does not fire). Companion (accept/dedup): the same at ts = horizon - 1min, still within the dedup window, is instead deduplicated per DMTAP-VAL-11 — pinning that the freshness past-bound and the dedup lifetime are the same §16.10 figure",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0213",
+        "error_name": "ERR_TS_TOO_STALE",
+        "action": "DROP_SILENT"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-VAL-17",
+      "level": "Core",
+      "ratification_tier": "core-v1",
+      "category": "VAL",
+      "req": "MUST",
+      "clause": [
+        "§2.7 step 8",
+        "§18.9.2"
+      ],
+      "checks": "an Envelope whose kind/ts/to differ from the values bound into Payload.sig (§18.9.2) is rejected — a re-emitter that altered the envelope context after signing is detected because the identity signature now covers kind/ts/to",
+      "operation": "mote_validate",
+      "construction": "a validly-sealed MOTE whose Envelope.kind (or ts, or to) is altered after Payload.sig was computed over the original kind/ts/to",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0211",
+        "error_name": "ERR_ENVELOPE_CONTEXT_MISMATCH",
+        "action": "DROP_SILENT"
+      },
+      "status": "construction-todo"
+    },
+    {
+      "id": "DMTAP-VAL-18",
+      "level": "Core",
+      "ratification_tier": "core-v1",
+      "category": "VAL",
+      "req": "MUST",
+      "clause": [
+        "§2.7 step 9"
+      ],
+      "checks": "a kind=edit (0x03) or kind=redact (0x04) MOTE whose Payload.from does not equal the stored Payload.from of every refs target (an unheld target is treated as a mismatch, fail closed) is rejected — the same-author gate that stops a cross-author edit/delete of another party's message in the recipient's own view",
+      "operation": "mote_validate",
+      "construction": "a kind=edit MOTE whose Payload.from differs from the stored Payload.from of the referenced (refs) target the node holds; plus a variant whose refs target the node does NOT hold (also rejected, fail closed)",
+      "expect": {
+        "outcome": "reject",
+        "error_code": "0x0212",
+        "error_name": "ERR_EDIT_REDACT_AUTHOR_MISMATCH",
         "action": "DROP_SILENT"
       },
       "status": "construction-todo"

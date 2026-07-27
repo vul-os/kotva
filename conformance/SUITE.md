@@ -29,12 +29,12 @@ Each case has:
 
 ## Ratification-tier subset — what a Core-v1 implementation must pass
 
-The [SPEC ratification tiers](../SPEC.md) draw a conformance seam through this suite. Of the **364**
+The [SPEC ratification tiers](../SPEC.md) draw a conformance seam through this suite. Of the **367**
 cases:
 
 | Ratification tier | Cases | What it covers |
 |-------------------|------:|----------------|
-| **`core-v1`** | **293** | The DMTAP-mail reference profile — identity, MOTE, naming, transport, messaging, privacy, gateway, clients, anti-abuse, auth, wire-format, state machines, legacy interop (§00–§21, §26). The mature heart, with **no load-bearing coordinator**. |
+| **`core-v1`** | **296** | The DMTAP-mail reference profile — identity, MOTE, naming, transport, messaging, privacy, gateway, clients, anti-abuse, auth, wire-format, state machines, legacy interop (§00–§21, §26). The mature heart, with **no load-bearing coordinator**. |
 | **`stable-extension`** | **71** | The in-tree DMTAP-PUB object family: `PUB`/`PUBGUARD` (§22), `CAD`/`CADASM` + `VIDEO`/`VIDMIG` (§23–§24), `PUBSUB` (§25). Capability-gated, additive. |
 | **`draft`** | **0** | DEPOT and `compute` carry no wire in this suite; RTC (§27) and commerce/escrow carry **no protocol surface** to vector (SEAM-02). |
 
@@ -43,7 +43,7 @@ cases:
 the `clause` field — no vector is Core-v1 by virtue of a hand judgement.
 
 **The practical consequence:** an implementation can be **fully Core-v1 conformant with no extension
-present** — the 293 Core-v1 `MUST` cases neither reference nor require any DMTAP-PUB object, feed
+present** — the 296 Core-v1 `MUST` cases neither reference nor require any DMTAP-PUB object, feed
 subscription, video artifact, real-time-media session, or market coordinator. That is the ratifiable
 core (SPEC, "Core v1 is complete and conformant with *no* extension"), made testable: the tier is a
 filter over this catalogue, not a second suite.
@@ -55,13 +55,13 @@ the same set, and one numeric coincidence is worth calling out:
 | Scoping | Size | Meaning |
 |---------|-----:|---------|
 | **Core conformance *level*** (§10.3, the `## Core level` case block) | ≈ **71** | The **minimum mandatory interoperability floor** — the least an implementation must pass to claim any conformance at all. |
-| **`ratification_tier: core-v1`** (this section) | **293** | The whole ratifiable DMTAP-mail heart (§00–§21, §26) — the Core *level* floor **plus** the higher DMTAP levels (Private, Groups&Files, Legacy, Clients, Auth), which are still market-free and load-bearing-free and so ratify together. |
-| **`level: Core`** (the `level` field) | **222** | *Area*-core: which numbered core chapter a case derives from. §10 warns this is **not** a Core-*level* obligation — some `level: Core` cases are the optional PUB/PUBSUB extension. |
+| **`ratification_tier: core-v1`** (this section) | **296** | The whole ratifiable DMTAP-mail heart (§00–§21, §26) — the Core *level* floor **plus** the higher DMTAP levels (Private, Groups&Files, Legacy, Clients, Auth), which are still market-free and load-bearing-free and so ratify together. |
+| **`level: Core`** (the `level` field) | **225** | *Area*-core: which numbered core chapter a case derives from. §10 warns this is **not** a Core-*level* obligation — some `level: Core` cases are the optional PUB/PUBSUB extension. |
 
-The nesting is **Core level (≈71) ⊂ core-v1 tier (293)**, and `level: Core` (222) cuts across both.
+The nesting is **Core level (≈71) ⊂ core-v1 tier (296)**, and `level: Core` (225) cuts across both.
 The `71` in the Core-*level* floor and the `71` stable-extension count are **coincidental and
 unrelated** — one is the mandatory floor, the other is the count of extension vectors. When this
-document says "Core-v1" it always means the **293-case ratification tier**; "Core level" always means
+document says "Core-v1" it always means the **296-case ratification tier**; "Core level" always means
 the **≈71-case §10.3 floor**.
 
 **Clause citations into the relocated mixnet/VDF sections (2026-07 demotion).** Every `§4.4`/
@@ -151,7 +151,7 @@ and on `reject` MUST map it to the named §21 error code with that code's `Actio
 | **Core** — wire objects with no vector: decode & cross-field rules (`WIRE`) | 10 | 0 | 0 | 10 | 0 |
 | **Core** — §18 KATs: manifest, mix descriptor, Sphinx framing (`WIREKAT`) | 9 | 9 | 0 | 0 | 0 |
 | **Core** — DMTAP-PUBSUB extension, optional `pubsub-1` (`PUBSUB`) | 16 | 0 | 0 | 15 | 1 |
-| **Total** | **364** | **57** | **6** | **282** | **19** |
+| **Total** | **367** | **57** | **6** | **285** | **19** |
 
 The 57 vectored + 6 self-contained cases (**63**) are fully machine-runnable **today** from
 `vectors.json` / `pub_vectors.json` + the inline bytes here, with **no reference implementation
@@ -165,7 +165,7 @@ root, the announce and feed-head signing preimages, `announce_id`, the prev-chai
 type-incompatibility with sealed manifests, the same-author supersede rule, and feed anti-rollback
 incl. the idempotent-refetch and fork/equivocation branches).
 
-The 282 `construction-todo` cases give the exact recipe and expected §21 error for every remaining
+The 285 `construction-todo` cases give the exact recipe and expected §21 error for every remaining
 normative branch — the full §2.7 pipeline, identity/KT fail-closed, the higher levels, the
 hardening families (`DENIABLE`/`ORG`/`KTV1`/`ATTEST`), the `PROFILE` display-data guards, the
 pluggable-resolver guards (`RESOLVE`), the optional `PUSH` wake-signalling guards, the `FILE`
@@ -193,7 +193,7 @@ in [`scope.json`](scope.json). That sentence is doing exact work and is easy to 
   if every MUST in it is exercised. The metric is a floor **with named gaps**: it says "most of the
   implementable spec has a case pointed at it, and the tool lists what does not", never "everything
   is checked".
-- It counts cases that **exist**, not cases that **pass.** Of 364 cases, 63 are byte-runnable
+- It counts cases that **exist**, not cases that **pass.** Of 367 cases, 63 are byte-runnable
   today; the rest carry a construction recipe or are settled by review. **No implementation has
   been run against this suite**, so the suite is a specification of tests, not a test result.
 - The denominator is **curated.** [`scope.json`](scope.json) classifies all **403** MUST-bearing
@@ -211,7 +211,7 @@ the figures move
 as the suite grows.
 
 **Sync status:** `SUITE.md` and [`suite.json`](suite.json) are **in sync** — both carry the same
-**364** case ids, and `make lint` (check C5) fails the build if they ever disagree, or if any
+**367** case ids, and `make lint` (check C5) fails the build if they ever disagree, or if any
 document states a different count. The changed deniable objects (§5.2.1 dedicated-`idk`) are still
 to be re-vectored when the reference regenerates `vectors.json`.
 
@@ -357,6 +357,9 @@ sealed `Envelope`/`Payload` fixture, which is non-deterministic to *seal* — se
 | DMTAP-VAL-13 | MUST | §2.3, §10.1 | a `kind` the node cannot validate is ignored and **MUST NOT be acked** | construction: `Envelope.kind = 0x40` (reserved) unimplemented | reject → `ERR_KIND_UNKNOWN` (0x020A), IGNORE_NO_ACK | construction-todo |
 | DMTAP-VAL-14 | SHOULD | §16.1 | `ts` outside ±120 s skew is dropped for cold senders (MAY be lenient for known contacts) | construction: `Envelope.ts` = now + 10 min | reject → `ERR_TIMESTAMP_OUT_OF_SKEW` (0x020C), DROP_SILENT (cold) | construction-todo |
 | DMTAP-VAL-15 | SHOULD | §2.4, §16.1 | an expired MOTE (`Payload.expires` past) is dropped (cooperative hint, not a security guarantee) | construction: `Payload.expires` in the past | reject → `ERR_EXPIRED_MOTE` (0x020B), DROP_SILENT | construction-todo |
+| DMTAP-VAL-16 | MUST | §2.7 step 3a, §20.1, §16.10 | the step-3a **past** bound: a validly-signed MOTE whose `ts` is older than the durable seen-id horizon (§16.10) is rejected even after its id ages out of the §2.6 dedup cache — the only default-path replay defence (distinct from 0x020C future-skew and 0x020E within-horizon dedup) | construction: a previously-acked MOTE at `ts = now − 20d − 1min` re-presented after its id left the dedup cache; companion at `ts = horizon − 1min` is instead deduplicated (VAL-11) | reject → `ERR_TS_TOO_STALE` (0x0213), DROP_SILENT | construction-todo |
+| DMTAP-VAL-17 | MUST | §2.7 step 8, §18.9.2 | an Envelope whose `kind`/`ts`/`to` differ from the values bound into `Payload.sig` is rejected (post-signing envelope edit detected) | construction: alter `Envelope.kind`/`ts`/`to` after `Payload.sig` was computed | reject → `ERR_ENVELOPE_CONTEXT_MISMATCH` (0x0211), DROP_SILENT | construction-todo |
+| DMTAP-VAL-18 | MUST | §2.7 step 9 | a `kind=edit`/`redact` MOTE whose `Payload.from` ≠ the stored `Payload.from` of every `refs` target (unheld target = mismatch, fail closed) is rejected — the same-author gate | construction: a `kind=edit` MOTE authored by a different key than the stored `refs` target; plus a variant whose `refs` target is not held | reject → `ERR_EDIT_REDACT_AUTHOR_MISMATCH` (0x0212), DROP_SILENT | construction-todo |
 
 ### IDENT — identity / KT / naming fail-closed (§1.3, §3.3, §3.5)
 
