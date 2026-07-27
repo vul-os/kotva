@@ -189,8 +189,17 @@ where
             let mut line: Vec<u8> = Vec::new();
             loop {
                 line.clear();
-                if reader.read_until(b'\n', &mut line).unwrap_or(0) == 0 {
+                // Bounded read (MAX_LINE): the same pre-auth memory-exhaustion defence the IMAP
+                // reader has — a client streaming forever without a `\n` must not grow `line` to OOM.
+                // `read_until_lf` is byte-lossless (no UTF-8 decode), preserving the reason POP3 reads
+                // bytes not `read_line`.
+                if read_until_lf(&mut reader, &mut line).unwrap_or(0) == 0 {
                     break;
+                }
+                if line.len() > MAX_LINE {
+                    let _ = writer.write_all(b"-ERR line too long\r\n");
+                    let _ = writer.flush();
+                    break; // fail closed: drop the connection
                 }
                 strip_crlf(&mut line);
                 let cmd = String::from_utf8_lossy(&line).into_owned();
@@ -232,8 +241,16 @@ where
             let mut line: Vec<u8> = Vec::new();
             loop {
                 line.clear();
-                if reader.read_until(b'\n', &mut line).unwrap_or(0) == 0 {
+                // Bounded read (MAX_LINE): pre-auth memory-exhaustion defence — a client streaming a
+                // newline-less gigabyte must not grow `line` to OOM before any command or the DATA
+                // size cap runs. `read_until_lf` is byte-lossless, keeping 8BITMIME/8-bit bodies intact.
+                if read_until_lf(&mut reader, &mut line).unwrap_or(0) == 0 {
                     break;
+                }
+                if line.len() > MAX_LINE {
+                    let _ = writer.write_all(b"500 5.5.2 Line too long\r\n");
+                    let _ = writer.flush();
+                    break; // fail closed: drop the connection
                 }
                 strip_crlf(&mut line);
                 let quit = line.eq_ignore_ascii_case(b"QUIT");

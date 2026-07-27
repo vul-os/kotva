@@ -327,6 +327,13 @@ pub fn strip_trust_boundary_headers(raw_headers: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(raw_headers.len());
     let mut i = 0;
     let mut dropping = false;
+    // Mirrors `parse_header_block`'s `!out.is_empty()`: a leading-WSP line is a continuation ONLY
+    // after a real header line has been seen. The VERY FIRST line is parsed as a header even when it
+    // begins with WSP — so if this denylist treated a leading-WSP first line as a continuation and
+    // kept it, `  Authentication-Results: …dkim=pass` as the opening line would evade the strip yet be
+    // read as a genuine trust-boundary verdict downstream (§7.2c). A denylist MUST NOT normalize more
+    // strictly than the consumer.
+    let mut seen_header = false;
     while i < raw_headers.len() {
         let line_start = i;
         let mut j = i;
@@ -335,10 +342,11 @@ pub fn strip_trust_boundary_headers(raw_headers: &[u8]) -> Vec<u8> {
         }
         let line_end = if j < raw_headers.len() { j + 1 } else { j };
         let content = &raw_headers[line_start..j];
-        let is_continuation = matches!(content.first(), Some(b' ') | Some(b'\t'));
+        let is_continuation = seen_header && matches!(content.first(), Some(b' ') | Some(b'\t'));
         if !is_continuation {
             dropping = match content.iter().position(|&b| b == b':') {
                 Some(colon) => {
+                    seen_header = true; // a real `name:` line — subsequent WSP lines fold onto it
                     // Match the field name the SAME lenient way `parse_header_block` does. RFC 5322
                     // forbids WSP before the colon, but the parser (and most MUAs/verifiers) accept
                     // it via `line[..colon].trim()`. If this denylist did NOT trim, a hostile sender
@@ -348,10 +356,14 @@ pub fn strip_trust_boundary_headers(raw_headers: &[u8]) -> Vec<u8> {
                     // consumer would read a passing trust-boundary verdict the gateway never
                     // computed, riding byte-for-byte into a gateway-signed wrap (§7.2c). A denylist
                     // MUST NOT match more strictly than the consumer normalizes.
+                    // Trim leading AND trailing linear whitespace, exactly as parse_header_block's
+                    // `line[..colon].trim()` — a leading-WSP first line reaches here (it is parsed as
+                    // a header, not a continuation), and its name carries the leading WSP.
                     let raw_name = &content[..colon];
-                    let end =
-                        raw_name.iter().rposition(|&b| b != b' ' && b != b'\t').map_or(0, |p| p + 1);
-                    let name = &raw_name[..end];
+                    let is_wsp = |&b: &u8| b == b' ' || b == b'\t';
+                    let start = raw_name.iter().position(|b| !is_wsp(b)).unwrap_or(raw_name.len());
+                    let end = raw_name.iter().rposition(|b| !is_wsp(b)).map_or(start, |p| p + 1);
+                    let name = &raw_name[start..end];
                     TRUST_BOUNDARY_HEADERS.iter().any(|h| name.eq_ignore_ascii_case(h.as_bytes()))
                 }
                 // Not a `name:` line (e.g. the blank separator, or malformed input) — never a
@@ -1131,6 +1143,10 @@ body\r\n";
             &b"Authentication-Results\t:dkim=pass header.d=trusted.com\r\nX-Keep: 1\r\n"[..],
             &b"ARC-Authentication-Results :i=1; dkim=pass\r\nX-Keep: 1\r\n"[..],
             &b"ARC-Seal \t:i=1; a=rsa-sha256; cv=none\r\nX-Keep: 1\r\n"[..],
+            // Leading-WSP FIRST line: parse_header_block reads it as a header (out empty), so the
+            // strip must NOT skip it as a continuation.
+            &b" Authentication-Results: mx; dkim=pass header.d=paypal.com\r\nX-Keep: 1\r\n"[..],
+            &b"\tAuthentication-Results: mx; dkim=pass header.d=paypal.com\r\nX-Keep: 1\r\n"[..],
         ] {
             let s = String::from_utf8_lossy(&strip_trust_boundary_headers(raw)).to_ascii_lowercase();
             assert!(
