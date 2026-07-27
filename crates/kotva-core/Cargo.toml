@@ -42,6 +42,9 @@ serde = { version = "1", features = ["derive"] }
 # --- KDF for blinded delivery tags (spec §2.2a: BT = HKDF(shared_secret, epoch_day)) ---
 hkdf = "0.12"
 sha2 = "0.10"
+# --- Unicode NFC quick-check for §25.3.4 rule 1 (a decoder MUST reject non-NFC topic labels;
+# UAX #15). Only the precompiled NFC quick-check tables are used (is_nfc), not full normalization. ---
+unicode-normalization = "0.1"
 # --- RNG ---
 rand_core = { version = "0.6", features = ["getrandom"] }
 # --- Errors ---

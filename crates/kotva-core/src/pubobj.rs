@@ -285,24 +285,29 @@ pub const TOPIC_LABEL_MAX_BYTES: usize = 128;
 /// (key 5, §25.4.1), `FeedHint.topic` (key 2, §25.6.2), and `FeedHead` key `64` (§25.3.1) alike —
 /// "one label, one feed" needs a single, mechanically checkable spelling everywhere it appears.
 ///
-/// **Partial, by disclosed necessity.** This enforces the two rules checkable without a Unicode
-/// normalization-forms table:
+/// Enforces the §25.3.4 topic-label rules a decoder is responsible for:
+/// - rule 1 — the label MUST already be in Normalization Form C (UAX #15); a decoder MUST reject a
+///   non-NFC label and MUST NOT normalise-and-proceed;
 /// - rule 2 — the UTF-8 encoding MUST be ≤ [`TOPIC_LABEL_MAX_BYTES`];
 /// - rule 3 — MUST NOT contain U+0000–U+001F (C0 controls), U+002F (`/`), or U+007F (DEL).
 ///
-/// Rule 1 (NFC-only, UAX #15) is **not** verified here: correctly deciding "is this string already
-/// in Normalization Form C" requires Unicode composition/decomposition tables this crate does not
-/// currently vendor (no `unicode-normalization`-equivalent dependency). A producer remains
-/// responsible for emitting NFC-normalized labels; this decoder does not detect a non-NFC label —
-/// flagged as a follow-up dependency need rather than silently skipped (§25.13 C-07 is otherwise
-/// unimplemented here). Rule 4 (byte-equality comparison, no folding) requires no code — callers
-/// already get it by comparing `String`/`&str` values directly. Rule 5 (one locator spelling for
-/// the empty topic) is a serving-layer obligation (§25.3.2), out of scope for a bare label.
+/// Rule 1 is load-bearing for the "one label, one feed" invariant: without it two canonically-
+/// equivalent labels with different byte encodings become distinct feeds, shadowing/splitting the
+/// legitimate NFC-spelled topic — which rule 4 (byte-equality comparison, no folding) cannot catch.
+/// The check uses the precompiled NFC quick-check tables (`unicode_normalization::is_nfc`), not full
+/// normalization: the label is validated, never rewritten (MUST-reject, not normalise-and-proceed).
+/// Rule 4 requires no code — callers get it by comparing `String`/`&str` values directly. Rule 5
+/// (one locator spelling for the empty topic) is a serving-layer obligation (§25.3.2), out of scope.
 pub(crate) fn validate_topic_label(label: &str) -> Result<(), PubError> {
     if label.len() > TOPIC_LABEL_MAX_BYTES {
         return Err(PubError::Cbor(cbor::CborError::TypeMismatch));
     }
     if label.chars().any(|c| matches!(c, '\u{0000}'..='\u{001F}' | '/' | '\u{007F}')) {
+        return Err(PubError::Cbor(cbor::CborError::TypeMismatch));
+    }
+    // Rule 1 (§25.3.4, UAX #15): reject a label that is not already NFC. `is_nfc` is a pure
+    // validity check (no rewrite), matching the spec's MUST-reject / MUST-NOT-normalise-and-proceed.
+    if !unicode_normalization::is_nfc(label) {
         return Err(PubError::Cbor(cbor::CborError::TypeMismatch));
     }
     Ok(())
@@ -1659,6 +1664,15 @@ mod tests {
         // Exactly at the bound is fine.
         let at_bound = topic_head(&sk, &"x".repeat(TOPIC_LABEL_MAX_BYTES));
         assert!(FeedHead::from_det_cbor(&at_bound.det_cbor()).is_ok());
+
+        // Rule 1 (NFC, UAX #15): a non-NFC label — NFD "café" = "cafe" + U+0301 combining acute —
+        // MUST be rejected (not normalised), else it shadows the NFC-spelled topic and splits the
+        // feed. Enforced end-to-end through the decode path.
+        let non_nfc = topic_head(&sk, "cafe\u{0301}");
+        assert!(FeedHead::from_det_cbor(&non_nfc.det_cbor()).is_err(), "NFD topic label must be rejected");
+        // The NFC spelling of the same topic (precomposed U+00E9) decodes fine.
+        let nfc = topic_head(&sk, "caf\u{00e9}");
+        assert!(FeedHead::from_det_cbor(&nfc.det_cbor()).is_ok(), "NFC topic label accepted");
     }
 
     /// Unknown keys ≥ 64 OTHER than 64 itself remain rejected on a signed `FeedHead` — §25.3.1
