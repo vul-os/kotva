@@ -783,14 +783,15 @@ impl Payload {
         cbor::encode(&self.to_cv(false))
     }
 
-    /// The §18.9.2 payload hash — now **binds the envelope routing context**:
-    /// `BLAKE3-256( det_cbor(Payload ∖ {sig}) ‖ u8(kind) ‖ u64be(ts) ‖ det_cbor(to) )`, over which
-    /// `sig` is signed under the [`PAYLOAD_SIG_DS`] domain. Folding the envelope's `kind`, `ts`, and
-    /// `to` into the *identity* signature (which the anyone-can-mint ephemeral `sender_sig` cannot
-    /// forge) closes the re-emit gap on the non-deniable path: a re-emitter of the sealed
+    /// The §18.9.2 payload hash — the **33-byte `0x1e`-prefixed** §18.1.5 multihash form, which
+    /// **binds the envelope routing context**:
+    /// `0x1e ‖ BLAKE3-256( det_cbor(Payload ∖ {sig}) ‖ u8(kind) ‖ u64be(ts) ‖ det_cbor(to) )`, over
+    /// which `sig` is signed under the [`PAYLOAD_SIG_DS`] domain. Folding the envelope's `kind`,
+    /// `ts`, and `to` into the *identity* signature (which the anyone-can-mint ephemeral `sender_sig`
+    /// cannot forge) closes the re-emit gap on the non-deniable path: a re-emitter of the sealed
     /// `ciphertext` can re-mint `sender_sig` over an altered `kind`/`ts`/`to`, but cannot re-produce
     /// this hash's binding without `Payload.from`'s secret. Exposed for conformance vectors.
-    pub fn signing_hash(&self, kind: Kind, ts: TimestampMs, to: &DeliveryTag) -> [u8; 32] {
+    pub fn signing_hash(&self, kind: Kind, ts: TimestampMs, to: &DeliveryTag) -> [u8; 33] {
         payload_hash(self, kind, ts, &to.det_cbor())
     }
 
@@ -1597,25 +1598,41 @@ fn sender_authed_bytes(env: &Envelope) -> Vec<u8> {
 }
 
 /// Canonical payload hash for signing (§18.9.2), **binding the envelope routing context**:
-/// `BLAKE3-256( det_cbor(Payload ∖ {sig}) ‖ u8(kind) ‖ u64be(ts) ‖ det_cbor(to) )`. `to_cbor` is the
-/// deterministic CBOR of the envelope's [`DeliveryTag`] (already computed by the caller). The tail
-/// mirrors the AAD field order (`kind ‖ ts ‖ to`) so the same three envelope fields are covered by
-/// both the identity signature and the payload AEAD.
-fn payload_hash(payload: &Payload, kind: Kind, ts: TimestampMs, to_cbor: &[u8]) -> [u8; 32] {
+/// `0x1e ‖ BLAKE3-256( det_cbor(Payload ∖ {sig}) ‖ u8(kind) ‖ u64be(ts) ‖ det_cbor(to) )`. `to_cbor`
+/// is the deterministic CBOR of the envelope's [`DeliveryTag`] (already computed by the caller). The
+/// tail mirrors the AAD field order (`kind ‖ ts ‖ to`) so the same three envelope fields are covered
+/// by both the identity signature and the payload AEAD.
+///
+/// The result is the **33-byte §18.1.5 multihash form** — the `0x1e` BLAKE3-256 prefix is INCLUDED,
+/// not a bare digest. This is load-bearing (§18.9.2 normative): the preimage is one of the few taken
+/// over a *digest* rather than a body, and an unprefixed 32-byte representative names no algorithm,
+/// handing a dual-algorithm verifier `min(BLAKE3, SHA3)` resistance during a suite-`0x05` migration.
+fn payload_hash(payload: &Payload, kind: Kind, ts: TimestampMs, to_cbor: &[u8]) -> [u8; 33] {
     let mut pre = payload.signing_body();
     pre.push(kind.as_u8()); // Envelope field 7, 1 byte
     pre.extend_from_slice(&ts.to_be_bytes()); // Envelope field 6, 8 bytes big-endian
     pre.extend_from_slice(to_cbor); // Envelope field 4, det_cbor(DeliveryTag)
-    *blake3::hash(&pre).as_bytes()
+    prefixed_blake3(&pre)
 }
 
-/// The **pre-§18.9.2** payload hash `BLAKE3-256(det_cbor(Payload ∖ {sig}))` — the payload body with
-/// **no** envelope-context tail. Used at §2.7 step 8 only on the *failure* path to tell an
-/// unbound-context `Payload.sig` (a signature that authenticates the payload but binds no
-/// `kind`/`ts`/`to`) apart from a genuinely-forged/garbled one: the former is surfaced as
+/// The **envelope-unbound** payload hash `0x1e ‖ BLAKE3-256(det_cbor(Payload ∖ {sig}))` — the
+/// payload body with **no** envelope-context tail, in the same §18.1.5 multihash form as
+/// [`payload_hash`]. Used at §2.7 step 8 only on the *failure* path to tell an unbound-context
+/// `Payload.sig` (a signature that authenticates the payload but binds no `kind`/`ts`/`to`) apart
+/// from a genuinely-forged/garbled one: the former is surfaced as
 /// [`MoteError::EnvelopeContextMismatch`] (`0x0211`), the latter as [`MoteError::BadSignature`].
-fn payload_hash_unbound(payload: &Payload) -> [u8; 32] {
-    *blake3::hash(&payload.signing_body()).as_bytes()
+fn payload_hash_unbound(payload: &Payload) -> [u8; 33] {
+    prefixed_blake3(&payload.signing_body())
+}
+
+/// `0x1e ‖ BLAKE3-256(bytes)` — the §18.1.5 multihash form of a BLAKE3-256 digest (the same
+/// algorithm-committing prefix content addresses and the Manifest id carry).
+fn prefixed_blake3(bytes: &[u8]) -> [u8; 33] {
+    let digest = blake3::hash(bytes);
+    let mut out = [0u8; 33];
+    out[0] = crate::id::MH_BLAKE3_256; // 0x1e — algorithm commitment (§18.1.5)
+    out[1..].copy_from_slice(digest.as_bytes());
+    out
 }
 
 /// Verify a detached signature under the object's `suite`, mapping any failure to the existing
