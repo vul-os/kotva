@@ -2253,7 +2253,7 @@ verifier can check **offline**; or a KT-logged revocation that thereafter denies
 | Invoked right exceeds what was granted | Reject | `0x0508`, FAIL_CLOSED_BLOCK |
 | Token (or ancestor) covered by a valid revocation | Reject | `ERR_CAPABILITY_REVOKED` (`0x050B`), DENY_POLICY |
 | Domain-authoritative capability minted without threshold | Reject | Unauthorized (`0x0508`) — no unilateral super-admin (§13.5.1) |
-| Grant/revoke not routed through the KT/owner-visible path | Reject | Prohibited (§13.5) — silent authorisation is not honoured |
+| Grant/revoke not routed through the KT/owner-visible path (conformant grantor node) | Reject | Non-conformant (§13.5); off-path grants stay owner-**detectable & revocable**, not RP-unhonourable |
 
 **Idempotency / retry.** `delegate-capability` with identical parameters (and `nonce`) yields the
 same token content-address — idempotent. `revoke-capability` is idempotent (re-publishing the same

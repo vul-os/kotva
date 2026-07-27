@@ -215,7 +215,19 @@ authorisation (§13.4), and any **auto-forward / redirection rule** change MUST 
 the owner's **device-cluster notification + KT self-monitoring path** (§3.5), exactly like
 identity events (§1.4) — so a **silent grant** an attacker installs (the classic business-email-
 compromise move: quietly delegating access or auto-forwarding mail) is **visible to the owner's
-other devices** and alertable. Silent, unlogged authorisation is prohibited.
+other devices** and alertable.
+
+*Scope of the guarantee (honest disclosure).* This is a **detection-and-revocation** control, not
+an unforgeability one. The routing requirement binds a **conformant grantor node**: it will not mint
+a grant or install a forwarding rule off the owner-visible path. It does **not** bind a **relying
+party's**
+verification: a capability token is *offline-verifiable* (above) — an RP checks the signature chain
+and has no hook to observe whether the grant was KT-logged, so an attacker who has compromised a
+device key can mint a signature-valid token off-path and RPs **will honour it**. What the
+owner-visible path buys is that the grant — or its first use routed through the owner's
+infrastructure — **surfaces to the owner's other devices**, making a BEC grant **promptly
+detectable and revocable** (§13.4), not cryptographically impossible. Off-path authorisation is
+therefore **non-conformant and owner-detectable**, not silently unhonourable by third parties.
 
 ### 13.5.1 Organisational admin roles as capabilities (normative)
 

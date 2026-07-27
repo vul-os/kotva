@@ -21,6 +21,18 @@ own. A DMTAP mail participant, a flowstock node, or any other substrate identity
 is already a valid WRAP Principal, and the same key that receives someone's mail
 can issue and perform their work.
 
+**Classical-only, and the limit that follows (normative disclosure).** A WRAP
+Principal is specifically the substrate's **classical (suite `0x01`) key** — a bare
+32-byte Ed25519 public key. The substrate `Identity` is *multi-suite* (a `suites`
+set and an `iks` map, one public key per suite): its v0 REQUIRED originating suite
+`0x02` carries a **1 984-byte** hybrid IK, and suite `0x01` is marked **legacy**
+(substrate §1.1, §18.2). So the "adopts unchanged / already a valid Principal"
+equivalence holds **exactly for a single-suite `0x01` identity**; a multi-suite
+substrate identity's IK is not a bare 32-byte key and is not a WRAP Principal as-is,
+and a WRAP-native keypair originates under `0x01`, which the substrate treats as
+legacy. WRAP is therefore a **classical-only** profile until a future revision
+carries the substrate's `suite`/`iks` — disclosed, not hidden.
+
 ## 2.2. Roles
 
 Roles are not properties of a Principal; they are positions in a relationship.
@@ -49,6 +61,13 @@ bespoke `words(BLAKE3-256(pubkey))`; that produced a *different name for the sam
 key* (no algorithm-commit prefix, no checksum), which is exactly the naming
 divergence the substrate's rule 6 forbids. WRAP uses the substrate's bytes so a
 worker's key-name is the same handle every product shows.
+
+This "same handle" identity holds **only for a single-suite classical (`0x01`)
+identity**, where `ik_pub = iks[0x01] = iks[anchor_suite]`. For a **multi-suite**
+substrate identity the key-name is derived over `iks[anchor_suite]` (substrate
+§18.9.17) — a *different* key than the bare Ed25519 Principal — so WRAP's name and
+the substrate's name **differ**. The "same handle every product shows" guarantee is
+therefore classical-only, consistent with §2.1's disclosure above.
 
 Two substrate rules WRAP inherits and MUST honour:
 
