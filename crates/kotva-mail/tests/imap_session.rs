@@ -465,6 +465,26 @@ fn catenate_append_builds_message() {
 }
 
 #[test]
+fn list_wildcard_bounds_pattern_name_product_no_oom() {
+    // Security regression: wildcard_match's DP is O(pattern·name) in memory AND time; without a cap,
+    // a large CREATE'd name matched against a large LIST pattern allocates ~GB and aborts the whole
+    // process (a cross-tenant DoS). The product guard makes an over-cap LIST return fast without OOM,
+    // while ordinary LIST is unaffected.
+    let (store, auth) = setup();
+    let mut session = Session::new(store, auth, true);
+    run(&mut session, "a1 LOGIN owner@dmtap.local app-password-xyz\r\n");
+    // A mailbox with a ~100 KB name; a ~100 KB all-`*` pattern would otherwise allocate a ~10 GB DP.
+    let big_name = "x".repeat(100_000);
+    run(&mut session, &format!("a2 CREATE {big_name}\r\n"));
+    let big_pattern = "*".repeat(100_000);
+    let resp = run(&mut session, &format!("a3 LIST \"\" {big_pattern}\r\n"));
+    assert!(resp.contains("a3 OK"), "an over-cap LIST must complete, not OOM-abort");
+    // Ordinary LIST still enumerates the standard mailboxes.
+    let normal = run(&mut session, "a4 LIST \"\" *\r\n");
+    assert!(normal.contains("INBOX") && normal.contains("a4 OK"), "normal LIST still works: {normal}");
+}
+
+#[test]
 fn saved_search_result_is_reset_on_mailbox_change() {
     // RFC 5182 §2.1 (data-loss regression): the saved search result ($) is scoped to the mailbox
     // that produced it. SELECT A; SEARCH RETURN (SAVE); SELECT B; UID MOVE $ must move NOTHING —

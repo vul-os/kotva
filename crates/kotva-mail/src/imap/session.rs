@@ -1725,6 +1725,18 @@ fn wildcard_match(pattern: &str, name: &str) -> bool {
     let n = name.as_bytes();
     let (pl, nl) = (p.len(), n.len());
 
+    // The DP is O(pl·nl) in BOTH memory and time. Each input is only per-line bounded (~1 MiB via
+    // MAX_LINE, up to 64 MiB via a literal), but they arrive as SEPARATE commands (a CREATE'd name
+    // and a LIST pattern), so no single-command cap bounds their PRODUCT: a ~1 MiB name matched
+    // against a ~1 MiB pattern is a ~1e12-cell table (~terabytes) whose allocation aborts the whole
+    // thread-per-connection process — a cross-tenant DoS, the exact memory-exhaustion class the rest
+    // of this file guards against. Real IMAP mailbox names and patterns are a handful of bytes, so
+    // bounding the product loses no legitimate match; an over-cap pair simply does not match.
+    const MAX_WILDCARD_WORK: usize = 4_000_000;
+    if pl.saturating_mul(nl) > MAX_WILDCARD_WORK {
+        return false;
+    }
+
     // dp[pi][ni]; row pl is the "pattern exhausted" base row (matches iff name also exhausted).
     let mut dp = vec![vec![false; nl + 1]; pl + 1];
     dp[pl][nl] = true;
