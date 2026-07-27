@@ -261,6 +261,15 @@ fn split_multipart<'a>(body: &'a [u8], boundary: &str) -> Vec<&'a [u8]> {
         if &text[i..i + bytes.len()] == bytes {
             positions.push(i);
             i += bytes.len();
+            // Cap segment BREADTH at the shared primitive, not just in parse_structure_depth: one
+            // delimiter per part, and both consumers allocate per segment — including the per-FETCH
+            // `part_segments` (BODY[n]/BINARY), which is NOT memoized and is recomputed every request.
+            // MAX_MIME_PARTS+1 delimiters bound the segment count (windows(2)) to MAX_MIME_PARTS, so a
+            // ~64 MiB body of millions of `--b` delimiters can no longer materialize millions of
+            // segments (hundreds of MB–GB) per request. Beyond the cap the tail is one opaque segment.
+            if positions.len() > MAX_MIME_PARTS {
+                break;
+            }
         } else {
             i += 1;
         }
@@ -372,13 +381,6 @@ pub fn strip_trust_boundary_headers(raw_headers: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(raw_headers.len());
     let mut i = 0;
     let mut dropping = false;
-    // The consumer (parse_header_block) picks UTF-8 vs Latin-1 by the validity of the WHOLE block:
-    // valid → UTF-8, otherwise a total byte→char Latin-1 map (`b as char`). Decide it ONCE here so
-    // the per-name decode below matches the consumer exactly. Deciding per-name (e.g. a bare
-    // from_utf8_lossy) diverges on high-byte whitespace: 0xA0 (NBSP) and 0x85 (NEL) are Unicode
-    // White_Space that str::trim() strips under Latin-1, but a lossy UTF-8 view maps a lone 0xA0/0x85
-    // to U+FFFD (not whitespace, not trimmed) — which would re-open the §7.2c name-smuggling gap.
-    let block_is_utf8 = std::str::from_utf8(raw_headers).is_ok();
     // Mirrors `parse_header_block`'s `!out.is_empty()`: a leading-WSP line is a continuation ONLY
     // after a real header line has been seen. The VERY FIRST line is parsed as a header even when it
     // begins with WSP — so if this denylist treated a leading-WSP first line as a continuation and
@@ -412,27 +414,26 @@ pub fn strip_trust_boundary_headers(raw_headers: &[u8]) -> Vec<u8> {
                     // `line[..colon].trim()` — a leading-WSP first line reaches here (it is parsed as
                     // a header, not a continuation), and its name carries the leading WSP.
                     let raw_name = &content[..colon];
-                    // Decode the name with the block-wide UTF-8/Latin-1 decision, then trim EXACTLY
-                    // as the consumer does. `str::trim()` strips the FULL Unicode White_Space set —
-                    // not just space/tab, but CR, LF, vertical-tab (0x0B), form-feed (0x0C), and (via
-                    // the Latin-1 path) NBSP (0xA0) and NEL (0x85). Trimming a SMALLER set than the
-                    // consumer would let a name like `\x0BAuthentication-Results` or
-                    // `Authentication-Results\xA0` slip past this denylist yet be read downstream as a
-                    // genuine trust-boundary verdict via `ParsedMessage::header(...)` — exactly the
-                    // §7.2c forgery this strip exists to prevent. A colon is ASCII and a `\n` precedes
-                    // `line_start`, so both edges of `raw_name` are clean boundaries; Latin-1 is a
-                    // context-free per-byte map, so decoding the name in isolation yields the same
-                    // trimmed value the consumer reads from the whole-block decode. The decode drives
-                    // ONLY this drop/keep decision; the emitted header bytes stay byte-exact below.
-                    let decoded: String = if block_is_utf8 {
-                        // Block is valid UTF-8 ⇒ raw_name (a substring at ASCII boundaries) is too.
-                        String::from_utf8_lossy(raw_name).into_owned()
-                    } else {
-                        // Latin-1 byte→char fallback, matching parse_header_block's `b as char`.
-                        raw_name.iter().map(|&b| b as char).collect()
+                    // Drop the line if its name matches a trust-boundary header under EITHER decode
+                    // the consumer could apply — UTF-8 OR Latin-1 (`b as char`) — after `str::trim()`.
+                    // We CANNOT pin one decoder here: the downstream consumer decodes the POST-strip
+                    // block (build_mote_draft stores the STRIPPED block under RAW_HEADERS_EXT_KEY,
+                    // render_rfc5322 replays it, the node re-parses via parse_header_block), whose
+                    // UTF-8 validity can differ from raw_headers — dropping a line that carried the
+                    // only invalid byte flips the block to valid UTF-8. So a name ending in a
+                    // valid-UTF-8 NBSP (`\xC2\xA0`) before the colon reads as Latin-1 here yet UTF-8
+                    // downstream, and a single-decoder decision would keep it while the consumer trims
+                    // the NBSP and reads a genuine verdict (§7.2c forgery). Checking both decodes is
+                    // sound regardless of which the post-strip block selects: any line the consumer
+                    // could read as a trust-boundary verdict is removed. Over-dropping needs an
+                    // unrelated header to spell a trust-boundary name under some decode — astronomically
+                    // unlikely, and harmless. Emitted bytes stay byte-exact; this is only drop/keep.
+                    let is_trust_name = |decoded: &str| {
+                        let n = decoded.trim();
+                        TRUST_BOUNDARY_HEADERS.iter().any(|h| n.eq_ignore_ascii_case(h))
                     };
-                    let name = decoded.trim();
-                    TRUST_BOUNDARY_HEADERS.iter().any(|h| name.eq_ignore_ascii_case(h))
+                    let latin1_name: String = raw_name.iter().map(|&b| b as char).collect();
+                    is_trust_name(&String::from_utf8_lossy(raw_name)) || is_trust_name(&latin1_name)
                 }
                 // Not a `name:` line (e.g. the blank separator, or malformed input) — never a
                 // match, and never left "dropping" from a previous field by accident.
@@ -1066,6 +1067,33 @@ mod tests {
         if let BodyPart::Multipart { parts, .. } = ok.structure {
             assert_eq!(parts.len(), 1);
         }
+    }
+
+    #[test]
+    fn part_segments_breadth_is_bounded() {
+        // Security regression: part_segments (the per-FETCH BODY[n]/BINARY path) is NOT memoized and
+        // recomputed every request, and it bypassed the MAX_MIME_PARTS cap that lived only in
+        // parse_structure_depth — a dense-delimiter body materialized millions of segments per FETCH.
+        // split_multipart now caps segment breadth at the shared primitive, so both consumers are bound.
+        let mut raw = b"Content-Type: multipart/mixed; boundary=b\r\n\r\n".to_vec();
+        for _ in 0..(MAX_MIME_PARTS * 3) {
+            raw.extend_from_slice(b"--b\n");
+        }
+        let segs = part_segments(&raw);
+        assert!(segs.len() <= MAX_MIME_PARTS, "part_segments must be bounded, got {}", segs.len());
+    }
+
+    #[test]
+    fn trust_boundary_strip_survives_post_strip_utf8_flip() {
+        // Security regression: the strip decided UTF-8 vs Latin-1 from raw_headers, but the consumer
+        // decodes the POST-strip block. Dropping line 1 (a genuine trust line carrying the only invalid
+        // byte 0xFF) flips the block to valid UTF-8, so line 2's name `Authentication-Results\xC2\xA0`
+        // (a valid-UTF-8 NBSP before the colon) read as Latin-1 in the strip (kept) but UTF-8
+        // downstream (NBSP trimmed → matched). Checking BOTH decodes now drops the smuggle line.
+        let raw = b"Authentication-Results: \xFF\r\nAuthentication-Results\xC2\xA0: dkim=pass header.d=paypal.com\r\nX-Keep: 1\r\n";
+        let s = String::from_utf8_lossy(&strip_trust_boundary_headers(raw)).to_ascii_lowercase();
+        assert!(!s.contains("dkim=pass"), "post-strip UTF-8-flip smuggle survived: {s}");
+        assert!(s.contains("x-keep: 1"), "an unrelated header must still carry through");
     }
 
     #[test]
