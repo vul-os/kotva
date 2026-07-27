@@ -41,6 +41,10 @@ pub struct Submission {
     pub mail_from: String,
     pub rcpt_to: Vec<String>,
     pub data: Vec<u8>,
+    /// The identity key (`IK`) that authenticated this session — the key a downstream signer signs
+    /// the outbound MOTE with, and against which `mail_from`'s sender authorisation was checked
+    /// (§7.11.2 step 2). Empty only when the session ran with `require_auth = false`.
+    pub authed_identity: Vec<u8>,
     /// `ENVID=` — echoed back as `Original-Envelope-Id` in any DSN (RFC 3461 §4.4).
     pub envid: Option<String>,
     /// `RET=` — whether a DSN should carry the full message or just headers (RFC 3461 §4.3).
@@ -66,6 +70,9 @@ pub struct SmtpSession<A: Authenticator> {
     max_size: usize,
     phase: Phase,
     authed: Option<Vec<u8>>,
+    /// The address (SASL authcid) the current session authenticated as — the address the submitter
+    /// is authorised to send from (§7.11.2 step 2). `None` until AUTH succeeds.
+    authed_user: Option<String>,
     mail_from: Option<String>,
     rcpt_to: Vec<String>,
     dsn_notify: Vec<Option<String>>,
@@ -94,6 +101,7 @@ impl<A: Authenticator> SmtpSession<A> {
             max_size: MAX_SIZE,
             phase: Phase::Greeting,
             authed: None,
+            authed_user: None,
             mail_from: None,
             rcpt_to: Vec::new(),
             dsn_notify: Vec::new(),
@@ -251,6 +259,7 @@ impl<A: Authenticator> SmtpSession<A> {
         match self.auth.verify(user, pass) {
             Some(id) => {
                 self.authed = Some(id);
+                self.authed_user = Some(user.to_string()); // the address this credential may send as
                 "235 2.7.0 Authentication successful\r\n".into()
             }
             None => "535 5.7.8 Authentication credentials invalid\r\n".into(),
@@ -266,6 +275,22 @@ impl<A: Authenticator> SmtpSession<A> {
             Some(a) => a,
             None => return "501 5.5.4 Syntax: MAIL FROM:<address>\r\n".into(),
         };
+        // §7.11.2 step 2 / RFC 6409: bind the envelope sender to the authenticated identity. An
+        // authenticated submitter may only send AS the address it authenticated as (the address the
+        // app-password is bound to) — otherwise any app-password holder could submit
+        // MAIL FROM:<victim@any-served-domain> and have the gateway sign + relay fully DMARC-aligned
+        // mail as anyone. Fail closed rather than sign-and-send an unauthorised sender
+        // (ERR_GATEWAY_SENDER_ADDRESS_UNAUTHORIZED, 0x060A, §21). A null return-path (<>) is exempt —
+        // it is the bounce/DSN sender and cannot spoof a victim. (A deployment that authorises an
+        // identity for *additional* addresses does so in its Authenticator / via a send-as capability
+        // token, §18.8a.3; the reference binds one address per credential.)
+        if self.require_auth && !addr.is_empty() {
+            let authorised = self.authed_user.as_deref().is_some_and(|u| addr.eq_ignore_ascii_case(u));
+            if !authorised {
+                return "550 5.7.1 Sender address not authorised for the authenticated identity\r\n"
+                    .into();
+            }
+        }
         // Honor a declared SIZE against our advertised limit (RFC 1870).
         if let Some(sz) = param_value(rest, "SIZE").and_then(|v| v.parse::<usize>().ok()) {
             if sz > self.max_size {
@@ -323,6 +348,7 @@ impl<A: Authenticator> SmtpSession<A> {
                 envid: self.envid.take(),
                 ret: self.ret.take(),
                 dsn_notify: std::mem::take(&mut self.dsn_notify),
+                authed_identity: self.authed.clone().unwrap_or_default(),
             };
             self.submissions.push(sub);
             return "250 2.0.0 OK: queued as MOTE\r\n".into();
@@ -635,7 +661,7 @@ mod tests {
 
     fn authed_session() -> SmtpSession<StaticAuthenticator> {
         let mut a = StaticAuthenticator::new();
-        a.issue("alice", "pw", vec![9, 9], "test");
+        a.issue("alice@dmtap.local", "pw", vec![9, 9], "test");
         let mut s = SmtpSession::new(a, true);
         let _ = s.greeting();
         s
@@ -666,10 +692,33 @@ mod tests {
     }
 
     #[test]
+    fn mail_from_must_match_authenticated_identity() {
+        // §7.11.2 step 2 / RFC 6409 (security regression): an authenticated submitter may only send
+        // AS the address it authenticated as. A spoofed MAIL FROM:<victim@...> is refused fail-closed
+        // (550), never signed and relayed; the own address is accepted case-insensitively; the null
+        // return-path (<>) is exempt (bounces cannot spoof a victim).
+        let mut s = authed_session();
+        s.feed_line("EHLO c");
+        assert!(s
+            .feed_line(&format!("AUTH PLAIN {}", base64_encode(b"\0alice@dmtap.local\0pw")))
+            .starts_with("235"));
+        let spoof = s.feed_line("MAIL FROM:<victim@paypal.com>");
+        assert!(spoof.starts_with("550"), "spoofed sender must be refused: {spoof}");
+        assert!(spoof.to_ascii_lowercase().contains("not authorised"), "{spoof}");
+        // The authenticated address (case-insensitive) is accepted, and a spoof did not leave state.
+        assert!(s.feed_line("MAIL FROM:<Alice@DMTAP.local>").starts_with("250"));
+
+        let mut s2 = authed_session();
+        s2.feed_line("EHLO c");
+        s2.feed_line(&format!("AUTH PLAIN {}", base64_encode(b"\0alice@dmtap.local\0pw")));
+        assert!(s2.feed_line("MAIL FROM:<>").starts_with("250"), "null return-path must be allowed");
+    }
+
+    #[test]
     fn full_submission_flow() {
         let mut s = authed_session();
         s.feed_line("EHLO c");
-        let cred = base64_encode(b"\0alice\0pw");
+        let cred = base64_encode(b"\0alice@dmtap.local\0pw");
         assert!(s.feed_line(&format!("AUTH PLAIN {cred}")).starts_with("235"));
         assert!(s.feed_line("MAIL FROM:<alice@dmtap.local> SIZE=100").starts_with("250"));
         assert!(s.feed_line("RCPT TO:<bob@example.net>").starts_with("250"));
@@ -715,7 +764,7 @@ mod tests {
         // untouched.
         let mut s = authed_session();
         s.feed_line("EHLO c");
-        let cred = base64_encode(b"\0alice\0pw");
+        let cred = base64_encode(b"\0alice@dmtap.local\0pw");
         s.feed_line(&format!("AUTH PLAIN {cred}"));
         s.feed_line("MAIL FROM:<alice@dmtap.local> BODY=8BITMIME");
         s.feed_line("RCPT TO:<bob@example.net>");
@@ -741,7 +790,7 @@ mod tests {
     fn submitted_with_dsn(ret: &str, notify: &str) -> Submission {
         let mut s = authed_session();
         s.feed_line("EHLO c");
-        let cred = base64_encode(b"\0alice\0pw");
+        let cred = base64_encode(b"\0alice@dmtap.local\0pw");
         s.feed_line(&format!("AUTH PLAIN {cred}"));
         s.feed_line(&format!("MAIL FROM:<alice@dmtap.local> RET={ret} ENVID=abc123"));
         s.feed_line(&format!("RCPT TO:<bob@example.net> NOTIFY={notify}"));
@@ -789,7 +838,7 @@ mod tests {
     fn auth_when_already_authenticated_is_rejected() {
         let mut s = authed_session();
         s.feed_line("EHLO c");
-        let cred = base64_encode(b"\0alice\0pw");
+        let cred = base64_encode(b"\0alice@dmtap.local\0pw");
         assert!(s.feed_line(&format!("AUTH PLAIN {cred}")).starts_with("235"));
         // A second AUTH must be refused (RFC 4954 §4).
         assert!(s.feed_line(&format!("AUTH PLAIN {cred}")).starts_with("503"), "second AUTH must 503");
@@ -800,7 +849,7 @@ mod tests {
         let mut s = authed_session();
         s.set_max_size(64);
         s.feed_line("EHLO c");
-        let cred = base64_encode(b"\0alice\0pw");
+        let cred = base64_encode(b"\0alice@dmtap.local\0pw");
         s.feed_line(&format!("AUTH PLAIN {cred}"));
         assert!(s.feed_line("EHLO c").contains("250-SIZE 64"), "advertises the lowered SIZE");
         s.feed_line("MAIL FROM:<alice@dmtap.local>");
@@ -818,9 +867,9 @@ mod tests {
         let mut s = authed_session();
         s.set_max_size(1000);
         s.feed_line("EHLO c");
-        let cred = base64_encode(b"\0alice\0pw");
+        let cred = base64_encode(b"\0alice@dmtap.local\0pw");
         s.feed_line(&format!("AUTH PLAIN {cred}"));
-        assert!(s.feed_line("MAIL FROM:<a@b> SIZE=99999").starts_with("552"));
+        assert!(s.feed_line("MAIL FROM:<alice@dmtap.local> SIZE=99999").starts_with("552"));
     }
 
     #[test]
