@@ -98,6 +98,13 @@ impl<S: MailStore, A: Authenticator> Pop3Session<S, A> {
                 self.tls = true;
                 b"+OK Begin TLS\r\n".to_vec()
             }
+            // Credential-bearing commands MUST NOT run on a cleartext channel (auth.rs invariant;
+            // CAPA already withholds "SASL PLAIN" until STLS). Fail closed before touching the
+            // credential, mirroring IMAP's [PRIVACYREQUIRED] and SMTP's 538 — otherwise a client
+            // could send USER/PASS or AUTH PLAIN in the clear and leak the bearer app-password
+            // (§8.2). APOP is challenge-response (never transmits the plaintext secret) and stays
+            // permitted in cleartext per RFC 1939 §7.
+            (State::Authorization, "USER" | "PASS" | "AUTH") if !self.tls => Self::privacy_required(),
             (State::Authorization, "USER") => {
                 self.user = Some(rest);
                 b"+OK send PASS\r\n".to_vec()
@@ -114,6 +121,12 @@ impl<S: MailStore, A: Authenticator> Pop3Session<S, A> {
             (State::Transaction, "RSET") => self.rset().into_bytes(),
             _ => b"-ERR command not permitted in this state\r\n".to_vec(),
         }
+    }
+
+    /// Fail-closed reply for a credential-bearing command attempted on a cleartext channel. Uses the
+    /// RFC 2449 `[AUTH]` response code so a conformant client knows to `STLS` first.
+    fn privacy_required() -> Vec<u8> {
+        b"-ERR [AUTH] STLS required before authentication\r\n".to_vec()
     }
 
     fn capa(&self) -> String {
@@ -396,6 +409,53 @@ mod tests {
         let bad = "0".repeat(good.len());
         assert!(s.feed_line(&format!("APOP alice {bad}")).contains("digest mismatch"));
         assert!(!s.is_authenticated());
+    }
+
+    #[test]
+    fn cleartext_refuses_password_auth_until_stls() {
+        // Security regression: on a cleartext channel POP3 MUST fail closed on credential-bearing
+        // commands (USER/PASS/AUTH PLAIN), mirroring IMAP [PRIVACYREQUIRED] / SMTP 538 and matching
+        // what CAPA advertises (SASL PLAIN withheld until STLS). Otherwise the bearer app-password
+        // (§8.2) would leak in the clear. APOP (challenge-response) stays permitted per RFC 1939 §7.
+        fn cleartext() -> Pop3Session<MemoryStore, StaticAuthenticator> {
+            let mut store = MemoryStore::empty();
+            store.deliver_raw("INBOX", b"Subject: One\r\n\r\nbody\r\n".to_vec(), vec![], 0);
+            let mut auth = StaticAuthenticator::new();
+            auth.issue("alice", "pw", vec![1], "test");
+            Pop3Session::new(store, auth, false) // tls = false → cleartext
+        }
+
+        // USER / PASS refused before STLS; no login.
+        let mut s = cleartext();
+        assert!(s.feed_line("USER alice").contains("[AUTH]"));
+        assert!(s.feed_line("PASS pw").contains("[AUTH]"));
+        assert!(!s.is_authenticated());
+
+        // AUTH PLAIN (inline initial response) refused, and the SASL continuation never arms: a
+        // follow-up line must not be consumed as credentials.
+        let mut s = cleartext();
+        let ir = crate::util::base64_encode(b"\0alice\0pw");
+        assert!(s.feed_line(&format!("AUTH PLAIN {ir}")).contains("[AUTH]"));
+        assert!(s.feed_line("AUTH PLAIN").contains("[AUTH]"));
+        assert!(!s.feed_line(&ir).starts_with("+OK"));
+        assert!(!s.is_authenticated());
+
+        // CAPA must NOT advertise SASL PLAIN in cleartext; it offers STLS instead.
+        let capa = s.feed_line("CAPA");
+        assert!(!capa.contains("SASL PLAIN") && capa.contains("STLS"));
+
+        // APOP (never transmits the plaintext secret) stays permitted in cleartext.
+        let mut s = cleartext();
+        let digest = hex(&md5(format!("{}pw", s.banner).as_bytes()));
+        assert!(s.feed_line(&format!("APOP alice {digest}")).starts_with("+OK"));
+        assert!(s.is_authenticated());
+
+        // After STLS the same password credentials succeed.
+        let mut s = cleartext();
+        assert!(s.feed_line("STLS").starts_with("+OK"));
+        assert!(s.feed_line("USER alice").starts_with("+OK"));
+        assert!(s.feed_line("PASS pw").starts_with("+OK"));
+        assert!(s.is_authenticated());
     }
 
     #[test]
