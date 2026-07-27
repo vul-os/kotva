@@ -7,7 +7,8 @@
 //!
 //! ## Computed over the whole Identity, not a single key (normative, §3.4.1)
 //! The fingerprint MUST be taken over each party's **Identity content address**
-//! (`Identity_id = 0x1e ‖ BLAKE3-256(det_cbor(Identity))`, §18.9.4 — [`Identity::content_id`]),
+//! (`Identity_id = 0x1e ‖ BLAKE3-256(det_cbor(Identity ∖ {10}))`, the signature-excluded body,
+//! §18.9.4 — [`Identity::content_id`]),
 //! which commits to **every** suite key in `iks` at once, **never** over a single `ik`.
 //! Fingerprinting one suite key would let an attacker who injected a rogue additional suite key
 //! (e.g. a forged PQ `0x02` entry) sit behind a pin the user verified only against the classical

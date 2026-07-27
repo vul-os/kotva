@@ -204,7 +204,7 @@ in [`scope.json`](scope.json). That sentence is doing exact work and is easy to 
   intended response to disagreeing with one is to reclassify it `IMPL` and write the case.
 
 The raw figure — every capitalised MUST in the specification, unclassified — is **75%** (403
-MUST-bearing sections, 1745 MUSTs). Both numbers are printed by `make coverage`, deliberately, so the
+MUST-bearing sections, 1746 MUSTs). Both numbers are printed by `make coverage`, deliberately, so the
 curation can be checked rather than trusted; `make coverage` is authoritative and `make lint` (C14)
 fails the build if any coverage figure quoted here disagrees with it, so they never silently drift —
 the figures move

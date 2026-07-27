@@ -264,7 +264,7 @@ application maps," was false as stated. The rule survives, for a different and n
 is now the normative one:
 
 - **What the announce signs is a `bytes` string, not a map.** `PubAnnounce.sig` and `announce_id`
-  (§22.3.1) are computed over `det_cbor(PubAnnounce)`, in which `meta["video"]` is a single opaque
+  (§22.3.1) are computed over `det_cbor(PubAnnounce ∖ {9})` (the signature-excluded body), in which `meta["video"]` is a single opaque
   CBOR byte string. The profile map inside it has **no signing preimage of its own**, and nothing
   about the announce's preimage becomes ambiguous when a client fails to recognise a key inside that
   string. §18.1.2's fail-closed rule exists to keep a preimage unambiguous; here the preimage is the
@@ -274,7 +274,7 @@ is now the normative one:
   through unchanged, byte-for-byte**. It MUST NOT decode the profile map and re-encode it, even
   deterministically, and MUST NOT "preserve" unknown keys by copying decoded values into a map it
   rebuilds itself. Any such round-trip yields a new byte string, and a new byte string is a different
-  `det_cbor(PubAnnounce)` — a broken signature and a different `announce_id` for an object whose
+  `det_cbor(PubAnnounce ∖ {9})` — a broken signature and a different `announce_id` for an object whose
   signature was over the old bytes. Byte-retention is the only preservation that preserves the object
   (VID-21).
 - **The §18.1.1 deterministic-CBOR bans do cross the `bytes` boundary (MUST).** This section requires
@@ -1508,6 +1508,15 @@ a derived mesh or tessellation is a convenience rendition, never the artifact of
 - For `artifact_kind = assembly`, exactly one entry MUST carry `role = 3` (structure, `format_id = 6`,
   §24.18.7); a native assembly-authoring file, if published, MAY additionally carry `role = 1`. An assembly
   with no `structure` entry is malformed for this facet.
+- **Wrong canonical-source count (consumer behaviour, normative).** A non-`assembly` `ArtifactMetadata`
+  whose `formats` does not contain **exactly one** `role = 1` entry — and, correspondingly, an `assembly`
+  that does not carry **exactly one** `role = 3` entry — is **malformed for this facet**: a conformant
+  client MUST NOT treat any entry as canonical-source (it MAY still display `name`/`description`/`license`)
+  until the publisher corrects it in a superseding revision (§24.7). This gives the "exactly one
+  canonical-source" invariant the same explicit failure path the units (§24.18.3) and assembly-structure
+  rules already have, and resolves the artifact-of-record ambiguity that two competing `role = 1` entries
+  would otherwise leave undefined — a real hazard for a facet whose stakes include physical parts made
+  against the wrong dimensional source.
 - **A `format_id = 3` (glTF/mesh) entry MUST always carry `role = 2`.** A mesh/tessellation MUST NOT be
   marked `canonical-source` under any circumstance — this is the facet's central integrity guarantee: a
   consumer that needs to re-derive dimensions, edit features, or verify tolerances can always find the
