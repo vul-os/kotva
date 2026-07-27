@@ -1379,35 +1379,48 @@ fn compact(uids: &[String], _valid: u32) -> String {
 /// this binary-searches the UID-sorted messages for each range boundary (`O(k log n)`), so a
 /// targeted `UID FETCH 5` touches ~`log n` messages, not all `n` (the large-mailbox hot path).
 fn resolve_targets(mb: &Mailbox, set: &SequenceSet, uid_mode: bool) -> Vec<usize> {
-    // Mark hits in a `Vec<bool>` of length = message count rather than pushing one index per matched
-    // slot per range. The old form accumulated ranges × messages before dedup — a product of two
-    // separately-bounded attacker inputs (a `1:*,1:*,…` set of ~250k ranges from one MAX_LINE-sized
-    // FETCH against a large mailbox is a multi-GB `Vec<usize>` that OOM-aborts the process). A marker
-    // caps memory at the mailbox size regardless of range count and gives dedup for free.
     let n = mb.messages.len();
-    let mut hit = vec![false; n];
-    if uid_mode {
-        let max = mb.max_uid();
-        for (lo, hi) in set.ranges_resolved(max) {
-            // messages are UID-sorted → binary-search the window's left edge, then walk it.
-            let start = mb.messages.partition_point(|m| m.uid < lo);
-            let mut i = start;
-            while i < n && mb.messages[i].uid <= hi {
-                hit[i] = true;
-                i += 1;
+    let count = mb.exists() as u32;
+    let ranges = if uid_mode { set.ranges_resolved(mb.max_uid()) } else { set.ranges_resolved(count) };
+
+    // Visit every matched message index, once per (range, slot). Kept as a helper so both the
+    // output-proportional and the memory-bounded paths share the exact same matching logic.
+    let visit = |mut mark: Box<dyn FnMut(usize) + '_>| {
+        for &(lo, hi) in &ranges {
+            if uid_mode {
+                // messages are UID-sorted → binary-search the window's left edge, then walk it.
+                let start = mb.messages.partition_point(|m| m.uid < lo);
+                let mut i = start;
+                while i < n && mb.messages[i].uid <= hi {
+                    mark(i);
+                    i += 1;
+                }
+            } else {
+                for s in lo.max(1)..=hi.min(count) {
+                    mark((s - 1) as usize);
+                }
             }
         }
+    };
+
+    // Estimated total matched slots (summed window sizes). A targeted fetch (few small ranges) has a
+    // tiny estimate, so the output-proportional per-slot push stays sublinear (~log n) — the
+    // large-mailbox hot path. Only when the estimate exceeds the mailbox size — the ranges × window
+    // shape of a `1:*,1:*,…` set — switch to a marker `Vec<bool>` that caps peak memory at n
+    // regardless of range count (the per-slot push would otherwise be a ranges × messages Vec that
+    // OOM-aborts the process). ranges is already length-capped at SequenceSet::parse (MAX_RANGES).
+    let est: u64 = ranges.iter().map(|&(lo, hi)| u64::from(hi.saturating_sub(lo)) + 1).sum();
+    if est > n as u64 {
+        let mut hit = vec![false; n];
+        visit(Box::new(|i| hit[i] = true));
+        (0..n).filter(|&i| hit[i]).collect()
     } else {
-        let count = mb.exists() as u32;
-        for (lo, hi) in set.ranges_resolved(count) {
-            let lo = lo.max(1);
-            let hi = hi.min(count);
-            for s in lo..=hi {
-                hit[(s - 1) as usize] = true;
-            }
-        }
+        let mut idx = Vec::new();
+        visit(Box::new(|i| idx.push(i)));
+        idx.sort_unstable();
+        idx.dedup();
+        idx
     }
-    (0..n).filter(|&i| hit[i]).collect()
 }
 
 /// Render a sorted UID list as a compact IMAP sequence-set, collapsing contiguous runs into
