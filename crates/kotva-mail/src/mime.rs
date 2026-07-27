@@ -174,11 +174,27 @@ fn header_val<'a>(headers: &'a [(String, String)], name: &str) -> Option<&'a str
 /// message nests this deep; typical MUAs cap far lower).
 const MAX_MIME_DEPTH: usize = 100;
 
+/// Maximum total number of MIME parts materialized from one message. `split_multipart` yields one
+/// segment per `--boundary`, and each becomes a heap-backed `BodyPart` (several String allocations).
+/// `MAX_MIME_DEPTH` caps nesting depth but NOT breadth, so without this a body of repeated `--b\n`
+/// (4 bytes/part, a 1-char boundary) at the ~50 MB message-size ceiling yields millions of parts —
+/// tens of millions of small heap allocations, multi-GB resident — and the whole tree is then
+/// memoized in the store (`parsed_cached`), so the blow-up stays resident. Bounded like every other
+/// structure limit (MAX_MIME_DEPTH, MAX_RANGES, MAX_LINE/MAX_LITERAL); beyond it, further sibling
+/// parts are simply not enumerated (faithful for any real message — none carries thousands of parts).
+const MAX_MIME_PARTS: usize = 10_000;
+
 fn parse_structure(headers: &[(String, String)], body: &[u8]) -> BodyPart {
-    parse_structure_depth(headers, body, 0)
+    let mut budget = MAX_MIME_PARTS;
+    parse_structure_depth(headers, body, 0, &mut budget)
 }
 
-fn parse_structure_depth(headers: &[(String, String)], body: &[u8], depth: usize) -> BodyPart {
+fn parse_structure_depth(
+    headers: &[(String, String)],
+    body: &[u8],
+    depth: usize,
+    budget: &mut usize,
+) -> BodyPart {
     let (mt, st, params) = content_type(headers);
     let encoding = header_val(headers, "Content-Transfer-Encoding")
         .unwrap_or("7BIT")
@@ -190,13 +206,20 @@ fn parse_structure_depth(headers: &[(String, String)], body: &[u8], depth: usize
     if mt == "multipart" && depth < MAX_MIME_DEPTH {
         let boundary = params.iter().find(|(k, _)| k == "boundary").map(|(_, v)| v.clone());
         let parts = match boundary {
-            Some(b) => split_multipart(body, &b)
-                .into_iter()
-                .map(|seg| {
+            Some(b) => {
+                // Cap TOTAL parts across the whole tree (shared &mut budget), not per-level: nested
+                // multiparts would otherwise multiply. Once exhausted, stop enumerating siblings.
+                let mut parts = Vec::new();
+                for seg in split_multipart(body, &b) {
+                    if *budget == 0 {
+                        break;
+                    }
+                    *budget -= 1;
                     let (h, bd) = split_headers(seg);
-                    parse_structure_depth(&h, bd, depth + 1)
-                })
-                .collect(),
+                    parts.push(parse_structure_depth(&h, bd, depth + 1, budget));
+                }
+                parts
+            }
             None => Vec::new(),
         };
         BodyPart::Multipart { subtype: st, parts, params }
@@ -349,6 +372,13 @@ pub fn strip_trust_boundary_headers(raw_headers: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(raw_headers.len());
     let mut i = 0;
     let mut dropping = false;
+    // The consumer (parse_header_block) picks UTF-8 vs Latin-1 by the validity of the WHOLE block:
+    // valid → UTF-8, otherwise a total byte→char Latin-1 map (`b as char`). Decide it ONCE here so
+    // the per-name decode below matches the consumer exactly. Deciding per-name (e.g. a bare
+    // from_utf8_lossy) diverges on high-byte whitespace: 0xA0 (NBSP) and 0x85 (NEL) are Unicode
+    // White_Space that str::trim() strips under Latin-1, but a lossy UTF-8 view maps a lone 0xA0/0x85
+    // to U+FFFD (not whitespace, not trimmed) — which would re-open the §7.2c name-smuggling gap.
+    let block_is_utf8 = std::str::from_utf8(raw_headers).is_ok();
     // Mirrors `parse_header_block`'s `!out.is_empty()`: a leading-WSP line is a continuation ONLY
     // after a real header line has been seen. The VERY FIRST line is parsed as a header even when it
     // begins with WSP — so if this denylist treated a leading-WSP first line as a continuation and
@@ -382,20 +412,25 @@ pub fn strip_trust_boundary_headers(raw_headers: &[u8]) -> Vec<u8> {
                     // `line[..colon].trim()` — a leading-WSP first line reaches here (it is parsed as
                     // a header, not a continuation), and its name carries the leading WSP.
                     let raw_name = &content[..colon];
-                    // Normalize the field name EXACTLY as the consumer does. `parse_header_block`
-                    // takes a lossy UTF-8 view of these same bytes (line ~116) and applies
-                    // `str::trim()`, which strips the FULL Unicode White_Space set — not just space
-                    // and tab, but CR, LF, vertical-tab (U+000B), form-feed (U+000C), NBSP, … .
-                    // Trimming a SMALLER set here than the consumer would let a name like
-                    // `\x0BAuthentication-Results` (a leading vertical-tab, or a trailing one) slip
-                    // past this denylist yet be read downstream as a genuine trust-boundary verdict
-                    // via `ParsedMessage::header(...)` — exactly the §7.2c forgery this strip exists
-                    // to prevent. The decode drives ONLY this drop/keep decision; the emitted header
-                    // bytes stay byte-exact (the `out.extend_from_slice(raw…)` below is untouched).
-                    // A colon is ASCII and a `\n` precedes `line_start`, so both edges of `raw_name`
-                    // are clean UTF-8 boundaries — decoding it in isolation yields the same trimmed
-                    // name the consumer sees when it decodes the whole block.
-                    let decoded = String::from_utf8_lossy(raw_name);
+                    // Decode the name with the block-wide UTF-8/Latin-1 decision, then trim EXACTLY
+                    // as the consumer does. `str::trim()` strips the FULL Unicode White_Space set —
+                    // not just space/tab, but CR, LF, vertical-tab (0x0B), form-feed (0x0C), and (via
+                    // the Latin-1 path) NBSP (0xA0) and NEL (0x85). Trimming a SMALLER set than the
+                    // consumer would let a name like `\x0BAuthentication-Results` or
+                    // `Authentication-Results\xA0` slip past this denylist yet be read downstream as a
+                    // genuine trust-boundary verdict via `ParsedMessage::header(...)` — exactly the
+                    // §7.2c forgery this strip exists to prevent. A colon is ASCII and a `\n` precedes
+                    // `line_start`, so both edges of `raw_name` are clean boundaries; Latin-1 is a
+                    // context-free per-byte map, so decoding the name in isolation yields the same
+                    // trimmed value the consumer reads from the whole-block decode. The decode drives
+                    // ONLY this drop/keep decision; the emitted header bytes stay byte-exact below.
+                    let decoded: String = if block_is_utf8 {
+                        // Block is valid UTF-8 ⇒ raw_name (a substring at ASCII boundaries) is too.
+                        String::from_utf8_lossy(raw_name).into_owned()
+                    } else {
+                        // Latin-1 byte→char fallback, matching parse_header_block's `b as char`.
+                        raw_name.iter().map(|&b| b as char).collect()
+                    };
                     let name = decoded.trim();
                     TRUST_BOUNDARY_HEADERS.iter().any(|h| name.eq_ignore_ascii_case(h))
                 }
@@ -1006,6 +1041,34 @@ mod tests {
     }
 
     #[test]
+    fn multipart_part_count_is_bounded_not_memory_amplified() {
+        // Security regression: split_multipart yields one segment per `--boundary`, each becoming a
+        // heap-backed BodyPart. MAX_MIME_DEPTH caps nesting but not breadth, so a body of repeated
+        // `--b\n` allocated one part per delimiter — millions of parts (multi-GB, memoized) from a
+        // single message. Total parts are now capped at MAX_MIME_PARTS.
+        let mut raw = b"Content-Type: multipart/mixed; boundary=b\r\n\r\n".to_vec();
+        for _ in 0..(MAX_MIME_PARTS * 3) {
+            raw.extend_from_slice(b"--b\n"); // ~30k delimiters, well over the cap
+        }
+        let p = ParsedMessage::parse(&raw);
+        match p.structure {
+            BodyPart::Multipart { parts, .. } => assert!(
+                parts.len() <= MAX_MIME_PARTS,
+                "multipart part count must be bounded by MAX_MIME_PARTS, got {}",
+                parts.len()
+            ),
+            _ => panic!("expected multipart"),
+        }
+        // A normal small multipart is unaffected.
+        let ok = ParsedMessage::parse(
+            b"Content-Type: multipart/mixed; boundary=B\r\n\r\n--B\r\nContent-Type: text/plain\r\n\r\nhi\r\n--B--\r\n",
+        );
+        if let BodyPart::Multipart { parts, .. } = ok.structure {
+            assert_eq!(parts.len(), 1);
+        }
+    }
+
+    #[test]
     fn deeply_nested_multipart_does_not_stack_overflow() {
         // Security regression: an uncapped recursive parse of a message nesting multipart tens of
         // thousands deep overflows the thread stack — a NON-catchable SIGSEGV that crashes the whole
@@ -1233,6 +1296,14 @@ body\r\n";
             &b"\x0CAuthentication-Results: mx; dkim=pass header.d=paypal.com\r\nX-Keep: 1\r\n"[..],
             &b"Authentication-Results\x0B: mx; dkim=pass header.d=paypal.com\r\nX-Keep: 1\r\n"[..],
             &b"ARC-Seal\x0C: i=1; a=rsa-sha256; cv=none\r\nX-Keep: 1\r\n"[..],
+            // HIGH-BYTE whitespace reachable ONLY via the consumer's Latin-1 fallback: 0xA0 (NBSP)
+            // and 0x85 (NEL) are lone invalid UTF-8 bytes, so the block decodes Latin-1 and str::trim
+            // strips them → the consumer reads "Authentication-Results". A per-name from_utf8_lossy
+            // would map them to U+FFFD (kept) and miss the match; the block-wide decision must drop.
+            &b"Authentication-Results\xA0: mx; dkim=pass header.d=paypal.com\r\nX-Keep: 1\r\n"[..],
+            &b"\xA0Authentication-Results: mx; dkim=pass header.d=paypal.com\r\nX-Keep: 1\r\n"[..],
+            &b"\x85Authentication-Results: mx; dkim=pass header.d=paypal.com\r\nX-Keep: 1\r\n"[..],
+            &b"ARC-Seal\xA0: i=1; a=rsa-sha256; cv=none\r\nX-Keep: 1\r\n"[..],
         ] {
             let s = String::from_utf8_lossy(&strip_trust_boundary_headers(raw)).to_ascii_lowercase();
             assert!(
