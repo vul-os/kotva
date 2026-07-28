@@ -1184,6 +1184,10 @@ pub struct RtcCapacity {
 }
 
 impl RtcCapacity {
+    // `to_cv(&self)` everywhere in this crate — every wire object encodes through the same shape
+    // (see the ~30 sibling `to_cv` impls). `RtcCapacity` happens to be `Copy`, which is the only
+    // reason clippy singles it out; taking `self` by value here alone would break the convention.
+    #[allow(clippy::wrong_self_convention)]
     fn to_cv(&self) -> Cv {
         let mut m = vec![
             (1u64, Cv::U64(self.max_tracks as u64)),

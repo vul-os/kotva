@@ -18,11 +18,10 @@
 //! sent at (`ERR_ACK_TIER_MISMATCH`, `0x0318`; a return-path tier downgrade, §2.6). Neither is
 //! grounds to short-circuit the mixnet-carried delivery the sender requested.
 
-use crate::cbor::{self, as_u64, as_u8, as_bytes, CborError, Cv, Fields};
+use crate::cbor::{self, as_bytes, as_u8, CborError, Cv, Fields};
 use crate::id::ContentId;
 use crate::identity::{verify_domain, Identity, IdentityKey};
 use crate::mote::Tier;
-use crate::TimestampMs;
 
 /// §18.9.18 domain-separation tag (ASCII ‖ trailing `0x00`; `sign_domain` prepends it).
 pub const ACK_DS: &[u8] = b"DMTAP-v0/ack\x00";

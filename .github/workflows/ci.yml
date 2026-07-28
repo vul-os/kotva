@@ -1,0 +1,73 @@
+# Build, test and conformance gate for the KOTVA crates.
+#
+# spec-lint.yml has gated the prose since day one. The code had nothing: ~34,000 lines
+# across kotva-core and kotva-mail and 594 tests, and no push ever ran them. kotva is
+# the substrate the rest of the suite pins by tag — an unverified substrate is the
+# worst possible place for that gap, because every consumer inherits it.
+name: ci
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+
+      # --all-targets so examples build too: examples/gen_vectors.rs is what regenerates
+      # the conformance vectors, and a vector generator that no longer compiles is found
+      # at the worst possible moment otherwise.
+      - name: Build
+        run: cargo build --workspace --locked --all-targets --all-features
+
+      # kotva-mail's `net` feature is off by default and adds the TCP listeners. Both
+      # configurations ship, so both are tested: 589 tests default, 594 with --all-features.
+      - name: Test (default features)
+        run: cargo test --workspace --locked
+
+      - name: Test (all features)
+        run: cargo test --workspace --locked --all-features
+
+      # BLOCKING. The workspace is clippy-clean at -D warnings; the handful of lints that
+      # are wrong for this code (inherent `from_str` on a tag-pinned public API, the
+      # repo-wide `to_cv(&self)` convention) carry a scoped #[allow] with the reason at
+      # the site, not a blanket exemption here.
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      # NON-BLOCKING, deliberately — the same call envoir's CI makes, for the same reason.
+      # rustfmt currently reports 1007 diffs across 47 files, none introduced by the work
+      # that added this CI. Gating on them today would mean landing a 1009-diff reformat as
+      # a prerequisite: a commit that buries real changes and makes `git blame` useless
+      # across the whole crate tree. A gate whose precondition is that commit is not a gate,
+      # it is a blocker. Promote to blocking (drop continue-on-error) once the debt is paid
+      # down in its own commit.
+      - name: Format (report only)
+        continue-on-error: true
+        run: cargo fmt --all -- --check
+
+  conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Stdlib-only and toolchain-free, so it runs beside the cargo job rather than behind
+      # it. It executes the self-contained cases, binds every vectored case to a committed
+      # vector, re-decodes every committed cbor_hex, and prints — loudly — every case class
+      # it did NOT run and why. 83% of the catalog is not runnable today; a runner that
+      # stays quiet about that is indistinguishable from one that ran nothing.
+      - name: Conformance suite
+        run: python3 tools/conformance.py

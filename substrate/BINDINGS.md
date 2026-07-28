@@ -19,7 +19,7 @@ substrate documents in any language, from scratch, per [`README.md § 6`](README
 ## 1. Why this document exists
 
 The suite currently has **~5 hand-rolled sync/identity/feed implementations**, surveyed in
-[`ADOPTION.md`](ADOPTION.md): flowstock's Go HLC+oplog engine, ofisi's Yjs CRDT, vulos's fabric
+[`ADOPTION.md`](ADOPTION.md): flowstock's Go HLC+oplog engine, diwan's Yjs CRDT, vulos's fabric
 LWW/OR-set and its separate peering identity/feed/mailbox stack, vidmesh's independent content-addressing
 and rotation log, and kerf-pub's from-scratch Python re-implementation of §22. Each is a good-faith,
 independently-correct design for its own product. None of them can talk to each other, because "converge
@@ -85,7 +85,7 @@ functions across the boundary — never in the algebra crates themselves.
 |---|---|---|---|
 | **Native Rust** | direct crate dependency (`Cargo.toml` path/registry dep) | envoir `node`/`gateway`, and any future Rust server or desktop backend | Zero binding cost — this is the surface that already works today. |
 | **Go** | **C-ABI** (`#[no_mangle] extern "C"` + a generated header) consumed via **cgo** | vulos's OS/control-plane backend, flowstock, whatsacc — all Go | Go has no native Rust FFI story other than cgo; a `dmtap-ffi` crate built as a `cdylib`/`staticlib` gives Go a C header (`cbindgen`-generated) it links against. This is the surface with a real, disclosed cost — see §5. |
-| **WASM (browser/JS)** | `wasm-bindgen` compiling to `wasm32-unknown-unknown`, loaded by a JS/TS host | ofisi (editor frontend), kerf's frontend, vidmesh's browser-side `kernel-ts` layer | Every one of these products already ships a JS/TS frontend; a WASM build gives them the *same compiled core* in-process in the browser, no server round-trip, no cgo. This is also the surface envoir's own README already commits to for its web client. |
+| **WASM (browser/JS)** | `wasm-bindgen` compiling to `wasm32-unknown-unknown`, loaded by a JS/TS host | diwan (editor frontend), kerf's frontend, vidmesh's browser-side `kernel-ts` layer | Every one of these products already ships a JS/TS frontend; a WASM build gives them the *same compiled core* in-process in the browser, no server round-trip, no cgo. This is also the surface envoir's own README already commits to for its web client. |
 | **UniFFI** | `.udl`-declared interface, generating Swift/Kotlin bindings | a future native (non-WebView) mobile client, **if** one is built | Conditional, not mandatory. Vulos's current mobile story is Tauri-webview + JS, which is served by the WASM surface, not UniFFI. UniFFI becomes relevant only if a native iOS/Android app bypasses the WebView — `desktop/src-tauri`'s existing `cdylib`/`staticlib` crate-type is the toehold this would extend. Do not build this surface speculatively; build it when a native mobile client is actually scoped. |
 
 A fifth surface — a **Python binding** (e.g. via PyO3) for kerf-pub — is deliberately **not** in this plan.
@@ -210,7 +210,7 @@ through a core binding, per the current state recorded in [`ADOPTION.md`](ADOPTI
   own Ed25519+rotation cert format, `peering/feeds.go`'s signed-but-uncontent-addressed hash-chained feed,
   and `peering/relay.go`'s bespoke mailbox auth header — each independently designed and each already doing
   roughly the right *thing*, just not the spec's *bytes*. Same Go binding tradeoff as above applies.
-- **ofisi** (JS/TS frontend, Sync — partially, by design). Yjs is load-bearing through the editor
+- **diwan** (JS/TS frontend, Sync — partially, by design). Yjs is load-bearing through the editor
   (ProseMirror binding, undo manager, whiteboard binding); replacing its CRDT engine outright is not a
   binding exercise, it's a rewrite of the editor's data model, and is **out of scope** for this plan. The
   realistic adoption path is narrower and still valuable: wrap Yjs's binary update as an opaque payload
@@ -230,7 +230,7 @@ through a core binding, per the current state recorded in [`ADOPTION.md`](ADOPTI
   genuinely new thing vidmesh's own Feeds primitive lacks today (a `seq`/`prev` append-only feed chain)
   would come for free from adopting `dmtap-core::pubobj` rather than needing to be built from scratch. Once
   that convergence lands, vidmesh's browser-side `kernel-ts` layer would consume the **same WASM build**
-  ofisi and kerf's frontend use (§3), instead of hand-porting hashing/proof logic to TypeScript a second
+  diwan and kerf's frontend use (§3), instead of hand-porting hashing/proof logic to TypeScript a second
   time. This entire item is gated on the founder decision recorded in vidmesh's own
   `docs/DMTAP-CONVERGENCE.md` and `DECISIONS.md` — nothing here changes that gate, this document only
   describes the binding mechanics *if* it fires.

@@ -466,7 +466,7 @@ impl CapabilityRevocation {
     /// else's grant. Fail closed: an unauthorized revoker is [`IdentityError::BadSignature`].
     pub fn verify_authorized(&self, authorized_issuers: &[&[u8]]) -> Result<(), IdentityError> {
         self.verify()?;
-        if authorized_issuers.iter().any(|k| *k == self.iss.as_slice()) {
+        if authorized_issuers.contains(&self.iss.as_slice()) {
             Ok(())
         } else {
             Err(IdentityError::BadSignature)

@@ -1181,17 +1181,17 @@ pub const ATTACHED_TIER_MAX: u64 = 25 * 1024 * 1024;
 
 /// The **delivery tier** of a file (spec §5.5.1) — the *durability* axis (inline / push / pull).
 ///
-/// This is **orthogonal** to [`FileTier`] (the §16.4 *privacy* sub-tier: mixnet ≤ 4 MiB vs. bulk
-/// > 4 MiB). A 25 MiB **Attached** file is *pushed* (durable) *and* transits the weaker bulk path:
-/// push-vs-pull governs durability, mixnet-vs-bulk governs metadata privacy (§5.5.1).
+/// This is **orthogonal** to [`FileTier`] (the §16.4 *privacy* sub-tier: mixnet ≤ 4 MiB vs.
+/// bulk `> 4 MiB`). A 25 MiB **Attached** file is *pushed* (durable) *and* transits the weaker
+/// bulk path: push-vs-pull governs durability, mixnet-vs-bulk governs metadata privacy (§5.5.1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeliveryTier {
     /// ≤ 48 KiB — bytes ride inside the sealed MOTE (`Attachment.inline`); durable-by-delivery.
     Inline,
-    /// > 48 KiB, ≤ 25 MiB — chunks pushed with the message into the recipient's store; a durable
+    /// `> 48 KiB`, ≤ 25 MiB — chunks pushed with the message into the recipient's store; a durable
     /// recipient copy. MAY carry a `durability` descriptor but is durable by construction.
     Attached,
-    /// > 25 MiB — `ManifestRef` + key travel in the MOTE; chunks pulled on demand from a holder.
+    /// `> 25 MiB` — `ManifestRef` + key travel in the MOTE; chunks pulled on demand from a holder.
     /// Best-effort by default: it **MUST** carry a [`Durability`] contract (§5.5.2).
     Referenced,
 }

@@ -23,13 +23,13 @@ relevant to the product but nothing exists yet.
 |---|---|---|---|---|---|
 | **envoir** (`/Users/pc/code/vulos/envoir`) | to-spec | to-spec | to-spec | partial | not built |
 | **vulos** (`/Users/pc/code/vulos/vulos`) | independent (×2) | independent | independent (×2) | independent | independent** |
-| **ofisi** (`/Users/pc/code/vulos/ofisi`) | minimal | n/a | **partial**† | independent | n/a |
+| **diwan** (`/Users/pc/code/vulos/diwan`) | minimal | n/a | **partial**† | independent | n/a |
 | **flowstock** (`/Users/pc/code/vulos/flowstock`) | minimal | n/a | independent (partial algebra) | n/a | n/a |
 | **vidmesh** (`/Users/pc/code/vulos/vidmesh`) | independent*** | independent (founder-gated convergence) | n/a | partial | not built |
 | **whatsacc** (`/Users/pc/code/whatsacc`) | minimal | n/a | n/a | n/a | n/a |
-| **kerf-pub** (`/Users/pc/code/exo/kerf/packages/kerf-pub`) | minimal | to-spec | n/a | to-spec (cache/pin only) | independent |
+| **kerf-pub** (`/Users/pc/code/vulos/kerf/packages/kerf-pub`) | minimal | to-spec | n/a | to-spec (cache/pin only) | independent |
 
-† **The substrate's first real product adoption.** ofisi's **Sheets** grid now runs on the shared
+† **The substrate's first real product adoption.** diwan's **Sheets** grid now runs on the shared
 `dmtap-sync` engine (vendored as `dmtap-sync-wasm`) — the same compiled implementation, not a
 reimplementation — **behind a build-time flag (`VITE_SUBSTRATE_SYNC`), off by default**. Docs and
 Whiteboard remain Yjs *by design*, and Slides is blocked on a substrate gap the adoption itself found.
@@ -121,7 +121,7 @@ the substrate's shape without speaking its bytes.
   defines as Wake. **What would move it:** add a second, genuinely content-free `WakePing` path
   alongside the existing notification push, rather than repurposing the notification payload.
 
-### ofisi — `/Users/pc/code/vulos/ofisi`
+### diwan — `/Users/pc/code/vulos/diwan`
 
 - **Identity — minimal.** No per-user keypair is used as sync/session identity; the P2P room model is
   **capability-by-shared-key** (an invite link embeds `{roomId, roomKey, cap}`, HKDF-derived AES-GCM +
@@ -129,7 +129,7 @@ the substrate's shape without speaking its bytes.
   elsewhere (`backend/signing/crypto.go`, sharelink signing) but for content-sealing, unrelated to sync
   identity.
 - **Feeds & Blobs — n/a.** No content-addressed public object or publish mechanism exists or is implied by
-  what ofisi is (a live collaborative editor).
+  what diwan is (a live collaborative editor).
 - **Sync — partial (and the substrate's first real adoption anywhere).** This cell is **per-surface**, and
   the honest summary is that one of four editors is on-spec behind a flag while the rest are unchanged.
   - **Sheets — to-spec, flag-gated, OFF by default.** `src/lib/crdt/substrateGrid.js` replaces the
@@ -137,7 +137,7 @@ the substrate's shape without speaking its bytes.
     `dmtap-sync-wasm` (`third_party/dmtap-sync-wasm/`) — the *same compiled implementation* a Rust server
     runs, not a JS reimplementation of it. The mapping is [`SYNC.md`](SYNC.md) §4.4 directly: namespace
     `sheet`, one LWW register per cell at `target = cell:<r>,<c>`, `field = "v"`, resolved by the §3 HLC.
-    Canonical op bytes are the durable artifact; ofisi's existing JSON update-log and fabric frames carry
+    Canonical op bytes are the durable artifact; diwan's existing JSON update-log and fabric frames carry
     them base64-wrapped as transport only. Convergence is asserted against the engine's own §6.1 **state
     root**, not against a rendered projection.
     - Selected by **`VITE_SUBSTRATE_SYNC` at build time**, default **off**; with the flag off not one byte
@@ -148,7 +148,7 @@ the substrate's shape without speaking its bytes.
       deployment must run the same path — which a build-time flag guarantees and a gradual rollout would
       not. Load failure falls back to `grid.js` rather than leaving a grid that records nothing.
     - **One real gap, named by the code itself:** ops go in via `ingest_ambient_authenticated`, the §5.6
-      path for ops whose authenticity was established out of band. ofisi's grid ops are unsigned (they
+      path for ops whose authenticity was established out of band. diwan's grid ops are unsigned (they
       ride an authenticated fabric room / the server's update log), so this is the honest mapping rather
       than a downgrade — and it *is* a hole on a multi-author untrusted transport. Closing it means
       wiring per-device COSE signing (§4.1); that work is not done.
@@ -159,9 +159,9 @@ the substrate's shape without speaking its bytes.
     move here remains [`BINDINGS.md § 6`](BINDINGS.md#6-migration-path-per-product-optional-per-capability-nothing-forced)'s:
     wrap Yjs's opaque updates in a COSE-signed envelope, adopting the authenticity layer and not the
     algebra.
-  - **Slides — blocked, and it is a substrate gap, not an ofisi one.** `src/lib/crdt/__tests__/substrateTree.mapping.test.js`
+  - **Slides — blocked, and it is a substrate gap, not a diwan one.** `src/lib/crdt/__tests__/substrateTree.mapping.test.js`
     measures the boundary by execution rather than asserting it: the **structural** half maps cleanly onto
-    §4.8 `tree-move` (ofisi's fractional `ordKey`s carried unchanged as the ordering key, reorder = a
+    §4.8 `tree-move` (diwan's fractional `ordKey`s carried unchanged as the ordering key, reorder = a
     second move, concurrent moves converging to one identical tree and one identical state root), and
     slide **deletion** maps correctly onto §4.5's death certificate because a deleted slide is never
     revived. The **content** half is what blocked: a slide object is nested JSON, and §4.1's value type as
@@ -172,16 +172,16 @@ the substrate's shape without speaking its bytes.
   - **What this adoption gave back.** Three [`SYNC.md`](SYNC.md) §14 corrections came out of it, all of a
     kind an independent reimplementation would not have found, because they are only visible to something
     that arrives with *its own data and its own storage shape*: **C-08** (the `ext-value` narrowing above),
-    **C-09** (the snapshot *body* is a compacted **op set**, not `ObservableState` — ofisi built exactly
+    **C-09** (the snapshot *body* is a compacted **op set**, not `ObservableState` — diwan built exactly
     that, one op per key, because the engine exposes no state-import entry point, and asked whether it was
     a workaround or the design; it is the design, and §6.1.2 now says so), and **C-10** (§4.10's
-    death-certificate-vs-LWW selection guidance — ofisi first mapped "clear cell" onto §4.5, which would
+    death-certificate-vs-LWW selection guidance — diwan first mapped "clear cell" onto §4.5, which would
     have silently swallowed every subsequent edit to a cleared cell, caught it, and then chose §4.5
     *correctly* for slide deletion in the same investigation).
 - **Roles — independent.** A vendored `@vulos/relay-client` (`FabricClient`) provides signalling, rendezvous,
   WebRTC circuit-fallback relay, and presence — conceptually close to the Roles substrate, but its own
   SDK/protocol, not DMTAP key-addressed announce/resolve.
-- **Wake — n/a.** No VAPID/web-push/UnifiedPush code found; nothing in ofisi's design implies it needs one
+- **Wake — n/a.** No VAPID/web-push/UnifiedPush code found; nothing in diwan's design implies it needs one
   independent of whatever the host product (Workspace/Meet) already provides.
 
 ### flowstock — `/Users/pc/code/vulos/flowstock`
@@ -272,7 +272,7 @@ surface today, by design, not by oversight.
 - **Wake — n/a.** Notifications ride third-party WhatsApp/Slack push, which is out of scope for a
   DMTAP-native wake mechanism and not a gap this product needs closed.
 
-### kerf-pub — `/Users/pc/code/exo/kerf/packages/kerf-pub`
+### kerf-pub — `/Users/pc/code/vulos/kerf/packages/kerf-pub`
 
 The named reference implementation of §22 ([`FEEDS.md § 6`](FEEDS.md#6-reference-implementation--kerf-pub-proves-the-http-test)).
 Its actual current state is **better than that document's text**, which had gone stale.
@@ -336,10 +336,10 @@ The premise this survey was run to test — "~5 hand-rolled sync engines, one sh
 retire them" — holds up, with more nuance than the premise implied:
 
 - **Sync is genuinely fragmented**, and each fragment is a real, working, independently-correct design:
-  flowstock's HLC+oplog (the spec's own wire-shape grounding, yet not byte-conformant itself), ofisi's Yjs,
+  flowstock's HLC+oplog (the spec's own wire-shape grounding, yet not byte-conformant itself), diwan's Yjs,
   vulos's fabric LWW/OR-set (LAN-only, one table) and its separate Yjs-based collab path. No two of these
   four can talk to each other today. **The first fragment has now actually been retired** rather than
-  planned away: ofisi's hand-rolled Sheets grid CRDT — the fifth such engine — runs on the shared
+  planned away: diwan's hand-rolled Sheets grid CRDT — the fifth such engine — runs on the shared
   `dmtap-sync` core behind a flag, which is the premise's first real evidence. It also shows what the
   retirement costs and returns: the cost is a build-time flag (two engines cannot share a deployment,
   because they do not share a total order), and the return is three specification corrections
@@ -352,7 +352,7 @@ retire them" — holds up, with more nuance than the premise implied:
   two products have it, most don't need it, and vidmesh's convergence is a real, drafted, founder-gated
   plan rather than an open question.
 - **Roles is the most consistently "right shape, wrong bytes" capability** — vulos's peering relay and
-  ofisi's `FabricClient` are both structurally faithful, independent reinventions of
+  diwan's `FabricClient` are both structurally faithful, independent reinventions of
   announce/resolve/mailbox/relay. This is the capability where a shared binding would probably require the
   least behavioural change per product, only a wire-format swap.
 - **Wake is the least attempted and the most subtly wrong where it exists.** vulos's cellpush is a correct,
@@ -367,7 +367,7 @@ retire them" — holds up, with more nuance than the premise implied:
   | Repo | Language | Mechanism | Fixed |
   |------|----------|-----------|-------|
   | kerf-pub | Python | bare `int()` decode accepted a **negative `seq`** | exo/kerf `66ea6e33` |
-  | ofisi | JavaScript | **`NaN` comparison** — `parseInt` on a malformed counter yields `NaN`, and `NaN < x`, `x < NaN`, `NaN >= x` are *all* false, so the obvious comparator returns "not less than" and the caller applies the op; one hostile peer could overwrite any cell | `0b3fd70` |
+  | diwan | JavaScript | **`NaN` comparison** — `parseInt` on a malformed counter yields `NaN`, and `NaN < x`, `x < NaN`, `NaN >= x` are *all* false, so the obvious comparator returns "not less than" and the caller applies the op; one hostile peer could overwrite any cell | `0b3fd70` |
   | flowstock | Go | two entry points **re-implemented the HLC string format** with a bare `Sprintf`, bypassing the width guard | `9e431a3` |
   | vidmesh | Rust | `contest_window as i64` silently reinterprets any `u64 ≥ 2^63` as **negative**, making a finality check trivially true and instantly finalizing a stolen-key rotation | `ad04112` |
 

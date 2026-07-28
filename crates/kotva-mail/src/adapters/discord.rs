@@ -28,7 +28,6 @@
 //!
 //! The live-network boundary is the small [`HttpPost`] trait; nothing here opens a socket or holds a
 //! real credential, so it builds and tests offline (the tests mock [`HttpPost`]).
-#![allow(dead_code)]
 
 use serde::{Deserialize, Serialize};
 

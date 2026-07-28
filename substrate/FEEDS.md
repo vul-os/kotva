@@ -414,7 +414,7 @@ verification gate (§5.1) is unchanged, and the address, not the hint, is the tr
 
 ## 6. Reference implementation — kerf-pub proves the HTTP test
 
-**kerf-pub** (`/Users/pc/code/exo/kerf/packages/kerf-pub`) is the reference implementation of §22 (with
+**kerf-pub** (`/Users/pc/code/vulos/kerf/packages/kerf-pub`) is the reference implementation of §22 (with
 the §24.18 engineering-artifact facet layered on top). It is named here only as an existence proof; per the repository's
 implementation-neutral stance it is not part of the standard and not required to speak it, and where it
 and the spec disagree, **the spec wins.** It proves §22 works over plain HTTPS with no mesh in three

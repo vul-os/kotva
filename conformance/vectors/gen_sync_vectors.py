@@ -1550,7 +1550,7 @@ out = {
     "atom_order_incl_tombstones, which contradicted §4.7 and the vector's own note; C-04 fixed "
     "SYNC-SNAP-02's snapshot_covers_cbor_hex, which encoded an integer-keyed map where §5.1 specifies "
     "ik-pub bstr keys. C-08/C-09/C-10 came from a different direction — the FIRST real product "
-    "adoption of the engine (ofisi's Sheets grid) rather than an independent reimplementation — and "
+    "adoption of the engine (diwan's Sheets grid) rather than an independent reimplementation — and "
     "are the three gaps only a consumer could surface. C-08: §4.1 named §18.3.6's `ext-value` but "
     "described a strictly narrower type, dropping the recursive text-keyed map arm and adding a "
     "homogeneity constraint that is not there, so nested application data was blocked twice over "

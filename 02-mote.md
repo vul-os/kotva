@@ -365,7 +365,8 @@ in order:
      timestamp/causal order, or relabeling `kind` to change rendering or force a silent
      decrypt-fail.
    - **(b2) Vouch subject binding.** If the accepted `challenge` at step 6 was a **vouch**
-     (§9.2a, §9.7), verify that **`Payload.from` equals `VouchToken.subject`**; on mismatch,
+     (§9.2a, §9.7), verify that **`Payload.from` equals `Vouch.subject`** (the `ChallengeResponse`
+     variant at §18.3.3, discriminator `4`, `subject` at key 2); on mismatch,
      discard silently and do not `ack` (`ERR_VOUCH_SUBJECT_MISMATCH`, `0x0126`).
      **Why this is required.** Unlike an ARC token, a PoW solution or a postage stamp, a vouch
      cannot be bound to the envelope's ephemeral `sender_key` at mint time — the voucher cannot

@@ -97,7 +97,7 @@ flowchart TD
   PRIMS --> WAIST
   WAIST --> MAIL["<b>DMTAP-mail</b> — the flagship profile<br/>§2 MOTE · §5 MLS · §7 gateway · §8 JMAP"]
   WAIST --> P1["flowstock<br/><i>inventory</i>"]
-  WAIST --> P2["ofisi · kerf · forge · whatsacc<br/><i>office · CAD · &hellip;</i>"]
+  WAIST --> P2["diwan · kerf · forge · whatsacc<br/><i>office · CAD · &hellip;</i>"]
 ```
 
 Mail sits **beside** the other products, not beneath them: it is the profile that adopts *all six*

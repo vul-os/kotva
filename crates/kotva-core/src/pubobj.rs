@@ -998,7 +998,13 @@ impl FeedFollower {
         for e in entries {
             self.accepted.insert(e.seq, e.entry_id());
         }
-        if self.last_seq.is_none_or(|l| head.seq >= l) {
+        // Written as an explicit match, not `Option::is_none_or`: that helper is stable only since
+        // 1.82 and this crate declares `rust-version = "1.75"` (Cargo.toml).
+        let advances = match self.last_seq {
+            None => true,
+            Some(l) => head.seq >= l,
+        };
+        if advances {
             self.last_seq = Some(head.seq);
             self.last_tip = Some(head.tip.clone());
         }
@@ -1343,7 +1349,7 @@ mod tests {
         // Order-sensitive (a Merkle tree over an ordered list).
         assert_ne!(pub_manifest_root(&[a.clone(), b.clone()]), pub_manifest_root(&[b.clone(), a.clone()]));
         // Single-chunk root = leaf(h0), and always differs from the raw chunk hash.
-        assert_ne!(pub_manifest_root(&[a.clone()]), a);
+        assert_ne!(pub_manifest_root(std::slice::from_ref(&a)), a);
     }
 
     #[test]

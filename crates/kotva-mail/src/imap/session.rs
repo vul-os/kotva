@@ -678,9 +678,12 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
     /// Resolve an IMAP URL (RFC 5092) of the form `…/<mailbox>;UID=<n>[/;SECTION=<sec>]` against the
     /// local store, returning the referenced bytes (whole message, or a body section).
     fn resolve_imap_url(&self, url: &str) -> Option<Vec<u8>> {
-        // Take the path after the authority (everything after the last "//host/…" or a bare path).
-        let path = url.rsplit_once('/').map(|(_, _)| url).unwrap_or(url);
-        let path = path.split_once("//").map(|(_, rest)| rest.splitn(2, '/').nth(1).unwrap_or(rest)).unwrap_or(path);
+        // Take the path after the authority: for `imap://host/…` drop the scheme and the host, and
+        // leave a bare path (no `//`) untouched.
+        let path = url
+            .split_once("//")
+            .map(|(_, rest)| rest.split_once('/').map(|(_, tail)| tail).unwrap_or(rest))
+            .unwrap_or(url);
         // mailbox;UID=n[/;SECTION=s]
         let (mailbox_part, rest) = path.split_once(";UID=")?;
         let mailbox = mailbox_part.trim_start_matches('/');
@@ -1656,9 +1659,9 @@ fn build_threads(mb: &Mailbox, matched: &[usize], algo: ThreadAlgorithm) -> Vec<
                 }
             }
             let mut buckets: std::collections::BTreeMap<usize, Vec<usize>> = Default::default();
-            for pos in 0..matched.len() {
+            for (pos, &i) in matched.iter().enumerate() {
                 let root = find(&mut parent, pos);
-                buckets.entry(root).or_default().push(matched[pos]);
+                buckets.entry(root).or_default().push(i);
             }
             buckets.into_values().collect()
         }
@@ -1854,7 +1857,7 @@ mod tests {
         // the DP matcher is O(len(p)·len(n)) and returns near-instantly. We assert both a wall-clock
         // ceiling AND correctness (this pattern needs 20 `a`s, the name has none → no match).
         let pattern = "*a".repeat(20) + "b"; // 20 `*a` groups then a `b`
-        let name = "a".repeat(1); // deliberately cannot satisfy 20 required `a`s + trailing `b`
+        let name = "a".to_string(); // deliberately cannot satisfy 20 required `a`s + trailing `b`
         let name = format!("{}c", "x".repeat(64)) + &name; // long, wrong tail
         let start = std::time::Instant::now();
         let matched = wildcard_match(&pattern, &name);

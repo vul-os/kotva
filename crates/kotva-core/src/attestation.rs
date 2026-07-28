@@ -53,6 +53,11 @@ impl KeyProtection {
     }
 
     /// Parse a wire class string; an unknown class fails closed (`None`).
+    //
+    // Deliberately an inherent `from_str`, not `std::str::FromStr`: the trait fixes the return to
+    // `Result<Self, Self::Err>`, and this parser's fail-closed answer is `None`. Renaming it is a
+    // breaking change for consumers that pin this crate by tag, so it stays.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         Some(match s {
             "software" => KeyProtection::Software,

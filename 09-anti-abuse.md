@@ -60,7 +60,7 @@ signs — both `sender_sig` and the stolen proof then verify). To close this, **
 - **Vouch** — a vouch **cannot** be bound to `sender_key` at mint time: the voucher cannot know a
   key the vouchee has not yet generated, and a cleartext proof-of-possession over `sender_key`
   would break sealed sender (§6.2). It is therefore bound to the **subject it names** instead:
-  §2.7 step 8(b2) requires `Payload.from == VouchToken.subject`, and a mismatch is discarded
+  §2.7 step 8(b2) requires `Payload.from == Vouch.subject` (§18.3.3), and a mismatch is discarded
   without an `ack` (`ERR_VOUCH_SUBJECT_MISMATCH`, `0x0126`).
   A stolen vouch is not caught by identity authentication alone: step 8(a) verifies
   `Payload.sig` under `Payload.from`, a field the thief chooses and signs with their own key, so

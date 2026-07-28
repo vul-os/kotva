@@ -388,7 +388,7 @@ the specified shape is how the ambiguity survived a frozen vector in the first p
 unverifiable "`floor` MUST NOT exceed `covers`" clause (a single `Hlc` and a per-author `VersionVector`
 are not comparable) in favour of the new §5.2.2 split between what a caller verifies and what it trusts.
 `SYNC-SNAP-03` and `SYNC-VAL-01` take the count to **24**, and they came from a different place than
-every correction before them: the **first real product adoption** of the Sync engine (ofisi's Sheets
+every correction before them: the **first real product adoption** of the Sync engine (diwan's Sheets
 grid), rather than an independent reimplementation of the document. **C-09** found that the snapshot
 *body* is a compacted **op set**, not `det_cbor(ObservableState)` — §6.1.1's projection deliberately
 drops the merge metadata the next merge needs (the LWW winner's HLC above all), so a replica that

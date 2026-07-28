@@ -29,7 +29,6 @@
 //!   [`TelegramAdapter::inbound_to_mote`] carries the origin **as such**, in an explicitly-labelled
 //!   header ([`RAIL_ORIGIN_EXT_KEY`]), and **never** as the MOTE's cryptographic sender
 //!   (`Payload.from`, a DMTAP identity key).
-#![allow(dead_code)]
 
 use kotva_core::mote::{Headers, Payload};
 use serde::{Deserialize, Serialize};

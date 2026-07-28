@@ -11,7 +11,6 @@
 //! platform-asserted `Headers.ext` entry (§26.5.1), never `Payload.from`. The hardware boundary — AT
 //! commands to a modem — is the [`Modem`] trait; nothing here talks to real hardware, so it runs in
 //! CI.
-#![allow(dead_code)]
 
 use kotva_core::mote::{Headers, Payload};
 

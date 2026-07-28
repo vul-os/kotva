@@ -154,6 +154,10 @@ impl Cap {
     }
 
     /// Parse a wire capability string, failing closed on an unknown value.
+    //
+    // Inherent `from_str` rather than `std::str::FromStr`, matching `KeyProtection::from_str` in
+    // attestation.rs. Renaming it is a breaking change for consumers that pin this crate by tag.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Cap, CborError> {
         Ok(match s {
             "send" => Cap::Send,
@@ -617,7 +621,7 @@ impl Identity {
         }
         // §18.4.1 key 10: sig count is one-per-operational-suite, plus one anchor sig iff the anchor
         // is not itself an operational suite.
-        let anchor_separate = !self.suites.iter().any(|s| *s == self.anchor_suite);
+        let anchor_separate = !self.suites.contains(&self.anchor_suite);
         let expected_sigs = self.suites.len() + usize::from(anchor_separate);
         if self.sig.len() != expected_sigs {
             return Err(IdentityError::Malformed("sig count != suites (+ anchor when disjoint)"));
@@ -1089,7 +1093,7 @@ fn count_quorum(
         if !guardians.iter().any(|g| g.as_slice() == s.guardian.as_slice()) {
             continue; // not a recognized guardian
         }
-        if counted.iter().any(|c| *c == s.guardian.as_slice()) {
+        if counted.contains(&s.guardian.as_slice()) {
             continue; // already counted this guardian
         }
         if verify_domain(&s.guardian, ds, preimage, &s.sig).is_ok() {
@@ -1193,7 +1197,7 @@ pub fn recovery_change_is_weakening_vs_history(
         .filter(|m| !prev.methods.iter().any(|pm| pm == *m))
         .collect();
     // Re-introducing any of them undoes an eviction, so it is weakening.
-    next.methods.iter().any(|nm| evicted.iter().any(|em| *em == nm))
+    next.methods.iter().any(|nm| evicted.contains(&nm))
 }
 
 /// Check that `history` is a complete, hash-linked chain of policy versions from **genesis**
@@ -1497,8 +1501,9 @@ pub fn key_rotation_is_quorum_backed(
 ///   - **(b) Published-and-delayed** — no quorum, but the record has been published and its §16.8
 ///     veto window (`announced_at + `[`RECOVERY_VETO_WINDOW_MS`]) has elapsed at `now` with **no**
 ///     `rotate_threshold`-backed veto present.
-///   Satisfying neither is [`KeyRotationError::Unauthorized`] (`0x0121`) — reject or hold, never
-///   advance the pin.
+///
+/// Satisfying neither is [`KeyRotationError::Unauthorized`] (`0x0121`) — reject or hold, never
+/// advance the pin.
 #[allow(clippy::too_many_arguments)]
 pub fn authorize_key_rotation(
     rotation: &KeyRotation,

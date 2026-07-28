@@ -258,7 +258,7 @@ impl<'a> Decoder<'a> {
                 }
                 Ok(v)
             }
-            28 | 29 | 30 => Err(CborError::Malformed), // reserved additional-info
+            28..=30 => Err(CborError::Malformed), // reserved additional-info
             _ => Err(CborError::IndefiniteLength),     // 31 = indefinite / break
         }
     }
@@ -374,7 +374,7 @@ impl<'a> Decoder<'a> {
                 let _ = self.byte()?;
                 Err(CborError::TagOrUndefined)
             }
-            25 | 26 | 27 => {
+            25..=27 => {
                 // half / single / double float — forbidden anywhere (rule 4). Consume the bytes
                 // for a clean cursor, then reject.
                 let n = match ai {
@@ -385,7 +385,7 @@ impl<'a> Decoder<'a> {
                 let _ = self.take(n)?;
                 Err(CborError::FloatPresent)
             }
-            28 | 29 | 30 => Err(CborError::Malformed),
+            28..=30 => Err(CborError::Malformed),
             _ => Err(CborError::IndefiniteLength), // 31 = break
         }
     }

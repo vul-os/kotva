@@ -832,9 +832,20 @@ A mixnet's privacy **is** its anonymity set, and KOTVA does **not** overclaim a 
   in absolute terms while the fleet is small; on Bootstrap this is a profile-level MUST NOT
   (§4.4.10a constraint 2). The in-product disclosure follows §6.6. This is the mixnet-specific
   instance of the weakest-link and global-active-adversary boundaries (§6.6 items 1 and 5, §11.3).
-- **It may never materialise.** The honest floor beneath the floor: if too few nodes take the mix
-  role, `private` is unbuildable and delivery degrades to the `fast` tier — encrypted and
-  authenticated, without default metadata privacy (§6.6 item 13).
+- **It may never materialise — and that is an unavailable tier, NOT a degradation.** The honest
+  floor beneath the floor: if too few nodes take the mix role, `private` paths are simply
+  **unbuilt**. An earlier revision of this bullet said delivery "degrades to the `fast` tier",
+  which contradicted §4.4.9 in this same document — downgrading `private → fast` is "**only ever a
+  deliberate, user-surfaced choice** … **never** an automatic reaction to mix unavailability", and
+  an automatic degradation on an unbuildable fleet *is* the §4.4.9 downgrade attack, reachable
+  without the adversary having to DoS anything. The correct statement, matching
+  [`06-privacy.md §6.6 item 13`](../../06-privacy.md): a client **MUST NOT present `private` as
+  available** until the mix role is shipped and enough operators run it, so there is no `private`
+  selection to demote; the default (`fast` — encrypted and authenticated, without default metadata
+  privacy) is what delivery uses, and it was never conditioned on this layer existing. A message a
+  user *has* marked `private` when no conforming path is buildable **fails closed and is held**
+  (`ERR_PRIVATE_TIER_DOWNGRADE_REFUSED`, `0x0310`, §4.4.9) — it is never silently sent over `fast`.
+  What is lost if the fleet never materialises is upside, not a guarantee (§6.6 item 13).
 
 ### 4.4.12 Post-quantum Sphinx (tracked frontier, agility hook)
 

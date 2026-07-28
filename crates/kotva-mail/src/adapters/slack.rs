@@ -21,7 +21,6 @@
 //! rules out. The bearer credential is attached by the concrete [`HttpPost`] implementation a real
 //! deployment supplies (Slack requires `Authorization: Bearer <token>` on the HTTPS request); this
 //! module formats the request and interprets the response, and holds no credential itself.
-#![allow(dead_code)]
 
 use kotva_core::cbor::Cv;
 use kotva_core::mote::{Headers, Payload};
