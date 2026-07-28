@@ -45,6 +45,16 @@ because a real defect got through review:
                                        hand-copied number in the prose does not follow. C14
                                        recomputes them and fails if any doc disagrees with
                                        `--coverage`, so the figure and the tool travel together
+  C15 self-assessed MUST trigger     §13.7 item 6 shipped a REQUIRES scoped to "high-value login
+                                       RPs" — a term defined nowhere, applied by the party the
+                                       requirement constrains. An RP that declined the label was
+                                       conformant by inspection, so a MUST guarding a silent
+                                       per-RP account takeover could not be violated. The rule is
+                                       now unconditional (§13.7 item 6, §6.6 item 6, §3.5.2) and
+                                       C15 stops the shape returning: the qualifier may sit in
+                                       SHOULD-level or explanatory text, never next to MUST /
+                                       SHALL / REQUIRED. Frozen review records (docs/) are out of
+                                       corpus by design
 
 Exit status is non-zero if any ERROR-level finding fires, so this belongs in CI.
 WARN-level findings are reported but do not fail the build.
@@ -180,6 +190,23 @@ PARAM_DRIFT: list[tuple[str, str, str, str, str]] = [
      r"\u2265 ?5|\b5 cold\b",
      "§16.5 N_floor \u2265 5 cold MOTEs / sender-key / day"),
 ]
+
+# C15: a normative requirement may not be conditioned on the undefined, self-assessed
+# qualifier "high-value" (§0.8). Matched as a COLLOCATION within one line and a tight
+# window, in both directions, because the defect is the adjacency ("high-value RPs
+# MUST ...", "MUST require ... for high-value contacts") and not the word: the word is
+# legitimate in SHOULD-level and explanatory text, which is exactly where §0.8 confines
+# it. SHOULD/MAY are deliberately absent from the keyword set — permitting them is the
+# whole point of keeping the term.
+QUALIFIER_RE = re.compile(r"\bhigh[- ]value\b", re.IGNORECASE)
+_OBLIGATION = r"(?:MUST(?:\s+NOT)?|SHALL(?:\s+NOT)?|REQUIRED|REQUIRES)"
+# The obligation keywords are matched CASE-SENSITIVELY: per §0.8 (BCP 14) they are
+# normative only in all capitals, and matching lowercase "must" would fire on ordinary
+# prose forever — the fastest way to get a check switched off.
+SELFASSESSED_RE = re.compile(
+    rf"(?i:\bhigh[- ]value\b).{{0,60}}?\b{_OBLIGATION}\b"
+    rf"|\b{_OBLIGATION}\b.{{0,60}}?(?i:\bhigh[- ]value\b)"
+)
 
 Finding = tuple[str, str, str]  # (level, location, message)
 
@@ -497,6 +524,76 @@ def check_self_documented() -> list[Finding]:
     return out
 
 
+def check_selfassessed_trigger() -> list[Finding]:
+    """C15: no normative requirement may be conditioned on the qualifier "high-value".
+
+    §13.7 item 6 spent a release as a REQUIRES whose trigger was "high-value login
+    RPs" — a term defined nowhere in the spec, applied by the party the requirement
+    constrains. An RP that declined the label was conformant by inspection, so the
+    strongest MUST in §13 could not be violated, and what it guarded was a silent
+    per-RP account takeover under a v0 split-view KT log. The requirement was made
+    unconditional (§13.7 item 6, §6.6 item 6, §3.5.2(d)) and the qualifier defined
+    in §0.8 as descriptive only. This check is what stops the shape coming back:
+    the term may live in SHOULD-level or explanatory text, never adjacent to an
+    obligation keyword.
+
+    CORPUS — and what is deliberately NOT scanned. Scanned: the numbered spec
+    files, substrate/*.md, and BOTH halves of the conformance catalogue
+    (SUITE.md and suite.json — a case is a normative requirement too, and the
+    original defect had a mirror in each). NOT scanned: docs/ — the review records
+    under docs/reviews/ are FROZEN historical text that quotes the defective
+    wording verbatim on purpose (docs/reviews/README.md), and a linter that
+    "fixed" a frozen record would destroy the only thing it is good for.
+
+    FAIL-CLOSED, and it cannot pass by doing nothing: an empty corpus is an ERROR,
+    and the predicate is run against a synthetic positive control on every
+    invocation, so a regex edit that renders it inert fails the build instead of
+    reporting success. If the term has disappeared from the corpus entirely the
+    check says so loudly rather than going quiet, because at that point it is
+    guarding nothing and should be retired on purpose, not by accident.
+    """
+    out: list[Finding] = []
+    corpus = [p for p in (SPEC_FILES + SUBSTRATE_FILES +
+                          [ROOT / "conformance" / "SUITE.md",
+                           ROOT / "conformance" / "suite.json"]) if p.exists()]
+
+    # Positive control: the exact shape the spec carried before OQ-1 was closed.
+    CONTROL = 'that high-value login RPs MUST verify the name -> key binding'
+    if not SELFASSESSED_RE.search(CONTROL):
+        return [("ERROR", "tools/lint.py",
+                 "C15 is INERT: its own positive control no longer trips the predicate. "
+                 "A check that cannot fail reports success it did not earn — fix the "
+                 "regex before trusting any C15-clean run.")]
+    if not corpus:
+        return [("ERROR", "tools/lint.py",
+                 "C15 scanned NOTHING: the spec/substrate/conformance corpus is empty, so "
+                 "no file was checked for self-assessed normative triggers.")]
+
+    seen = 0
+    for p in corpus:
+        for n, line in enumerate(read(p).splitlines(), 1):
+            if QUALIFIER_RE.search(line):
+                seen += 1
+            m = SELFASSESSED_RE.search(line)
+            if m:
+                rel = p.relative_to(ROOT)
+                out.append(("ERROR", f"{rel}:{n}",
+                            f"C15: normative keyword conditioned on the undefined qualifier "
+                            f"\"high-value\" — {m.group(0)[:90]!r}. The trigger is assessed by "
+                            f"the party the requirement constrains, so declining the label "
+                            f"satisfies it (§0.8). Make the requirement unconditional, or "
+                            f"state it at SHOULD level."))
+    # Coverage assertion: report what was actually examined, and refuse to be
+    # silently inert if the term vanished from the corpus.
+    if seen == 0:
+        out.append(("WARN", "tools/lint.py",
+                    f"C15 examined {len(corpus)} files and found NO occurrence of the "
+                    f"qualifier anywhere — so this run verified nothing. Either the term was "
+                    f"fully retired (retire C15 and the §0.8 entry with it) or the corpus is "
+                    f"mis-globbed."))
+    return out
+
+
 def check_suite_status() -> list[Finding]:
     """C9: no suite table may contradict §1.1 on a suite's normative status."""
     out: list[Finding] = []
@@ -750,6 +847,7 @@ def main() -> int:
     findings += check_failclass(code_to_action)
     findings += check_conformance()
     findings += check_stale_terms()
+    findings += check_selfassessed_trigger()
     findings += check_suite_status()
     findings += check_param_drift()
     findings += check_case_schema()

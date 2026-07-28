@@ -8,3 +8,15 @@ __pycache__/
 
 # Rust build output
 /target
+
+# Compiled WebAssembly build output for crates/kotva-sync-wasm (`build.sh`). These are BUILD OUTPUT.
+# Carried over with the crate when it moved here from envoir, along with the reasoning: committing
+# a wasm blob once cost a real bug (a stale checked-in module kept aborting on free long after the
+# source had been fixed), because nothing in git ties a binary to the code that produced it.
+crates/kotva-sync-wasm/pkg/
+crates/kotva-sync-wasm/pkg-node/
+crates/kotva-sync-wasm/pkg-web/
+# NOT ignored, deliberately: bindings/go/kotva_sync_abi.wasm. A Go module has no build step, so
+# gitignoring it makes the package uncompilable for anyone who `go get`s it. That artifact buys the
+# guarantee back explicitly instead — wasm_provenance.json + provenance_test.go fail when it drifts
+# from its source. See bindings/go/embed.go.

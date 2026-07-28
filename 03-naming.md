@@ -109,7 +109,8 @@ v0 trust model:
 
 **Honest limit:** a MITM at the *very first* contact (before KT is consulted or before OOB
 verification) can substitute a key. KT (§3.5) closes this; OOB verification closes it
-immediately for high-value contacts.
+immediately, and is most worth the friction for high-value contacts — a deliberately
+non-normative qualifier (§0.8) that never gates a requirement.
 
 ### 3.4.1 Safety numbers (out-of-band key verification)
 
@@ -192,7 +193,10 @@ step 2), self-monitored by the owner's own devices (STH poll, §16.2). It is
 non-gossiped log can present a **split view** (different histories to different observers, §6.6
 item 6). v0 therefore fails closed on an unreachable log (§3.3, `0x0106`), and a network SHOULD
 run more than one independent log and lean on OOB verification (§3.4.1) for high-value contacts
-even in v0. Closing the split-view gap is exactly the job of the v1 profile.
+(a deliberately non-normative qualifier, §0.8) even in v0. Closing the split-view gap is exactly
+the job of the v1 profile. **DMTAP-Auth does not get this SHOULD**: §13.7 item 6 requires the
+multi-log quorum or an OOB-verified pin of *every* login RP, so a deployment that offers
+DMTAP-Auth on this single-log default must carry an OOB-verified pin per RP.
 
 ### 3.5.2 v1-hardening — federated, gossiped, equivocation-detecting (log-type `0x02`)
 
@@ -315,8 +319,9 @@ Two distinct roles, which MAY be co-located on one operator but are separate cap
      treated as a reputation signal (as gateway/postage misbehavior is, §7.5, §9.6); if the
      equivocation breaks quorum, resolution fails closed (`0x0111`) and the verifier falls back
      to OOB verification (§3.4.1). For **DMTAP-Auth**, a split view is a silent per-RP
-     account-takeover vector, so a high-value login RP MUST require this multi-log quorum or an
-     OOB-verified pin (§6.6 item 6, §13.7).
+     account-takeover vector, so **every** login RP MUST require this multi-log quorum or an
+     OOB-verified pin — unconditionally, with no value threshold and no self-declared exemption
+     (§6.6 item 6; the owning requirement, and the v0 cost of it, is §13.7 item 6).
 
 Under log-type `0x02` the honest v0 limit — "tamper-evident after the fact, self-monitorable, but
 not equivocation-proof" (§6.6 item 6) — is **closed**: equivocation is detected by gossip,

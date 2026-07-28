@@ -1,7 +1,11 @@
 # Build, test and conformance gate for the KOTVA crates.
 #
 # spec-lint.yml has gated the prose since day one. The code had nothing: ~34,000 lines
-# across kotva-core and kotva-mail and 594 tests, and no push ever ran them. kotva is
+# across kotva-core and kotva-mail and 594 tests, and no push ever ran them.
+#
+# The crate set has since GROWN: `kotva-sync` and `kotva-sync-wasm` were extracted out of
+# envoir into this repo (sync is a SUBSTRATE capability, substrate/SYNC.md), together with
+# the Go binding and the three-surface parity proof over them — see the `bindings` job. kotva is
 # the substrate the rest of the suite pins by tag — an unverified substrate is the
 # worst possible place for that gap, because every consumer inherits it.
 name: ci
@@ -30,7 +34,9 @@ jobs:
         run: cargo build --workspace --locked --all-targets --all-features
 
       # kotva-mail's `net` feature is off by default and adds the TCP listeners. Both
-      # configurations ship, so both are tested: 589 tests default, 594 with --all-features.
+      # configurations ship, so both are tested. Measured 2026-07-28 after the sync
+      # extraction: 655 default, 660 with --all-features (was 589/594 before the move —
+      # the delta is kotva-sync's 52 unit + 6 convergence and kotva-sync-wasm's 7 + 1).
       - name: Test (default features)
         run: cargo test --workspace --locked
 
@@ -54,6 +60,98 @@ jobs:
       - name: Format (report only)
         continue-on-error: true
         run: cargo fmt --all -- --check
+
+  # --- the cross-surface parity proof (substrate/BINDINGS.md §4) -------------------
+  # ONE algebra, THREE surfaces, ONE set of frozen bytes. This job MOVED HERE from
+  # envoir's ci.yml together with the code it proves: `kotva-sync`/`kotva-sync-wasm`
+  # (formerly envoir's `dmtap-sync`/`dmtap-sync-wasm`) and `bindings/go` now live in
+  # this repo, and a gate belongs with the implementation it gates. The vectors are
+  # in-tree here (`conformance/vectors/sync_vectors.json`), so unlike in envoir there
+  # is no sibling checkout to be missing — every harness fails closed on an absent
+  # vector file rather than skipping.
+  #
+  # Every step asserts its own COUNT. `node --test` with a glob that matches nothing
+  # prints "pass 0" and exits 0, and `go test ./...` exits 0 for a package with no
+  # test files: both are ways for a gate to report success having run nothing, which
+  # is the exact failure this suite has already shipped once (a sync gate reporting
+  # 24/24 while driving zero vectors).
+  bindings:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+
+      # The native half: drives all 24 frozen vectors through `kotva-sync` directly
+      # (no wasm, no JS) and asserts byte-for-byte against the committed trace. It
+      # also asserts that EVERY vector in the file was executed by name, so a
+      # renamed `operation` cannot silently reduce coverage to zero.
+      - name: Cross-surface parity — native half
+        run: cargo test -p kotva-sync-wasm --test native_trace -- --nocapture
+
+      - name: Install wasm-pack
+        run: curl -sSf https://rustwasm.github.io/wasm-pack/installer/init.sh | sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22 # `node --test` accepts glob patterns from v21
+
+      - name: Build the WASM binding
+        run: ./crates/kotva-sync-wasm/build.sh nodejs
+
+      # `--test-reporter=spec` is pinned because the DEFAULT reporter depends on the
+      # Node version and on whether stdout is a TTY, and the two spell the summary
+      # differently. Parsing an unpinned format is how a counter silently reads 0.
+      - name: Cross-surface parity — WASM half (byte-identical to native)
+        run: |
+          set -o pipefail
+          node --test --test-reporter=spec 'crates/kotva-sync-wasm/test/*.test.mjs' 2>&1 \
+            | tee /tmp/node-test.log
+          counts=$(awk '/ pass [0-9]+$/ {p=$NF} / fail [0-9]+$/ {f=$NF} END {print p+0, f+0}' /tmp/node-test.log)
+          pass=${counts% *}; fail=${counts#* }
+          echo "node --test: $pass passed, $fail failed"
+          if [ "$fail" != 0 ]; then
+            echo "::error::$fail JS/WASM parity assertions failed"; exit 1
+          fi
+          if [ "$pass" -lt 31 ]; then
+            echo "::error::only $pass JS/WASM assertions ran (expected >= 31). The glob matched" \
+                 "nothing, the summary format moved, or coverage was removed. NOT VERIFIED: that" \
+                 "the WASM binding reproduces the native trace."
+            exit 1
+          fi
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache-dependency-path: bindings/go/go.sum
+
+      # The third surface. It needs no Rust toolchain: the raw-ABI module is committed
+      # (a Go module has no build step) and `provenance_test.go` ties that blob to the
+      # sources it was built from by digest — including the fact that they now live at
+      # `crates/kotva-sync*`, which is what that guard fails on if the crates move again.
+      - name: Cross-surface parity — Go half
+        working-directory: bindings/go
+        run: |
+          set -o pipefail
+          go build ./...
+          go test ./... -count=1 -v 2>&1 | tee /tmp/go-test.log | tail -40
+          ran=$(grep -c '^--- PASS: ' /tmp/go-test.log || true)
+          echo "go test: $ran top-level test functions passed (49 at 2026-07-28)"
+          if [ "$ran" -lt 45 ]; then
+            echo "::error::only $ran Go test functions ran (expected >= 45). NOT VERIFIED: that" \
+                 "the wazero/raw-ABI surface reproduces the native trace."
+            exit 1
+          fi
+          skipped=$(grep -c '^--- SKIP: ' /tmp/go-test.log || true)
+          if [ "$skipped" != 0 ]; then
+            echo "::error::$skipped Go tests SKIPPED. In this repo the vectors and the Rust sources" \
+                 "are both in-tree, so there is no legitimate skip left — a skip here means a" \
+                 "guard stopped guarding."
+            exit 1
+          fi
 
   conformance:
     runs-on: ubuntu-latest

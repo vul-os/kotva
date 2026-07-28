@@ -7,6 +7,12 @@ This is a **frozen record** ([`README.md`](README.md)). The text under
 [Record as written](#record-as-written) is reproduced verbatim and is a statement about the spec
 **as it read on 2026-07-21**. Do not edit it to match today's spec.
 
+**Current status: no finding in this record is live in a MUST-level requirement.** The last one,
+[OQ-1](#oq-1--high-value-login-rp-is-an-undefined-self-assessed-trigger-on-a-must), was closed by
+the [resolution pass below](#resolution-pass--oq-1-closed-2026-07-28-second-pass-same-day). The
+triage section that follows still grades it `OPEN QUESTION`, and is deliberately left that way —
+a triage pass appends, it does not reach back and rewrite an earlier one.
+
 ---
 
 ## Triage — 2026-07-28
@@ -118,6 +124,138 @@ written here and not in the spec.
   described*. It does not mean the fixed text was itself adversarially reviewed.
 - The "Attacked and found SOUND" list was not re-verified against the moved/rewritten spec. Several
   entries (§4.4.x) now sit in non-normative research, which changes what soundness there buys.
+
+---
+
+## Resolution pass — OQ-1 CLOSED, 2026-07-28 (second pass, same day)
+
+A separate, later pass on the same date. Per [`README.md`](README.md) a triage pass **appends**;
+the triage above and the frozen record below are unchanged, including the summary row that still
+grades M3 `OPEN QUESTION` and the line that reads "**Findings still live in a MUST-level
+requirement: One.**" Both were true when written. This section is what changed them, and it does
+not reach back to rewrite them.
+
+### The ruling
+
+**Option (b): the requirement is unconditional.** The undefined trigger is **removed, not
+defined**. The reasoning encoded in the spec is the one the open question stated: a trigger the
+constrained party self-assesses is not a requirement but advice in MUST formatting, and a
+requirement satisfied by declining a label is unenforceable and therefore worse than an honestly
+weaker one. Unconditional is mechanically checkable and matches the fail-closed stance §3.3,
+§3.5.2, §13.3.1 and §13.4 already take.
+
+The triage above **recommended** a scoped (b) — unconditional at the bridge, (a)-style enumeration
+for direct RP integrations. **That recommendation was not taken.** Plain (b) was, for the reason
+the open question itself gives against (a): an enumeration is still self-applied at the boundary,
+so the scoped form keeps a self-assessed seam in the exact place the finding says is
+unenforceable. The bridge's role survives as the *cheapest place to pay the cost*, not as the
+scope of the rule.
+
+### The cost, recorded rather than elided
+
+§6.6 item 6 only **SHOULD**s multi-log in v0 and §3.5.1's default profile is a single log, so the
+honest v0 fallback is a per-RP OOB-verified pin — real friction on exactly the surface §13.6
+exists to remove. The spec now says so in §13.7 item 6 in four parts: (a) on a single-log v0
+network an OOB pin is the *only* satisfying path; (b) **a v0 deployment running one KT log whose
+RPs hold no OOB pin cannot conformantly offer DMTAP-Auth at all** — not a degraded login, no
+login, with mail/messaging explicitly unaffected; (c) the bridge is the cheapest place to pay, one
+pin covering every RP it fronts; (d) the cost disappears under the §3.5.2 v1 profile, which makes
+the unconditional form the deployment pressure toward multi-log KT that §6.6 item 6 asks for and
+cannot compel.
+
+### The finding undercounted itself: 11 occurrences, not 9
+
+The record says "high-value" appears **9 times**. It appears **11** — the count was taken
+case-sensitively and missed two **capitalised, sentence-initial** ones, both of which were live
+MUSTs, not advisory text:
+
+| Missed site | What it said | Disposition |
+|---|---|---|
+| `07-gateway.md` §7.2a | "High-value recipients MUST require the KT-anchored form." | **Lowered — option (c)**, see below |
+| `06-privacy.md` §6.9 SP-9 | "High-value contacts, and every DMTAP-Auth login RP, MUST require multi-log consistency or an OOB-verified pin even in v0" | Split: auth arm unconditional; contact arm restated at the SHOULD §6.6 item 6 actually carries |
+
+Neither was found by reading; both were found by the new lint check the moment it first ran. That
+is the argument for the check, not for the reader.
+
+### Where option (c) was taken instead, and why
+
+`07-gateway.md` §7.2a's "High-value recipients MUST require the KT-anchored form" is the **same
+defect class** but not the same requirement, and making it unconditional was rejected as
+dishonest: KT anchoring of the `_dmtap-gw` record is itself only a **SHOULD** two sentences above,
+and the `_dmtap-gw` registry entry is §21.21-planned and **not on the wire today**, so an
+unconditional MUST would reject substantially every deployed gateway attestation. It is therefore
+**lowered to a SHOULD with a stated deadline** — the landing of that §21.21 registry entry, the
+same gate §7.2a already names for `suite=` — plus an enforceable MUST on a policy the deployment
+**declares** rather than a label it grants itself. This is the open question's own option (c),
+applied where (b) is genuinely unacceptable. It is a **downgrade of a conformance claim** and is
+named as one here rather than absorbed.
+
+### What changed
+
+| File | Change |
+|---|---|
+| `13-identity-auth.md` §13.7 item 6 | Owning clause. Trigger removed; requirement unconditional over **every** login RP; explicit fail-closed (`0x0111`, `FAIL_CLOSED_BLOCK`); the four-part v0 cost above; the rejected (a) alternative recorded with its reason |
+| `06-privacy.md` §6.6 item 6 | Matching MUST made unconditional, with the SHOULD/MUST asymmetry between messaging and auth, and its price, stated in place |
+| `06-privacy.md` §6.9 SP-9 | The missed capitalised MUST: auth arm unconditional, contact arm restated at §6.6's actual SHOULD |
+| `03-naming.md` §3.5.2(d) | "a high-value login RP MUST" → **every** login RP, unconditional |
+| `03-naming.md` §3.4, §3.5.1 | Advisory uses kept, marked non-normative, and §3.5.1 now says plainly that DMTAP-Auth does **not** get that SHOULD |
+| `07-gateway.md` §7.2a | Option (c) — SHOULD + declared-policy MUST + §21.21 deadline (above) |
+| `00-overview.md` §0.8 | New glossary entry defining the term as **descriptive only**, with "no requirement in this specification is conditioned on it, and none may be" |
+| `10-conformance.md` §10.7.3, §10.7.5 | Fail-closed row re-keyed off the trigger and onto "any DMTAP-Auth login"; §10.7.5's pending-vector list re-worded |
+| `substrate/IDENTITY.md` §4.3 | Advisory use marked non-normative; the DMTAP-Auth exception named |
+| `conformance/SUITE.md` + `suite.json` | `DMTAP-AUTHBRIDGE-04` restated unconditional (construction explicitly "**any** login RP … cannot opt out by declining a label"); `DMTAP-REST-05` split along the same MUST/SHOULD seam; `DMTAP-GWATT-04` re-keyed to declared policy and **regraded MUST → SHOULD** to match §7.2a |
+| `tools/lint.py` | New check **C15** (below) |
+
+### The check that stops it coming back
+
+`tools/lint.py` C15 errors on any line where an obligation keyword (`MUST`/`MUST NOT`/`SHALL`/
+`REQUIRED`/`REQUIRES`, **capitals only**, per BCP 14) sits within 60 characters of the qualifier,
+in either direction, across the spec files, `substrate/*.md`, **and both halves of the conformance
+catalogue**. `SHOULD` and `MAY` are deliberately absent from the keyword set: permitting the term
+in advisory text is the whole point of keeping it. `docs/` is **out of corpus by design** — the
+records here quote the defective wording verbatim on purpose, and this directory's own exclusion
+rule says a sweep that "fixes" a frozen record destroys it.
+
+It is fail-closed and was **negative-tested in four directions** before being trusted, because a
+check that cannot fail reports success it did not earn:
+
+| Test | Result |
+|---|---|
+| Reintroduce the original wording (`high-value login RPs MUST verify …`) | ERROR at the exact line; `lint.py` exit code **1** |
+| Reverse collocation (`… MUST require an OOB pin for high-value contacts`) | ERROR — the backward arm fires too |
+| Neuter the predicate (regex replaced with one that never matches) | ERROR **"C15 is INERT: its own positive control no longer trips the predicate"** — a synthetic control runs on every invocation |
+| Empty the corpus | ERROR **"C15 scanned NOTHING"** — an empty scan is a failure, never a pass |
+
+Plus a coverage assertion in the ordinary path: if the qualifier ever vanishes from the corpus
+entirely, C15 says so loudly (the run verified nothing; retire the check deliberately) instead of
+going quietly green.
+
+### What this pass did NOT do — read before treating OQ-1 as fully discharged
+
+1. **No conformance vector was produced.** `DMTAP-AUTHBRIDGE-04` is still `construction-todo`, so
+   the now-unconditional MUST is **still executed by no runner**. What changed is that it is now
+   *statable* as a test — the case no longer has a precondition the implementation chooses. The
+   suite's runnable count is unmoved at 63/367.
+2. **No new error code was minted.** The open question noted that (b) "would want an error code and
+   a conformance case, neither of which exists." The requirement reuses `0x0111`
+   (`ERR_KT_LOG_QUORUM_UNMET`), whose registered meaning — a binding not attested by the required
+   quorum, `FAIL_CLOSED_BLOCK`, fall back to OOB — already fits. A dedicated auth-specific code was
+   **not** added; if one is later wanted, that is a §21 change, not a re-opening of this decision.
+   The conformance-case half of that sentence remains open, per item 1.
+3. **No implementation was touched.** This is spec text and one lint check. `crates/` is unchanged
+   — `cargo test --workspace` is at its pre-existing 589 passing, which is evidence of *no
+   regression*, not evidence that anything enforces the new rule.
+4. **The raw coverage figure moved 75% → 76% (1746 → 1755 MUSTs) as a metric artifact**, not as
+   progress. The new normative text landed in sections that already had a case citing them, so the
+   section-level measure ticked up a rounding step without a single new test existing. The IMPL
+   figure (84%) and the uncovered set (56 sections / 213 MUSTs) are unchanged. C14 forces the
+   quoted figures to follow the tool, so they were updated; they should not be read as coverage
+   improving.
+5. **§13.1–§13.6 remain unreviewed** — the auth ceremony is still on the record's own "NOT reached"
+   list. This pass changed one honest-limit item in §13.7 and did not attack the sections it
+   depends on.
+
+**Status: OQ-1 CLOSED.** With it, no finding in this record is live in a MUST-level requirement.
 
 ---
 

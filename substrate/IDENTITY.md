@@ -152,9 +152,11 @@ the replay-an-old-`Identity` attack precisely under the network conditions that 
 
 A MITM at the *very first* contact, before KT is consulted or before out-of-band verification, can
 substitute a key (§3.4 honest limit). KT closes it after the fact; **safety-number / QR out-of-band
-verification** (§3.4.1) closes it immediately for high-value contacts. A product that surfaces identity
+verification** (§3.4.1) closes it immediately, and is most worth its friction for high-value contacts —
+a deliberately non-normative qualifier (§0.8) that gates nothing. A product that surfaces identity
 to users SHOULD offer the safety-number comparison, which compares the **key**, not the name, and is the
-strongest trust upgrade.
+strongest trust upgrade. Note that **DMTAP-Auth is the exception to the SHOULD**: §13.7 item 6 requires
+a multi-log quorum or an OOB-verified pin of *every* login RP, unconditionally.
 
 ### 4.4 Confusable-name defences (inherited, §3.9.7)
 

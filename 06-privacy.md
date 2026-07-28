@@ -247,10 +247,16 @@ retrieval ceremony that would remove it — this is the priced-in cost of not pa
    exists (§3.5). In v0, KT is **tamper-evident-after-the-fact and self-monitorable, but not a
    trusted single source** — a network SHOULD run multiple independent logs even in v0, and
    clients MUST treat a single unaudited log as advisory (§3.5.1, §3.4.1), leaning on OOB
-   verification for high-value contacts. This is a real tension with the sovereignty goal and is
-   stated as such. For **DMTAP-Auth (§13)** specifically, a split view is a **silent per-RP
-   account takeover**, so high-value login RPs MUST require **multi-log consistency or an
-   OOB-verified pin even in v0** — the owning requirement is §13.7 item 6.
+   verification for high-value contacts — a deliberately non-normative qualifier (§0.8): it says
+   where the optional measure is most worth taking, and **no** requirement in this item is
+   conditioned on it. This is a real tension with the sovereignty goal and is stated as such. For
+   **DMTAP-Auth (§13)** specifically, a split view is a **silent per-RP account takeover**, so
+   **every** login RP MUST require **multi-log consistency or an OOB-verified pin, even in v0** —
+   unconditionally, with no value threshold and no self-declared exemption, failing the login
+   closed (`0x0111`) when it has neither. Note the asymmetry and its price: multi-log stays a
+   **SHOULD** for messaging in this item but is a hard precondition for auth, so on a single-log
+   v0 network a per-RP (or per-bridge) OOB-verified pin is the *only* way to offer DMTAP-Auth at
+   all. The owning requirement, with that cost spelled out, is §13.7 item 6.
 7. **Group handshake ordering is a metadata concentration point (relevant when the opt-in mixnet
    is used).** The per-group committer/ordering channel (§5.1) necessarily sees all of a group's
    handshake traffic; this is an explicit exception to the "no single node sees both ends"
@@ -734,8 +740,12 @@ to the opt-in `private` mixnet only.**
 - *Against:* a malicious or split-view KT log (v1: detected; v0: only deterred).
 - *Residual:* **v0 KT is not equivocation-proof (§6.6 item 6)** — the honest core limit; this is the
   one property whose strength is *gated on the negotiated profile*, and the spec does **not** claim
-  v0 delivers it. High-value contacts, and every DMTAP-Auth login RP, MUST require multi-log
-  consistency or an OOB-verified pin even in v0 (§3.4.1, §13.7).
+  v0 delivers it. **Every** DMTAP-Auth login RP MUST require multi-log consistency or an
+  OOB-verified pin even in v0 — unconditionally, with no value threshold and no self-declared
+  exemption (§13.7 item 6). For **contacts** the spec stops at a SHOULD (§6.6 item 6): a client
+  MUST treat a single unaudited log as advisory and MUST NOT present such a binding as verified,
+  with OOB verification (§3.4.1) as the available upgrade —
+  most worth its friction for high-value contacts, a descriptive qualifier only (§0.8).
 
 **SP-10 — Recoverability from key/device compromise.**
 - *Claim:* An owner can recover identity **and all relationships** after losing or having a

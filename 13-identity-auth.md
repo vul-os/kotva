@@ -345,11 +345,52 @@ Honest limits (stated in-product):
 6. **No PKI beyond DNS/CA.** `did:web` (and DNS-rooted naming, §3) bottoms out at DNS + TLS/CA —
    there is no independent proof binding domain to key, so a DNS/registrar/CA compromise is an
    identity compromise. Key transparency (§3.5) makes such a substitution *detectable*, not
-   impossible; high-value use SHOULD add out-of-band verification. **For AUTH specifically**, a
-   v0 single KT log that can present a **split view** (§6.6 item 6) is a **silent per-RP account
-   takeover**, so DMTAP-Auth REQUIRES — even in v0 — that high-value login RPs verify the
-   `name → key` binding against **multiple independent KT logs** (consistency across them) or an
-   **out-of-band-verified pin**, never a single unaudited log.
+   impossible; for **messaging**, out-of-band verification (§3.4.1) is the immediate closure and
+   stays a SHOULD (§6.6 item 6), most worth taking for high-value contacts — a deliberately
+   non-normative qualifier (§0.8). **For AUTH specifically**, a v0 single KT log that can present
+   a **split view** (§6.6 item 6) is a **silent per-RP account takeover**, so DMTAP-Auth
+   REQUIRES — even in v0 — that **every** login RP verify the `name → key` binding against
+   **multiple independent KT logs** (the `> n/2` quorum of §3.5.2(b)) or against an
+   **out-of-band-verified pin** (§3.4.1), never a single unaudited log. This applies
+   **unconditionally**: there is no assurance tier, no value threshold and no self-declared
+   exemption below which it lapses. An RP that can produce neither the quorum nor an
+   OOB-verified pin MUST fail the login closed (`ERR_KT_LOG_QUORUM_UNMET`, `0x0111`,
+   `FAIL_CLOSED_BLOCK` §21.2) and MUST NOT authenticate on a single log's say-so.
+
+   **Why unconditional, and what v0 pays for it (normative rationale).** This requirement was
+   previously scoped to "**high-value** login RPs". That qualifier is defined nowhere in this
+   specification (§0.8), and the party who applies it is the party it constrains — an RP that
+   simply declined the label was conformant by inspection. A trigger the constrained party
+   self-assesses is not a requirement; it is advice in MUST formatting, and what it was guarding
+   is a silent per-RP account takeover. The trigger is therefore **removed rather than defined**,
+   which is the posture §3.3, §3.5.2, §13.3.1 and §13.4 already take everywhere else: the
+   decision is not handed to the party under attack. The consequence is not softened here:
+
+   a. §6.6 item 6 only **SHOULD**s multiple independent logs in v0, and the interoperable default
+      KT profile (§3.5.1, log-type `0x01`) is a **single** log. So on a v0 single-log network the
+      *only* satisfying path is an out-of-band-verified pin — per RP on the native path (§13.3).
+      That is real friction on exactly the surface §13.6 exists to make frictionless, and it is
+      accepted knowingly rather than elided.
+   b. It follows that a v0 deployment running one KT log, whose RPs hold no OOB-verified pin,
+      **cannot conformantly offer DMTAP-Auth at all**. That is not a degraded login mode; there
+      is no login. Mail and messaging are unaffected — §6.6 item 6 leaves them at SHOULD — so the
+      fallback is "authenticate by some other means", not "DMTAP is unusable".
+   c. The **bridge** (§13.6) is the cheapest place to pay the cost: one OOB-verified pin held by
+      the bridge covers every RP it fronts. That is the same concentration-for-adoption trade
+      §13.6 already makes, bounded by the same disclosures (limit 8 below, and the
+      bridge-transparency log the user's node monitors).
+   d. The cost falls away the moment a network runs the v1 KT profile (§3.5.2, log-type `0x02`),
+      where the quorum arm is satisfied by ordinary resolution and no pin is needed. Making the
+      requirement unconditional is therefore also the deployment pressure toward multi-log KT
+      that §6.6 item 6 asks for and cannot compel.
+
+   The alternative considered and rejected was to keep the trigger and **enumerate** what
+   "high-value" means (payments, admin consoles, key custody, records). It was rejected because
+   an enumeration is still self-applied at the boundary, and because a requirement that can be
+   escaped by declining a label is worse than an honestly weaker one. The full argument, and the
+   costed case for the rejected alternative, is recorded in
+   [`docs/reviews/2026-07-21-spec-adversarial-review.md`](docs/reviews/2026-07-21-spec-adversarial-review.md)
+   (OQ-1).
 7. **Login is a deliberate identity disclosure.** Authenticating to a relying party intentionally
    reveals your identity *to that RP*; this is opt-in and per-RP, and MUST NOT be conflated with
    or allowed to weaken the mail/messaging metadata-privacy guarantees (§6). Session keys are

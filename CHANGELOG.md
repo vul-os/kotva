@@ -11,6 +11,46 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **spec: closed OQ-1 — the DMTAP-Auth multi-log/OOB requirement is now UNCONDITIONAL; the
+  undefined, self-assessed "high-value" trigger is removed, not defined.** §13.7 item 6 (owning
+  clause), §6.6 item 6, §6.9 SP-9 and §3.5.2(d) previously hung a MUST on "high-value login RPs",
+  a term defined nowhere in the spec and applied by the party the requirement constrains — an RP
+  that declined the label was conformant by inspection, while what the rule guarded was a **silent
+  per-RP account takeover** under a v0 split-view KT log. The requirement now binds **every** login
+  RP with no value threshold and no self-declared exemption, failing closed on `0x0111`. **The v0
+  cost is stated in the spec, not elided:** §6.6 item 6 only SHOULDs multi-log in v0 and §3.5.1's
+  default profile is single-log, so the only satisfying v0 path is an OOB-verified pin — per RP, or
+  once at the bridge — and a v0 deployment running one log whose RPs hold no pin **cannot
+  conformantly offer DMTAP-Auth at all**. `did:web`/§7.2a's parallel MUST on "high-value
+  recipients" was **lowered to a SHOULD with a stated deadline** (the §21.21 `_dmtap-gw` registry
+  entry) plus an enforceable MUST on a *declared* policy, because KT anchoring of that record is
+  itself only a SHOULD and an unconditional MUST would reject nearly every deployed gateway
+  attestation — a conformance downgrade, named as one. §0.8 gains a glossary entry fixing the
+  qualifier as **descriptive only**: no requirement in the spec may be conditioned on it. The
+  original finding undercounted itself — the term appeared **11** times, not 9; two capitalised,
+  sentence-initial MUSTs were missed by a case-sensitive count and were found by the new check on
+  its first run. `DMTAP-AUTHBRIDGE-04` and `DMTAP-REST-05` are restated unconditionally;
+  `DMTAP-GWATT-04` is re-keyed to declared policy and regraded **MUST → SHOULD**. Full decision
+  record, including what this did *not* do, in
+  `docs/reviews/2026-07-21-spec-adversarial-review.md` (resolution pass, 2026-07-28).
+
+### Added
+
+- **tools: `make lint` check C15 — no normative requirement may be conditioned on the
+  "high-value" qualifier.** Errors when an obligation keyword (`MUST`/`MUST NOT`/`SHALL`/
+  `REQUIRED`/`REQUIRES`, capitals only per BCP 14) sits within 60 characters of the qualifier in
+  either direction, across the spec files, `substrate/*.md` and **both** halves of the conformance
+  catalogue; `SHOULD`/`MAY` are excluded by design, since advisory use is exactly what §0.8
+  permits. `docs/` is out of corpus by design — the frozen review records quote the defective
+  wording on purpose. Fail-closed and negative-tested in four directions before being trusted:
+  reintroducing the original wording ERRORs (exit 1), the reverse collocation ERRORs, neutering the
+  regex ERRORs with *"C15 is INERT: its own positive control no longer trips the predicate"* (a
+  synthetic control runs every invocation), and an empty corpus ERRORs with *"C15 scanned
+  NOTHING"*. If the qualifier ever disappears entirely the check says so loudly rather than going
+  quietly green.
+
+### Changed
+
 - **spec: folded §23 (CAD/artifact profile) into §24 as the engineering-artifact facet; §23
   retained as a gap — removes the duplicated scaffolding (scope/§22-recap/licensing/lineage/
   canonical-source/HTTP/privacy/embedding) the two profiles each restated.** §24 is renamed the

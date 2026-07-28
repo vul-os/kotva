@@ -238,7 +238,17 @@ only as strong as the record's own anchor: the record SHOULD be **DNSSEC-signed*
 **anchored in KT**. Absent both, the binding inherits the DNS-substitution risk of §13.7 item 6
 — a registrar/DNS compromise can substitute the attestation key — and a client MUST NOT present
 the attestation to users as a stronger assurance than DKIM-class domain authentication.
-High-value recipients MUST require the KT-anchored form.
+A recipient **SHOULD** require the KT-anchored form, and a recipient that **declares** a
+KT-anchored-attestation policy **MUST** enforce it — a DNS-only binding is then untrusted
+(`ERR_GATEWAY_ATTESTATION_KEY_UNTRUSTED`, `0x0602`). This sentence previously read as a MUST on
+*high-value* recipients. That qualifier is descriptive and self-assessed (§0.8), so a recipient
+could decline the label and conform, which made the MUST unenforceable; it is restated here at
+the strength it actually has rather than left as advice in MUST formatting. The **deadline** for
+the SHOULD to become an unconditional MUST is the same gate this section already names for
+`suite=`: the `_dmtap-gw` registry entry of §21.21, planned and not present on the wire today.
+Until then an unconditional MUST would reject nearly every deployed gateway attestation, since KT
+anchoring of the record is itself only a SHOULD two sentences above — the reason this one is
+lowered rather than made unconditional as §13.7 item 6 was.
 
 ### 7.2b Internationalized and 8-bit mail (normative)
 

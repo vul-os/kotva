@@ -25,7 +25,13 @@ net = []
 
 [dependencies]
 # Shared KOTVA substrate — the MOTE object, identity, key-name (spec §1, §2, §3.9).
-kotva-core = { path = "../kotva-core" }
+# `version` alongside `path` so this manifest is publishable as-is: a path-only dependency carries
+# no version requirement to put in the published metadata, and `cargo publish` refuses the crate
+# outright ("all dependencies must have a version requirement specified when publishing"). This was
+# the one manifest of the four that still lacked it — `kotva-sync` and `kotva-sync-wasm` both
+# already carried the pair. In-workspace the path still wins, so nothing about what compiles here
+# changes.
+kotva-core = { path = "../kotva-core", version = "0.2.0" }
 # JMAP is JSON over HTTP (RFC 8620/8621) — real request/response (de)serialization.
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

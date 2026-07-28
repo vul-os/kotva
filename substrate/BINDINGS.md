@@ -36,16 +36,21 @@ down by conformance vectors; every language gets a binding, not a rewrite.
 
 ---
 
-## 2. The core: envoir's Rust crates (as they exist today)
+## 2. The core: the Rust crates (as they exist today)
 
-`/Users/pc/code/vulos/envoir` is a Cargo workspace. The substrate-relevant crates, read directly from the
-workspace (not assumed):
+**This section was written when every crate below lived in envoir, and the substrate has since been
+carved out of it.** `kotva-core`, `kotva-mail`, `kotva-sync` and `kotva-sync-wasm` are in THIS repo;
+`dmtap-clustersync`, `dmtap-p2p` and `node` remain in the envoir workspace and consume the substrate
+tag-pinned. The `Path` column below says which repo each row is in. Rows still spelled
+`dmtap-core`/`dmtap-clustersync` are read from envoir's workspace; `dmtap-core` there is a
+dependency-rename of this repo's `kotva-core`, which is why the Rust module paths are unchanged.
 
 | Crate | Path | Capability | Notes |
 |---|---|---|---|
 | `dmtap-core` | `crates/dmtap-core` | **Identity** (①), **Feeds & Blobs** (②) | `identity` module: `IdentityKey`, `Identity`, `DeviceCert`, `RecoveryPolicy`, `KeyRotation`, `MoveRecord`. `keyname` module: the 8-word key-name encode/verify. `kt` module: RFC 6962 key-transparency objects. `pubobj` module: `PubManifest`, `PubAnnounce`, `FeedEntry`, `FeedHead`, `verify_feed_chain`, `check_anti_rollback`. Also `cbor`, `id::ContentId`, `capability::CapabilityToken`, `mote`, `cad`, `pq` (X-Wing hybrid). Deps: `ed25519-dalek`, `x25519-dalek`, `hpke`, `blake3`, `ciborium`, `hkdf`, `sha2`, `chacha20poly1305`, `ml-dsa` — pure-Rust crypto, no tokio, no filesystem, no native TLS. |
 | `dmtap-clustersync` | `crates/dmtap-clustersync` | **Sync** (③) — §5.6 single-owner profile | `Cluster`, `Replica`, `ClusterState`, `OrSet`, `LwwMap`, `DeathReg`, `validate_op`, `Journal`, `range_fingerprint`/`reconcile`/`verify_range`. Depends on **`dmtap-core` and `std` only** — zero third-party crates, `#![forbid(unsafe_code)]`. The cleanest possible binding target in the whole workspace. |
-| `dmtap-sync` | `crates/dmtap-sync` | **Sync** (③) — the substrate's multi-author generalisation | The six-kind op algebra (OR-Set/LWW/death-cert/PN-counter/RGA/movable-tree), `COSE_Sign1`-signed ops, HLC total order, snapshots, range-Merkle. Depends on `dmtap-core` only (dev-dep on `dmtap-clustersync` for cross-checking parity). This is the crate [`SYNC.md § 13`](SYNC.md#13-grounding) grounds itself in. |
+| `kotva-sync` | **`crates/kotva-sync` — in THIS repo** | **Sync** (③) — the substrate's multi-author generalisation | The six-kind op algebra (OR-Set/LWW/death-cert/PN-counter/RGA/movable-tree), `COSE_Sign1`-signed ops, HLC total order, snapshots, range-Merkle. Depends on `kotva-core` only — **no** dev-dependency on `dmtap-clustersync`: the §5.6 parity proof lives on that crate's side (`dmtap-clustersync/tests/sync_parity.rs`, in envoir) precisely so nothing here points into a product. It was `envoir/crates/dmtap-sync` until it was extracted into this repo; the Rust module path consumers write is still `dmtap_sync::`, via a cargo dependency-rename. This is the crate [`SYNC.md § 13`](SYNC.md#13-grounding) grounds itself in. |
+| `kotva-sync-wasm` | **`crates/kotva-sync-wasm` — in THIS repo** | **Sync** (③), binding surface | The wasm-bindgen (browser/JS) and raw-ABI (wazero/Go) surfaces over the SAME compiled `kotva-sync`, never a re-implementation — §4's rule made structural. Moved here with `kotva-sync`, as did the Go module, now `github.com/vul-os/kotva/bindings/go` (package `kotvasync`). |
 | `dmtap-p2p` | `crates/dmtap-p2p` | **Roles** (④), partial | Real libp2p mesh transport: Kademlia (announce/resolve), Circuit Relay v2 + DCUtR (circuit relay, signalling). MSRV 1.83, depends on `tokio` + `libp2p` 0.56 — the heaviest, least binding-portable crate that still touches a substrate capability. Mailbox and cache/pin surfaces were not confirmed to exist as a standalone servable role in this survey. |
 | `node` (lib name `dmtap`) | `node/` | consumer, not core | The full client daemon; depends on the above plus `tokio`. Not a binding target itself — it is what a *native Rust* product looks like when it just depends on the crates directly. |
 

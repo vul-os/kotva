@@ -324,3 +324,15 @@ listed deprecated synonyms are read as their canonical term.
   `name → key` bindings tamper-evident (§3.5); "KT" alone always refers to it.
 - **ARC token** — an Anonymous Rate-limited Credential (Privacy Pass ARC) presented by a cold
   sender as an envelope-level abuse proof (§2.2b, §9.3).
+- **high-value** — a **deliberately non-normative** qualifier for a use whose compromise the user
+  would find costly (payments, admin consoles, key custody, records). It is defined here only to
+  fix what it is *not*: **no requirement in this specification is conditioned on it**, and none
+  may be. A normative obligation triggered by this qualifier is assessed by the very party it
+  constrains, so an implementation that declines the label satisfies it by inspection — which
+  makes it advice in obligation formatting, and unenforceable exactly where it matters. The term therefore appears only in
+  SHOULD-level or explanatory text, saying *when an optional measure is most worth its friction*,
+  never *when a mandatory one applies*; reading it as a conformance trigger is a misreading, and
+  `tools/lint.py` check C15 fails the build on any normative clause that reintroduces one. The
+  one requirement that was so conditioned — the DMTAP-Auth multi-log/OOB rule of §13.7 item 6,
+  mirrored at §6.6 item 6 and §3.5.2 — was made **unconditional** rather than defined, at a v0
+  cost §13.7 item 6 states in full.

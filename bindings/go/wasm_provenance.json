@@ -1,0 +1,28 @@
+{
+  "_": "Provenance for the committed kotva_sync_abi.wasm. See embed.go and provenance_test.go.",
+  "artifact_bytes": 427731,
+  "artifact_sha256": "86502832090cc57b8febc98bd78ef967abf6f1866b5acff5b474725c3821cce4",
+  "built_from_commit": "9d7c23a7e255b75505b0b746cbcc3fbdd3d02cf1",
+  "rustc": "rustc 1.94.0 (4a4ef493e 2026-03-02)",
+  "source_digest": "a52857314d7de2f016269f1e500395951f9b96dbd55110f5b988008ec9c71ed0",
+  "sources": {
+    "crates/kotva-sync-wasm/Cargo.toml": "7cca66495f0731fae6cf11b5a533934cd412d3c45ccecdc7967555e1e46774d2",
+    "crates/kotva-sync-wasm/build-abi.sh": "77de482bdf52dce3c1c60b4c4ac6603858930ecfbeb6757a27c23857c54d1747",
+    "crates/kotva-sync-wasm/src/abi.rs": "cf414cfd26acd8fa7f7e509f1021ea6999ae28c6d8ccb4a83556df1d26498f5c",
+    "crates/kotva-sync-wasm/src/entropy.rs": "bf3f39810f0ff44dd448240781b79c70010121c585b1f910b74a21d9537e3094",
+    "crates/kotva-sync-wasm/src/err.rs": "9074c77ab64e4d5418fe0ccb8c4992b1ad80b8ab2fc0bae4173a4645c46df035",
+    "crates/kotva-sync-wasm/src/jsonval.rs": "c8a3fffd0ad5b899f5ee3fd9524c58925b2868c63f6b8f26e5ace33ddb09a9b9",
+    "crates/kotva-sync-wasm/src/lib.rs": "31a24187ca742a502acf5ad16eae042e51aeb829a6f9f53eb68488f1f3528ec5",
+    "crates/kotva-sync/Cargo.toml": "fc9b419feca98df11520871333200a63de76286855a13856372d084aaec9883f",
+    "crates/kotva-sync/src/body.rs": "a0dbd9f99675766b89598adc07d438b3a946c137456c321d966a37c829a9e2e4",
+    "crates/kotva-sync/src/cose.rs": "6d9175513b50aeb1189908f2f74d79ce799e71a84071926e0ad4655b9fd282dd",
+    "crates/kotva-sync/src/crdt.rs": "03da9dff4fded683a6ef68eeb28d2443638d189a8eee98f30cd83b600c379e16",
+    "crates/kotva-sync/src/detcbor.rs": "e590a33baa456bb35be013fa5df2c86dff5de82c8ff6f60c9b03d380ae77ab4e",
+    "crates/kotva-sync/src/error.rs": "612bdfe3d2ce345fdcb064d7bbc27ccc11e5346477d5a8bb81ca9e0ad7e56974",
+    "crates/kotva-sync/src/lib.rs": "c441ba39a0dbc975e0e02d744a05aad92c47cf6873529732e7ee753c5c5737fb",
+    "crates/kotva-sync/src/recon.rs": "6eec8df492761147f7a3c7ea61f8f9cb2b553c89968dc31e4e82876e3630c21f",
+    "crates/kotva-sync/src/snapshot.rs": "4d0074a302ec2f6041980d4a547192094882cf21203c45826bf02db0cd5087de",
+    "crates/kotva-sync/src/state.rs": "f6b1c2f5d0ccf162de15ddaf4e22049d1141d137ba0ad4171ae58f6201b14d6f",
+    "crates/kotva-sync/src/wire.rs": "373184acd38e2650cc23c18eeb42f5b927a1186d3926a278e97baf6528a9acf3"
+  }
+}

@@ -1,0 +1,44 @@
+# kotva-sync — the shared sync engine. EXTRACTED: this directory used to be `crates/dmtap-sync`
+# inside the envoir product, which meant every adopter's manifest read `git = ".../envoir"` — a
+# product importing a product to get a CRDT library. It now lives in the substrate repo alongside
+# the spec it mechanizes (`substrate/SYNC.md`), which is what the old README's "Extraction status"
+# section was counting down to. That section is now a completed record, not a TODO list.
+#
+# NAMING: substrate capability -> `kotva-*`; mail-profile capability -> `dmtap-*`. Sync is
+# `substrate/SYNC.md`, so the crate is `kotva-sync`. The PROTOCOL is still DMTAP ("Decentralized
+# Message Transfer & Access Protocol") and the Rust module path consumers write is still
+# `dmtap_sync::` — see the dependency-rename note below.
+[package]
+name = "kotva-sync"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT"
+description = "KOTVA substrate capability ③ — Sync (substrate/SYNC.md): the signed, deterministic, MULTI-AUTHOR CRDT operation algebra (OR-Set, HLC-LWW register, remove-wins death certificate, PN-counter, RGA sequence, cycle-safe movable tree), per-op RFC 9052 COSE_Sign1 authenticity, canonical observable-state snapshot roots, and range-Merkle reconciliation fingerprints"
+repository = "https://github.com/vul-os/kotva"
+homepage = "https://github.com/vul-os/kotva"
+readme = "README.md"
+keywords = ["crdt", "sync", "cose", "kotva", "convergence"]
+categories = ["data-structures", "cryptography", "encoding"]
+
+[dependencies]
+# Ed25519 (COSE_Sign1 signing/verification) and the §18.1.5 v0 content address (0x1e ‖ BLAKE3-256)
+# come from core; this crate adds NO new third-party dependency.
+#
+# DEPENDENCY-RENAME, deliberately. The package is `kotva-core`; the Rust path stays `dmtap_core::`.
+# This is the same trick the repo header documents for envoir (`dmtap-core = { package =
+# "kotva-core", … }`) and it is why lifting this directory out of envoir was a MANIFEST edit and not
+# a source edit: not one byte of `src/` changed in the move. That matters more here than spelling
+# consistency with `kotva-mail` (which writes `kotva_core::`), because these exact source bytes are
+# hashed into `bindings/go/wasm_provenance.json` — a gratuitous rename would invalidate the
+# committed WASM artifact's provenance for no behavioural reason at all.
+#
+# `version` alongside `path` so this manifest is publishable as-is: a path-only dependency has no
+# version requirement to put in the published metadata. In-workspace the path still wins.
+dmtap-core = { package = "kotva-core", path = "../kotva-core", version = "0.2.0" }
+
+# NOTE — no [dev-dependencies]. The §5.6 parity proof (OR-Set / LWW / death-certificate merges
+# agreeing op-for-op with the normative single-owner profile) lives on the OTHER side of that pair,
+# in envoir's `crates/dmtap-clustersync/tests/sync_parity.rs`, which dev-depends on this crate. It
+# was put there so this crate has no dependency of any kind — not even a dev one — on an
+# envoir-local crate. That is what made this move possible; keep it that way.

@@ -8,10 +8,19 @@
 #
 # envoir keeps its existing `use dmtap_core::…` code via cargo's dependency-rename:
 #   dmtap-core = { package = "kotva-core", git = "…", tag = "core-v0.2.0" }
+#
+# The carve-out is now COMPLETE. `kotva-sync` / `kotva-sync-wasm` (formerly envoir's `dmtap-sync` /
+# `dmtap-sync-wasm`) and `bindings/go` moved here too, because sync is a SUBSTRATE capability
+# (`substrate/SYNC.md`) and adopters were reaching into a product to get it — every adopter manifest
+# read `git = "https://github.com/vul-os/envoir"`. Naming ruling: substrate capability -> `kotva-*`,
+# mail-profile capability -> `dmtap-*`. The Rust module paths (`dmtap_core::`, `dmtap_sync::`) are
+# unchanged everywhere by dependency-rename, so no consumer source moved.
 
 [workspace]
 resolver = "2"
 members = [
     "crates/kotva-core",
     "crates/kotva-mail",
+    "crates/kotva-sync",
+    "crates/kotva-sync-wasm",
 ]

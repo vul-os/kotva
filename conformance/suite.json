@@ -4848,13 +4848,13 @@
       "level": "Legacy",
       "ratification_tier": "core-v1",
       "category": "GWATT",
-      "req": "MUST",
+      "req": "SHOULD",
       "clause": [
         "§7.2a"
       ],
-      "checks": "High-value recipients require the KT-anchored form. A recipient operating at high value MUST require the KT-anchored _dmtap-gw binding rather than the bare DNS one; at that assurance level a registrar compromise is inside the threat model, and the KT anchor is what makes a substituted attestation key detectable",
+      "checks": "A recipient that DECLARES the KT-anchored requirement enforces it. §7.2a states KT anchoring of the _dmtap-gw record as a SHOULD, not a MUST, so this case is graded SHOULD. It was previously graded MUST, on a value label the party under test grants itself and that §7.2a nowhere defined; a case whose precondition the implementation chooses is not a test, and §7.2a has been restated accordingly with the deadline (the §21.21 _dmtap-gw registry entry) for the SHOULD to harden. The trigger is therefore the recipient's DECLARED policy (an explicit 'require KT-anchored gateway attestation' setting), an observable input to the case. Where a registrar compromise is inside the deployment's threat model, the KT anchor is what makes a substituted attestation key detectable. The MUST that binds regardless of any policy is the presentation rule of DMTAP-GWATT-03",
       "operation": "gateway_attestation_verify",
-      "construction": "recipient configured high-value; inbound MOTE whose attestation key is published in DNS only, with no KT entry for the _dmtap-gw binding",
+      "construction": "recipient with the KT-anchored requirement DECLARED; inbound MOTE whose attestation key is published in DNS only, with no KT entry for the _dmtap-gw binding",
       "expect": {
         "outcome": "reject",
         "error_code": "0x0602",
@@ -5426,11 +5426,12 @@
       "clause": [
         "§13.7",
         "§10.7.3",
-        "§3.5.2"
+        "§3.5.2",
+        "§6.6"
       ],
-      "checks": "High-value login RPs require multi-log consistency or an OOB-verified pin. A v0 single KT log that can present a split view is, for auth specifically, a silent per-RP account takeover: the RP is shown a key the owner never published and has no second opinion to contradict it. DMTAP-Auth therefore REQUIRES — even in v0 — that high-value login RPs verify the name → key binding against multiple independent KT logs, or against an out-of-band-verified pin, never a single unaudited log",
+      "checks": "Every login RP requires multi-log consistency or an OOB-verified pin — unconditionally. A v0 single KT log that can present a split view is, for auth specifically, a silent per-RP account takeover: the RP is shown a key the owner never published and has no second opinion to contradict it. DMTAP-Auth therefore REQUIRES — even in v0, of EVERY login RP — that the RP verify the name → key binding against multiple independent KT logs (the §3.5.2(b) > n/2 quorum), or against an out-of-band-verified pin, never a single unaudited log. There is no assurance tier, value threshold or self-declared exemption: the former 'high-value RP' trigger was assessed by the party under test — an RP that declined the label passed by inspection — so it was removed rather than defined (§13.7 item 6)",
       "operation": "auth_kt_binding_verify",
-      "construction": "high-value RP; present a name-to-key binding attested by one log only (variant: by a log set that does not reach the §3.5.2(b) quorum), with no OOB-verified pin on file",
+      "construction": "ANY login RP — the case is deliberately not conditioned on a value label, so an implementation cannot opt out by declining one; present a name-to-key binding attested by one log only (variant: by a log set that does not reach the §3.5.2(b) quorum), with no OOB-verified pin on file",
       "expect": {
         "outcome": "reject",
         "error_code": "0x0111",
@@ -5789,11 +5790,11 @@
         "§2.2a",
         "§18.3.2"
       ],
-      "checks": "Blinded tags are not recipient anonymity, and v0's single KT log is not equivocation-proof. A BlindedTag is unlinkable to the persistent key across time and observers but does not hide last-hop delivery, and implementations MUST NOT present it as full recipient anonymity. In the same spirit, sealed sender plus mixnet hides receipt *timing* but does not erase last-hop observability — and every high-value contact, and every DMTAP-Auth login RP, MUST require multi-log consistency rather than relying on a single v0 log",
+      "checks": "Blinded tags are not recipient anonymity, and v0's single KT log is not equivocation-proof. A BlindedTag is unlinkable to the persistent key across time and observers but does not hide last-hop delivery, and implementations MUST NOT present it as full recipient anonymity. In the same spirit, sealed sender plus mixnet hides receipt *timing* but does not erase last-hop observability — and EVERY DMTAP-Auth login RP — with no value threshold and no self-declared exemption — MUST require multi-log consistency or an OOB-verified pin rather than relying on a single v0 log (§13.7 item 6). For contacts, by contrast, §6.6 item 6 stops at a SHOULD: a client MUST treat a single unaudited log as advisory and MUST NOT present such a binding as verified, which is the rule checked here — 'high-value contact' is a non-normative qualifier and is not a trigger",
       "operation": "client_ux_attestation",
       "construction": "review of the client's privacy copy and any per-message or per-contact privacy indicator, on a deployment using blinded tags and the v0 single-log KT profile; no wire bytes to recompute",
       "expect": {
-        "outcome": "non-conformant if a blinded tag is presented as recipient anonymity, if last-hop observability is undisclosed where an anonymity claim is made, or if a high-value contact is verified against a single unaudited log"
+        "outcome": "non-conformant if a blinded tag is presented as recipient anonymity, if last-hop observability is undisclosed where an anonymity claim is made, if a single-unaudited-log binding is presented to the user as verified, or if a DMTAP-Auth login RP authenticates against a single unaudited log with no OOB-verified pin"
       },
       "status": "manual-attestation"
     },

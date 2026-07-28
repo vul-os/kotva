@@ -174,7 +174,7 @@ it is exercised; it counts cases that **exist**, not cases that **pass** (63 of 
 today, and no implementation has yet been run against the suite); and it is measured against a
 **curated** denominator whose classification is a judgement, auditable in `conformance/scope.json` and
 re-checkable by `make lint`. The **raw** figure — every capitalised MUST in the specification,
-unclassified — is **75%** (403 MUST-bearing sections, 1746 MUSTs). Read the IMPL number as "most
+unclassified — is **76%** (403 MUST-bearing sections, 1755 MUSTs). Read the IMPL number as "most
 implementable surface has at least one case pointed at it, and the uncited gaps are enumerated by the
 tool", never as a pass mark or as complete coverage. `make coverage` is authoritative and these
 figures drift as the suite grows — but `make lint` (check C14) recomputes them and fails the build if
@@ -362,7 +362,7 @@ that *does* offer `private`, these remain the correct invariants once offered:
 | **Auth: login scope is signed** | §13.3, §18.7.2, §18.9.8 | RP would grant a scope broader than the assertion's signed `scope` | fail closed — the broader-scope preimage fails signature verification; RP MUST NOT grant beyond the signed scope (`0x0508` if surfaced as over-attenuated) |
 | **Auth: delegation re-chains through recovery** | §13.4, §1.4 | a live RP session whose authorising delegation predates an `Identity.version` bump (IK rotation / recovery) | terminate at next re-validation; the revocation-list-epoch option MUST be keyed to `Identity.version`, else the recovery-invalidation guarantee silently fails to reach that RP |
 | **Auth: unreachable status/KT ⇒ bounded grace, then fail closed** | §13.4 | RP's status/KT head unreachable at re-validation | honour the last-validated delegation only to a **2× grace window** (§16), then fail closed — never honour indefinitely (bounds post-revocation persistence) |
-| **Auth: high-value RP multi-log / OOB** | §13.7 item 6 | high-value login against v0 single-KT-log | MUST require multi-log consistency or an OOB-verified pin — a single log can equivocate, `0x0111`/`0x0107` |
+| **Auth: EVERY login RP requires multi-log / OOB** | §13.7 item 6, §6.6 item 6, §3.5.2(d) | **any** DMTAP-Auth login whose `name → key` binding rests on a single unaudited KT log (or a log set below the §3.5.2(b) `> n/2` quorum) with no OOB-verified pin on file | fail closed, `0x0111` (`0x0107` if the logs are caught disagreeing) — the RP MUST require multi-log consistency or an OOB-verified pin. **Unconditional**: no assurance tier, value threshold or self-declared exemption (the former "high-value RP" trigger was removed, not defined — §0.8, §13.7 item 6). A v0 single-log deployment whose RPs hold no OOB pin therefore cannot offer DMTAP-Auth conformantly |
 | **Auth bridge: per-RP audience** | §13.6 | bridge embeds a login assertion audienced to the bridge, reused across its RPs | the bridge MUST run a per-RP §13.3 ceremony (`aud` = target RP, fresh per-RP `cnf`); an RP verifying the key directly MUST check `assertion.aud == own identifier`, `0x0501` on mismatch |
 
 ### 10.7.4 Delivery, gateway & anti-abuse fail-closed
@@ -416,7 +416,7 @@ distinct from the fail-*open*-to-function stance of metering/quota). A conforman
 satisfies §10.7 iff it enforces **every** MUST row above. The conformance suite (§10.3) is the
 enforcement vehicle: most rows carry a pinning case, and the rows currently **without** one —
 the §7.4 ack-before-`250` rule, the key-bound half of §7.2a (`0x0602`), the §13.3.1
-bare-node-signed-login rejection, the §13.6 per-RP-audience check, the §13.7 high-value
-multi-log requirement, and the §9.5.1 postage issuer-unreachable fallback — are pending wave-2
+bare-node-signed-login rejection, the §13.6 per-RP-audience check, the §13.7 item 6 unconditional
+multi-log/OOB requirement, and the §9.5.1 postage issuer-unreachable fallback — are pending wave-2
 vectors. A new downgrade-resistance or fail-closed rule added anywhere in the spec MUST be
 mirrored here so the set stays complete.
