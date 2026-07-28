@@ -15,7 +15,7 @@
 // binding call. Copying an expected constant out of the vector into the trace would make the
 // comparison pass while proving nothing.
 
-import * as sync from '../pkg-node/dmtap_sync.js';
+import * as sync from '../pkg-node/kotva_sync.js';
 
 // The vectors' HLC wall is a fixed 2023-11-14 timestamp. The skew rule bounds ops from the FUTURE,
 // so a receiver clock at or after that wall accepts every vector op (§3). Same constant as the

@@ -46,11 +46,29 @@ for target in "${targets[@]}"; do
     *) echo "unknown target: $target" >&2; exit 2 ;;
   esac
   echo "==> wasm-pack build --target $target --out-dir $out"
-  wasm-pack build --release --target "$target" --out-dir "$out" --out-name dmtap_sync
-  size=$(wc -c <"$out/dmtap_sync_bg.wasm" | tr -d ' ')
-  gz=$(gzip -9 -c "$out/dmtap_sync_bg.wasm" | wc -c | tr -d ' ')
-  printf '    %s: %s bytes raw, %s bytes gzipped\n' "$out/dmtap_sync_bg.wasm" "$size" "$gz"
+  wasm-pack build --release --target "$target" --out-dir "$out" --out-name kotva_sync
+  size=$(wc -c <"$out/kotva_sync_bg.wasm" | tr -d ' ')
+  gz=$(gzip -9 -c "$out/kotva_sync_bg.wasm" | wc -c | tr -d ' ')
+  printf '    %s: %s bytes raw, %s bytes gzipped\n' "$out/kotva_sync_bg.wasm" "$size" "$gz"
 done
+
+# wasm-pack derives the npm name from the crate name, which would publish this as the
+# unscoped `kotva-sync-wasm`. The suite's rule is that machine identifiers use `vul-os`
+# (GitHub org, npm scope), so the published name is scoped. Rewriting the GENERATED
+# package.json here keeps it reproducible — hand-editing build output does not survive a rebuild.
+for out in pkg pkg-node; do
+  [ -f "$out/package.json" ] || continue
+  python3 - "$out/package.json" <<'PYEOF'
+import json, sys
+p = sys.argv[1]
+d = json.load(open(p))
+d["name"] = "@vul-os/kotva-sync"
+d["publishConfig"] = {"access": "public"}
+json.dump(d, open(p, "w"), indent=2)
+open(p, "a").write("\n")
+PYEOF
+done
+printf '    npm name: @vul-os/kotva-sync (scoped, publishConfig.access=public)\n'
 
 cat <<'EOF'
 

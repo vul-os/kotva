@@ -15,7 +15,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import * as sync from '../pkg-node/dmtap_sync.js';
+import * as sync from '../pkg-node/kotva_sync.js';
 import { runVectors, NOT_COVERED, hex, unhex, refusal, RECEIVER_NOW_MS } from './trace.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
