@@ -24,7 +24,7 @@ mapping needed to follow it today:
 
 | In the record | Today |
 |---|---|
-| `ofisi` (item 6) | **`diwan`** — `/Users/pc/code/vulos/diwan`; the rename swept KOTVA's own files, and this record was restored to the 2026-07-21 spelling afterwards (see [`README.md`](README.md)) |
+| the office suite (item 6) | **`diwan`** — `/Users/pc/code/vulos/diwan`. It carried a different name on 2026-07-21; that name was retired workspace-wide on 2026-07-28 and item 6 below was updated to today's, deliberately and by hand, at the founder's request. This is the one record-body edit the no-sweep rule in [`README.md`](README.md) has been waived for. |
 | `/Users/pc/code/exo/kerf/packages/kerf-pub` (items 2, 3) | `/Users/pc/code/vulos/kerf/packages/kerf-pub` |
 | `dmtap` / `dmtap-core` (items 2, 3) | `kotva` / `kotva-core` — this repo |
 | `vulos-relay` (items 3, 5) | **no longer exists** at any path under `/Users/pc/code` |
@@ -313,5 +313,5 @@ anticipated by the original invariant and should be added to any review checklis
 > Any decode boundary in a language with `NaN` that funnels into a bare `<`/`>` needs to consider
 > `NaN`, **not only precision loss**.
 
-Found live in ofisi (`grid.js`, `tree.js`) where a single hostile peer could overwrite any cell.
+Found live in diwan (`grid.js`, `tree.js`) where a single hostile peer could overwrite any cell.
 Fixed there; the checklist item is what generalises.

@@ -17,12 +17,13 @@ conformance case.
 - **Triage lives at the top, above the record, and is dated separately.** Each finding gets a
   current status and the evidence that was checked to assign it. A later triage pass appends a new
   dated section; it does not edit an earlier one.
-- **Exclude these files from automated rename/refactor sweeps.** A repo-wide `ofisi` → `diwan`
-  rename ran across the workspace while `2026-07-21-cross-repo-backlog.md` was being written and
-  silently rewrote a word *inside* the frozen record. It was restored, and the rename is now
-  recorded in that file's triage table instead — which is the right place for it. A sweep that
-  "fixes" a frozen record destroys the record. If a name in a record no longer resolves, map it in
-  the triage; do not edit the record.
+- **Exclude these files from automated rename/refactor sweeps.** A workspace-wide product rename
+  ran while `2026-07-21-cross-repo-backlog.md` was being written and silently rewrote a word
+  *inside* the frozen record. A sweep that "fixes" a frozen record destroys the record. If a name
+  in a record no longer resolves, map it in the triage; do not edit the record.
+  The one exception on file: the founder later asked for the retired name to be gone from the
+  workspace entirely, so item 6's body was updated by hand and the waiver noted in that file's
+  triage table. A deliberate, recorded waiver is fine; a sweep is not.
 - **A live finding is not closed by being written down here.** Findings that are still true and
   fixable as spec text are fixed in the spec, and the triage cites the commit. Findings that need a
   protocol decision are carried as an explicit open question with the tradeoff stated — never
