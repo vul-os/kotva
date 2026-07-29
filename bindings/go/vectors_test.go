@@ -35,20 +35,44 @@ import (
 // and with it the whole class of "the proof did not run because the other repo was not checked
 // out". `KOTVA_DIR` is still honoured — one variable still drives all three surfaces for an
 // out-of-tree consumer — but it now defaults to this module's own repo root.
-const (
-	defaultKotvaDir = "../.."
-	nativeTracePath = "../../crates/kotva-sync-wasm/test/native-trace.json"
-)
+const defaultKotvaDir = "../.."
+
+// kotvaDir is the root both fixtures resolve against. In-repo by default; `KOTVA_DIR` overrides it
+// so an out-of-tree consumer can place the checkout anywhere — the same override the Rust and JS
+// halves of this proof read, so one variable drives all three surfaces.
+func kotvaDir() string {
+	if dir := os.Getenv("KOTVA_DIR"); dir != "" {
+		return dir
+	}
+	return defaultKotvaDir
+}
+
+// nativeTracePath USED TO BE a bare const, which made it the one fixture path `KOTVA_DIR` could not
+// move — so an out-of-tree consumer who set KOTVA_DIR correctly still failed on this file alone.
+// Two adopters hit exactly that and each wrote their own driver rather than delegating to this
+// suite; that is the cost of one unoverridable path.
+func nativeTracePath() string {
+	return filepath.Join(kotvaDir(), "crates/kotva-sync-wasm/test/native-trace.json")
+}
 
 // vectorsPath resolves the frozen Sync vectors. In-repo by default (see above); `KOTVA_DIR`
 // overrides the root so an out-of-tree consumer can place the checkout anywhere — the same override
 // the Rust and JS halves of this proof read, so one variable drives all three surfaces.
 func vectorsPath() string {
-	dir := os.Getenv("KOTVA_DIR")
-	if dir == "" {
-		dir = defaultKotvaDir
+	return filepath.Join(kotvaDir(), "conformance/vectors/sync_vectors.json")
+}
+
+// inRepoCheckout reports whether the fixtures could possibly be present: they are repo files, and
+// `go mod download` fetches neither conformance/ nor crates/. So for a proxy-fetched consumer their
+// absence is the normal state, while for a repo checkout it means a broken worktree. Conflating the
+// two is what made two adopters write their own drivers instead of using this suite.
+func inRepoCheckout() bool {
+	for _, marker := range []string{"conformance", "crates", "substrate"} {
+		if _, err := os.Stat(filepath.Join(kotvaDir(), marker)); err == nil {
+			return true
+		}
 	}
-	return filepath.Join(dir, "conformance/vectors/sync_vectors.json")
+	return false
 }
 
 // --- fixture ------------------------------------------------------------------------------------
@@ -69,13 +93,37 @@ func load(t *testing.T) *fixture {
 	vp := vectorsPath()
 	raw, err := os.ReadFile(vp)
 	if err != nil {
-		// Never skipped. This suite IS the conformance proof, and a proof that quietly does not run
-		// when the spec repo is not checked out is worse than no proof, because it reports success.
-		t.Fatalf("the frozen vectors are missing at %s: %v\n"+
-			"This suite is the conformance proof; it must never be skipped. The vectors now live in "+
-			"THIS repo (conformance/vectors/), so an absent file is a broken worktree — it is no "+
-			"longer possible for it to mean 'the sibling spec repo was not checked out'.",
-			mustAbs(vp), err)
+		// A repo checkout that cannot find its own vectors is broken, and this suite IS the
+		// conformance proof — a proof that quietly does not run reports success it never earned.
+		// But a proxy-fetched module never had these files, so failing there would just be wrong.
+		detail := fmt.Sprintf("the frozen vectors are missing at %s: %v", mustAbs(vp), err)
+		if inRepoCheckout() {
+			t.Fatalf("%s\nThis suite is the conformance proof; in a checkout it must never be "+
+				"skipped. The vectors live in THIS repo (conformance/vectors/), so an absent file "+
+				"is a broken worktree.", detail)
+		}
+		// FAIL by default, even for a proxy-fetched module, and here is why the obvious
+		// alternative does not work: `go test` discards a passing package's output entirely
+		// unless -v is passed — t.Skip messages AND anything written to stderr. So a "loud skip"
+		// is invisible in exactly the run that matters, and a consumer sees a bare "ok" for a
+		// suite that verified nothing. That is the silently-passing gate this whole file exists
+		// to be the opposite of.
+		//
+		// Nobody runs a dependency's tests by accident: `go test ./...` in a consumer module does
+		// not descend into dependencies. Reaching this suite is deliberate, so answering with a
+		// failure that says exactly what to do is more useful than a green tick that lies.
+		// Set ALLOW_MISSING_SYNC_VECTORS=1 to downgrade it to a skip if you genuinely want that.
+		msg := fmt.Sprintf("NOT VERIFIED — the cross-surface conformance proof did not run.\n  %s\n"+
+			"  The vectors and the native trace are REPO files, not module files: `go mod download`\n"+
+			"  fetches neither conformance/ nor crates/. To run the proof, check out\n"+
+			"  github.com/vul-os/kotva at this module's tag and point KOTVA_DIR at it:\n"+
+			"    git clone https://github.com/vul-os/kotva && KOTVA_DIR=./kotva go test ./...\n"+
+			"  Nothing about the engine's conformance has been checked by this run.\n"+
+			"  (Set ALLOW_MISSING_SYNC_VECTORS=1 to make this a skip instead of a failure.)", detail)
+		if os.Getenv("ALLOW_MISSING_SYNC_VECTORS") != "" {
+			t.Skip(msg)
+		}
+		t.Fatal(msg)
 	}
 	file := decodeJSON(string(raw))
 
@@ -94,11 +142,22 @@ func load(t *testing.T) *fixture {
 	}
 	t.Cleanup(func() { in.Close(ctx); rt.Close(ctx) })
 
-	nraw, err := os.ReadFile(nativeTracePath)
+	nraw, err := os.ReadFile(nativeTracePath())
 	if err != nil {
-		t.Fatalf("the native trace is missing at %s: %v\nRegenerate it with:\n"+
-			"  UPDATE_SYNC_TRACE=1 cargo test -p kotva-sync-wasm --test native_trace",
-			mustAbs(nativeTracePath), err)
+		// The fixtures are repo files, NOT module files — `go mod download` does not fetch
+		// conformance/ or crates/. So this is the normal state for a proxy-fetched consumer and
+		// must not read as a passing suite. Skip loudly, naming exactly what nobody verified.
+		msg := fmt.Sprintf("NOT VERIFIED: the native trace is absent at %s (%v).\n"+
+			"  The frozen vectors and the trace are repo files, not module files, so a\n"+
+			"  proxy-fetched copy of this module cannot run the cross-surface proof.\n"+
+			"  To run it: check out github.com/vul-os/kotva at this module's tag and set\n"+
+			"  KOTVA_DIR to that checkout. To regenerate the trace in-repo:\n"+
+			"    UPDATE_SYNC_TRACE=1 cargo test -p kotva-sync-wasm --test native_trace",
+			mustAbs(nativeTracePath()), err)
+		if os.Getenv("REQUIRE_SYNC_VECTORS") != "" {
+			t.Fatal(msg + "\n  REQUIRE_SYNC_VECTORS is set, so this is a failure, not a skip.")
+		}
+		t.Skip(msg)
 	}
 	var native struct {
 		ReceiverNowMS json.Number                  `json:"receiver_now_ms"`
