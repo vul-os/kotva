@@ -313,10 +313,19 @@ pub enum CborError {
     LengthExceedsInput,
     /// A length that does not fit this platform's `usize`.
     LengthTooLarge,
+    /// A JSON interchange document that cannot be represented as canonical CBOR.
+    ///
+    /// Only ever produced by the optional [`json`] module. The variant is present
+    /// unconditionally so that enabling the `json` feature never changes this
+    /// enum's shape — a feature that alters a public type is not additive.
+    Json(&'static str),
 }
 
 impl fmt::Display for CborError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let CborError::Json(what) = self {
+            return write!(f, "json: {what}");
+        }
         let s = match self {
             CborError::Truncated => "truncated input",
             CborError::TrailingBytes => "trailing bytes after the top-level item",
@@ -333,6 +342,8 @@ impl fmt::Display for CborError {
             CborError::DepthExceeded => "nesting depth exceeds the limit",
             CborError::LengthExceedsInput => "length header exceeds the remaining input",
             CborError::LengthTooLarge => "length does not fit usize",
+            // Handled above; unreachable, and cheaper than an unwrap.
+            CborError::Json(_) => "json",
         };
         f.write_str(s)
     }
