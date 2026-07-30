@@ -208,6 +208,15 @@ is_exempt() {
 # at the root, go.mod in backend/, and the entire Go closure — the actual product — was never
 # read. A gate that quietly declines to look is worse than one that fails, because the operator
 # has no way to tell the difference.
+#
+# The SAME bug survived one level down: check_dep_closure_one() (below) used to be its own
+# if/elif chain OVER A SINGLE DIRECTORY — Cargo.toml, else go.mod, else package.json, else
+# pyproject.toml/requirements.txt — so a directory holding MORE THAN ONE manifest only ever
+# had the first one examined, silently. diwan is the live case (go.mod AND package.json at
+# the repo root — only Go was ever read); wede, molao, cackle and evermesh all carry more
+# than one manifest at a checked directory too, and a Rust-crate-with-a-JS-binding or
+# Go-service-with-a-JS-frontend shape is ordinary, not rare. check_dep_closure_one() now
+# checks every manifest present in its directory independently — see its own header comment.
 check_dep_closure() {
 	_root=$(pwd)
 	# shellcheck disable=SC2086 # word splitting of the prune list is intended
@@ -231,11 +240,17 @@ check_dep_closure() {
 '
 	for _d in $_manifests; do
 		IFS=$_oldifs
+		# A workspace MEMBER's Cargo.toml resolves through the workspace root, so re-running
+		# cargo tree here would just re-read the same graph — skip only the rust half of this
+		# directory's check, never the whole directory. Skipping the whole directory was the
+		# earlier bug: a workspace member that ALSO carries a go.mod or package.json (a Rust
+		# crate with a JS/Go binding is an ordinary shape in this suite) had that other
+		# ecosystem's closure silently never read, because it happened to share a directory
+		# with a Cargo.toml the outer loop chose to skip entirely.
+		_skip_rust=no
 		if [ "$_rust_ws" = yes ] && [ "$_d" != "." ] && [ -f "$_d/Cargo.toml" ] &&
 			! grep -q '^\[workspace\]' "$_d/Cargo.toml" 2>/dev/null; then
-			IFS='
-'
-			continue
+			_skip_rust=yes
 		fi
 		# NOT a subshell: the violation counter must survive back into run_gate.
 		cd "$_d" || {
@@ -244,7 +259,7 @@ check_dep_closure() {
 '
 			continue
 		}
-		check_dep_closure_one "$_d"
+		check_dep_closure_one "$_d" "$_skip_rust"
 		cd "$_root" || die "lost the repo root while walking manifests"
 		IFS='
 '
@@ -252,77 +267,137 @@ check_dep_closure() {
 	IFS=$_oldifs
 }
 
-# Reads ONE manifest directory's default-feature closure. Runs in a subshell, so it reports
-# through the shared counters by printing — see run_gate, which re-counts from output.
+# Reads ONE manifest directory's closure — EVERY ecosystem manifest present there, not just
+# the first one found. THE DEFECT THIS REPLACES: this function used to be its own if/elif
+# chain (Cargo.toml, else go.mod, else package.json, else pyproject.toml/requirements.txt),
+# so a directory holding MORE THAN ONE manifest only ever got the first one checked — no
+# violation reported for the rest, and no cannot-check either, so the run read as a clean
+# pass. This is the SAME bug check_dep_closure()'s header comment already describes fixing
+# once (root-manifest-only -> per-directory); the elif simply moved down one level, from
+# "once per repo" to "once per directory". The fix is the same shape at the smaller scope:
+# every ecosystem manifest present in $_where is checked independently and reported under
+# its own name — a hit in any one is a violation, a closure that cannot be read in any one is
+# its own cannot-check, and neither may be silently absorbed by whichever ecosystem happened
+# to be tested first.
+#
+# $2 (_skip_rust) is "yes" only when $_where is a Cargo workspace MEMBER whose root already
+# resolved this graph (see check_dep_closure) — that skip is legitimate (re-reading the same
+# graph twice proves nothing new), but it must skip only the rust half of this directory's
+# check, never the other manifests that might sit beside that Cargo.toml. Skipping the whole
+# directory was an instance of the same bug wearing a different hat.
 check_dep_closure_one() {
 	_where=$1
-	ecosystem=none
-	closure=''
+	_skip_rust=${2:-no}
+	_dep_found=0
 
-	if [ -f Cargo.toml ]; then
-		ecosystem=rust
-		if ! command -v cargo >/dev/null 2>&1; then
-			cannot "C-DEP  Cargo.toml present but no cargo on PATH — the dependency graph was NOT read"
-			return 0
-		fi
-		# `cargo tree` resolves with DEFAULT features, which is exactly R-SOV-1's subject.
-		# -e normal drops build/dev edges: a dev-dependency on a broker client is a test
-		# fixture, not a default runtime path.
-		closure=$(cargo tree -e normal --prefix none --offline 2>/dev/null) ||
-			closure=$(cargo tree -e normal --prefix none 2>/dev/null) || {
-			cannot "C-DEP  cargo tree failed — the dependency graph was NOT read (do not read this as a pass)"
-			return 0
-		}
-	elif [ -f go.mod ]; then
-		ecosystem=go
-		if ! command -v go >/dev/null 2>&1; then
-			cannot "C-DEP  go.mod present but no go on PATH — the import closure was NOT read"
-			return 0
-		fi
-		# `go list -deps ./...` is the import closure for the DEFAULT build tags. A seam
-		# behind `//go:build broker` is absent here unless it is on by default, which is
-		# the property R-SOV-1 wants and the reason this is the right command.
-		closure=$(go list -deps ./... 2>/dev/null) || {
-			cannot "C-DEP  go list -deps failed — the import closure was NOT read"
-			return 0
-		}
-	elif [ -f package.json ]; then
-		ecosystem=node
-		if ! command -v npm >/dev/null 2>&1; then
-			cannot "C-DEP  package.json present but no npm on PATH — the dependency graph was NOT read"
-			return 0
-		fi
-		closure=$(npm ls --omit=dev --all --parseable 2>/dev/null) || {
-			cannot "C-DEP  npm ls failed — the dependency graph was NOT read"
-			return 0
-		}
-	elif [ -f pyproject.toml ] || [ -f requirements.txt ]; then
-		ecosystem=python
-		# No resolver is assumed present, so this is the declared set, not the closure —
-		# stated as reduced assurance rather than quietly passed off as equivalent.
-		closure=$(cat pyproject.toml requirements.txt 2>/dev/null)
-		say "  note: python C-DEP reads DECLARED dependencies, not a resolved closure —"
-		say "        a transitive broker dependency is NOT visible to this check."
-	else
-		cannot "C-DEP  no recognised manifest (Cargo.toml / go.mod / package.json / pyproject.toml) in $(pwd) — add this ecosystem's mechanics per substrate/SOVEREIGNTY.md §5.2 instead of skipping"
+	if [ -f Cargo.toml ] && [ "$_skip_rust" = yes ]; then
+		_dep_found=1
+		say "  C-DEP    rust ($_where): workspace member — already covered via the workspace root's cargo tree"
+	elif [ -f Cargo.toml ]; then
+		_dep_found=1
+		check_dep_rust "$_where"
+	fi
+
+	if [ -f go.mod ]; then
+		_dep_found=1
+		check_dep_go "$_where"
+	fi
+
+	if [ -f package.json ]; then
+		_dep_found=1
+		check_dep_node "$_where"
+	fi
+
+	if [ -f pyproject.toml ] || [ -f requirements.txt ]; then
+		_dep_found=1
+		check_dep_python "$_where"
+	fi
+
+	if [ "$_dep_found" = 0 ]; then
+		cannot "C-DEP  no recognised manifest (Cargo.toml / go.mod / package.json / pyproject.toml / requirements.txt) in $(pwd) — add this ecosystem's mechanics per substrate/SOVEREIGNTY.md §5.2 instead of skipping"
+	fi
+}
+
+# ── one resolver function per ecosystem, each reporting through report_dep_closure ────────
+# `cargo tree` resolves with DEFAULT features, which is exactly R-SOV-1's subject. -e normal
+# drops build/dev edges: a dev-dependency on a broker client is a test fixture, not a default
+# runtime path.
+check_dep_rust() {
+	_where=$1
+	if ! command -v cargo >/dev/null 2>&1; then
+		cannot "C-DEP  rust ($_where): Cargo.toml present but no cargo on PATH — the dependency graph was NOT read"
+		return 0
+	fi
+	_closure=$(cargo tree -e normal --prefix none --offline 2>/dev/null) ||
+		_closure=$(cargo tree -e normal --prefix none 2>/dev/null) || {
+		cannot "C-DEP  rust ($_where): cargo tree failed — the dependency graph was NOT read (do not read this as a pass)"
+		return 0
+	}
+	report_dep_closure rust "$_where" "$_closure"
+}
+
+# `go list -deps ./...` is the import closure for the DEFAULT build tags. A seam behind
+# `//go:build broker` is absent here unless it is on by default, which is the property
+# R-SOV-1 wants and the reason this is the right command.
+check_dep_go() {
+	_where=$1
+	if ! command -v go >/dev/null 2>&1; then
+		cannot "C-DEP  go ($_where): go.mod present but no go on PATH — the import closure was NOT read"
+		return 0
+	fi
+	_closure=$(go list -deps ./... 2>/dev/null) || {
+		cannot "C-DEP  go ($_where): go list -deps failed — the import closure was NOT read"
+		return 0
+	}
+	report_dep_closure go "$_where" "$_closure"
+}
+
+check_dep_node() {
+	_where=$1
+	if ! command -v npm >/dev/null 2>&1; then
+		cannot "C-DEP  node ($_where): package.json present but no npm on PATH — the dependency graph was NOT read"
+		return 0
+	fi
+	_closure=$(npm ls --omit=dev --all --parseable 2>/dev/null) || {
+		cannot "C-DEP  node ($_where): npm ls failed — the dependency graph was NOT read (do not read this as a pass; a pre-existing broken/extraneous node_modules reports this way, which is an environment problem, not evidence of a clean tree)"
+		return 0
+	}
+	report_dep_closure node "$_where" "$_closure"
+}
+
+check_dep_python() {
+	_where=$1
+	# No resolver is assumed present, so this is the declared set, not the closure —
+	# stated as reduced assurance rather than quietly passed off as equivalent.
+	_closure=$(cat pyproject.toml requirements.txt 2>/dev/null)
+	say "  note: python C-DEP reads DECLARED dependencies, not a resolved closure ($_where) —"
+	say "        a transitive broker dependency is NOT visible to this check."
+	report_dep_closure python "$_where" "$_closure"
+}
+
+# Shared tail for every ecosystem above: an empty closure is cannot-check, a hit is a
+# violation, otherwise the entries-examined count C-DEP has always printed.
+report_dep_closure() { # $1=ecosystem $2=where $3=closure text
+	_eco=$1
+	_where=$2
+	_closure=$3
+
+	if [ -z "$_closure" ]; then
+		cannot "C-DEP  $_eco ($_where): dependency closure came back EMPTY — the command ran but produced nothing to check"
 		return 0
 	fi
 
-	if [ -z "$closure" ]; then
-		cannot "C-DEP  $ecosystem dependency closure came back EMPTY — the command ran but produced nothing to check"
-		return 0
-	fi
-
-	hits=$(printf '%s\n' "$closure" | grep -Ei -- "$BROKER_RE" || true)
-	n=$(printf '%s' "$closure" | grep -c '' || true)
-	if [ -n "$hits" ]; then
-		printf '%s\n' "$hits" | while IFS= read -r h; do
-			[ -n "$h" ] && fail "C-DEP  default-feature dependency closure contains the broker: $h"
+	_hits=$(printf '%s\n' "$_closure" | grep -Ei -- "$BROKER_RE" || true)
+	_n=$(printf '%s' "$_closure" | grep -c '' || true)
+	if [ -n "$_hits" ]; then
+		printf '%s\n' "$_hits" | while IFS= read -r h; do
+			[ -n "$h" ] && fail "C-DEP  $_eco ($_where): default-feature dependency closure contains the broker: $h"
 		done
-		# The subshell above cannot increment the parent's counter; record the fact here.
+		# The subshell above (the pipe into `while read`) cannot increment the parent's
+		# counter; record the fact here.
 		violations=$((violations + 1))
 	fi
-	say "  C-DEP    $ecosystem ($_where): examined $n entries of the default-feature dependency closure"
+	say "  C-DEP    $_eco ($_where): examined $_n entries of the default-feature dependency closure"
 }
 
 # ── C-START: the broker may not be named outside a declared seam ───────────────────────
@@ -761,6 +836,67 @@ selftest() {
 		unexercised="$unexercised docbug(no-go-toolchain)"
 	fi
 
+	# ---- DEFECT 5 (this fix) — a FOURTH instance of the same bug class, one level down from
+	# DEFECT 2 above. DEFECT 2 was "package.json at the root, go.mod in backend/ — the whole
+	# Go product was never read"; this is "go.mod AND package.json in the SAME directory —
+	# only the first one in the if/elif's fixed priority order was ever read". diwan is the
+	# live case (go.mod + package.json at the repo root, only Go's closure was ever
+	# examined); wede, molao, cackle and evermesh all carry more than one manifest at a
+	# checked directory too. check_dep_closure_one() now checks every manifest present
+	# independently instead of stopping at the first — these controls pin exactly the
+	# failure mode whose absence let the bug survive three prior fixes.
+	if command -v go >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+		ran=$((ran + 1))
+		expected_controls=$((expected_controls + 3))
+
+		# CONTROL A — the broker is declared ONLY in the SECOND manifest (package.json) of a
+		# directory whose FIRST manifest (go.mod, clean) an if/elif chain would have checked
+		# and stopped at. node_modules is hand-built (no `npm install`, no network) so the
+		# fixture stays hermetic like every other control here.
+		mkdir -p "$tmp/polyglot_second_only/node_modules/ephor-client"
+		printf 'module example.test/polyglot_second_only\n\ngo 1.21\n' >"$tmp/polyglot_second_only/go.mod"
+		printf 'package main\n\nfunc main() {}\n' >"$tmp/polyglot_second_only/main.go"
+		printf '{"name":"ephor-client","version":"0.0.0"}\n' \
+			>"$tmp/polyglot_second_only/node_modules/ephor-client/package.json"
+		cat >"$tmp/polyglot_second_only/package.json" <<-'EOF'
+			{
+			  "name": "polyglot-second-only",
+			  "version": "0.0.0",
+			  "private": true,
+			  "dependencies": { "ephor-client": "0.0.0" }
+			}
+		EOF
+		expect polyglot_second_only 1 \
+			"a broker declared ONLY in the SECOND manifest of a directory (go.mod clean, package.json names it) still FAILS — the exact control whose absence let this bug survive" \
+			'BROKER_RE=ephor|vulos-relayd'
+
+		# CONTROL B — same shape, but the SECOND manifest's closure cannot be read at all (a
+		# malformed package.json here; a broken/extraneous node_modules is kerf's real-world
+		# version of the same failure). Must be CANNOT-CHECK, never a silent pass just
+		# because the first manifest in the directory happened to be clean.
+		mkdir -p "$tmp/polyglot_second_unreadable"
+		printf 'module example.test/polyglot_second_unreadable\n\ngo 1.21\n' \
+			>"$tmp/polyglot_second_unreadable/go.mod"
+		printf 'package main\n\nfunc main() {}\n' >"$tmp/polyglot_second_unreadable/main.go"
+		printf '{ this is not valid json' >"$tmp/polyglot_second_unreadable/package.json"
+		expect polyglot_second_unreadable 2 \
+			"a second manifest whose closure cannot be read is CANNOT-CHECK, not a silent pass riding on the first manifest's clean result" \
+			'BROKER_RE=ephor|vulos-relayd'
+
+		# CONTROL C — the negative: BOTH manifests in the same directory are clean. Proves
+		# checking every manifest present does not itself manufacture a false FAIL.
+		mkdir -p "$tmp/polyglot_clean"
+		printf 'module example.test/polyglot_clean\n\ngo 1.21\n' >"$tmp/polyglot_clean/go.mod"
+		printf 'package main\n\nfunc main() {}\n' >"$tmp/polyglot_clean/main.go"
+		printf '{"name":"polyglot-clean","version":"0.0.0","private":true}\n' \
+			>"$tmp/polyglot_clean/package.json"
+		expect polyglot_clean 0 \
+			"a polyglot directory where EVERY manifest is clean still PASSES (checking more manifests is not itself a false positive)" \
+			'BROKER_RE=ephor|vulos-relayd'
+	else
+		unexercised="$unexercised polyglot(no-go-or-npm-toolchain)"
+	fi
+
 	# ---- Repo-self-declaration controls (`.no-broker-dep-self`) — unconditional: this
 	# mechanism short-circuits before check_dep_closure/check_startup_text ever run, so it
 	# needs no toolchain at all. The fixture tree is otherwise EMPTY (no manifest, no source),
@@ -811,7 +947,9 @@ selftest() {
 		say "               default-off seams pass, every planted violation fails, unverifiable"
 		say "               configurations exit 2, a violation outranks an unverifiable check, a"
 		say "               disclaimer-only doc passes while a real dependency behind one still fails, a"
-		say "               generated dist-lib/ bundle is pruned like node_modules/target, a reasoned"
+		say "               generated dist-lib/ bundle is pruned like node_modules/target, a broker named"
+		say "               ONLY in the second of two manifests sharing a directory still fails and an"
+		say "               unreadable second closure is cannot-check not a pass, a reasoned"
 		say "               .no-broker-dep-self exits 0 having run nothing, and an unreasoned one is"
 		say "               ignored outright. The gate is not inert."
 	else
