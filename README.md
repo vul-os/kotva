@@ -1,5 +1,7 @@
 <div align="centre">
 
+<img src="public/logo.svg" alt="Kotva" width="72" height="72">
+
 # KOTVA
 
 ### The sovereign substrate — the anchor everything is addressed to.
