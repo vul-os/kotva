@@ -44,7 +44,21 @@
 #                 npm optional-dependency name that gates the seam. Must not be on by default.
 #   DOC_PATHS     Space-separated path prefixes that are prose, not a build or startup path
 #                 (docs/, README.md, CHANGELOG.md). Naming the broker there is allowed:
-#                 documenting "you may plug a broker in here" is the point.
+#                 documenting "you may plug a broker in here" is the point. The default set
+#                 also carries GOVERNANCE.md, SECURITY.md, CONTRIBUTING.md and ROADMAP.md —
+#                 root-level governance/policy prose that, like README/CHANGELOG/LICENSE
+#                 already here, structurally cannot BE a dependency edge: no toolchain reads
+#                 a manifest out of a GOVERNANCE.md. Naming the broker there to assert its
+#                 absence ("no hard dependency on Ephor") is the file doing its job, and the
+#                 gate was failing that job — a real correctness bug, not a laxer gate: a
+#                 GENUINE dependency is still caught regardless, by C-DEP reading the actual
+#                 resolved graph and by C-START reading every other file. This list stays
+#                 SMALL and path-based on purpose — everything else (SPEC.md, a whitepaper,
+#                 a release template, a Cargo.toml comment, a test fixture, a CI step) still
+#                 requires the explicit :allow-file marker below, stated and printed, because
+#                 those files are close enough to the build/startup surface that "it's just
+#                 prose" is a judgment call a human should make once, not a blanket the gate
+#                 assumes forever.
 #
 # EXIT STATUS — and it never exits 0 by doing nothing
 #   0  every check ran and passed
@@ -76,7 +90,7 @@ SEAM_FLAG=${SEAM_FLAG:-}
 # as an R-SOV-1 violation. A doc that marks the broker optional is the contract being followed,
 # not broken; what R-SOV-1a forbids is prominence in getting-started, which a grep cannot judge
 # and a human must.
-DOC_PATHS=${DOC_PATHS:-'docs/ site/ README.md CHANGELOG.md LICENSE.md'}
+DOC_PATHS=${DOC_PATHS:-'docs/ site/ README.md CHANGELOG.md LICENSE.md GOVERNANCE.md SECURITY.md CONTRIBUTING.md ROADMAP.md'}
 
 # Split so this script's own source does not contain the literal marker it searches for —
 # otherwise the gate would exempt itself by accident rather than by the explicit rule above.
@@ -92,7 +106,17 @@ _ALLOW_SUFFIX=':allow-file'
 # invocation, and it was a correctness bug before it was a performance one — a vendored package
 # or a build fingerprint containing the broker's name would have produced a spurious FAIL
 # against a product that does not depend on it.
-PRUNE_NAMES='.git target node_modules vendor dist build .venv __pycache__'
+#
+# `dist` and `build` were already here; the fleet's own .gitignores were audited (2026-07-30)
+# for the other spellings the same convention actually uses — dist-lib/dist-office/dist-ssr/
+# dist-dev/dist-main/dist-demo/dev-dist all appear, gitignored, across multiple products (e.g.
+# diwan ships `build:lib`/`build:office` npm scripts whose output is `dist-lib/`/`dist-office/`,
+# both gitignored — present on a machine that built them, absent from a clean checkout). A
+# minified bundle is DERIVED from source already scanned by this same walk; scanning the
+# rebuild too only re-reads the same text through unstable minified names, at the cost of a
+# spurious FAIL against a product with no source-level mention at all. A vendored broker
+# client would still show up structurally in C-DEP either way, same as node_modules/target.
+PRUNE_NAMES='.git target node_modules vendor dist build .venv __pycache__ dist-lib dist-office dist-ssr dist-dev dist-main dist-demo dev-dist'
 
 # Emits the `find` prune expression, name-matched so it applies at ANY depth.
 prune_expr() {
@@ -407,6 +431,7 @@ selftest() {
 	rc=0
 	ran=0
 	controls=0
+	expected_controls=0
 	unexercised=''
 
 	expect() { # $1 = fixture dir, $2 = expected exit, $3 = what it proves, $4.. = env
@@ -427,6 +452,7 @@ selftest() {
 	# ---- Rust controls -----------------------------------------------------------------
 	if command -v cargo >/dev/null 2>&1; then
 		ran=$((ran + 1))
+		expected_controls=$((expected_controls + 8))
 		# a vendored "broker client" the fixtures can depend on with no network
 		mkdir -p "$tmp/ephor-client/src"
 		cat >"$tmp/ephor-client/Cargo.toml" <<-'EOF'
@@ -509,6 +535,7 @@ selftest() {
 	# claim that this works is worth a control of its own.
 	if command -v go >/dev/null 2>&1; then
 		ran=$((ran + 1))
+		expected_controls=$((expected_controls + 2))
 		mkdir -p "$tmp/ephorclient"
 		cat >"$tmp/ephorclient/go.mod" <<-'EOF'
 			module example.test/ephorclient
@@ -560,6 +587,7 @@ selftest() {
 	# now so they cannot come back silently.
 	if command -v go >/dev/null 2>&1; then
 		ran=$((ran + 1))
+		expected_controls=$((expected_controls + 4))
 
 		# DEFECT 1 — nested prune. A prune list matched by top-level PATH walks every nested
 		# node_modules/ and target/, so a vendored file naming the broker fails a product that
@@ -610,6 +638,88 @@ selftest() {
 		unexercised="$unexercised structural(no-go-toolchain)"
 	fi
 
+	# ---- DEFECT 4 — a THIRD instance of the same bug class: the gate failed a repo for
+	# stating, in prose, that it does NOT depend on the broker (molao/GOVERNANCE.md, cackle/
+	# CONTRIBUTING.md — both real, both fixed by the DOC_PATHS additions above). The danger in
+	# fixing that is fixing it TOO WIDE: a disclaimer must never be able to launder an actual
+	# dependency. These four controls pin both directions at once — a disclaimer-only repo
+	# passes, and a disclaimer sitting next to a REAL dependency (manifest closure, or a
+	# hardcoded default in the startup path) still fails, exactly as loud as it would without
+	# the disclaimer. A fourth control proves the companion prune-list addition (dist-lib and
+	# siblings, generated output confirmed via .gitignore across the fleet) is pruned the same
+	# way node_modules/target already are — DEFECT 1 above, recurring under a different name.
+	if command -v go >/dev/null 2>&1; then
+		ran=$((ran + 1))
+		expected_controls=$((expected_controls + 4))
+
+		disclaimer_doc() { # $1 = fixture dir — writes the shared disclaimer prose
+			printf '# Governance\n\nNo hard dependency on Ephor; vulos-relayd is not part of this\nproject'"'"'s default path.\n' \
+				>"$tmp/$1/GOVERNANCE.md"
+		}
+
+		# CONTROL A — the disclaimer alone. Nothing else in the tree names the broker.
+		mkdir -p "$tmp/disclaimer_only"
+		printf 'module example.test/disclaimer_only\n\ngo 1.21\n' >"$tmp/disclaimer_only/go.mod"
+		printf 'package main\n\nfunc main() {}\n' >"$tmp/disclaimer_only/main.go"
+		disclaimer_doc disclaimer_only
+		expect disclaimer_only 0 "a GOVERNANCE.md disclaimer with NO other mention of the broker PASSES" \
+			'BROKER_RE=ephor|vulos-relayd'
+
+		# CONTROL B — the SAME disclaimer, but the default build now really imports the broker
+		# (a real manifest dependency, C-DEP's subject). The disclaimer must not launder it.
+		mkdir -p "$tmp/disclaimer_plus_dep"
+		cat >"$tmp/disclaimer_plus_dep/go.mod" <<-'EOF'
+			module example.test/disclaimer_plus_dep
+
+			go 1.21
+
+			require example.test/ephorclient v0.0.0
+
+			replace example.test/ephorclient => ../ephorclient
+		EOF
+		printf 'package main\n\nimport "example.test/ephorclient"\n\nfunc main() { println(ephorclient.Dial()) }\n' \
+			>"$tmp/disclaimer_plus_dep/main.go"
+		disclaimer_doc disclaimer_plus_dep
+		expect disclaimer_plus_dep 1 "a real manifest dependency still FAILS behind a disclaimer doc" \
+			'BROKER_RE=ephor|vulos-relayd'
+
+		# CONTROL C — the SAME disclaimer, no manifest dependency at all, but a hardcoded
+		# default broker endpoint in the startup path (C-START's subject, not C-DEP's).
+		mkdir -p "$tmp/disclaimer_plus_default"
+		printf 'module example.test/disclaimer_plus_default\n\ngo 1.21\n' >"$tmp/disclaimer_plus_default/go.mod"
+		printf 'const DefaultBroker = "https://rendezvous.ephor.example"\n\nfunc main() { _ = DefaultBroker }\n' \
+			>"$tmp/disclaimer_plus_default/main.go"
+		disclaimer_doc disclaimer_plus_default
+		expect disclaimer_plus_default 1 "a real default-endpoint in the startup path still FAILS behind a disclaimer doc" \
+			'BROKER_RE=ephor|vulos-relayd'
+
+		# CONTROL D — the prune-list companion fix. A broker string sitting only inside a
+		# generated dist-lib/ (gitignored everywhere it was found) must not fail a product
+		# whose authored source never mentions the broker at all.
+		mkdir -p "$tmp/prune_dist_lib/dist-lib"
+		printf 'module example.test/prune_dist_lib\n\ngo 1.21\n' >"$tmp/prune_dist_lib/go.mod"
+		printf 'package main\n\nfunc main() {}\n' >"$tmp/prune_dist_lib/main.go"
+		printf 'const u="https://ephor.example";export{u};\n' >"$tmp/prune_dist_lib/dist-lib/bundle.js"
+		expect prune_dist_lib 0 "a generated dist-lib/ bundle naming the broker is pruned, like node_modules/target" \
+			'BROKER_RE=ephor|vulos-relayd'
+	else
+		unexercised="$unexercised docbug(no-go-toolchain)"
+	fi
+
+	# The control COUNT is itself asserted, not just printed — a control quietly deleted (an
+	# `expect` line dropped in a future edit, or a whole section commented out) still leaves
+	# `rc` at 0 if every remaining `expect` happens to pass, which is exactly "a gate that
+	# passes everything gates nothing" one level up: a selftest that silently shrank. Each
+	# gated section above declares its own control count as it runs, so this total is the sum
+	# of only the sections that actually ran on THIS machine — a toolchain genuinely missing is
+	# still reported via $unexercised, not folded into a mismatch.
+	if [ "$controls" != "$expected_controls" ]; then
+		say "SELFTEST FAIL  ran $controls control(s) but the sections that executed declare $expected_controls —"
+		say "               a control was added or removed without updating its section's count. Do not"
+		say "               trust this as a shrink-proof run until the two numbers agree."
+		rc=1
+	fi
+
 	say ""
 	[ -n "$unexercised" ] &&
 		say "NOT VERIFIED   ecosystems not exercised in this run:$unexercised — their mechanics are unproven here."
@@ -619,9 +729,12 @@ selftest() {
 		return 2
 	fi
 	if [ "$rc" = 0 ]; then
-		say "SELFTEST PASS  $controls controls across $ran ecosystem(s): clean trees and default-off seams"
-		say "               pass, every planted violation fails, unverifiable configurations exit 2, and a"
-		say "               violation outranks an unverifiable check. The gate is not inert."
+		say "SELFTEST PASS  $controls controls across $ran ecosystem(s), count asserted: clean trees and"
+		say "               default-off seams pass, every planted violation fails, unverifiable"
+		say "               configurations exit 2, a violation outranks an unverifiable check, a"
+		say "               disclaimer-only doc passes while a real dependency behind one still fails, and"
+		say "               a generated dist-lib/ bundle is pruned like node_modules/target. The gate is"
+		say "               not inert."
 	else
 		say "SELFTEST FAIL  a control did not behave as specified — do NOT trust a clean run of this gate"
 		say "               until it does."
