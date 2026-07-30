@@ -165,16 +165,31 @@ die() { printf 'CANNOT CHECK  %s\n' "$*" >&2; exit 2; }
 
 # ── path classification ───────────────────────────────────────────────────────────────
 # A file is exempt from the TEXT scan if it sits under a declared seam or a declared doc
-# path. Prefix match on the repo-relative path, so "src/reach/ephor/" covers the directory.
+# path, OR carries an explicit :allow-file marker. A file can be exempt via MORE THAN ONE of
+# these at once — e.g. a file under docs/ that also carries its own marker for a distinct,
+# more specific reason — and the mechanisms carry different semantics: SEAM_PATHS/DOC_PATHS
+# is a coarse, pre-declared, configuration-level exemption; the marker is a deliberate,
+# per-file, human-authored justification that this gate promises to print (see below). AN
+# EARLIER REVISION short-circuited on whichever matched first: if a SEAM_PATHS/DOC_PATHS
+# prefix matched, the function returned before ever reaching the marker check, so a file's
+# specific, human-written reason was silently swallowed whenever a broader path rule already
+# covered it. The boolean verdict (exempt or not) never changed — SEAM_PATHS/DOC_PATHS
+# membership alone is sufficient — but the marker's accountability promise ("every exemption
+# via this mechanism is printed with its reason on every run") was broken for exactly the
+# files where a human bothered to write one. Proven by fixture: the identical marker on the
+# identical prose printed nothing under docs/ and printed its reason in full the moment the
+# same file was moved out from under DOC_PATHS. The marker is now checked UNCONDITIONALLY,
+# never short-circuited by the coarser path match, so its reason is always surfaced when
+# present — a pure superset of what used to print, not a change to which files are exempt.
 is_exempt() {
 	_p=${1#./}
 	# This gate quotes the broker in its own explanatory comments, so it matches itself once
 	# copied into a product. A gate that fails every adopter on its own documentation is worse
 	# than no gate: the first fix anyone reaches for is deleting the gate.
 	case $1 in */no-broker-dep.sh | no-broker-dep.sh) return 0 ;; esac
-	for _pre in $SEAM_PATHS $DOC_PATHS; do
-		case $_p in "${_pre%/}"/* | "$_pre") return 0 ;; esac
-	done
+
+	_exempt=1
+
 	# A file may name the broker in order to ASSERT ITS ABSENCE. gitstate's CI carries a step
 	# called "Assert no Ephor dependency anywhere" whose grep pattern necessarily spells the
 	# broker's name — and this gate flagged it, which is the gate failing a repo for enforcing
@@ -183,18 +198,24 @@ is_exempt() {
 	# broker, and deleting the assertion would remove a real check to satisfy a false one.
 	#
 	# So a file may opt out explicitly, and the cost of doing so is that it must say why in the
-	# same breath. Every exemption is PRINTED with its reason on every run (see scan_file), so
-	# the escape hatch cannot be used quietly — an unexplained one is visible in the output and
-	# in review. Grep-hostile spelling of the marker keeps this very comment from matching it.
+	# same breath. Every exemption via this marker is PRINTED with its reason on every run it
+	# is present, unconditionally — see the header comment above for why this can no longer be
+	# short-circuited by a SEAM_PATHS/DOC_PATHS match reached first. Grep-hostile spelling of
+	# the marker keeps this very comment from matching it.
 	if grep -Iq -e "no-broker-dep""$_ALLOW_SUFFIX" "$1" 2>/dev/null; then
 		_reason=$(grep -Ihm1 -e "no-broker-dep""$_ALLOW_SUFFIX" "$1" 2>/dev/null |
 			sed "s/.*no-broker-dep$_ALLOW_SUFFIX[: ]*//" | cut -c1-100)
 		[ -n "$_reason" ] || _reason='(NO REASON GIVEN — this exemption is not accountable)'
 		printf '  EXEMPT-FILE  %s — %s\n' "$_p" "$_reason"
 		_file_exemptions=$((_file_exemptions + 1))
-		return 0
+		_exempt=0
 	fi
-	return 1
+
+	for _pre in $SEAM_PATHS $DOC_PATHS; do
+		case $_p in "${_pre%/}"/* | "$_pre") _exempt=0 ;; esac
+	done
+
+	return $_exempt
 }
 
 # ── C-DEP: the default-feature dependency closure ─────────────────────────────────────
@@ -446,6 +467,31 @@ check_startup_text() {
 }
 
 # ── C-SEAM: a declared seam must exist and must be off by default ─────────────────────
+# THE DEFECT THIS REPLACES: this function used to be an if/elif over the REPO ROOT's own
+# manifest presence (Cargo.toml, else go.mod, else "cannot verify") — the exact shape
+# check_dep_closure_one() was fixed for, one call site over, and proven wrong by fixture in
+# BOTH directions:
+#   (a) FALSE NEGATIVE — a genuinely correct, off-by-default Go build-tag seam
+#       (SEAM_PATHS="reach go.mod") sitting beside an unrelated Cargo.toml at root is never
+#       examined: the Cargo.toml branch fires first, greps Cargo.toml's [features] for a flag
+#       name that was never a cargo feature, and prints an identical "clean" message whether
+#       the real Go seam is correct or was mutated to compile the broker unconditionally.
+#   (b) FALSE POSITIVE, worse — a legitimate npm-based seam (SEAM_PATHS="package.json") is
+#       rejected outright when an UNRELATED go.mod also happens to sit at root: go.mod wins
+#       the elif, and its mechanic (grep for a `//go:build` tag) is applied to package.json,
+#       which structurally cannot contain that syntax, so a seam that was never broken FAILS
+#       the gate. Proven with C-DEP(go) and C-DEP(node) BOTH clean (the optional dependency
+#       was never even installed) — check_seam() was the SOLE source of the violation.
+# A Tauri app (Rust core + npm frontend) or a Go service with an npm binding is an ordinary
+# shape in this suite, so a polyglot root is not an edge case.
+#
+# THE FIX: classify by what SEAM_PATHS itself NAMES, not by what else happens to live at the
+# repo root. SEAM_PATHS is documented above to include the seam's own manifest/lockfile
+# (Cargo.toml/Cargo.lock, go.mod/go.sum, package.json/lockfiles) — that is the actual subject.
+# Every ecosystem the declaration names is checked independently (never elif), which also
+# answers the plurality question directly: yes, a repo may declare a seam implemented in more
+# than one ecosystem at once (a Rust core AND an npm binding gated by the same logical
+# provider, say), and each is verified on its own terms.
 check_seam() {
 	if [ -z "$SEAM_PATHS" ]; then
 		say "  C-SEAM   no seam declared — the strictest posture: the broker is named nowhere"
@@ -463,25 +509,68 @@ check_seam() {
 		fi
 	done
 	[ "$_stale" = 0 ] || return 0
-	# The seam must not be in the default feature set. Checked against the manifest the
-	# ecosystem uses; anything else is unverifiable here and says so.
-	if [ -f Cargo.toml ]; then
-		defaults=$(awk '/^\[features\]/{f=1} f&&/^default *=/{print;exit}' Cargo.toml)
-		case $defaults in
-		*"$SEAM_FLAG"*) fail "C-SEAM   feature '$SEAM_FLAG' gates the broker seam but is ON by default: $defaults" ;;
-		*) say "  C-SEAM   seam '$SEAM_FLAG' is not in Cargo.toml's default feature set" ;;
-		esac
-	elif [ -f go.mod ]; then
-		# A Go seam is a build tag; absence from the default `go list -deps` closure was
-		# already proven by C-DEP, so the remaining check is that the tag is real.
-		# shellcheck disable=SC2086 # SEAM_PATHS is a space-separated LIST of paths by design
-		if grep -rIlE "^//go:build( .*)?\\b$SEAM_FLAG\\b" $SEAM_PATHS >/dev/null 2>&1; then
-			say "  C-SEAM   seam files carry the '//go:build $SEAM_FLAG' constraint"
+
+	_seam_rust=no
+	_seam_go=no
+	_seam_npm=no
+	_seam_py=no
+	for p in $SEAM_PATHS; do
+		case $p in *Cargo.toml | *Cargo.lock) _seam_rust=yes ;; esac
+		case $p in *go.mod | *go.sum) _seam_go=yes ;; esac
+		case $p in *package.json | *package-lock.json | *yarn.lock | *pnpm-lock.yaml) _seam_npm=yes ;; esac
+		case $p in *pyproject.toml | *requirements.txt) _seam_py=yes ;; esac
+	done
+	_seam_matched=no
+
+	# Rust: the seam must not be in the default feature set. C-DEP already covers this
+	# structurally (cargo tree resolves default features), so this is a confirmatory,
+	# human-readable second check, not the only one.
+	if [ "$_seam_rust" = yes ]; then
+		_seam_matched=yes
+		if [ -f Cargo.toml ]; then
+			defaults=$(awk '/^\[features\]/{f=1} f&&/^default *=/{print;exit}' Cargo.toml)
+			case $defaults in
+			*"$SEAM_FLAG"*) fail "C-SEAM   rust: feature '$SEAM_FLAG' gates the broker seam but is ON by default: $defaults" ;;
+			*) say "  C-SEAM   rust: seam '$SEAM_FLAG' is not in Cargo.toml's default feature set" ;;
+			esac
 		else
-			fail "C-SEAM   no file under '$SEAM_PATHS' carries a '//go:build $SEAM_FLAG' constraint — the seam is compiled unconditionally"
+			cannot "C-SEAM   rust: SEAM_PATHS names a Cargo manifest/lockfile but no Cargo.toml exists at $(pwd) — the seam declaration does not match the tree"
 		fi
-	else
-		cannot "C-SEAM   cannot verify that '$SEAM_FLAG' is off by default in this ecosystem — implement it rather than assume it"
+	fi
+
+	# Go: a Go seam is a build tag; absence from the default `go list -deps` closure was
+	# already proven by C-DEP, so the remaining check is that the declared tag is real.
+	if [ "$_seam_go" = yes ]; then
+		_seam_matched=yes
+		if [ -f go.mod ]; then
+			# shellcheck disable=SC2086 # SEAM_PATHS is a space-separated LIST of paths by design
+			if grep -rIlE "^//go:build( .*)?\\b$SEAM_FLAG\\b" $SEAM_PATHS >/dev/null 2>&1; then
+				say "  C-SEAM   go: seam files carry the '//go:build $SEAM_FLAG' constraint"
+			else
+				fail "C-SEAM   go: no file under '$SEAM_PATHS' carries a '//go:build $SEAM_FLAG' constraint — the seam is compiled unconditionally"
+			fi
+		else
+			cannot "C-SEAM   go: SEAM_PATHS names a Go manifest/sum but no go.mod exists at $(pwd) — the seam declaration does not match the tree"
+		fi
+	fi
+
+	# npm/Python: no structural off-by-default mechanic is implemented for either — an
+	# `optionalDependencies` entry being present in node_modules (or a declared Python
+	# requirement) does not by itself prove the code path is default-off, the same reduced-
+	# assurance reasoning check_dep_python already states out loud for C-DEP. Reporting a
+	# pass here would be exactly the "reports success it did not earn" failure this whole
+	# script exists to avoid — say so and exit unverifiable instead of guessing.
+	if [ "$_seam_npm" = yes ]; then
+		_seam_matched=yes
+		cannot "C-SEAM   npm: SEAM_PATHS names an npm manifest/lockfile for '$SEAM_FLAG' but no structural off-by-default mechanic is implemented — an optionalDependency's presence in node_modules does not by itself prove the code path is default-off; verify by hand per substrate/SOVEREIGNTY.md §5.2 instead of assuming a pass"
+	fi
+	if [ "$_seam_py" = yes ]; then
+		_seam_matched=yes
+		cannot "C-SEAM   python: SEAM_PATHS names a Python manifest for '$SEAM_FLAG' but no structural off-by-default mechanic is implemented — verify by hand per substrate/SOVEREIGNTY.md §5.2 instead of assuming a pass"
+	fi
+
+	if [ "$_seam_matched" = no ]; then
+		cannot "C-SEAM   SEAM_PATHS ($SEAM_PATHS) names no recognised manifest/lockfile (Cargo.toml/.lock, go.mod/.sum, package.json/lockfiles, pyproject.toml/requirements.txt) — cannot identify which ecosystem's off-by-default mechanics to verify"
 	fi
 }
 
@@ -577,6 +666,43 @@ selftest() {
 		else
 			say "SELFTEST ok    '$f' -> exit $got ($what)"
 		fi
+	}
+
+	# Like expect(), but for a defect whose fix does NOT change the exit code — a reporting
+	# hole, not a verdict flip — so the only way to prove it is to inspect the OUTPUT for text
+	# that must (or must not) appear. Exit code is still captured and printed on failure for
+	# context, but is deliberately NOT asserted here; that is expect()'s job.
+	expect_output() { # $1 = fixture dir, $2 = mode(has|lacks), $3 = needle, $4 = what it proves, $5.. = env
+		f=$1 mode=$2 needle=$3 what=$4
+		shift 4
+		controls=$((controls + 1))
+		out=$(env "$@" sh "$self" "$tmp/$f" 2>&1)
+		case $mode in
+		has)
+			case $out in
+			*"$needle"*)
+				say "SELFTEST ok    '$f' -> output contains expected text ($what)"
+				;;
+			*)
+				say "SELFTEST FAIL  '$f': expected output to CONTAIN: $needle — $what"
+				printf '%s\n' "$out" | sed 's/^/    | /'
+				rc=1
+				;;
+			esac
+			;;
+		lacks)
+			case $out in
+			*"$needle"*)
+				say "SELFTEST FAIL  '$f': expected output to NOT contain: $needle — $what"
+				printf '%s\n' "$out" | sed 's/^/    | /'
+				rc=1
+				;;
+			*)
+				say "SELFTEST ok    '$f' -> output correctly omits text ($what)"
+				;;
+			esac
+			;;
+		esac
 	}
 
 	# ---- Rust controls -----------------------------------------------------------------
@@ -897,6 +1023,137 @@ selftest() {
 		unexercised="$unexercised polyglot(no-go-or-npm-toolchain)"
 	fi
 
+	# ---- DEFECT 6 (this fix) — the SAME bug class as DEFECT 2/3/5, one function over:
+	# check_seam() used to be an if/elif over the REPO ROOT's own manifest existence
+	# (Cargo.toml, else go.mod, else "cannot verify"), so a declared seam's OWN ecosystem was
+	# never what got checked — whichever manifest happened to ALSO exist at root won,
+	# regardless of what SEAM_PATHS actually named. Proven by fixture in BOTH directions:
+	# a correct, off-by-default Go build-tag seam sitting beside an unrelated Cargo.toml at
+	# root was silently never examined (Cargo.toml won the elif, checked its own [features]
+	# for a flag name that was never a cargo feature, and printed the IDENTICAL "clean"
+	# message whether the real Go seam was correct or mutated to compile the broker
+	# unconditionally — isolating check_seam() alone from check_dep_closure() proved this).
+	# Worse: a legitimate npm-based seam that was never even installed (genuinely off by
+	# default — no node_modules/ at all) was REJECTED by the gate when an unrelated go.mod
+	# also sat at root, because the Go branch's mechanic (grep for a `//go:build` tag) was
+	# applied to package.json, which structurally cannot contain that syntax — a false FAIL
+	# with C-DEP(go) and C-DEP(node) both independently clean, so check_seam() alone was the
+	# sole source of the violation. check_seam() now classifies by what SEAM_PATHS itself
+	# names (Cargo.toml/.lock, go.mod/.sum, package.json/lockfiles), independently per
+	# ecosystem, never elif — see its own header comment for the full account.
+	if command -v cargo >/dev/null 2>&1 && command -v go >/dev/null 2>&1; then
+		ran=$((ran + 1))
+		expected_controls=$((expected_controls + 2))
+
+		# CONTROL A — a genuinely correct, off-by-default Go build-tag seam declared via
+		# SEAM_PATHS="reach go.mod", with an UNRELATED Cargo.toml (no [features] section at
+		# all) also at root. An if/elif over root manifest existence takes the Cargo.toml
+		# branch first and never looks at the declared Go seam at all; the fix must verify it.
+		mkdir -p "$tmp/seam_go_root_has_cargo/src" "$tmp/seam_go_root_has_cargo/reach"
+		cat >"$tmp/seam_go_root_has_cargo/Cargo.toml" <<-'EOF'
+			[package]
+			name = "seam_go_root_has_cargo"
+			version = "0.0.0"
+			edition = "2021"
+		EOF
+		echo 'pub fn stub() {}' >"$tmp/seam_go_root_has_cargo/src/lib.rs"
+		cat >"$tmp/seam_go_root_has_cargo/go.mod" <<-'EOF'
+			module example.test/seam_go_root_has_cargo
+
+			go 1.21
+
+			require example.test/ephorclient v0.0.0
+
+			replace example.test/ephorclient => ../ephorclient
+		EOF
+		printf 'package main\n\nimport "example.test/seam_go_root_has_cargo/reach"\n\nfunc main() { println(reach.Provider()) }\n' \
+			>"$tmp/seam_go_root_has_cargo/main.go"
+		printf '//go:build !broker\n\npackage reach\n\nfunc Provider() string { return "direct" }\n' \
+			>"$tmp/seam_go_root_has_cargo/reach/default.go"
+		printf '//go:build broker\n\npackage reach\n\nimport "example.test/ephorclient"\n\nfunc Provider() string { return ephorclient.Dial() }\n' \
+			>"$tmp/seam_go_root_has_cargo/reach/broker.go"
+		expect seam_go_root_has_cargo 0 \
+			"a correct, off-by-default Go build-tag seam is genuinely verified even when an UNRELATED Cargo.toml also sits at root (not silently skipped because Cargo.toml won an elif)" \
+			'BROKER_RE=ephor|vulos-relayd' SEAM_PATHS='reach go.mod' SEAM_FLAG=broker
+
+		# CONTROL B — the SAME fixture, but the Go seam is now BROKEN (the build tag removed,
+		# so the broker compiles unconditionally). check_seam() itself must name the
+		# violation, not merely ride on C-DEP's independent catch of the same underlying break.
+		mkdir -p "$tmp/seam_go_root_has_cargo_broken/src" "$tmp/seam_go_root_has_cargo_broken/reach"
+		cp "$tmp/seam_go_root_has_cargo/Cargo.toml" "$tmp/seam_go_root_has_cargo_broken/Cargo.toml"
+		cp "$tmp/seam_go_root_has_cargo/src/lib.rs" "$tmp/seam_go_root_has_cargo_broken/src/lib.rs"
+		cp "$tmp/seam_go_root_has_cargo/go.mod" "$tmp/seam_go_root_has_cargo_broken/go.mod"
+		cp "$tmp/seam_go_root_has_cargo/main.go" "$tmp/seam_go_root_has_cargo_broken/main.go"
+		printf 'package reach\n\nimport "example.test/ephorclient"\n\nfunc Provider() string { return ephorclient.Dial() }\n' \
+			>"$tmp/seam_go_root_has_cargo_broken/reach/broker.go"
+		expect seam_go_root_has_cargo_broken 1 \
+			"the SAME fixture with the Go build tag removed (broker compiled unconditionally) still FAILS, with C-SEAM itself now able to name the violation, not only C-DEP" \
+			'BROKER_RE=ephor|vulos-relayd' SEAM_PATHS='reach go.mod' SEAM_FLAG=broker
+	else
+		unexercised="$unexercised seam-ecosystem-mismatch(no-cargo-or-go)"
+	fi
+
+	if command -v go >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+		ran=$((ran + 1))
+		expected_controls=$((expected_controls + 1))
+
+		# CONTROL C — the sharper proof of the false-POSITIVE direction: a legitimate
+		# npm-based seam that was NEVER INSTALLED at all (genuinely off by default — no
+		# node_modules/, nothing for `npm ls` to find), with an UNRELATED go.mod also at
+		# root. The if/elif this replaces took the go.mod branch and applied its
+		# `//go:build` grep to package.json, which cannot contain that syntax, producing a
+		# FALSE VIOLATION against a product with no real dependency anywhere: C-DEP(go) and
+		# C-DEP(node) are both independently clean here, so a FAIL could only have come from
+		# C-SEAM misjudging the wrong ecosystem. The fix must report this as unverifiable —
+		# npm has no structural off-by-default mechanic here — never a false FAIL and never
+		# a false PASS either.
+		mkdir -p "$tmp/seam_npm_root_has_go"
+		printf 'module example.test/seam_npm_root_has_go\n\ngo 1.21\n' >"$tmp/seam_npm_root_has_go/go.mod"
+		printf 'package main\n\nfunc main() {}\n' >"$tmp/seam_npm_root_has_go/main.go"
+		cat >"$tmp/seam_npm_root_has_go/package.json" <<-'EOF'
+			{
+			  "name": "seam-npm-root-has-go",
+			  "version": "0.0.0",
+			  "private": true,
+			  "optionalDependencies": { "ephor-client": "0.0.0" }
+			}
+		EOF
+		expect seam_npm_root_has_go 2 \
+			"a genuinely off-by-default npm seam (never installed) beside an UNRELATED go.mod at root is CANNOT-CHECK, never a false FAIL from applying Go build-tag mechanics to package.json" \
+			'BROKER_RE=ephor|vulos-relayd' SEAM_PATHS=package.json SEAM_FLAG=ephor-client
+	else
+		unexercised="$unexercised seam-ecosystem-mismatch-npm(no-go-or-npm)"
+	fi
+
+	# ---- DEFECT 7 (this fix) — is_exempt() dropped a reason, not a verdict. A file CAN be
+	# exempt via more than one mechanism at once (a DOC_PATHS/SEAM_PATHS prefix match AND its
+	# own :allow-file marker), and an earlier revision short-circuited on whichever matched
+	# first: if the coarse path prefix matched, the function returned before ever reaching the
+	# marker, so a human-authored, more specific reason was silently swallowed whenever a
+	# broader rule already covered the same file. The boolean verdict never changed (either
+	# mechanism alone already exempts the file), so this is NOT the exit-code-flipping shape
+	# check_seam()/check_dep_closure() were fixed for — it is the adjacent one: "one mechanism
+	# prints a reason and another doesn't", a reporting hole even though the answer stayed
+	# right. Needs no toolchain at all: is_exempt() is pure path/text logic. Unconditional.
+	ran=$((ran + 1))
+	expected_controls=$((expected_controls + 2))
+
+	mkdir -p "$tmp/dual_exempt_reason/docs"
+	printf 'Some docs prose about the Ephor broker.\nno-broker-dep%s this paragraph quotes a THIRD PARTY notice verbatim, unrelated to why docs/ is exempt at all\n' \
+		"$_ALLOW_SUFFIX" >"$tmp/dual_exempt_reason/docs/mentions.md"
+	expect_output dual_exempt_reason has \
+		'EXEMPT-FILE  docs/mentions.md — this paragraph quotes a THIRD PARTY notice verbatim' \
+		"a file exempt via BOTH a DOC_PATHS prefix match AND its own :allow-file marker still prints the marker's specific reason — not silently swallowed by the broader path rule reached first" \
+		'BROKER_RE=ephor|vulos-relayd'
+
+	# NEGATIVE control — the same DOC_PATHS-exempt directory, but a file with NO marker at
+	# all. Must stay silent about that file: the fix is a pure superset of what used to print,
+	# not new noise on the common case (a docs/ tree with no per-file marker at all).
+	printf 'Just plain documentation prose about Ephor, no marker.\n' >"$tmp/dual_exempt_reason/docs/plain.md"
+	expect_output dual_exempt_reason lacks 'plain.md' \
+		"a DOC_PATHS-exempt file with NO marker prints nothing extra — the fix adds no noise to the common case" \
+		'BROKER_RE=ephor|vulos-relayd'
+
 	# ---- Repo-self-declaration controls (`.no-broker-dep-self`) — unconditional: this
 	# mechanism short-circuits before check_dep_closure/check_startup_text ever run, so it
 	# needs no toolchain at all. The fixture tree is otherwise EMPTY (no manifest, no source),
@@ -949,9 +1206,14 @@ selftest() {
 		say "               disclaimer-only doc passes while a real dependency behind one still fails, a"
 		say "               generated dist-lib/ bundle is pruned like node_modules/target, a broker named"
 		say "               ONLY in the second of two manifests sharing a directory still fails and an"
-		say "               unreadable second closure is cannot-check not a pass, a reasoned"
-		say "               .no-broker-dep-self exits 0 having run nothing, and an unreasoned one is"
-		say "               ignored outright. The gate is not inert."
+		say "               unreadable second closure is cannot-check not a pass, a correct Go"
+		say "               build-tag seam is genuinely verified (not silently skipped) when an"
+		say "               unrelated Cargo.toml also sits at root, a genuinely off-by-default npm"
+		say "               seam beside an unrelated go.mod is cannot-check rather than a false FAIL, a"
+		say "               file exempt via a path rule AND its own marker still prints the marker's"
+		say "               reason (never silently swallowed), a reasoned .no-broker-dep-self exits 0"
+		say "               having run nothing, and an unreasoned one is ignored outright. The gate is"
+		say "               not inert."
 	else
 		say "SELFTEST FAIL  a control did not behave as specified — do NOT trust a clean run of this gate"
 		say "               until it does."
