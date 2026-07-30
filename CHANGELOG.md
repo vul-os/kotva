@@ -11,6 +11,28 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **docs/research: `docs/research/PRIMITIVES.md § 7` — the recurring-instalment addendum for `PAY`
+  (backlog C5, 2026-07-30).** `PAY` is named in `SPEC.md` as one of the seven waist terms but is
+  explicitly a coordinator/binding role, not an owned primitive doc (`PAY = the x402/stablecoin
+  binding`) — so this addendum lives at that same level, not as a new `primitives/PAY.md` and
+  **not inside a profile**, correcting the backlog item's own "profile-level" framing: a profile is
+  where wire bytes get frozen for one domain, and recurring settlement is a cross-profile *pattern of
+  PAY usage*, exactly the layer ESCROW's shape already occupies above TRACT's frozen bytes. Generalised
+  by hand from a separate product's design (`patala/patala-stellar/src/recurring.rs`, read for its
+  design only, never as a dependency) — N pre-signed, time-bounded transfers on a dedicated account,
+  demonstrated **once, on Stellar testnet**, real Horizon rejecting an early resubmission
+  (`tx_bad_minseq_age_or_gap`) and a post-cancellation instalment (`tx_bad_seq`). The addendum separates
+  what is Stellar-specific (`PreconditionsV2`, sequence chaining, `BUMP_SEQUENCE`) from what is general
+  (enforced spacing, independent per-instalment authorisation, unilateral payer-side cancellation, no
+  protocol custody), states the normative rules a future binding/profile MUST carry, and requires a
+  rail unable to provide rail-enforced spacing/cancellation (a typical custodial fiat "subscription" API)
+  to be **refused, not silently degraded** — the same treatment patala already gives
+  `atomic_multi_party`. **No wire bytes, no wire id, and no coordinator kind allocated** — deliberately
+  left to whichever profile freezes recurring's bytes first, the same PROVISIONAL treatment ESCROW gives
+  `EscrowTransition`/`EscrowRuling`. `bindings/README.md`'s "Streaming / subscriptions" row and
+  `SPEC.md`'s `PAY` paragraph both gained a one-line pointer. **kotva itself implements nothing here** —
+  this is a spec answer to "which layer owns this," not a new capability.
+
 - **substrate: `substrate/SOVEREIGNTY.md` — the adoption contract for products that are not the
   reference implementation pair (owner ruling, 2026-07-30).** KOTVA is the substrate: this
   specification plus the published shared libraries (`kotva-core`, `kotva-sync`, `kotva-sync-wasm`,

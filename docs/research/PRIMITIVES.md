@@ -198,7 +198,148 @@ published score or a protocol token** ([DIRECTION §5](../../DIRECTION.md),
 
 ---
 
-## 7. Honest residual
+## 7. PAY — recurring instalments as a rail-agnostic pattern, not a seventh primitive
+
+> **Backlog C5, answered 2026-07-30.** `PAY` is named in [`SPEC.md § ③`](../../SPEC.md) as one of
+> the seven waist terms (`OFFER · MATCH/RESERVE · REPUTATION · ESCROW · ORACLE · DISPUTE · PAY`) but
+> — unlike OFFER/MATCH/RESERVE/REPUTATION/ATTEST/ESCROW above — it is explicitly **not** an owned
+> primitive doc: `SPEC.md` states plainly that `PAY = the x402/stablecoin binding`, i.e. its whole
+> content already lives in [`bindings/README.md`](../../bindings/README.md). This section is written
+> at that same level — a binding-adjacent design brief — **not** as a new `primitives/PAY.md`, and
+> **not** inside a profile. The reasoning for landing one level above "profile" rather than inside
+> one, since the backlog item's own title proposed "profile-level":
+>
+> - A profile is where **wire bytes get frozen for one domain** (TRACT's `Offer`/`Review`, WRAP's
+>   `Assignment`). Recurring settlement is not domain bytes — it is a *pattern of PAY usage* that
+>   TRACT, WRAP, media, and any future profile all want unchanged, exactly the way ESCROW's shape (§6
+>   above) is written once, above every profile, and only its concrete `EscrowTransition`/
+>   `EscrowRuling` bytes are left PROVISIONAL for whichever profile freezes them first.
+> - PAY has no owned primitive doc to attach this to (unlike ESCROW/RESERVE), so the semantics belong
+>   at PAY's own existing home — the binding index — generalised as a design brief the way this whole
+>   document generalised ATTEST/ESCROW/RESERVE **before** any profile had frozen their bytes.
+> - Concretely: **actual wire bytes for a recurring schedule object remain unspecified here, on
+>   purpose**, and **no wire id is allocated** — that is a profile-and-registry decision
+>   (`003-kinds-registry.md`-style coordination is an owner call for wire ids in general; see
+>   `substrate/ADOPTION.md` and `18-wire-format.md` for the existing allocation discipline). If a
+>   profile later needs `RecurringPlan` on the wire, it freezes the bytes there, citing this section
+>   for the rules those bytes must satisfy — same relationship ESCROW already has with TRACT.
+
+### 7.1 What triggered this section
+
+`patala` (a separate product, read for its **design**, never as a dependency — KOTVA does not import
+from products) built and demonstrated, once, on Stellar **testnet**: N pre-signed, time-bounded
+transactions on one dedicated source account, using Stellar's `PreconditionsV2`
+(`min_seq_age`/`min_seq_ledger_gap`) to make early redemption **network-rejected**, cancellable by one
+`BUMP_SEQUENCE` that permanently invalidates every remaining instalment
+(`patala-stellar/src/recurring.rs`, `patala-stellar/README.md` §"The recurring primitive"). Real
+Horizon rejected an early resubmission with `tx_bad_minseq_age_or_gap` and a post-cancellation
+instalment with `tx_bad_seq` — the network enforced both properties, not just the client library.
+**This is the first working reference for what "recurring" can mean without a smart contract or a
+custodial standing mandate**, so it is worth generalising from — carefully, and only as far as the
+evidence reaches (§7.4).
+
+### 7.2 Stellar-specific vs genuinely general
+
+The crux this section exists to get right. Reading `recurring.rs` line by line:
+
+| In patala's implementation | Rail-specific (Stellar) | The general property it demonstrates |
+|---|---|---|
+| `PreconditionsV2.min_seq_age` / `min_seq_ledger_gap` | Yes — a field that exists **only** inside Stellar's `PreconditionsV2`; `Preconditions::None`/`Time` (an absolute calendar window) cannot express it | **Enforced spacing**: the payee cannot redeem instalment *i+1* before a stated interval has elapsed since instalment *i* actually settled, and this is checked by the network/rail itself, not by client-side trust |
+| Sequence-number chaining (`min_seq_num: None` ⇒ "exactly `seqNum − 1`") | Yes — Stellar's account-sequence model specifically | **Independent per-instalment authorisation**: each instalment is a separately pre-signed transfer decided in full at authorisation time; no instalment grants the payee any right to another one, and none may be redeemed out of order or ahead of schedule |
+| `BUMP_SEQUENCE` as the cancellation op | Yes — a Stellar-specific operation | **Unilateral, payer-side cancellation**: the payer can, in one action and without the payee's cooperation or signature, permanently void every not-yet-settled instalment |
+| "Dedicated source account" (never used for anything else) | An implementation precaution specific to how Stellar sequence numbers are shared across all of an account's activity | Not general at all — it is a workaround for a Stellar-specific coupling (ordinary wallet activity would otherwise desynchronise the chain). A rail without a single shared per-account sequence counter has no analogous need |
+| `min_seq_num` deliberately left `None`, not the looser shared-window variant | Stellar-specific spec knob | General **lesson**, not mechanism: a "relaxed ordering" mode that tolerates a skipped instalment is real and tempting, but here it also lets whoever holds the signed set jump straight to a later instalment and burn every one between — patala declined it for exactly this reason. Any binding offering "skip-tolerant" recurring MUST show it cannot be exploited the same way, not merely assume the temptation is rail-specific |
+| Non-custodial, no contract, no standing mandate | **General.** This is the property the mechanism exists to prove, not an accident of Stellar | — |
+
+**The general pattern, stated rail-agnostically:** a **recurring instalment plan** is *N
+separately-authorised transfers of a fixed amount and asset from payer to payee, spaced by a stated
+interval that the payee cannot shorten unilaterally, established once and cancellable in one payer-side
+action, with no protocol-held or contract-held custody of undelivered funds at any point.* Stellar's
+`PreconditionsV2` is **one way** to realise "enforced spacing" and "unilateral cancellation"; it is not
+what those properties mean. A payment-channel/state-channel rail (the existing
+[`bindings/README.md`](../../bindings/README.md) "Streaming / subscriptions" row — Lightning, a
+Superfluid-class stream) realises the same two properties by a structurally different mechanism (a
+unilateral-close timeout instead of a sequence precondition); a custodial fiat "subscription" API
+realises neither cryptographically at all (§7.3).
+
+### 7.3 Normative rules a binding/profile ratifying this pattern MUST carry
+
+Following this document's own convention (§0): these are the rules a future binding entry or a
+profile that freezes recurring's wire bytes MUST adopt, not bytes this document freezes.
+
+- **MUST fix amount, asset, count (or an explicit renewal point), and spacing at authorisation time.**
+  A recurring plan is not an open-ended standing mandate the payee can redefine; every instalment's
+  terms are decided once, up front, by the payer (patala's `RecurringPlan` — count, amount, asset,
+  spacing all fixed fields, refused rather than built if the count is unbounded/absurd).
+- **MUST make every instalment independently authorised, never a shared-window grant.** A binding MUST
+  NOT let holding one instalment's authorisation confer any right to a different instalment,
+  out of order or ahead of its own spacing floor (§7.2's `min_seq_num` lesson — declined by patala, not
+  yet proven safe by anyone).
+- **MUST give the payer a unilateral cancellation action.** Cancellation MUST NOT require the payee's
+  signature, cooperation, or acknowledgement, and MUST be effective in one step against every
+  not-yet-settled instalment at once — never a per-instalment revocation list the payer has to work
+  through under time pressure.
+- **MUST NOT let the protocol or any coordinator custody funds in flight for a recurring schedule** —
+  the same rule ESCROW states as N-1 (§3 above), restated for PAY: funds move directly between the
+  payer's and payee's own accounts on the rail; a recurring schedule is never a reason to introduce a
+  holding party.
+- **MUST disclose, per instalment, whether spacing and cancellation are *rail-enforced* or
+  *cooperative-only*** — never present the weaker as the stronger. Rail-enforced means the network
+  itself rejects an early or post-cancellation redemption attempt (proven, for Stellar, by real
+  Horizon `tx_bad_minseq_age_or_gap`/`tx_bad_seq` responses in §7.1 — not merely by client-side logic).
+  Cooperative-only means the payee could technically attempt it and something else (contract law,
+  chargeback, reputational cost) is the only deterrent.
+
+### 7.4 A rail that cannot provide this MUST be refused, not silently degraded
+
+Exactly the pattern patala already applies to atomic multi-party settlement
+(`RailCapabilities::atomic_multi_party` / `require_atomic_multi_party` — `patala-core/src/capabilities.rs`,
+returning `Error::Unsupported` rather than quietly executing N independent operations with no shared
+guarantee): **a binding or profile that offers "recurring" as a feature MUST expose a capability a
+caller can check, and MUST refuse a request for *rail-enforced* recurring on a rail that cannot
+provide §7.3's spacing/cancellation guarantees — never silently downgrade to the cooperative-only
+form while claiming the stronger one.**
+
+The case this exists for is named explicitly, per [`DIRECTION § 5`](../../DIRECTION.md)'s own
+acknowledgement that a **fiat rail is a legitimate operator choice**, not a lesser citizen: a typical
+custodial-processor "subscription"/recurring-billing API (Stripe-class, `RailClass::CustodialReversible`
+in patala's own vocabulary) is a **payee-initiated pull**, authorised once by the payer. Nothing on that
+rail structurally stops the processor (or the payee behind it) from attempting an out-of-schedule
+charge before a cancellation is processed — the payer's recourse is a chargeback or dispute *after the
+fact*, not a network rejection *before* it happens. That rail can offer real, useful recurring billing;
+it cannot honestly claim §7.3's rail-enforced spacing or unilateral, immediately-effective cancellation,
+and a spec-conformant implementation MUST say so rather than present card-network "subscriptions" as
+equivalent to a Stellar-precondition-enforced schedule or a payment-channel timeout. This is the same
+honesty patala already enforces structurally for atomic splits (`atomic_multi_party: false` on every one
+of its 20+ fiat rails, grepped and asserted in its own test suite) — recurring earns the identical
+treatment here, in the spec, even though nothing in kotva itself implements a capability struct today.
+
+### 7.5 Honest ceiling — what this section is evidence of, and what it is not
+
+- **Demonstrated exactly once**, by a separate product, on Stellar **testnet**: one 3-instalment
+  schedule, one dedicated throwaway account, an ~8-second spacing floor. That is real evidence the
+  *pattern* (enforced spacing + unilateral cancellation without a contract or custody) is achievable —
+  it is not evidence the pattern is proven **across rails**. Mainnet is untouched. No other chain rail,
+  no payment-channel binding, and no fiat rail has been exercised against §7.3 at all.
+  **kotva itself has implemented nothing here** — this section is a design brief, exactly like the six
+  above were before any profile used them.
+- **A second, structurally-different proof would strengthen this the way personhood required ≥2
+  structurally-different anchors** ([`bindings/README.md`](../../bindings/README.md) "Personhood — v0
+  requires ≥2 structurally-different bindings"). A payment-channel/state-channel demonstration of the
+  same two properties (spacing + cancellation) by a genuinely different mechanism is the natural next
+  data point — not required to write these rules down, but required before treating the *pattern* (as
+  opposed to one rail's realisation of it) as validated.
+- **No wire bytes, no wire id, no coordinator kind.** Whether a `RecurringPlan`-shaped object ever
+  needs its own MOTE kind or rides inside an existing `PaymentAttestation`-style object is left to
+  whichever profile freezes it — deliberately unresolved here, the same way ESCROW leaves
+  `EscrowTransition`/`EscrowRuling` PROVISIONAL (§2, §10 above).
+- **C5 is answered as a spec question, not closed as a shipped capability.** "Where does recurring
+  PAY semantics belong" now has a written answer (§7's own header) and a rule set (§7.3–§7.4) a future
+  binding/profile can ratify against. Nothing about what any product actually does changed today.
+
+---
+
+## 8. Honest residual
 
 - **Every primitive keeps its coordinator non-load-bearing except one, and it says so.** OFFER,
   REPUTATION, MATCH, ATTEST degrade to local-trust versions offline (web-of-trust, local order book,

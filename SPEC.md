@@ -149,7 +149,11 @@ vocabulary of its own.
 `ORACLE` (physical-event attestation), `DISPUTE` (staked arbitration), and `PAY` (stablecoin
 settlement) are **coordinator/binding** roles rather than owned primitive docs: ORACLE ⊂ ATTEST +
 the `oracle` kind; DISPUTE = the `arbiter` kind + Kleros binding; PAY = the x402/stablecoin binding.
-The design brief for all six is [`docs/research/PRIMITIVES.md`](docs/research/PRIMITIVES.md).
+The design brief for all six is [`docs/research/PRIMITIVES.md`](docs/research/PRIMITIVES.md), which
+also carries a **recurring-instalment addendum for PAY** (§7) — a rail-agnostic pattern (fixed
+schedule, enforced spacing, unilateral cancellation, no protocol custody) generalised from one
+product's testnet-only demonstration on one rail, deliberately not promoted to owned-primitive or
+wire-frozen status.
 
 ---
 
