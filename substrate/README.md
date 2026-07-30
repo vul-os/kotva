@@ -181,7 +181,7 @@ test (see [`SYNC.md`](SYNC.md)).
 > binding, never *the* binding.
 
 This is already true for Feeds: **kerf-pub** (the reference implementation at
-`/Users/pc/code/vulos/kerf/packages/kerf-pub`) serves the §22 `/.well-known/dmtap-pub/…` surface as static
+`kerf`/packages/kerf-pub`) serves the §22 `/.well-known/dmtap-pub/…` surface as static
 files behind an ordinary web server and **proves §22 works over plain HTTPS with no mesh** — a fetcher
 validates the signed `FeedHead`, walks the `prev` chain, and checks each content address, trusting the
 server for *nothing* (§22.5.1). Identity resolves over DNS + KT with no mesh (§3.3). Sync's wire protocol
@@ -227,8 +227,8 @@ standard or required to speak it. These are named only as existence proofs that 
 | Capability | Reference implementation | Proves |
 |------------|--------------------------|--------|
 | Identity, MOTE | the core spec's own implementations (§1, §2, `conformance/`) | no standalone substrate-only implementation is needed — both are profiled directly by the numbered spec |
-| PUB (Feeds & Blobs) | **kerf-pub** (`/Users/pc/code/vulos/kerf/packages/kerf-pub`) | §22 served over plain HTTPS, no mesh (the HTTP test) |
-| SYNC | **flowstock** stateless sync (`/Users/pc/code/vulos/flowstock`); **dmtap-clustersync** CRDTs (`/Users/pc/code/vulos/envoir`) | the op algebra + `/sync/vector`·`/sync/pull`·`/sync/ops` wire (the flowstock test) |
+| PUB (Feeds & Blobs) | **kerf-pub** (`kerf`/packages/kerf-pub`) | §22 served over plain HTTPS, no mesh (the HTTP test) |
+| SYNC | **flowstock** stateless sync (`flowstock`); **kotva-clustersync (still in envoir)** CRDTs (`this repository`) | the op algebra + `/sync/vector`·`/sync/pull`·`/sync/ops` wire (the flowstock test) |
 | Transport, Roles & Wake | **Ephor** (`github.com/vul-os/ephor`) — `vulos-relayd`'s rendezvous role (`tunnel/rendezvous`) and pubcache role (`tunnel/pubcache`); the `relay` crate for circuit relay | announce-resolve / signalling / mailbox / cache-pin are real and content-blind (rendezvous + pubcache), and circuit relay is a real, tested libp2p Circuit Relay v2 server (the `relay` crate) — wake has no reference implementation |
 
 Independent implementations **MUST** be buildable from the substrate documents and the core spec alone,
@@ -237,7 +237,7 @@ without reading any of the above (repository README). Where a reference and the 
 **One core, many surfaces, and today's honest gap.** The suite currently has roughly five independently
 hand-rolled sync/identity/feed implementations across its products, none byte-interoperable with any other.
 [`BINDINGS.md`](BINDINGS.md) is the plan for closing that the right way — one compiled Rust core
-(`dmtap-core`/`dmtap-clustersync`/`dmtap-sync` in `/Users/pc/code/vulos/envoir`), thin per-language bindings
+(`kotva-core`/`kotva-clustersync (still in envoir)`/`kotva-sync` in `this repository`), thin per-language bindings
 (native Rust, C-ABI/cgo for Go, WASM for browser/JS, UniFFI for mobile if ever needed), and the frozen
 conformance vectors as the cross-surface proof that a binding is byte-identical to the core rather than a
 sixth reimplementation. [`ADOPTION.md`](ADOPTION.md) is the honest, per-product status matrix that plan is

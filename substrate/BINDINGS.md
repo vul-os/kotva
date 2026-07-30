@@ -63,7 +63,7 @@ binding surface of its own here: it is exercised through MOTE delivery and the R
 The capability numbering used in the table below is local to this document; the canonical numbering
 is [`substrate/README.md` §2](README.md).
 
-**No binding infrastructure exists yet.** A direct search of the envoir repository found **zero**
+**Binding infrastructure now exists in this repository.** When this section was written a search of envoir found **zero**
 `wasm-bindgen`, **zero** `#[no_mangle] extern "C"` FFI exports, **zero** `uniffi`/`.udl`/`uniffi.toml`, and
 **zero** `cbindgen` configuration. The one `extern "C"` hit in the whole tree
 (`gateway/src/main.rs:26`, a POSIX signal handler) is unrelated to cross-language bindings. There is no
@@ -249,7 +249,7 @@ through a core binding, per the current state recorded in [`ADOPTION.md`](ADOPTI
 
 ## 7. Summary
 
-One core (`dmtap-core` + `dmtap-clustersync` + `dmtap-sync`, all in `/Users/pc/code/vulos/envoir`), four
+One core (`kotva-core` + `kotva-sync` here, `dmtap-clustersync` still in envoir), four
 possible surfaces (native Rust, cgo/C-ABI for Go, `wasm-bindgen` for JS, UniFFI for mobile if a native app
 is ever scoped), one proof obligation (the frozen conformance vectors run through *every* binding, not just
 the native crate), one real disclosed cost (cgo vs. D23/J's pure-Go decision, with a sidecar or a Go-native

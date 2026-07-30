@@ -272,7 +272,7 @@ run_gate() {
 	check_seam
 	say ""
 	if [ "$violations" -gt 0 ]; then
-		say "FAIL  $violations of 3 checks found violations: the default build or startup path depends"
+		say "FAIL  $violations violation(s) found: the default build or startup path depends"
 		say "      on, or names, the broker. R-SOV-1 (substrate/SOVEREIGNTY.md §3.1) requires the"
 		say "      default path to work with no broker present; a broker may only sit behind a"
 		say "      declared, default-off seam whose removal costs reachability from behind NAT and"

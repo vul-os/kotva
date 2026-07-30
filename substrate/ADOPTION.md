@@ -21,13 +21,13 @@ relevant to the product but nothing exists yet.
 
 | Product | Identity ① | Feeds & Blobs ② | Sync ③ | Roles ④ | Wake ⑤ |
 |---|---|---|---|---|---|
-| **envoir** (`/Users/pc/code/vulos/envoir`) | to-spec | to-spec | to-spec | partial | not built |
-| **vulos** (`/Users/pc/code/vulos/vulos`) | independent (×2) | independent | independent (×2) | independent | independent** |
-| **diwan** (`/Users/pc/code/vulos/diwan`) | minimal | n/a | **partial**† | independent | n/a |
-| **flowstock** (`/Users/pc/code/vulos/flowstock`) | minimal | n/a | independent (partial algebra) | n/a | n/a |
-| **vidmesh** (`/Users/pc/code/vulos/vidmesh`) | independent*** | independent (founder-gated convergence) | n/a | partial | not built |
-| **whatsacc** (`/Users/pc/code/whatsacc`) | minimal | n/a | n/a | n/a | n/a |
-| **kerf-pub** (`/Users/pc/code/vulos/kerf/packages/kerf-pub`) | minimal | to-spec | n/a | to-spec (cache/pin only) | independent |
+| **envoir** (`envoir`) | to-spec | to-spec | to-spec | partial | not built |
+| **vulos** (`vulos`) | independent (×2) | independent | independent (×2) | independent | independent** |
+| **diwan** (`diwan`) | minimal | n/a | **partial**† | independent | n/a |
+| **flowstock** (`flowstock`) | minimal | n/a | independent (partial algebra) | n/a | n/a |
+| **vidmesh** (`vidmesh`) | independent*** | independent (founder-gated convergence) | n/a | partial | not built |
+| **whatsacc** | minimal | n/a | n/a | n/a | n/a |
+| **kerf-pub** (`kerf`/packages/kerf-pub`) | minimal | to-spec | n/a | to-spec (cache/pin only) | independent |
 
 † **The substrate's first real product adoption.** diwan's **Sheets** grid now runs on the shared
 `dmtap-sync` engine (vendored as `dmtap-sync-wasm`) — the same compiled implementation, not a
@@ -47,7 +47,7 @@ as an informative note — convergent by influence, not by wire compatibility.
 
 ## 2. Per-product detail
 
-### envoir — `/Users/pc/code/vulos/envoir`
+### envoir — `envoir`
 
 The reference core (see [`BINDINGS.md`](BINDINGS.md) for the full crate layout).
 
@@ -78,7 +78,7 @@ The reference core (see [`BINDINGS.md`](BINDINGS.md) for the full crate layout).
 - **Wake — not built.** No VAPID/Web Push/UnifiedPush code found anywhere in the workspace. **What would
   close the gap:** implement `PushSubscription`/`WakePing` per [`ROLES.md § 8`](ROLES.md#8-wake--content-free-sender-blind-push-capability-⑤-profile-of-49) — envoir has no wake path today, so this is greenfield, not a rewrite.
 
-### vulos — `/Users/pc/code/vulos/vulos`
+### vulos — `vulos`
 
 The main suite (control plane, OS, apps). Two largely disconnected identity/sync stories live in this one
 repo — the ordinary product auth path, and a separately-designed peering subsystem that is far closer to
@@ -121,7 +121,7 @@ the substrate's shape without speaking its bytes.
   defines as Wake. **What would move it:** add a second, genuinely content-free `WakePing` path
   alongside the existing notification push, rather than repurposing the notification payload.
 
-### diwan — `/Users/pc/code/vulos/diwan`
+### diwan — `diwan`
 
 - **Identity — minimal.** No per-user keypair is used as sync/session identity; the P2P room model is
   **capability-by-shared-key** (an invite link embeds `{roomId, roomKey, cap}`, HKDF-derived AES-GCM +
@@ -184,7 +184,7 @@ the substrate's shape without speaking its bytes.
 - **Wake — n/a.** No VAPID/web-push/UnifiedPush code found; nothing in diwan's design implies it needs one
   independent of whatever the host product (Workspace/Meet) already provides.
 
-### flowstock — `/Users/pc/code/vulos/flowstock`
+### flowstock — `flowstock`
 
 - **Identity — minimal.** `backend/internal/store/identity.go` gives every node a per-node Ed25519 keypair
   used to sign op batches, but there is no naming ladder above it (no DNS, no KT, no `DeviceCert`, no
@@ -207,7 +207,7 @@ the substrate's shape without speaking its bytes.
   over a network it doesn't need to traverse NAT for in the same sense a P2P messaging product does).
 - **Wake — n/a.** No push/wake mechanism, and nothing in flowstock's design implies it needs one.
 
-### vidmesh — `/Users/pc/code/vulos/vidmesh`
+### vidmesh — `vidmesh`
 
 A substantial, independently-specified Rust protocol (its own `spec/000-007*.md`) that is *convergent in
 design* with the substrate in several places, and explicitly aware of it.
@@ -247,10 +247,10 @@ design* with the substrate in several places, and explicitly aware of it.
   convergence work if/when it proceeds.
 - **Wake — not built.** No wake/webpush/APNs/FCM code anywhere in the repo.
 
-### whatsacc — `/Users/pc/code/whatsacc`
+### whatsacc
 
-(Note: not under `/Users/pc/code/vulos/` as originally expected — it lives at `/Users/pc/code/whatsacc`. A
-similarly-named `/Users/pc/code/exo/whatsacc-mono` is an unrelated project.) A mature chat-driven physical
+(Note: whatsacc sits outside the vulos working directory, unlike every other adopter here. A
+similarly-named `whatsacc-mono` elsewhere on disk is an unrelated project.) A mature chat-driven physical
 gate access-control product (Go gateway + controller agent + Tauri app). Its own `ARCHITECTURE.md` §8 marks
 a DMTAP channel adapter as **"Sketch only — no seam interface, no wire format, no schedule."** Its authors'
 own assessment is the right one to record here: this product has essentially no decentralised-substrate
@@ -272,7 +272,7 @@ surface today, by design, not by oversight.
 - **Wake — n/a.** Notifications ride third-party WhatsApp/Slack push, which is out of scope for a
   DMTAP-native wake mechanism and not a gap this product needs closed.
 
-### kerf-pub — `/Users/pc/code/vulos/kerf/packages/kerf-pub`
+### kerf-pub — `kerf`/packages/kerf-pub`
 
 The named reference implementation of §22 ([`FEEDS.md § 6`](FEEDS.md#6-reference-implementation--kerf-pub-proves-the-http-test)).
 Its actual current state is **better than that document's text**, which had gone stale.

@@ -1,0 +1,53 @@
+# kotva-cbor — canonical deterministic CBOR, and NOTHING else.
+#
+# WHY IT IS ITS OWN CRATE. The canonical codec is the one piece of the substrate that
+# several unrelated consumers need *on its own*, and the only piece whose bytes must
+# agree across independent implementations or signatures stop meaning anything. Before
+# this crate the family carried FOUR copies of it — `kotva-core::cbor`,
+# `kotva-sync::detcbor`, `evermesh-kernel::codec` and `magnetite-seams::cbor` — with no
+# cross-check between any two. A duplicated invariant that drifts is worse than either
+# copy alone.
+#
+# WHY IT IS DEPENDENCY-LIGHT, DELIBERATELY. `kotva-core` is a heavy leaf: linking it
+# pulls `hpke`, `x-wing`, `ml-dsa`, `chacha20poly1305`, `ciborium`, `hkdf`, `sha2` and
+# `unicode-normalization`, none of which canonical CBOR needs, with no finer-grained
+# feature to request (measured: a consumer that wanted three modules paid a 2m00s cold
+# build). A consumer that needs only the wire codec must pay for only the wire codec, so
+# this crate has:
+#
+#   ZERO dependencies. Not `serde`, not `thiserror`, not `hex`. std only.
+#
+# That is a load-bearing property, not a preference — it is what lets a downstream crate
+# that has sworn off heavy or non-registry dependencies adopt the shared codec instead of
+# hand-rolling a fifth copy. Adding a dependency here is a decision to be argued in the
+# commit that does it.
+#
+# Consumers pin a git tag, never HEAD (the isango guardrail, see the workspace manifest):
+#   kotva-cbor = { git = "https://github.com/vul-os/kotva", tag = "cbor-v0.1.0" }
+# or, once published:
+#   kotva-cbor = "0.1"
+[package]
+name = "kotva-cbor"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT"
+description = "Canonical deterministic CBOR (RFC 8949 §4.2.1 core deterministic encoding, KOTVA/DMTAP §18.1.1) — a strict encoder and a fail-closed decoder that rejects rather than normalizes non-canonical input, with zero dependencies"
+repository = "https://github.com/vul-os/kotva"
+homepage = "https://github.com/vul-os/kotva"
+readme = "README.md"
+keywords = ["cbor", "canonical", "deterministic", "rfc8949", "kotva"]
+categories = ["encoding", "data-structures"]
+
+[dependencies]
+# Intentionally empty. See the header. `cargo tree -p kotva-cbor` must stay one line.
+
+[features]
+default = []
+# The JSON interchange mapping of the canonical-CBOR value space (evermesh spec 001 §11):
+# integer map keys as decimal strings, byte strings as "hex:…", with the `txt:` escape that
+# makes the mapping a bijection. DEFAULT-OFF because the mapping is normative to a consumer
+# that is not KOTVA — `kotva-core` and the DMTAP wire never touch it, and code nobody links
+# should not be code everybody compiles. It ships here rather than staying downstream so the
+# byte-level codec and its JSON projection cannot drift apart in separate repos.
+json = []

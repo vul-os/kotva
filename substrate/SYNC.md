@@ -1619,14 +1619,14 @@ mirrored into §10.7.
 
 ## 13. Grounding
 
-- **CRDT semantics** — `dmtap-clustersync` (§5.6 reference, `/Users/pc/code/vulos/envoir/crates/dmtap-clustersync`):
+- **CRDT semantics** — `dmtap-clustersync` (§5.6 reference, `envoir`/crates/dmtap-clustersync`):
   OR-Set add-wins, LWW-by-HLC with encoded-value tiebreak, remove-wins death-certificate with the D3
   domination invariant, HLC total order `(wall, counter, author)`, stability-cut GC, hash-chained
   journal. The PN-counter, RGA sequence, and movable tree are **new** here (standard CRDT constructions:
   the PN-counter in its **op/delta** form joined by union of `op-id`-keyed deltas — *not* the textbook
   state-based per-author-`max` form, which is unsound for delta-carrying ops, §4.6 and §14; Roh et al.
   RGA; Kleppmann highly-available replicated tree), added to complete the algebra.
-- **Wire protocol** — flowstock stateless sync (`/Users/pc/code/vulos/flowstock`): `GET /sync/vector`,
+- **Wire protocol** — flowstock stateless sync (`flowstock`): `GET /sync/vector`,
   `POST /sync/pull`, `POST /sync/ops`, per-author `MAX(hlc)` version vector, symmetric push-then-pull
   round, idempotent oplog dedup, LWW-by-HLC + set-union movements, constant-time bearer auth fail-closed
   on empty secret. The substrate upgrades flowstock's JSON to deterministic CBOR and its trusted-network
