@@ -1,6 +1,6 @@
 # DMTAP specification build & checks.
 
-.PHONY: lint lint-strict coverage conformance pdf check
+.PHONY: lint lint-strict coverage conformance gates pdf check
 
 ## lint — internal-consistency checks over the spec (see tools/lint.py).
 ## Every check exists because a real contradiction survived human review.
@@ -23,6 +23,16 @@ coverage:
 ## against the prose; this checks it against the bytes.
 conformance:
 	@python3 tools/conformance.py
+
+## gates — self-test the reusable product gates this repo SHIPS (tools/gates/).
+## The substrate contains no product, so what is verified here is that each gate
+## still FAILS on a planted violation and still exits non-zero when it cannot
+## check: a copied gate that has gone inert reports a pass nobody earned
+## (substrate/SOVEREIGNTY.md §5.1). Needs cargo for the Rust control fixtures —
+## and says so with a non-zero exit rather than skipping, which is why it is not
+## folded into the toolchain-free `check`.
+gates:
+	@sh tools/gates/no-broker-dep.sh --selftest
 
 pdf:
 	@$(MAKE) -C build 2>/dev/null || echo "see README for the PDF build"

@@ -257,3 +257,10 @@ from each repository rather than assumed.
 - [`SYNC.md`](SYNC.md) — Capability ⑤: the signed CRDT op algebra and reconciliation wire protocol (the one new spec).
 - [`BINDINGS.md`](BINDINGS.md) — informative: the one-core/many-surfaces bindings plan (native Rust, cgo/C-ABI, WASM, UniFFI).
 - [`ADOPTION.md`](ADOPTION.md) — informative: today's per-product adoption-status matrix across all six capabilities.
+- [`OFFLINE.md`](OFFLINE.md) — cross-cutting normative: the degradation grades, the sneakernet test, and the
+  reconcile-on-reconnect obligations every capability and profile inherits.
+- [`SOVEREIGNTY.md`](SOVEREIGNTY.md) — cross-cutting normative: the adoption contract for a product that is
+  **not** the reference implementation pair — the five properties it demonstrates on its own (no broker in a
+  default path, manual peer enrolment, open-internet authentication, a real cloud-node deployment path, the
+  shared merge engine), each with the demonstration that makes it checkable, plus the reusable R-SOV-1 gate
+  ([`../tools/gates/no-broker-dep.sh`](../tools/gates/no-broker-dep.sh)).

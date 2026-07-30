@@ -111,7 +111,11 @@ normative byte-home in the numbered spec and a substrate document that re-presen
 | ⑥ | **Roles & Wake** | Open, key-addressed infrastructure roles any node may serve; content-free push to offline nodes. | [`04-transport.md`](04-transport.md) §4.2/§4.9, [`14-scaling.md`](14-scaling.md) | [`substrate/ROLES.md`](substrate/ROLES.md) |
 
 Cross-cutting substrate docs: [`substrate/OFFLINE.md`](substrate/OFFLINE.md) (the apocalypse-proof
-degradation vocabulary), [`substrate/ADOPTION.md`](substrate/ADOPTION.md) (per-product status matrix,
+degradation vocabulary), [`substrate/SOVEREIGNTY.md`](substrate/SOVEREIGNTY.md) (**normative** — the five
+properties a product that is *not* the reference implementation pair demonstrates on its own: no broker in
+any default path, manual peer enrolment, open-internet authentication, a real cloud-node deployment path,
+the shared merge engine — with a reusable gate for the first),
+[`substrate/ADOPTION.md`](substrate/ADOPTION.md) (per-product status matrix,
 informative), [`substrate/BINDINGS.md`](substrate/BINDINGS.md) (one-core/many-surfaces engineering
 plan, informative). The waist's own security floor is [`THREAT-MODEL.md`](THREAT-MODEL.md).
 

@@ -9,6 +9,41 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **substrate: `substrate/SOVEREIGNTY.md` — the adoption contract for products that are not the
+  reference implementation pair (owner ruling, 2026-07-30).** KOTVA is the substrate: this
+  specification plus the published shared libraries (`kotva-core`, `kotva-sync`, `kotva-sync-wasm`,
+  `bindings/go`). **envoir + ephor are the reference implementation pair**, and their tight coupling
+  to KOTVA is correct for a reference — but **Ephor is not ready**, so every other product takes its
+  decentralisation from the spec and the shared libs alone and MUST be able to deploy itself as a node
+  on a cloud instance. The document states five properties with a **demonstration** for each (a
+  property nobody can test is a slogan): **R-SOV-1** no broker dependency in any default path,
+  **R-SOV-2** manual peer enrolment over an operator-supplied address, **R-SOV-3** authentication safe
+  on the open internet (mutual key-auth, per-op signatures, replay defence, fail-closed),
+  **R-SOV-4** a real cloud-node deployment path ("it's a single binary" is not one), **R-SOV-5** the
+  shared merge engine proven by the frozen vectors — plus checklist SOV-1…SOV-13. Ephor's reachability
+  role is legitimate and self-hostable but MUST NOT be load-bearing; that requirement is **cited**, not
+  restated, from [`coordinator/CONTRACT.md`](coordinator/CONTRACT.md) §1/§2.2/§2.3 (COORD-2, COORD-3),
+  which already binds every coordinator. Indexed in `substrate/README.md` §7 (which was also missing
+  its `OFFLINE.md` row) and `SPEC.md` §②.
+- **tools: `tools/gates/no-broker-dep.sh` + `make gates` — the R-SOV-1 gate, built to be LIFTED.**
+  Specifications do not propagate; copied templates do (`substrate/ADOPTION.md` §3: the same
+  ordered-domain decode defect, four times, in four languages). POSIX `sh`, no third-party
+  dependencies, three checks — **C-DEP** the default-feature dependency closure read from the
+  toolchain's own resolver, **C-START** the broker named outside a declared seam, **C-SEAM** a seam that
+  must exist and be off by default — with per-ecosystem mechanics for Rust and Go worked and node/python
+  covered for the common case. It **fails closed**: unknown ecosystem, missing toolchain, empty closure,
+  zero files scanned or a stale seam path exit **2** (*cannot check*), distinct from 1 (*violation*), so
+  it can never report a pass by doing nothing — the `go test`-swallows-a-loud-skip lesson. All three
+  checks always run and a **violation outranks an unverifiable check**: the first revision exited 2 as
+  soon as any check could not run, which hid a real C-DEP violation behind an unrelated stale seam path
+  (found against a Go fixture while writing it; now pinned by a named regression control). `--selftest`
+  runs **10 hermetic controls across Rust and Go** — clean trees and a declared default-off seam pass,
+  three planted violations fail, two unverifiable configurations exit 2 — names any ecosystem it could
+  not exercise as `NOT VERIFIED`, and is a BLOCKING `ci.yml` job with both toolchains and an asserted
+  control count, because a copied gate that has gone inert is worse than no gate.
+
 ### Changed
 
 - **spec: closed OQ-1 — the DMTAP-Auth multi-log/OOB requirement is now UNCONDITIONAL; the

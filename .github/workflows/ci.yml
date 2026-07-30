@@ -169,3 +169,44 @@ jobs:
       # stays quiet about that is indistinguishable from one that ran nothing.
       - name: Conformance suite
         run: python3 tools/conformance.py
+
+  # --- the shipped product gate's own self-control (substrate/SOVEREIGNTY.md §5) --------
+  # This repo SHIPS a gate other products LIFT: tools/gates/no-broker-dep.sh, the R-SOV-1
+  # gate ("no hard dependency on a reachability broker in any default build or startup
+  # path"). The substrate has no product in it, so there is nothing here to gate — what CI
+  # verifies is that the gate still has TEETH: a clean tree and a declared default-off seam
+  # must pass, every planted violation must fail with exit 1, an unverifiable configuration
+  # must exit 2 (never 0), and a violation must outrank an unverifiable check. A copied gate
+  # that has gone inert is worse than no gate: every copy reports a pass nobody earned.
+  #
+  # BOTH toolchains are installed on purpose. The gate's mechanics are per-ecosystem — a
+  # cargo feature is not a go build tag — and a selftest that only exercised Rust would say
+  # nothing about the Go half while printing PASS. The selftest names any ecosystem it did
+  # not exercise, so this job exists to make that list empty.
+  gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+
+      - name: R-SOV-1 gate — self-control (Rust + Go mechanics)
+        run: |
+          set -o pipefail
+          make gates 2>&1 | tee /tmp/gates.log
+          if grep -q 'NOT VERIFIED' /tmp/gates.log; then
+            echo "::error::the gate selftest left an ecosystem unexercised — install its toolchain" \
+                 "in this job rather than shipping mechanics nothing runs."
+            exit 1
+          fi
+          ran=$(grep -c '^SELFTEST ok' /tmp/gates.log || true)
+          echo "gate self-controls executed: $ran (10 at 2026-07-30)"
+          if [ "$ran" -lt 10 ]; then
+            echo "::error::only $ran self-controls ran (expected >= 10). NOT VERIFIED: that the" \
+                 "shipped R-SOV-1 gate still fails on a planted violation."
+            exit 1
+          fi
