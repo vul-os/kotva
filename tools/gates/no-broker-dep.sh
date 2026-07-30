@@ -154,6 +154,91 @@ prune_expr() {
 	printf '%s' "$_e"
 }
 
+# ── file enumeration: prefer git so gitignored, regenerated build output is
+# NEVER scanned; PRUNE_NAMES above is kept only as the fallback outside a git
+# checkout ──────────────────────────────────────────────────────────────────
+# THE DEFECT THIS REPLACES: PRUNE_NAMES is a fixed list of DIRECTORY NAMES, and a
+# generated tree that does not happen to be named `dist`/`build`/one of the
+# `dist-*` spellings sails straight through it. vulos-static's own
+# `scripts/sync-docs.mjs` and `scripts/collect-repo-landings.mjs` regenerate
+# `content/docs/`, `public/projects/*/` and `.astro/` — none of those names are in
+# PRUNE_NAMES, both scripts' own docstrings say "THE OUTPUT IS NOT COMMITTED", and
+# `.gitignore` already lists all three. The gate scanned them anyway: 84
+# violations, 100% of them inside those three gitignored trees, in files that
+# have never existed in a single commit and do not exist in a fresh clone.
+# Marking them is a no-op that makes the bug worse to explain, not better: git
+# will not persist a `:allow-file` comment written into an ignored file, so
+# there is no annotation that can ever land. This is the SAME shape as DEFECT 1
+# above (PRUNE_NAMES was blind to nested `node_modules`/`target`) one level up —
+# a fixed name list is blind to *every* spelling nobody thought to enumerate,
+# and a product's own build tooling invents new ones over time.
+#
+# THE FIX: ask git, which already has the authoritative answer for exactly this
+# question. `git ls-files --cached --others --exclude-standard` is tracked ∪
+# (untracked-but-not-gitignored) — precisely "what a fresh clone would contain,
+# plus whatever a human has added but not yet committed", which is the correct
+# subject for a gate whose job is "does the PRODUCT depend on the broker", not
+# "does whatever happens to be sitting on this disk right now mention it". This
+# is the same technique used the same day to fix llmux's check-web-dist.sh.
+#
+# THIS CANNOT REPLACE PRUNE_NAMES OUTRIGHT: the gate is run against arbitrary
+# paths (substrate/SOVEREIGNTY.md §5), including a bare extracted tarball or a
+# directory that was never `git init`'d at all, where `git ls-files` has nothing
+# to answer from. Falling back SILENTLY there would be the mirror-image of the
+# bug just fixed: a directory with no `.gitignore` to consult would have every
+# regenerated artifact on disk scanned as if it were source, and the operator
+# would have no way to tell "this passed because it's clean" from "this passed
+# because git was unavailable and nothing was pruned". So the fallback is
+# announced LOUDLY, once, from run_gate — see detect_git_enum() below — with an
+# honest "CANNOT use git here" rather than a silent downgrade to the old
+# behaviour.
+#
+# WHAT THIS DOES NOT CHANGE: a file that IS tracked is scanned exactly as
+# before, git-enumerated or not — `--cached` lists every tracked file
+# regardless of what any `.gitignore` pattern would otherwise match, so a
+# tracked file living under a path shaped like `dist/` or `vendor/` is neither
+# newly exempted nor newly pruned by this change. Only genuinely gitignored,
+# untracked content stops being scanned — which is the entire point: it is not
+# in the repository, so it cannot be a repository's dependency.
+GIT_ENUM=unknown # yes | no, decided once per run_gate() by detect_git_enum()
+
+detect_git_enum() {
+	if ! command -v git >/dev/null 2>&1; then
+		GIT_ENUM=no
+		say "  file walk: CANNOT use git here — no git on PATH. Falling back to the static"
+		say "             PRUNE_NAMES walk (find): this run WILL scan whatever regenerated or"
+		say "             gitignored build output happens to sit on disk right now, because without"
+		say "             git there is no .gitignore to consult and no tracked/untracked distinction"
+		say "             to draw. Install git for the stronger guarantee."
+		return 0
+	fi
+	if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+		GIT_ENUM=no
+		say "  file walk: CANNOT use git here — $(pwd) is not inside a git working tree. Falling"
+		say "             back to the static PRUNE_NAMES walk (find), with the same caveat: any"
+		say "             regenerated/gitignored build output already sitting on disk WILL be"
+		say "             scanned, because there is no repository here to ask what is ignored."
+		return 0
+	fi
+	GIT_ENUM=yes
+	say "  file walk: git ls-files --cached --others --exclude-standard (tracked + untracked-but-"
+	say "             not-ignored; gitignored, regenerated build output is never scanned)"
+}
+
+# Emits every file this run should consider, one per line, "./"-prefixed exactly
+# like the find-based walk has always produced — so every downstream consumer
+# (is_exempt's leading-"./" strip, check_dep_closure's dirname-by-sed) is
+# unchanged regardless of which branch fired.
+enumerate_files() {
+	if [ "$GIT_ENUM" = yes ]; then
+		git ls-files -z --cached --others --exclude-standard 2>/dev/null |
+			tr '\0' '\n' | sed 's#^#./#'
+	else
+		# shellcheck disable=SC2086 # word splitting of the prune list is intended
+		find . $(prune_expr) -type f -print 2>/dev/null
+	fi
+}
+
 say() { printf '%s\n' "$*"; }
 fail() { printf 'VIOLATION  %s\n' "$*"; violations=$((violations + 1)); }
 # `cannot` records an unverifiable check and RETURNS — the remaining checks still run, and the
@@ -240,10 +325,8 @@ is_exempt() {
 # checks every manifest present in its directory independently — see its own header comment.
 check_dep_closure() {
 	_root=$(pwd)
-	# shellcheck disable=SC2086 # word splitting of the prune list is intended
-	_manifests=$(find . $(prune_expr) -type f \
-		\( -name Cargo.toml -o -name go.mod -o -name package.json \
-		-o -name pyproject.toml -o -name requirements.txt \) -print 2>/dev/null |
+	_manifests=$(enumerate_files |
+		grep -E '/(Cargo\.toml|go\.mod|package\.json|pyproject\.toml|requirements\.txt)$' |
 		sed 's|/[^/]*$||' | sort -u)
 
 	if [ -z "$_manifests" ]; then
@@ -423,8 +506,7 @@ report_dep_closure() { # $1=ecosystem $2=where $3=closure text
 
 # ── C-START: the broker may not be named outside a declared seam ───────────────────────
 check_startup_text() {
-	# shellcheck disable=SC2086 # word splitting of the prune list is intended
-	files=$(find . $(prune_expr) -type f -print 2>/dev/null)
+	files=$(enumerate_files)
 	if [ -z "$files" ]; then
 		cannot "C-START  scanned NOTHING — the file walk found no files under $(pwd)"
 		return 0
@@ -607,6 +689,11 @@ run_gate() {
 		fi
 		cannot "REPO-SELF  $_self_decl carries the self-broker marker with NO stated reason — an unreasoned repo-wide exemption is not accountable, so it is IGNORED and this run proceeds as a normal scan"
 	fi
+
+	# Decided once per run, before any check reads a file: see the "file enumeration"
+	# header comment above prune_expr() for why git is preferred and how the fallback is
+	# scoped.
+	detect_git_enum
 
 	# All three always run: a check that cannot run must not suppress a check that found
 	# something. The exit code is decided once, here.
@@ -1177,6 +1264,102 @@ selftest() {
 		"an UNREASONED .no-broker-dep-self is NOT honoured — falls through to a normal (here, unverifiable) scan" \
 		'BROKER_RE=ephor|vulos-relayd'
 
+	# ---- DEFECT 8 (this fix) — the walk scanned gitignored, regenerated build output. ----
+	# vulos-static's own docs-ingestion and product-landing collectors (`scripts/sync-docs.mjs`,
+	# `scripts/collect-repo-landings.mjs`) regenerate `content/docs/`, `.astro/` and
+	# `public/projects/*/` on every build; both scripts' own docstrings say so ("THE OUTPUT IS
+	# NOT COMMITTED") and `.gitignore` already lists all three. None of those three names are in
+	# PRUNE_NAMES (the fixed list only knows `dist`/`build`/the `dist-*` spellings audited so
+	# far), so the gate walked them anyway: 84 violations, 100% inside those three trees, none of
+	# which exist in a single commit or a fresh clone. Marking them was never an option — git will
+	# not persist a comment written into a file it is told to ignore.
+	#
+	# THE FIX: enumerate_files() now asks git (`ls-files --cached --others --exclude-standard`)
+	# for the tracked-plus-untracked-but-not-ignored set instead of walking the disk with a name
+	# list, falling back to the old PRUNE_NAMES walk only when there is no git to ask (checked
+	# by the fallback-announced control below, which needs no toolchain and so runs
+	# unconditionally alongside the other self-declaration controls above).
+	#
+	# The two controls below are the ones that actually matter, proven the same way the fix
+	# itself was proven against a real fresh clone of vulos-static: a broker mention sitting in a
+	# GITIGNORED file must be invisible to the gate (control A), and the identical mention sitting
+	# in a file git actually TRACKS must still fail exactly as loudly as before (control B) — the
+	# control that tells a correct git-aware prune apart from a scan that got quietly gutted.
+	# Needs no toolchain beyond git+go (go, only so C-DEP has a trivially clean closure to read,
+	# keeping the exit code an unambiguous 0/1 rather than folding in an unrelated cannot-check).
+	if command -v git >/dev/null 2>&1 && command -v go >/dev/null 2>&1; then
+		ran=$((ran + 1))
+		expected_controls=$((expected_controls + 2))
+
+		# CONTROL A — the broker is named ONLY inside a file the fixture's OWN .gitignore
+		# excludes, and that file is never `git add`ed either — exactly vulos-static's
+		# content/docs/.astro/public/projects shape (untracked, ignored, regenerated). A gate
+		# that still walks the disk with a name-based prune list would find it; one that asks
+		# git for tracked-plus-untracked-but-not-ignored never sees it at all.
+		mkdir -p "$tmp/git_walk_ignored"
+		(
+			cd "$tmp/git_walk_ignored" || exit 1
+			git init -q
+			printf 'module example.test/git_walk_ignored\n\ngo 1.21\n' >go.mod
+			printf 'package main\n\nfunc main() {}\n' >main.go
+			printf 'ignored-broker.md\n' >.gitignore
+			printf '# regenerated docs mirror — not committed\nDefaults to https://rendezvous.ephor.example\n' \
+				>ignored-broker.md
+		) >/dev/null 2>&1
+		expect git_walk_ignored 0 \
+			"a broker mention confined to a GITIGNORED, untracked file (vulos-static's exact content/docs/.astro/public-projects shape) is never scanned at all — the fix, not a laxer gate" \
+			'BROKER_RE=ephor|vulos-relayd'
+
+		# CONTROL B — the decisive discriminator. Identical tree, identical broker text, but
+		# the file is `git add`ed (staged into the index — a commit is not required for
+		# `--cached` to see it) instead of gitignored. If the fix had gutted the scan instead
+		# of correctly following git, this would go quiet along with control A; it must not.
+		mkdir -p "$tmp/git_walk_tracked"
+		(
+			cd "$tmp/git_walk_tracked" || exit 1
+			git init -q
+			printf 'module example.test/git_walk_tracked\n\ngo 1.21\n' >go.mod
+			printf 'package main\n\nfunc main() {}\n' >main.go
+			printf 'ignored-broker.md\n' >.gitignore
+			printf '# tracked source, not a build artifact\nDefaults to https://rendezvous.ephor.example\n' \
+				>tracked-broker.md
+			git add go.mod main.go .gitignore tracked-broker.md
+		) >/dev/null 2>&1
+		expect git_walk_tracked 1 \
+			"the SAME broker text in a file git actually tracks (staged, no commit needed) still FAILS — proves the fix narrowed nothing for tracked content" \
+			'BROKER_RE=ephor|vulos-relayd'
+	else
+		unexercised="$unexercised gitwalk(no-git-or-go)"
+	fi
+
+	# CONTROL C — the non-git fallback is ANNOUNCED, never silent. Every fixture in this
+	# selftest already runs in a plain mktemp directory (not a git repo), so this is already
+	# exercised implicitly by all 28+ controls above and below — but "implicitly" is exactly the
+	# kind of evidence this whole script exists to distrust (see the file's own rule: assert
+	# coverage, don't infer it). This control names the requirement directly: rule 2 of the task
+	# that produced this fix requires the fallback be loud, not a silent downgrade to the old
+	# behaviour. Reuses the self_broker_unreasoned fixture built above (still a plain, non-git
+	# directory) rather than minting a new one — running the gate again against it is free and
+	# mutates nothing. Needs no toolchain: pure path logic, unconditional.
+	ran=$((ran + 1))
+	expected_controls=$((expected_controls + 1))
+	expect_output self_broker_unreasoned has 'CANNOT use git here' \
+		"outside a git working tree, the fallback to the static PRUNE_NAMES walk is printed loudly, not silently taken" \
+		'BROKER_RE=ephor|vulos-relayd'
+
+	# CONTROL D — the git path is likewise announced when it DOES fire, so a run's own output is
+	# sufficient to tell which mechanism verified it without inferring that from the violation
+	# count alone. Reuses control A's fixture (git_walk_ignored) — same reasoning as control C.
+	if command -v git >/dev/null 2>&1 && command -v go >/dev/null 2>&1; then
+		ran=$((ran + 1))
+		expected_controls=$((expected_controls + 1))
+		expect_output git_walk_ignored has 'git ls-files --cached --others --exclude-standard' \
+			"inside a git working tree, the gate announces it is using git-based enumeration, not left to be inferred" \
+			'BROKER_RE=ephor|vulos-relayd'
+	else
+		unexercised="$unexercised gitwalk-announce(no-git-or-go)"
+	fi
+
 	# The control COUNT is itself asserted, not just printed — a control quietly deleted (an
 	# `expect` line dropped in a future edit, or a whole section commented out) still leaves
 	# `rc` at 0 if every remaining `expect` happens to pass, which is exactly "a gate that
@@ -1212,8 +1395,11 @@ selftest() {
 		say "               seam beside an unrelated go.mod is cannot-check rather than a false FAIL, a"
 		say "               file exempt via a path rule AND its own marker still prints the marker's"
 		say "               reason (never silently swallowed), a reasoned .no-broker-dep-self exits 0"
-		say "               having run nothing, and an unreasoned one is ignored outright. The gate is"
-		say "               not inert."
+		say "               having run nothing, an unreasoned one is ignored outright, a broker mention"
+		say "               confined to a gitignored file is never scanned while the identical mention"
+		say "               in a tracked file still fails (the git-based walk narrows nothing tracked),"
+		say "               and the fallback to the static prune list outside a git checkout is always"
+		say "               announced, never silent. The gate is not inert."
 	else
 		say "SELFTEST FAIL  a control did not behave as specified — do NOT trust a clean run of this gate"
 		say "               until it does."
