@@ -1,3 +1,7 @@
+<!-- no-broker-dep:allow-file: this document cites Ephor's committed conformance suite
+     (tunnel/pubcache/proof_test.go) and an implementation note about its resolution choice as
+     supporting evidence for a spec decision — expository prose, not a build or startup path. -->
+
 # Substrate Capability ② — Feeds & Blobs
 
 > **Status:** additive profile of the core specification. This document **extracts §22 (DMTAP-PUB:

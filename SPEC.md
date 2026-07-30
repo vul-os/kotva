@@ -1,3 +1,12 @@
+<!-- no-broker-dep:allow-file: this master-index spec names Ephor as the reference
+     operator/gateway when describing the seams model — expository prose in a spec document, not
+     a build or startup path. NOTE, separate from this gate: lines 89-90 describe Ephor running
+     reference seams in the PRESENT TENSE ("the reference operator Ephor runs..."), which
+     substrate/SOVEREIGNTY.md's own ruling elsewhere states is not yet true ("Ephor is not
+     ready"). That wording is a known, separately-flagged inconsistency and is deliberately left
+     untouched by this marker — this comment exists only to make the gate check pass honestly,
+     not to paper over the tense mismatch. -->
+
 # SPEC — the KOTVA family, as one tree
 
 > **Status:** master index (non-normative navigation). This document introduces no bytes and

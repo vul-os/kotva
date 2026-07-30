@@ -13,6 +13,11 @@
 //!     every platform rail is *platform-asserted* and unverifiable;
 //!   * the canonical **per-rail property table** (§26.4) as data, with tests that pin it to the spec.
 //!
+//! no-broker-dep:allow-file: `DeploymentMode::Gateway`'s doc comment below names Ephor only as
+//! an illustrative example of an operator who might run this adapter in gateway mode — the enum
+//! variant itself carries no reference to any broker crate or endpoint, and this module has no
+//! dependency on one.
+//!
 //! The **live-network boundary** is the [`RailTransport`] trait; a real deployment supplies an
 //! implementation (Slack/Discord/Telegram official APIs, the WhatsApp **Business** Cloud API, an SMS
 //! aggregator, an attached modem). Nothing here holds credentials or makes live calls, so it runs in

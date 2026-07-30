@@ -16,6 +16,11 @@ categories = ["email", "network-programming"]
 # the MOTE store) is synchronous and std-only, so it always builds and is fully unit/integration
 # testable offline. Real TCP listeners live behind the optional `net` feature (std threads only —
 # no async runtime is required). See README.md for the capability/extension matrix.
+#
+# no-broker-dep:allow-file: line 8 names the Ephor mail gateway only as an example downstream
+# consumer of this tag-pinned crate (kotva-mail has no dependency on it — this manifest is what
+# gets depended ON). This is a workspace member; the root workspace's default-feature `cargo
+# tree` closure (which resolves this crate too) contains no broker crate.
 
 [features]
 default = []

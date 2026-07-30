@@ -1,3 +1,7 @@
+<!-- no-broker-dep:allow-file: this document cites Ephor as the existence proof for the
+     infrastructure roles it specifies (its vulos-relayd daemon and Rust relay crate) —
+     expository prose in a spec document, not a build or startup path. -->
+
 # Substrate Capabilities ③ + ⑥ — Transport & Infrastructure Roles / Wake
 
 > **Status:** additive profile of the core specification. This document presents the DMTAP

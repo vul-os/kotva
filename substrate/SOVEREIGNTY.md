@@ -1,3 +1,8 @@
+<!-- no-broker-dep:allow-file: this document IS the substrate's sovereignty ruling — it names
+     Ephor repeatedly because its entire subject is the adoption boundary between the substrate
+     and the broker (including the standing "Ephor is not ready" caveat this document states
+     itself). It is a spec, not a build or startup path. -->
+
 # Substrate — Product Sovereignty (adopting the substrate without adopting a broker)
 
 > **Status:** additive normative profile of the core specification and the coordinator contract

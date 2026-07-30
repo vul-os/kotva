@@ -1,3 +1,7 @@
+<!-- no-broker-dep:allow-file: the capability table below cites Ephor as the existence proof for
+     the Transport/Roles & Wake row (its vulos-relayd rendezvous/pubcache roles and relay crate)
+     — expository prose in a spec document, not a build or startup path. -->
+
 # The DMTAP Substrate — the narrow waist
 
 > **Status:** additive companion to the core specification (§0–§27). This directory does **not**
