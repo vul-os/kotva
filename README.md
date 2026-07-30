@@ -1,6 +1,6 @@
 <div align="centre">
 
-<img src="public/logo.svg" alt="Kotva" width="72" height="72">
+<img src="brand/logo.svg" alt="Kotva" width="72" height="72">
 
 # KOTVA
 
@@ -76,6 +76,16 @@ profiles are specified; the **coordinator contract** and **bindings index** are 
 consolidation work. Far-future cryptographic research (mixnet, VDF, PQ envelope tuning) is
 being quarantined to `docs/research/` as **non-normative** rather than perfected on the critical
 path. See [ROADMAP.md](ROADMAP.md).
+
+## Brand
+
+The mark in [`brand/`](brand/) is the source of truth. Every icon this repo
+ships — favicon, PWA and app icons, the mark in the README and on the site — is
+rendered from `brand/logo.svg` rather than redrawn, so there is one approved
+drawing and no second copy to drift.
+
+Copy it outward, never edit a derived copy, and never edit `brand/` to match
+something downstream.
 
 ## License & governance
 
