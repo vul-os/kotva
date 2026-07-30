@@ -42,6 +42,33 @@
 #                 C-DEP already covers those files structurally, which is the stronger check.
 #   SEAM_FLAG     REQUIRED when SEAM_PATHS is non-empty: the cargo feature / go build tag /
 #                 npm optional-dependency name that gates the seam. Must not be on by default.
+#   .no-broker-dep-self   A repo-ROOT file (not an env var — this must be committed and
+#                 reviewable, not something a CI step can quietly export) that scopes a repo
+#                 OUT of R-SOV-1 entirely, for exactly one reason: the repo IS the broker
+#                 BROKER_RE names. R-SOV-1 asks "does this PRODUCT depend on the broker?" —
+#                 applied to the broker's own reference implementation the question is
+#                 malformed, not merely satisfied: every crate/module path under a checkout
+#                 literally named after the broker (e.g. `.../ephor/crates/admin`) will match
+#                 BROKER_RE by construction, and every source file legitimately says "Ephor"
+#                 in the sense of naming itself, not depending on anything. That is not 15 or
+#                 40 judgment calls, it is ~300 structural false positives from one repo being
+#                 what the pattern matches, and no per-file marker scales to that — marking
+#                 every file a broker's own source repo touches would either bury the real
+#                 escape hatch's accountability under bulk use or (worse) train reviewers to
+#                 rubber-stamp a wall of markers, which is the exact failure this whole
+#                 mechanism exists to prevent.
+#                 The file must contain the marker `no-broker-dep:self-broker` followed by a
+#                 stated reason, same accountability shape as `:allow-file` below. A present
+#                 file with NO reason is NOT honoured — it is reported via `cannot()` and the
+#                 gate proceeds to scan normally, because an unreasoned repo-wide exemption
+#                 is not accountable and must not silently widen. When honoured, the gate
+#                 prints why and exits 0 having run ZERO of the 3 checks — a deliberate,
+#                 narrow, auditable exception to "never exits 0 by doing nothing" (see EXIT
+#                 STATUS below), scoped to exactly this one file and nothing else. A repo
+#                 that is NOT the broker gains nothing from creating this file dishonestly:
+#                 the file is committed, greppable, and the reason is printed on every run,
+#                 so a false self-declaration is exactly as visible as an unmarked violation
+#                 would have been.
 #   DOC_PATHS     Space-separated path prefixes that are prose, not a build or startup path
 #                 (docs/, README.md, CHANGELOG.md). Naming the broker there is allowed:
 #                 documenting "you may plug a broker in here" is the point. The default set
@@ -60,7 +87,9 @@
 #                 prose" is a judgment call a human should make once, not a blanket the gate
 #                 assumes forever.
 #
-# EXIT STATUS — and it never exits 0 by doing nothing
+# EXIT STATUS — and it never exits 0 by doing nothing, with exactly one stated exception
+#   (a repo whose committed `.no-broker-dep-self` truthfully declares it IS the broker BROKER_RE
+#   names — see CONFIGURATION above. Nothing else may exit 0 without all 3 checks having run.)
 #   0  every check ran and passed
 #   1  a violation was found (the default path depends on, or names, the broker)
 #   2  the gate COULD NOT CHECK: unknown ecosystem, toolchain missing or failing, nothing
@@ -389,6 +418,32 @@ run_gate() {
 	_file_exemptions=0
 	say "R-SOV-1 gate (no-broker-dep) — $(pwd)"
 	say "  broker pattern: $BROKER_RE"
+
+	# ── repo-level self-declaration: "this repo IS the broker" ──────────────────────────
+	# Checked BEFORE any scan runs, and only ever short-circuits when a stated reason is
+	# present — see the `.no-broker-dep-self` entry in CONFIGURATION above for why this
+	# exists and why it cannot be an env var. An unreasoned file is deliberately NOT
+	# honoured: it is surfaced as an unverifiable control and the normal scan still runs,
+	# so an empty exemption file cannot silently widen into a real one.
+	_self_decl=.no-broker-dep-self
+	if [ -f "$_self_decl" ] && grep -q "no-broker-dep:self-broker" "$_self_decl" 2>/dev/null; then
+		_self_reason=$(grep -h "no-broker-dep:self-broker" "$_self_decl" 2>/dev/null |
+			head -1 | sed "s/.*no-broker-dep:self-broker[: ]*//" | cut -c1-200)
+		if [ -n "$_self_reason" ]; then
+			say "  OUT OF SCOPE  $_self_decl declares this repo IS the broker named by BROKER_RE."
+			say "                R-SOV-1 asks whether a PRODUCT depends on the broker; applied to the"
+			say "                broker's own repository the question is malformed, not merely satisfied"
+			say "                — every crate/module path here matches BROKER_RE by construction."
+			say "                stated reason: $_self_reason"
+			say ""
+			say "PASS (out of scope)  0 of 3 checks ran, DELIBERATELY: see $_self_decl. This is a narrow,"
+			say "      committed, greppable exception to 'never exits 0 by doing nothing', good for"
+			say "      exactly one repo-self-reference case, not a template for anything else."
+			return 0
+		fi
+		cannot "REPO-SELF  $_self_decl carries the self-broker marker with NO stated reason — an unreasoned repo-wide exemption is not accountable, so it is IGNORED and this run proceeds as a normal scan"
+	fi
+
 	# All three always run: a check that cannot run must not suppress a check that found
 	# something. The exit code is decided once, here.
 	check_dep_closure
@@ -706,6 +761,29 @@ selftest() {
 		unexercised="$unexercised docbug(no-go-toolchain)"
 	fi
 
+	# ---- Repo-self-declaration controls (`.no-broker-dep-self`) — unconditional: this
+	# mechanism short-circuits before check_dep_closure/check_startup_text ever run, so it
+	# needs no toolchain at all. The fixture tree is otherwise EMPTY (no manifest, no source),
+	# which makes the pair maximally sharp: without the declaration an empty tree is
+	# UNVERIFIABLE (C-DEP finds no manifest, exit 2), so a reasoned declaration flipping that
+	# to exit 0 proves the short-circuit actually fired rather than the tree coincidentally
+	# passing on its own.
+	ran=$((ran + 1))
+	expected_controls=$((expected_controls + 2))
+
+	mkdir -p "$tmp/self_broker_reasoned"
+	printf 'no-broker-dep:self-broker: this fixture pretends to be the broker itself\n' \
+		>"$tmp/self_broker_reasoned/.no-broker-dep-self"
+	expect self_broker_reasoned 0 \
+		"a reasoned .no-broker-dep-self exits 0 with ZERO checks run, on an otherwise-unverifiable empty tree" \
+		'BROKER_RE=ephor|vulos-relayd'
+
+	mkdir -p "$tmp/self_broker_unreasoned"
+	printf 'no-broker-dep:self-broker\n' >"$tmp/self_broker_unreasoned/.no-broker-dep-self"
+	expect self_broker_unreasoned 2 \
+		"an UNREASONED .no-broker-dep-self is NOT honoured — falls through to a normal (here, unverifiable) scan" \
+		'BROKER_RE=ephor|vulos-relayd'
+
 	# The control COUNT is itself asserted, not just printed — a control quietly deleted (an
 	# `expect` line dropped in a future edit, or a whole section commented out) still leaves
 	# `rc` at 0 if every remaining `expect` happens to pass, which is exactly "a gate that
@@ -732,9 +810,10 @@ selftest() {
 		say "SELFTEST PASS  $controls controls across $ran ecosystem(s), count asserted: clean trees and"
 		say "               default-off seams pass, every planted violation fails, unverifiable"
 		say "               configurations exit 2, a violation outranks an unverifiable check, a"
-		say "               disclaimer-only doc passes while a real dependency behind one still fails, and"
-		say "               a generated dist-lib/ bundle is pruned like node_modules/target. The gate is"
-		say "               not inert."
+		say "               disclaimer-only doc passes while a real dependency behind one still fails, a"
+		say "               generated dist-lib/ bundle is pruned like node_modules/target, a reasoned"
+		say "               .no-broker-dep-self exits 0 having run nothing, and an unreasoned one is"
+		say "               ignored outright. The gate is not inert."
 	else
 		say "SELFTEST FAIL  a control did not behave as specified — do NOT trust a clean run of this gate"
 		say "               until it does."
