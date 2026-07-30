@@ -15,6 +15,17 @@ keywords = ["kotva", "mote", "decentralized", "identity", "crypto"]
 categories = ["cryptography", "email"]
 
 [dependencies]
+# --- Canonical deterministic CBOR (spec §18.1.1) — the SHARED codec, not a local copy ----------
+# `cbor::encode`/`cbor::decode` are thin adapters over this crate. The byte layer lives in
+# `kotva-cbor` because the family grew four copies of it with no cross-check between any two, and a
+# duplicated invariant that drifts is worse than either copy alone: signatures and content
+# addresses only mean something if independent implementations agree byte for byte. `kotva-cbor`
+# carries the frozen 183-vector evermesh conformance corpus that proves they do.
+#
+# It has ZERO dependencies, so this adds no transitive weight — see that crate's manifest header.
+# `Cv` (integer-keyed, no null, no negative integers) remains kotva-core's own narrower value type
+# and its public API is unchanged; only the byte-level encoder/decoder moved.
+kotva-cbor = { version = "0.1.0", path = "../kotva-cbor" }
 # --- Signing (spec §1.1 suite 0x01: Ed25519, RFC 8032) ---
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 # --- KEM key material (spec §1.1: X25519, RFC 7748) ---

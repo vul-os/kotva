@@ -79,97 +79,167 @@ pub enum CborError {
     UnknownDiscriminant(u64),
 }
 
+// ── The byte layer lives in `kotva-cbor` ───────────────────────────────────────────────────────
+//
+// Everything below is an *adapter*, not an implementation. The encoder and strict decoder that
+// used to live here (≈310 lines of hand-written recursive descent) are now `kotva_cbor`, which is
+// byte-for-byte the same codec and carries the proof: a frozen 183-vector corpus extracted from
+// evermesh's conformance suite, the only implementation in this family that already treated
+// cross-implementation byte identity as consensus-critical.
+//
+// WHY DELEGATE RATHER THAN KEEP A COPY. Four codecs in this family claimed these same rules with
+// no cross-check between any two (`kotva_core::cbor`, `kotva_sync::detcbor`,
+// `evermesh_kernel::codec`, `magnetite_seams::cbor`). A signature is a statement about bytes, so
+// two honest implementations that disagree by one head byte silently break verification. Sharing
+// the compiled algebra — not merely matching bytes — is what `substrate/SOVEREIGNTY.md` §3.5 now
+// requires of an adopter, and kotva-core cannot require of others what it does not do itself.
+//
+// WHAT DID **NOT** MOVE, deliberately: [`Cv`], [`CborError`], [`Fields`] and the `as_*` helpers.
+// `Cv` is the *narrower* DMTAP wire subset — integer-keyed maps with a separate [`Cv::TextMap`]
+// for the one text-keyed site (§18.3.6), and **no** `null`, **no** negative integers, no floats,
+// no tags. `kotva_cbor::Value` is deliberately wider (it accepts exactly what evermesh accepts, so
+// a migration cannot change a verdict). The narrowing therefore happens in [`from_value`] below,
+// and every rejection it makes maps onto kotva-core's own long-standing error variants. This
+// crate's public API is unchanged, which matters because external adopters pin it by tag.
+
+/// Lower a [`Cv`] into the shared codec's wider value type. Total and allocation-only: every `Cv`
+/// is representable as a [`kotva_cbor::Value`], which is the direction that must never fail.
+fn to_value(v: &Cv) -> kotva_cbor::Value {
+    use kotva_cbor::Value as V;
+    match v {
+        Cv::U64(n) => V::Uint(*n),
+        Cv::Bytes(b) => V::Bytes(b.clone()),
+        Cv::Text(s) => V::Text(s.clone()),
+        Cv::Bool(b) => V::Bool(*b),
+        Cv::Array(a) => V::Array(a.iter().map(to_value).collect()),
+        Cv::Map(m) => V::Map(
+            m.iter()
+                .map(|(k, val)| (V::Uint(*k), to_value(val)))
+                .collect(),
+        ),
+        Cv::TextMap(m) => V::Map(
+            m.iter()
+                .map(|(k, val)| (V::Text(k.clone()), to_value(val)))
+                .collect(),
+        ),
+    }
+}
+
+/// Narrow a decoded [`kotva_cbor::Value`] to the DMTAP wire subset, failing closed on anything
+/// `Cv` cannot represent. This is where "canonical CBOR" becomes "canonical *DMTAP* CBOR".
+fn from_value(v: kotva_cbor::Value) -> Result<Cv, CborError> {
+    use kotva_cbor::Value as V;
+    match v {
+        V::Uint(n) => Ok(Cv::U64(n)),
+        // Major type 1. Canonical CBOR, but never on the DMTAP wire (§18.1.1 rule 4).
+        V::Nint(_) => Err(CborError::IntRange),
+        V::Bytes(b) => Ok(Cv::Bytes(b)),
+        V::Text(s) => Ok(Cv::Text(s)),
+        V::Bool(b) => Ok(Cv::Bool(b)),
+        // An absent optional is omitted from the map, never present as `null` (§18.1.1).
+        V::Null => Err(CborError::NullPresent),
+        V::Array(items) => items
+            .into_iter()
+            .map(from_value)
+            .collect::<Result<Vec<_>, _>>()
+            .map(Cv::Array),
+        V::Map(entries) => {
+            // An empty map is variant-neutral and matches what `encode` emits for either variant.
+            if entries.is_empty() {
+                return Ok(Cv::Map(Vec::new()));
+            }
+            // Key ordering and duplicate rejection already happened in the shared decoder. What is
+            // left is DMTAP's own restriction: every key is an unsigned integer (§18.1.2), or every
+            // key is a text string (`Headers.ext`, §18.3.6) — never a mixture, and never any other
+            // major type.
+            match &entries[0].0 {
+                V::Uint(_) => {
+                    let mut out = Vec::with_capacity(entries.len());
+                    for (k, val) in entries {
+                        match k {
+                            V::Uint(k) => out.push((k, from_value(val)?)),
+                            _ => return Err(CborError::MixedMapKeys),
+                        }
+                    }
+                    Ok(Cv::Map(out))
+                }
+                V::Text(_) => {
+                    let mut out = Vec::with_capacity(entries.len());
+                    for (k, val) in entries {
+                        match k {
+                            V::Text(k) => out.push((k, from_value(val)?)),
+                            _ => return Err(CborError::MixedMapKeys),
+                        }
+                    }
+                    Ok(Cv::TextMap(out))
+                }
+                // A key that is neither a small unsigned integer nor a text string is not a DMTAP
+                // wire map at all. `kotva_cbor` permits any key type; DMTAP does not.
+                _ => Err(CborError::MixedMapKeys),
+            }
+        }
+    }
+}
+
+/// Translate the shared codec's refusal into kotva-core's own taxonomy.
+///
+/// `kotva_cbor::CborError` is deliberately finer-grained than this enum (it separates `Truncated`
+/// from `LengthExceedsInput` from `DepthExceeded`, all of which are [`CborError::Malformed`] here),
+/// so the mapping is many-to-one and every variant kotva-core already published is preserved.
+fn map_err(e: kotva_cbor::CborError) -> CborError {
+    use kotva_cbor::CborError as E;
+    match e {
+        E::NonShortestForm => CborError::NonShortestForm,
+        E::IndefiniteLength => CborError::IndefiniteLength,
+        E::TrailingBytes => CborError::TrailingData,
+        E::Float => CborError::FloatPresent,
+        // `undefined`, one-byte simple values and tags are one refusal to DMTAP (§18.1.1 rule 5).
+        E::Undefined | E::SimpleValue | E::Tag => CborError::TagOrUndefined,
+        E::MapKeyOrder => CborError::MapKeyOrder,
+        // Same encoded key bytes ⇒ same key. Report the key itself where it is an integer, matching
+        // the pre-delegation behaviour exactly.
+        E::DuplicateMapKey(k) => match *k {
+            kotva_cbor::Value::Uint(k) => CborError::DuplicateKey(k),
+            _ => CborError::DuplicateTextKey,
+        },
+        // Truncation, over-long lengths, bad UTF-8, over-deep nesting and the reserved
+        // additional-info values are all just "these are not well-formed canonical bytes".
+        E::Truncated
+        | E::ReservedAdditionalInfo
+        | E::InvalidUtf8
+        | E::DepthExceeded
+        | E::LengthExceedsInput
+        | E::LengthTooLarge => CborError::Malformed,
+        // Only the optional `json` feature produces this, and kotva-core does not enable it.
+        E::Json(_) => CborError::Malformed,
+        // `kotva_cbor::CborError` is `#[non_exhaustive]`: a new refusal added upstream must fail
+        // closed here rather than fail to compile or, worse, be treated as acceptance.
+        _ => CborError::Malformed,
+    }
+}
+
 // ── Encoding ───────────────────────────────────────────────────────────────────────────────
 
-/// Write a CBOR head: major type (top 3 bits) + shortest-form argument (§18.1.1 rule 1).
-fn write_head(out: &mut Vec<u8>, major: u8, arg: u64) {
-    let m = major << 5;
-    if arg < 24 {
-        out.push(m | arg as u8);
-    } else if arg <= u8::MAX as u64 {
-        out.push(m | 24);
-        out.push(arg as u8);
-    } else if arg <= u16::MAX as u64 {
-        out.push(m | 25);
-        out.extend_from_slice(&(arg as u16).to_be_bytes());
-    } else if arg <= u32::MAX as u64 {
-        out.push(m | 26);
-        out.extend_from_slice(&(arg as u32).to_be_bytes());
-    } else {
-        out.push(m | 27);
-        out.extend_from_slice(&arg.to_be_bytes());
-    }
-}
-
 /// Encode a [`Cv`] as deterministic CBOR (§18.1.1). Infallible: `Cv` cannot hold a forbidden value.
+///
+/// Map keys are emitted sorted by their **encoded bytes**, ascending (rule 2), at every depth, so
+/// insertion order does not affect the bytes. For the small unsigned keys used throughout DMTAP
+/// that is identical to numeric key order.
 pub fn encode(v: &Cv) -> Vec<u8> {
-    let mut out = Vec::new();
-    enc(v, &mut out);
-    out
-}
-
-fn enc(v: &Cv, out: &mut Vec<u8>) {
-    match v {
-        Cv::U64(n) => write_head(out, 0, *n),
-        Cv::Bytes(b) => {
-            write_head(out, 2, b.len() as u64);
-            out.extend_from_slice(b);
-        }
-        Cv::Text(s) => {
-            write_head(out, 3, s.len() as u64);
-            out.extend_from_slice(s.as_bytes());
-        }
-        Cv::Bool(b) => out.push(if *b { 0xf5 } else { 0xf4 }),
-        Cv::Array(a) => {
-            write_head(out, 4, a.len() as u64);
-            for e in a {
-                enc(e, out);
-            }
-        }
-        Cv::Map(m) => {
-            // Sort by the *encoded key bytes*, ascending (§18.1.1 rule 2). For the shortest-form
-            // unsigned keys used throughout DMTAP this is identical to numeric key order.
-            let mut items: Vec<(Vec<u8>, &Cv)> = m
-                .iter()
-                .map(|(k, val)| {
-                    let mut kb = Vec::new();
-                    write_head(&mut kb, 0, *k);
-                    (kb, val)
-                })
-                .collect();
-            items.sort_by(|a, b| a.0.cmp(&b.0));
-            write_head(out, 5, items.len() as u64);
-            for (kb, val) in items {
-                out.extend_from_slice(&kb);
-                enc(val, out);
-            }
-        }
-        Cv::TextMap(m) => {
-            let mut items: Vec<(Vec<u8>, &Cv)> = m
-                .iter()
-                .map(|(k, val)| {
-                    let mut kb = Vec::new();
-                    write_head(&mut kb, 3, k.len() as u64);
-                    kb.extend_from_slice(k.as_bytes());
-                    (kb, val)
-                })
-                .collect();
-            items.sort_by(|a, b| a.0.cmp(&b.0));
-            write_head(out, 5, items.len() as u64);
-            for (kb, val) in items {
-                out.extend_from_slice(&kb);
-                enc(val, out);
-            }
-        }
-    }
+    // `_unchecked` is the infallible encoder, which is what this function's published signature
+    // requires. It differs from the checked one only for a `Cv::Map`/`Cv::TextMap` that holds the
+    // same key twice — a value with no canonical encoding, which this function has always emitted
+    // as-is (and which [`decode`] then refuses). Silently dropping an entry would be worse, and
+    // returning a `Result` would break every external adopter pinned to this tag.
+    kotva_cbor::encode_canonical_unchecked(&to_value(v))
 }
 
 // ── Decoding ───────────────────────────────────────────────────────────────────────────────
 
 /// Parse and validate **canonical** CBOR into a [`Cv`], **failing closed** on any deviation from
-/// RFC 8949 Core Deterministic Encoding as profiled by §18.1.1. This is a *strict* decoder written
-/// against the raw bytes (not a lenient library normalize-and-accept), so it enforces the input
-/// side of §18.1.1 that a canonical decoder MUST re-check:
+/// RFC 8949 Core Deterministic Encoding as profiled by §18.1.1. This is a *strict* decoder (not a
+/// lenient library normalize-and-accept), so it enforces the input side of §18.1.1 that a canonical
+/// decoder MUST re-check:
 ///
 /// 1. **Shortest-form** integers, string/array/map lengths (rule 1) — a longer-than-minimal head
 ///    (`0x18 0x0a` for 10, etc.) is rejected ([`CborError::NonShortestForm`]).
@@ -181,214 +251,41 @@ fn enc(v: &Cv, out: &mut Vec<u8>) {
 ///    `null` on the wire** (rule 5), **no negative integers**, and **no trailing bytes** after the
 ///    top-level item.
 ///
+/// Rules 1–3 and the trailing-byte check are enforced by the shared `kotva-cbor` decoder; the
+/// DMTAP-specific narrowing in rule 4 (no `null`, no negative integers, integer-or-text map keys but
+/// never both) is applied on the way into `Cv`.
+///
+/// ## What the delegation changed, measured rather than asserted
+///
+/// A differential harness drove this function and the hand-written decoder it replaced over 800,183
+/// inputs — 200,000 generated `Cv` values round-tripped, 400,000 random byte strings, 200,000
+/// near-canonical mutations, and all 183 evermesh conformance vectors:
+///
+/// * **The accept/reject verdict is identical on every input**, and
+/// * **every input both accept decodes to the identical `Cv`.**
+///
+/// Those are the two properties a signature and a content address depend on, and they hold exactly.
+///
+/// What *did* change is **which** [`CborError`] variant a refusal reports: 83,670 of the invalid
+/// inputs are refused by both decoders for a differently-named reason. Nothing is accepted that was
+/// refused, or refused that was accepted — the variant is diagnostic only. Two causes, neither worth
+/// re-introducing a second decoder to preserve:
+///
+/// 1. **Defect precedence.** This decoder validates canonical form completely before narrowing to
+///    `Cv`, so for input that is invalid in more than one way it reports the canonical-form defect
+///    where the old one reported whichever it met first in byte order (`0x28 …` — a negative integer
+///    followed by trailing bytes — was [`CborError::IntRange`], and is now
+///    [`CborError::TrailingData`]).
+/// 2. **The old decoder mislabelled two cases**, and the shared codec is more accurate. Major type 7
+///    with additional info 0–19 is an *unassigned simple value*; the old `simple()` arm fell through
+///    to [`CborError::IndefiniteLength`], which it is not. A bare truncated float or tag head was
+///    [`CborError::Malformed`] rather than naming the forbidden major type.
+///
 /// Because the decoder accepts *only* the canonical encoding of a value, `encode(decode(b)) == b`
-/// for every accepted `b` — the malleability/ signature-reproducibility guarantee §18.1.1 exists
+/// for every accepted `b` — the malleability / signature-reproducibility guarantee §18.1.1 exists
 /// to provide. Higher layers additionally reject unknown keys in *signed* objects (§18.1.2).
 pub fn decode(bytes: &[u8]) -> Result<Cv, CborError> {
-    let mut d = Decoder { b: bytes, pos: 0 };
-    let cv = d.value(0)?;
-    if d.pos != bytes.len() {
-        return Err(CborError::TrailingData); // one, and only one, top-level item (§18.1.1)
-    }
-    Ok(cv)
-}
-
-/// A strict, byte-level recursive-descent canonical-CBOR reader (§18.1.1). Every method advances
-/// `pos` and fails closed on the first non-canonical byte.
-struct Decoder<'a> {
-    b: &'a [u8],
-    pos: usize,
-}
-
-/// Maximum container-nesting depth accepted by [`Decoder::value`]. Every nested array/map adds one
-/// native stack frame per level, so an unbounded decoder lets ~50 KB of `0x81` (nested one-element
-/// arrays) overflow the stack and abort — a DoS reachable from any `*::from_det_cbor` on untrusted
-/// bytes. DMTAP wire objects are shallow (a handful of levels: object → field → array/map → scalar),
-/// so 64 is comfortably above any real message yet far below the overflow threshold. Exceeding it
-/// fails closed with [`CborError::Malformed`] instead of panicking.
-const MAX_NESTING_DEPTH: u32 = 64;
-
-impl<'a> Decoder<'a> {
-    fn byte(&mut self) -> Result<u8, CborError> {
-        let b = *self.b.get(self.pos).ok_or(CborError::Malformed)?;
-        self.pos += 1;
-        Ok(b)
-    }
-
-    fn take(&mut self, n: usize) -> Result<&'a [u8], CborError> {
-        let end = self.pos.checked_add(n).ok_or(CborError::Malformed)?;
-        let s = self.b.get(self.pos..end).ok_or(CborError::Malformed)?;
-        self.pos = end;
-        Ok(s)
-    }
-
-    /// Read the argument for a head whose additional-info is `ai`, enforcing shortest form
-    /// (rule 1) and rejecting indefinite-length / reserved additional-info values.
-    fn argument(&mut self, ai: u8) -> Result<u64, CborError> {
-        match ai {
-            0..=23 => Ok(ai as u64),
-            24 => {
-                let v = self.byte()? as u64;
-                if v < 24 {
-                    return Err(CborError::NonShortestForm); // fits in the 1-byte head
-                }
-                Ok(v)
-            }
-            25 => {
-                let b = self.take(2)?;
-                let v = u16::from_be_bytes([b[0], b[1]]) as u64;
-                if v <= u8::MAX as u64 {
-                    return Err(CborError::NonShortestForm);
-                }
-                Ok(v)
-            }
-            26 => {
-                let b = self.take(4)?;
-                let v = u32::from_be_bytes([b[0], b[1], b[2], b[3]]) as u64;
-                if v <= u16::MAX as u64 {
-                    return Err(CborError::NonShortestForm);
-                }
-                Ok(v)
-            }
-            27 => {
-                let b = self.take(8)?;
-                let v = u64::from_be_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]);
-                if v <= u32::MAX as u64 {
-                    return Err(CborError::NonShortestForm);
-                }
-                Ok(v)
-            }
-            28..=30 => Err(CborError::Malformed), // reserved additional-info
-            _ => Err(CborError::IndefiniteLength),     // 31 = indefinite / break
-        }
-    }
-
-    fn value(&mut self, depth: u32) -> Result<Cv, CborError> {
-        // Bound recursion before descending into any container: reject over-deep nesting
-        // fail-closed rather than exhausting the native stack (DoS guard).
-        if depth > MAX_NESTING_DEPTH {
-            return Err(CborError::Malformed);
-        }
-        let ib = self.byte()?;
-        let major = ib >> 5;
-        let ai = ib & 0x1f;
-        match major {
-            0 => Ok(Cv::U64(self.argument(ai)?)), // unsigned integer
-            1 => {
-                // negative integer — read (and length-check) the argument, then reject the value.
-                let _ = self.argument(ai)?;
-                Err(CborError::IntRange)
-            }
-            2 => {
-                let n = self.argument(ai)? as usize;
-                Ok(Cv::Bytes(self.take(n)?.to_vec()))
-            }
-            3 => {
-                let n = self.argument(ai)? as usize;
-                let s = self.take(n)?;
-                let s = std::str::from_utf8(s).map_err(|_| CborError::Malformed)?;
-                Ok(Cv::Text(s.to_owned()))
-            }
-            4 => {
-                let n = self.argument(ai)? as usize;
-                let mut out = Vec::with_capacity(n.min(1024));
-                for _ in 0..n {
-                    out.push(self.value(depth + 1)?);
-                }
-                Ok(Cv::Array(out))
-            }
-            5 => self.map(ai, depth),
-            6 => {
-                // tag — read (and length-check) the tag number, then reject.
-                let _ = self.argument(ai)?;
-                Err(CborError::TagOrUndefined)
-            }
-            _ => self.simple(ai), // major 7: bool / null / undefined / floats / simple
-        }
-    }
-
-    fn map(&mut self, ai: u8, depth: u32) -> Result<Cv, CborError> {
-        let n = self.argument(ai)? as usize;
-        if n == 0 {
-            return Ok(Cv::Map(Vec::new())); // empty map (variant-neutral; matches encode)
-        }
-        // Track key type from the first key; every key must match it (no mixed maps), and each
-        // key's *encoded bytes* must be strictly greater than the previous (rule 2 + rule 3).
-        let mut prev_key: Vec<u8> = Vec::new();
-        enum KeyKind {
-            Int,
-            Text,
-        }
-        let mut kind: Option<KeyKind> = None;
-        let mut int_out: Vec<(u64, Cv)> = Vec::new();
-        let mut text_out: Vec<(String, Cv)> = Vec::new();
-        for i in 0..n {
-            let key_start = self.pos;
-            let key = self.value(depth + 1)?;
-            let key_bytes = self.b[key_start..self.pos].to_vec();
-            if i > 0 {
-                match key_bytes.as_slice().cmp(prev_key.as_slice()) {
-                    std::cmp::Ordering::Less => return Err(CborError::MapKeyOrder),
-                    std::cmp::Ordering::Equal => {
-                        // A duplicate key: same encoded bytes ⇒ same key (rule 3).
-                        return match &key {
-                            Cv::U64(k) => Err(CborError::DuplicateKey(*k)),
-                            _ => Err(CborError::DuplicateTextKey),
-                        };
-                    }
-                    std::cmp::Ordering::Greater => {}
-                }
-            }
-            prev_key = key_bytes;
-            let val = self.value(depth + 1)?;
-            match (&kind, key) {
-                (None, Cv::U64(k)) => {
-                    kind = Some(KeyKind::Int);
-                    int_out.push((k, val));
-                }
-                (None, Cv::Text(s)) => {
-                    kind = Some(KeyKind::Text);
-                    text_out.push((s, val));
-                }
-                (Some(KeyKind::Int), Cv::U64(k)) => int_out.push((k, val)),
-                (Some(KeyKind::Text), Cv::Text(s)) => text_out.push((s, val)),
-                // A key that is neither a small unsigned int nor a text string, or a map that
-                // mixes the two — neither is a DMTAP wire map (§18.1.2).
-                _ => return Err(CborError::MixedMapKeys),
-            }
-        }
-        match kind {
-            Some(KeyKind::Text) => Ok(Cv::TextMap(text_out)),
-            _ => Ok(Cv::Map(int_out)),
-        }
-    }
-
-    fn simple(&mut self, ai: u8) -> Result<Cv, CborError> {
-        match ai {
-            20 => Ok(Cv::Bool(false)),
-            21 => Ok(Cv::Bool(true)),
-            22 => Err(CborError::NullPresent),    // null — never on the wire (§18.1.1)
-            23 => Err(CborError::TagOrUndefined), // undefined
-            24 => {
-                // one-byte simple value — none are used by DMTAP; reject fail-closed.
-                let _ = self.byte()?;
-                Err(CborError::TagOrUndefined)
-            }
-            25..=27 => {
-                // half / single / double float — forbidden anywhere (rule 4). Consume the bytes
-                // for a clean cursor, then reject.
-                let n = match ai {
-                    25 => 2,
-                    26 => 4,
-                    _ => 8,
-                };
-                let _ = self.take(n)?;
-                Err(CborError::FloatPresent)
-            }
-            28..=30 => Err(CborError::Malformed),
-            _ => Err(CborError::IndefiniteLength), // 31 = break
-        }
-    }
+    from_value(kotva_cbor::decode_canonical(bytes).map_err(map_err)?)
 }
 
 // ── Field extraction helpers ─────────────────────────────────────────────────────────────────
@@ -664,9 +561,12 @@ mod tests {
         // overflow the native stack on an unbounded decoder. It MUST fail closed instead.
         let deep = vec![0x81u8; 50_000];
         assert_eq!(decode(&deep), Err(CborError::Malformed));
-        // Right at the boundary: MAX_NESTING_DEPTH + 1 nested arrays around a scalar exceed the
-        // bound and are rejected — no panic, a clean error.
-        let mut too_deep = vec![0x81u8; (MAX_NESTING_DEPTH as usize) + 2];
+        // Right at the boundary: MAX_DEPTH + 1 nested arrays around a scalar exceed the bound and
+        // are rejected — no panic, a clean error. The bound is the *shared* codec's constant, read
+        // from it rather than restated here, so kotva-core and kotva-cbor cannot drift apart on the
+        // one number where an encoder minting a value a second decoder refuses would be a silent
+        // interoperability break.
+        let mut too_deep = vec![0x81u8; (kotva_cbor::MAX_DEPTH as usize) + 2];
         too_deep.push(0x00); // innermost scalar
         assert_eq!(decode(&too_deep), Err(CborError::Malformed));
     }
@@ -674,9 +574,9 @@ mod tests {
     #[test]
     fn accepts_nesting_up_to_the_bound() {
         // A structure nested right up to the limit still decodes (real objects are far shallower).
-        // depth 0 is the outermost value; children sit at depth 1.., so MAX_NESTING_DEPTH nested
+        // depth 0 is the outermost value; children sit at depth 1.., so MAX_DEPTH nested
         // arrays around a scalar is the deepest accepted shape.
-        let n = MAX_NESTING_DEPTH as usize;
+        let n = kotva_cbor::MAX_DEPTH as usize;
         let mut buf = vec![0x81u8; n];
         buf.push(0x00);
         let decoded = decode(&buf).expect("nesting at the bound must decode");

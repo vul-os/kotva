@@ -1219,8 +1219,7 @@ mod tests {
         // depth, part, or boundary caps. The shared MAX_MIME_SCAN byte-comparison budget now bounds
         // whole-parse scan CPU: once it is exhausted, deeper levels are left opaque. Assert that
         // DETERMINISTICALLY — the budget truncates the nesting well below the constructed depth
-        // (machine-independent), with a generous wall-clock guard against a hang.
-        use std::time::Instant;
+        // (machine-independent).
         const DEPTH: usize = 60;
         // 1 MiB all-`-` leaf: matches the first 70 chars of every 68-`-`+digit boundary (a near-miss),
         // so each of the ~60 re-scans costs ~71 comparisons per byte — ~4e9 total before the cap.

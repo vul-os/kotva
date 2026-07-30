@@ -19,6 +19,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/kotva-cbor",
     "crates/kotva-core",
     "crates/kotva-mail",
     "crates/kotva-sync",
