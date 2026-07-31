@@ -227,7 +227,10 @@
   h3 .secnum{ color:var(--accent); font-size:.85em; }
   h4{ font-family:var(--font-mono); font-size:13.5px; font-weight:700; color:var(--text-tertiary); margin:1.6em 0 .5em; text-transform:uppercase; letter-spacing:.05em; }
   p{ margin:0 0 1.05em; max-width:70ch; }
-  section > p, section > ul, section > ol, section > figure, section > .callout, section > .grid-2 { max-width:72ch; }
+  section > p, section > ul, section > ol, section > .callout, section > .grid-2 { max-width:72ch; }
+  /* Figures are exempt from the 72ch prose measure — a diagram benefits from the full
+     content column instead of being squeezed to paragraph width (figcaption text keeps
+     its own 66ch cap below, so captions still read like prose). */
   ul, ol{ margin:0 0 1.15em; padding-left:1.3em; max-width:70ch; }
   li{ margin:.35em 0; }
   strong{ color:var(--text-primary); font-weight:700; }
@@ -503,76 +506,76 @@
 
       <figure>
         <div class="diagram-frame">
-          <svg viewBox="0 0 900 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="hgTitle hgDesc" style="--diagram-min-width:900px">
+          <svg viewBox="0 0 840 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="hgTitle hgDesc" style="--diagram-min-width:840px">
             <title id="hgTitle">The narrow-waist hourglass</title>
             <desc id="hgDesc">Nine profiles fan out at the top, funnelling down into the six waist capabilities at the neck, which funnel further down into six adopted external standards at the base.</desc>
             <g font-family="var(--font-mono)" font-size="12.5" text-anchor="middle">
-              <rect x="14"  y="18" width="95" height="34" rx="7" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.1"></rect>
-              <text x="61.5" y="39" fill="var(--accent-ink)" font-weight="700">DMTAP</text>
-              <rect x="123" y="18" width="85" height="34" rx="7" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.1"></rect>
-              <text x="165.5" y="39" fill="var(--accent-ink)" font-weight="700">TRACT</text>
-              <rect x="222" y="18" width="80" height="34" rx="7" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.1"></rect>
-              <text x="262" y="39" fill="var(--accent-ink)" font-weight="700">WRAP</text>
-              <rect x="316" y="18" width="88" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
-              <text x="360" y="39" fill="var(--text-secondary)" font-weight="700">MEDIA</text>
-              <rect x="418" y="18" width="90" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
-              <text x="463" y="39" fill="var(--text-secondary)" font-weight="700">SOCIAL</text>
-              <rect x="522" y="18" width="70" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
-              <text x="557" y="39" fill="var(--text-secondary)" font-weight="700" font-size="12.5">RTC</text>
-              <rect x="606" y="18" width="82" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
-              <text x="647" y="39" fill="var(--text-secondary)" font-weight="700" font-size="12">REACH</text>
-              <rect x="702" y="18" width="88" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
-              <text x="746" y="39" fill="var(--text-secondary)" font-weight="700" font-size="12">SEARCH</text>
-              <rect x="804" y="18" width="82" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
-              <text x="845" y="39" fill="var(--text-secondary)" font-weight="700" font-size="12">DEPOT</text>
+              <rect x="8"   y="18" width="95" height="34" rx="7" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.1"></rect>
+              <text x="55.5" y="39" fill="var(--accent-ink)" font-weight="700">DMTAP</text>
+              <rect x="111" y="18" width="85" height="34" rx="7" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.1"></rect>
+              <text x="153.5" y="39" fill="var(--accent-ink)" font-weight="700">TRACT</text>
+              <rect x="204" y="18" width="80" height="34" rx="7" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.1"></rect>
+              <text x="244" y="39" fill="var(--accent-ink)" font-weight="700">WRAP</text>
+              <rect x="292" y="18" width="88" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
+              <text x="336" y="39" fill="var(--text-secondary)" font-weight="700">MEDIA</text>
+              <rect x="388" y="18" width="90" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
+              <text x="433" y="39" fill="var(--text-secondary)" font-weight="700">SOCIAL</text>
+              <rect x="486" y="18" width="70" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
+              <text x="521" y="39" fill="var(--text-secondary)" font-weight="700" font-size="12.5">RTC</text>
+              <rect x="564" y="18" width="82" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
+              <text x="605" y="39" fill="var(--text-secondary)" font-weight="700" font-size="12">REACH</text>
+              <rect x="654" y="18" width="88" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
+              <text x="698" y="39" fill="var(--text-secondary)" font-weight="700" font-size="12">SEARCH</text>
+              <rect x="750" y="18" width="82" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
+              <text x="791" y="39" fill="var(--text-secondary)" font-weight="700" font-size="12">DEPOT</text>
             </g>
             <g stroke="var(--border-emphasis)" stroke-width="1.1" fill="none" stroke-dasharray="3 3">
-              <path d="M61.5,52 L290,150"></path>
-              <path d="M165.5,52 L330,150"></path>
-              <path d="M262,52 L370,150"></path>
-              <path d="M360,52 L410,150"></path>
-              <path d="M463,52 L450,150"></path>
-              <path d="M557,52 L490,150"></path>
-              <path d="M647,52 L530,150"></path>
-              <path d="M746,52 L570,150"></path>
-              <path d="M845,52 L610,150"></path>
+              <path d="M55.5,52 L270.7,150"></path>
+              <path d="M153.5,52 L308,150"></path>
+              <path d="M244,52 L345.3,150"></path>
+              <path d="M336,52 L382.7,150"></path>
+              <path d="M433,52 L420,150"></path>
+              <path d="M521,52 L457.3,150"></path>
+              <path d="M605,52 L494.6,150"></path>
+              <path d="M698,52 L532,150"></path>
+              <path d="M791,52 L569.3,150"></path>
             </g>
-            <rect class="pulse" x="270" y="150" width="360" height="120" rx="14" fill="var(--bg-elevated)" stroke="var(--accent)" stroke-width="1.6"></rect>
+            <rect class="pulse" x="252" y="150" width="336" height="120" rx="14" fill="var(--bg-elevated)" stroke="var(--accent)" stroke-width="1.6"></rect>
             <g font-family="var(--font-mono)" font-size="12.5" text-anchor="middle" fill="var(--text-primary)">
-              <text x="450" y="172" font-weight="700" letter-spacing="0.09em">THE NARROW WAIST</text>
+              <text x="420" y="172" font-weight="700" letter-spacing="0.09em">THE NARROW WAIST</text>
               <g font-size="12.5">
-                <text x="345" y="197">① Identity</text>
-                <text x="450" y="197">② MOTE</text>
-                <text x="555" y="197">③ Transport</text>
-                <text x="345" y="221">④ PUB</text>
-                <text x="450" y="221">⑤ Sync</text>
-                <text x="555" y="221">⑥ Roles/Wake</text>
+                <text x="322" y="197">① Identity</text>
+                <text x="420" y="197">② MOTE</text>
+                <text x="518" y="197">③ Transport</text>
+                <text x="322" y="221">④ PUB</text>
+                <text x="420" y="221">⑤ Sync</text>
+                <text x="518" y="221">⑥ Roles/Wake</text>
               </g>
-              <text x="450" y="251" fill="var(--text-faint)" font-style="italic" font-size="12">six capabilities · à-la-carte · shared signing &amp; encoding</text>
+              <text x="420" y="251" fill="var(--text-faint)" font-style="italic" font-size="12">six capabilities · à-la-carte · shared signing &amp; encoding</text>
             </g>
             <g stroke="var(--border-emphasis)" stroke-width="1.1" fill="none" stroke-dasharray="3 3">
-              <path d="M340,270 L120,338"></path>
-              <path d="M390,270 L250,338"></path>
-              <path d="M450,270 L400,338"></path>
-              <path d="M510,270 L560,338"></path>
-              <path d="M560,270 L700,338"></path>
-              <path d="M600,270 L818,338"></path>
+              <path d="M317.3,270 L90,338"></path>
+              <path d="M365.8,270 L233,338"></path>
+              <path d="M414.4,270 L366,338"></path>
+              <path d="M462.9,270 L499,338"></path>
+              <path d="M511.5,270 L637,338"></path>
+              <path d="M560,270 L765,338"></path>
             </g>
             <g font-family="var(--font-mono)" font-size="12" text-anchor="middle">
-              <rect x="40"  y="338" width="140" height="34" rx="7" fill="var(--code-bg)" stroke="var(--code-border)"></rect>
-              <text x="110" y="359" fill="var(--text-secondary)">Ed25519 · CBOR</text>
-              <rect x="196" y="338" width="130" height="34" rx="7" fill="var(--code-bg)" stroke="var(--code-border)"></rect>
-              <text x="261" y="359" fill="var(--text-secondary)">HPKE · COSE</text>
-              <rect x="342" y="338" width="120" height="34" rx="7" fill="var(--code-bg)" stroke="var(--code-border)"></rect>
-              <text x="402" y="359" fill="var(--text-secondary)">MLS · SFrame</text>
-              <rect x="478" y="338" width="130" height="34" rx="7" fill="var(--code-bg)" stroke="var(--code-border)"></rect>
-              <text x="543" y="359" fill="var(--text-secondary)">libp2p mesh</text>
-              <rect x="624" y="338" width="130" height="34" rx="7" fill="var(--code-bg)" stroke="var(--code-border)"></rect>
-              <text x="689" y="359" fill="var(--text-secondary)">WebRTC · TURN</text>
-              <rect x="770" y="338" width="110" height="34" rx="7" fill="var(--code-bg)" stroke="var(--code-border)"></rect>
-              <text x="825" y="359" fill="var(--text-secondary)">Web Push</text>
+              <rect x="20"  y="338" width="140" height="34" rx="7" fill="var(--code-bg)" stroke="var(--code-border)"></rect>
+              <text x="90" y="359" fill="var(--text-secondary)">Ed25519 · CBOR</text>
+              <rect x="168" y="338" width="130" height="34" rx="7" fill="var(--code-bg)" stroke="var(--code-border)"></rect>
+              <text x="233" y="359" fill="var(--text-secondary)">HPKE · COSE</text>
+              <rect x="306" y="338" width="120" height="34" rx="7" fill="var(--code-bg)" stroke="var(--code-border)"></rect>
+              <text x="366" y="359" fill="var(--text-secondary)">MLS · SFrame</text>
+              <rect x="434" y="338" width="130" height="34" rx="7" fill="var(--code-bg)" stroke="var(--code-border)"></rect>
+              <text x="499" y="359" fill="var(--text-secondary)">libp2p mesh</text>
+              <rect x="572" y="338" width="130" height="34" rx="7" fill="var(--code-bg)" stroke="var(--code-border)"></rect>
+              <text x="637" y="359" fill="var(--text-secondary)">WebRTC · TURN</text>
+              <rect x="710" y="338" width="110" height="34" rx="7" fill="var(--code-bg)" stroke="var(--code-border)"></rect>
+              <text x="765" y="359" fill="var(--text-secondary)">Web Push</text>
             </g>
-            <text x="450" y="403" text-anchor="middle" font-family="var(--font-mono)" font-size="12" fill="var(--text-faint)" font-style="italic">profiles fan out above · adopted standards fan out below · the waist invents new bytes only where nothing existed</text>
+            <text x="420" y="403" text-anchor="middle" font-family="var(--font-mono)" font-size="12" fill="var(--text-faint)" font-style="italic">profiles fan out above · adopted standards fan out below · the waist invents new bytes only where nothing existed</text>
           </svg>
         </div>
         <p class="scroll-hint">↔ scroll to see the full diagram</p>
@@ -623,6 +626,50 @@
         </div>
       </div>
 
+      <figure>
+        <div class="diagram-frame">
+          <svg viewBox="0 0 900 310" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="syncTitle syncDesc" style="--diagram-min-width:820px">
+            <title id="syncTitle">Sync — leaderless convergence across replicas, one of which is offline</title>
+            <desc id="syncDesc">Three replicas, A, B and C, each sign their own operations locally; Replica B is drawn offline, still minting ops with no connection to the others. All three reconcile pairwise over the three-endpoint HTTP protocol, in any order, and join into one deterministic merged state that is byte-identical regardless of who saw which ops first.</desc>
+            <g font-family="var(--font-mono)" text-anchor="middle">
+              <rect x="75"  y="20" width="200" height="56" rx="10" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.3"></rect>
+              <text x="175" y="44" fill="var(--text-primary)" font-weight="700" font-size="13">REPLICA A</text>
+              <text x="175" y="61" fill="var(--text-faint)" font-size="12">signs its own ops</text>
+
+              <rect x="350" y="20" width="200" height="56" rx="10" fill="var(--bg-elevated)" stroke="var(--text-faint)" stroke-width="1.3" stroke-dasharray="5 4"></rect>
+              <text x="450" y="44" fill="var(--text-primary)" font-weight="700" font-size="13">REPLICA B</text>
+              <text x="450" y="61" fill="var(--accent-ink)" font-size="12">offline — mints ops</text>
+
+              <rect x="625" y="20" width="200" height="56" rx="10" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.3"></rect>
+              <text x="725" y="44" fill="var(--text-primary)" font-weight="700" font-size="13">REPLICA C</text>
+              <text x="725" y="61" fill="var(--text-faint)" font-size="12">signs its own ops</text>
+
+              <line x1="175" y1="110" x2="725" y2="110" stroke="var(--border-emphasis)" stroke-width="1.3" stroke-dasharray="3 3"></line>
+              <circle cx="175" cy="110" r="4" fill="var(--accent)"></circle>
+              <circle cx="450" cy="110" r="4" fill="var(--accent)"></circle>
+              <circle cx="725" cy="110" r="4" fill="var(--accent)"></circle>
+              <text x="450" y="98" fill="var(--text-faint)" font-style="italic" font-size="12">leaderless reconciliation — any replica, any order, any subset seen so far</text>
+
+              <text x="270" y="140" fill="var(--text-secondary)" font-size="12">GET /sync/vector</text>
+              <text x="450" y="140" fill="var(--text-secondary)" font-size="12">POST /sync/pull</text>
+              <text x="630" y="140" fill="var(--text-secondary)" font-size="12">POST /sync/ops</text>
+
+              <path d="M175,114 C175,155 260,170 300,188" stroke="var(--border-emphasis)" stroke-width="1.3" fill="none" stroke-dasharray="4 3"></path>
+              <path d="M450,114 L450,188" stroke="var(--border-emphasis)" stroke-width="1.3" fill="none" stroke-dasharray="4 3"></path>
+              <path d="M725,114 C725,155 640,170 600,188" stroke="var(--border-emphasis)" stroke-width="1.3" fill="none" stroke-dasharray="4 3"></path>
+
+              <rect x="140" y="190" width="620" height="80" rx="14" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.6"></rect>
+              <text x="450" y="213" fill="var(--accent-ink)" font-weight="700" font-size="13">DETERMINISTIC JOIN</text>
+              <text x="450" y="233" fill="var(--text-secondary)" font-size="12">commutative · associative · idempotent — any order, same bytes</text>
+              <text x="450" y="251" fill="var(--text-faint)" font-size="12" font-style="italic">no primary · no coordinator · reconciles fully offline</text>
+            </g>
+            <text x="450" y="294" text-anchor="middle" font-family="var(--font-mono)" font-size="12" fill="var(--text-faint)" font-style="italic">any two replicas that have applied the same set of ops compute the same bytes</text>
+          </svg>
+        </div>
+        <p class="scroll-hint">↔ scroll to see the full diagram</p>
+        <figcaption>Figure 2 — Sync convergence. Three replicas — one of them offline — each sign ops locally and reconcile pairwise over the leaderless three-endpoint protocol; the join is commutative, associative, and idempotent, so every replica that has seen the same ops lands on byte-identical state regardless of order or who was disconnected when.</figcaption>
+      </figure>
+
       <h4>The <code>SyncOp</code> envelope</h4>
       <p>One envelope, six-plus CRDT types selected by a <code>kind</code> discriminator, each op individually <strong>COSE-signed</strong> (RFC 9052) or batched into a hash-chained, singly-signed <code>SyncFrame</code> for amortised signatures:</p>
       <pre><code>SyncOp = {
@@ -668,31 +715,31 @@
 
       <figure>
         <div class="diagram-frame">
-          <svg viewBox="0 0 700 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="coordTitle coordDesc">
+          <svg viewBox="0 0 700 344" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="coordTitle coordDesc" style="--diagram-min-width:700px">
             <title id="coordTitle">The coordinator contract — hired, not depended on</title>
             <desc id="coordDesc">Peer A and Peer B are joined by a solid direct line that works with no coordinator present. A coordinator node floats above, joined to both peers only by dashed, optional lines, carrying four fenced properties: accountable, swappable, self-hostable, and content-visibility declared.</desc>
             <g font-family="var(--font-mono)" font-size="12.5">
               <rect x="40" y="220" width="140" height="56" rx="10" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.3"></rect>
               <text x="110" y="244" text-anchor="middle" fill="var(--text-primary)" font-weight="700">PEER A</text>
-              <text x="110" y="262" text-anchor="middle" fill="var(--text-faint)" font-size="10.5">holds its own IK</text>
+              <text x="110" y="262" text-anchor="middle" fill="var(--text-faint)" font-size="12">holds its own IK</text>
 
               <rect x="520" y="220" width="140" height="56" rx="10" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.3"></rect>
               <text x="590" y="244" text-anchor="middle" fill="var(--text-primary)" font-weight="700">PEER B</text>
-              <text x="590" y="262" text-anchor="middle" fill="var(--text-faint)" font-size="10.5">holds its own IK</text>
+              <text x="590" y="262" text-anchor="middle" fill="var(--text-faint)" font-size="12">holds its own IK</text>
 
               <line x1="180" y1="248" x2="520" y2="248" stroke="var(--text-secondary)" stroke-width="2"></line>
-              <text x="350" y="238" text-anchor="middle" fill="var(--text-secondary)" font-size="11.5" font-weight="700">direct — works with zero coordinators</text>
+              <text x="350" y="238" text-anchor="middle" fill="var(--text-secondary)" font-size="12.5" font-weight="700">direct — works with zero coordinators</text>
 
               <rect x="235" y="20" width="230" height="66" rx="12" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.6"></rect>
               <text x="350" y="45" text-anchor="middle" fill="var(--accent-ink)" font-weight="700">COORDINATOR</text>
-              <text x="350" y="62" text-anchor="middle" fill="var(--text-secondary)" font-size="11">gateway · relay · indexer ·</text>
-              <text x="350" y="76" text-anchor="middle" fill="var(--text-secondary)" font-size="11">labeler · arbiter · oracle …</text>
+              <text x="350" y="62" text-anchor="middle" fill="var(--text-secondary)" font-size="12">gateway · relay · indexer ·</text>
+              <text x="350" y="76" text-anchor="middle" fill="var(--text-secondary)" font-size="12">labeler · arbiter · oracle …</text>
 
               <path d="M240,86 L130,220" stroke="var(--border-emphasis)" stroke-width="1.3" fill="none" stroke-dasharray="5 4"></path>
               <path d="M460,86 L580,220" stroke="var(--border-emphasis)" stroke-width="1.3" fill="none" stroke-dasharray="5 4"></path>
-              <text x="350" y="103" text-anchor="middle" fill="var(--text-faint)" font-style="italic" font-size="11">optional — adds reach, never gates function</text>
+              <text x="350" y="103" text-anchor="middle" fill="var(--text-faint)" font-style="italic" font-size="12">optional — adds reach, never gates function</text>
 
-              <g font-size="10.3" text-anchor="middle">
+              <g font-size="12" text-anchor="middle">
                 <rect x="235" y="116" width="112" height="24" rx="12" fill="var(--bg-base)" stroke="var(--border-strong)"></rect>
                 <text x="291" y="132" fill="var(--text-secondary)">ACCOUNTABLE</text>
                 <rect x="353" y="116" width="112" height="24" rx="12" fill="var(--bg-base)" stroke="var(--border-strong)"></rect>
@@ -703,10 +750,12 @@
                 <text x="418" y="166" fill="var(--text-secondary)">VISIBILITY DECLARED</text>
               </g>
             </g>
-            <text x="350" y="312" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--text-faint)" font-style="italic">a coordinator is hired, not depended on — the solid line is load-bearing, the dashed lines never are</text>
+            <text x="350" y="312" text-anchor="middle" font-family="var(--font-mono)" font-size="12" fill="var(--text-faint)" font-style="italic">a coordinator is hired, not depended on —</text>
+            <text x="350" y="330" text-anchor="middle" font-family="var(--font-mono)" font-size="12" fill="var(--text-faint)" font-style="italic">the solid line is load-bearing, the dashed lines never are</text>
           </svg>
         </div>
-        <figcaption>Figure 2 — the coordinator contract's shape. The direct peer-to-peer path (solid) is what the substrate guarantees on its own; a coordinator (dashed) is an optional accelerant fenced by four conformance clauses. Custodial escrow is the family's one disclosed exception (§3.4).</figcaption>
+        <p class="scroll-hint">↔ scroll to see the full diagram</p>
+        <figcaption>Figure 3 — the coordinator contract's shape. The direct peer-to-peer path (solid) is what the substrate guarantees on its own; a coordinator (dashed) is an optional accelerant fenced by four conformance clauses. Custodial escrow is the family's one disclosed exception (§3.4).</figcaption>
       </figure>
 
       <h3><span class="secnum">3.1</span> Four conformance clauses</h3>
@@ -797,41 +846,45 @@
 
       <figure>
         <div class="diagram-frame">
-          <svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="layTitle layDesc">
+          <svg viewBox="0 0 860 336" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="layTitle layDesc" style="--diagram-min-width:860px">
             <title id="layTitle">A thin base, apps on top, swappable seams on the side</title>
             <desc id="layDesc">A thin base (ADOPT + the six-capability substrate + the coordinator contract) sits at the floor; the six primitives are an opt-in coordination toolkit a messaging node uses none of; applications sit on top; coordinators and bindings are swappable side-seams that absorb hard problems.</desc>
-            <g font-family="var(--font-mono)" font-size="12.5" text-anchor="middle">
-              <rect x="140" y="10"  width="480" height="40" rx="8" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.3"></rect>
-              <text x="380" y="35" fill="var(--accent-ink)" font-weight="700" font-size="11.5">⑥ PROFILES — nine thin profiles over one substrate</text>
+            <g font-family="var(--font-mono)" text-anchor="middle">
+              <rect x="140" y="10"  width="480" height="42" rx="8" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.3"></rect>
+              <text x="380" y="36" fill="var(--accent-ink)" font-weight="700" font-size="12.5">⑥ PROFILES — nine thin profiles over one substrate</text>
 
-              <rect x="140" y="70"  width="480" height="36" rx="8" fill="var(--bg-elevated)" stroke="var(--border-emphasis)"></rect>
-              <text x="380" y="93" fill="var(--text-secondary)" font-size="11">③ PRIMITIVES — OFFER · MATCH · RESERVE · REPUTATION · ESCROW · ATTEST</text>
+              <rect x="140" y="68"  width="480" height="50" rx="8" fill="var(--bg-elevated)" stroke="var(--border-emphasis)"></rect>
+              <text x="380" y="90" fill="var(--text-primary)" font-weight="700" font-size="13">③ PRIMITIVES</text>
+              <text x="380" y="107" fill="var(--text-secondary)" font-size="12">OFFER · MATCH · RESERVE · REPUTATION · ESCROW · ATTEST</text>
 
-              <rect x="140" y="126" width="480" height="36" rx="8" fill="var(--bg-elevated)" stroke="var(--border-emphasis)"></rect>
-              <text x="380" y="149" fill="var(--text-secondary)">② SUBSTRATE — Identity · MOTE · Transport · PUB · Sync · Roles</text>
+              <rect x="140" y="132" width="480" height="50" rx="8" fill="var(--bg-elevated)" stroke="var(--border-emphasis)"></rect>
+              <text x="380" y="154" fill="var(--text-primary)" font-weight="700" font-size="13">② SUBSTRATE</text>
+              <text x="380" y="171" fill="var(--text-secondary)" font-size="12">Identity · MOTE · Transport · PUB · Sync · Roles</text>
 
-              <rect x="140" y="182" width="480" height="36" rx="8" fill="var(--bg-elevated)" stroke="var(--border-emphasis)"></rect>
-              <text x="380" y="205" fill="var(--text-secondary)">① ADOPT — Ed25519 · HPKE · CBOR</text>
+              <rect x="140" y="196" width="480" height="40" rx="8" fill="var(--bg-elevated)" stroke="var(--border-emphasis)"></rect>
+              <text x="380" y="220" fill="var(--text-secondary)" font-size="12.5">① ADOPT — Ed25519 · HPKE · CBOR</text>
 
-              <rect x="640" y="70" width="200" height="92" rx="8" fill="var(--bg-surface)" stroke="var(--accent)" stroke-width="1.2" stroke-dasharray="4 3"></rect>
-              <text x="740" y="98" fill="var(--text-primary)" font-weight="700" font-size="12">④ COORDINATOR</text>
-              <text x="740" y="114" fill="var(--text-primary)" font-weight="700" font-size="12">CONTRACT</text>
-              <text x="740" y="135" fill="var(--text-faint)" font-size="11" font-style="italic">safe centralisation,</text>
-              <text x="740" y="150" fill="var(--text-faint)" font-size="11" font-style="italic">made checkable</text>
+              <rect x="640" y="68" width="200" height="114" rx="8" fill="var(--bg-surface)" stroke="var(--accent)" stroke-width="1.2" stroke-dasharray="4 3"></rect>
+              <text x="740" y="98" fill="var(--text-primary)" font-weight="700" font-size="12.5">④ COORDINATOR</text>
+              <text x="740" y="115" fill="var(--text-primary)" font-weight="700" font-size="12.5">CONTRACT</text>
+              <text x="740" y="140" fill="var(--text-faint)" font-size="12" font-style="italic">safe centralisation,</text>
+              <text x="740" y="156" fill="var(--text-faint)" font-size="12" font-style="italic">made checkable</text>
 
-              <rect x="60" y="70" width="70" height="92" rx="8" fill="var(--bg-surface)" stroke="var(--border-strong)" stroke-width="1.2" stroke-dasharray="4 3"></rect>
-              <text x="95" y="105" fill="var(--text-secondary)" font-weight="700" font-size="12">⑤</text>
-              <text x="95" y="122" fill="var(--text-secondary)" font-weight="700" font-size="11">BIND-</text>
-              <text x="95" y="136" fill="var(--text-secondary)" font-weight="700" font-size="11">INGS</text>
+              <rect x="20" y="68" width="78" height="114" rx="8" fill="var(--bg-surface)" stroke="var(--border-strong)" stroke-width="1.2" stroke-dasharray="4 3"></rect>
+              <text x="59" y="108" fill="var(--text-secondary)" font-weight="700" font-size="13">⑤</text>
+              <text x="59" y="128" fill="var(--text-secondary)" font-weight="700" font-size="12">BIND-</text>
+              <text x="59" y="144" fill="var(--text-secondary)" font-weight="700" font-size="12">INGS</text>
 
-              <line x1="130" y1="112" x2="140" y2="112" stroke="var(--border-strong)" stroke-width="1.4"></line>
-              <line x1="620" y1="112" x2="640" y2="112" stroke="var(--accent)" stroke-width="1.4"></line>
+              <line x1="98" y1="125" x2="140" y2="125" stroke="var(--border-strong)" stroke-width="1.4"></line>
+              <line x1="620" y1="125" x2="640" y2="125" stroke="var(--accent)" stroke-width="1.4"></line>
             </g>
-            <text x="380" y="250" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--text-faint)" font-style="italic">a hard problem is never hard-wired — it is a swappable binding or a fenced coordinator</text>
-            <text x="380" y="268" text-anchor="middle" font-family="var(--font-mono)" font-size="10" fill="var(--text-faint)" font-style="italic">ORACLE (⊂ATTEST), DISPUTE (arbiter) and PAY (stablecoin) are composite roles, not extra primitives — DIRECTION.md §2</text>
+            <text x="380" y="266" text-anchor="middle" font-family="var(--font-mono)" font-size="12" fill="var(--text-faint)" font-style="italic">a hard problem is never hard-wired — it is a swappable binding or a fenced coordinator</text>
+            <text x="380" y="288" text-anchor="middle" font-family="var(--font-mono)" font-size="12" fill="var(--text-faint)" font-style="italic">ORACLE (⊂ATTEST), DISPUTE (arbiter) and PAY (stablecoin)</text>
+            <text x="380" y="306" text-anchor="middle" font-family="var(--font-mono)" font-size="12" fill="var(--text-faint)" font-style="italic">are composite roles, not extra primitives — DIRECTION.md §2</text>
           </svg>
         </div>
-        <figcaption>Figure 3 — the architecture. Applications sit on top of a thin base; everything hard is either adopted (bindings) or fenced (coordinators) as swappable side-seams, never re-derived at the top.</figcaption>
+        <p class="scroll-hint">↔ scroll to see the full diagram</p>
+        <figcaption>Figure 4 — the architecture. Applications sit on top of a thin base; everything hard is either adopted (bindings) or fenced (coordinators) as swappable side-seams, never re-derived at the top.</figcaption>
       </figure>
 
       <div class="profile" id="p-mail">
@@ -964,7 +1017,7 @@
       <p>Recovery is adopted, not invented (§4): account abstraction, passkeys, and MPC shares heal a lost device without ever making a name, a domain, or a provider load-bearing over the key itself. A name can expire, a provider can shut down, a device can be lost or seized — the identity underneath, and everything signed under it, survives, because none of those things were ever anything more than a swappable pointer to the same <code>IK</code>.</p>
       <figure>
         <div class="diagram-frame">
-          <svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="anchorTitle anchorDesc">
+          <svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="anchorTitle anchorDesc" style="--diagram-min-width:660px">
             <title id="anchorTitle">The key is the anchor</title>
             <desc id="anchorDesc">A solid keypair sits at the centre. Six pointers — a DNS name, an 8-word key-name, a mail provider, a gateway, a relay, and a device — orbit it on dashed spokes. One pointer, the mail provider, is shown fading and struck through, with the caption "swap it — the anchor doesn't move."</desc>
             <defs>
@@ -987,11 +1040,11 @@
 
             <circle cx="360" cy="190" r="42" fill="var(--bg-elevated)" stroke="var(--accent)" stroke-width="2.2"></circle>
             <g font-family="var(--font-mono)" text-anchor="middle" fill="var(--text-primary)">
-              <text x="360" y="185" font-weight="700" font-size="12.5">IK</text>
-              <text x="360" y="200" font-size="9" fill="var(--text-faint)">keypair</text>
+              <text x="360" y="184" font-weight="700" font-size="12.5">IK</text>
+              <text x="360" y="200" font-size="12" fill="var(--text-faint)">keypair</text>
             </g>
 
-            <g font-family="var(--font-mono)" font-size="11" text-anchor="middle">
+            <g font-family="var(--font-mono)" font-size="12" text-anchor="middle">
               <rect x="308" y="26" width="104" height="30" rx="15" fill="var(--bg-surface)" stroke="var(--border-strong)"></rect>
               <text x="360" y="46" fill="var(--text-secondary)">DNS name</text>
 
@@ -1007,16 +1060,16 @@
               <rect x="108" y="212" width="104" height="30" rx="15" fill="var(--bg-surface)" stroke="var(--border-strong)"></rect>
               <text x="160" y="232" fill="var(--text-secondary)">gateway</text>
 
-              <rect x="152" y="80" width="104" height="30" rx="15" fill="var(--bg-surface)" stroke="var(--border-emphasis)" stroke-opacity="0.55" opacity="0.55"></rect>
+              <rect x="150" y="80" width="108" height="30" rx="15" fill="var(--bg-surface)" stroke="var(--border-emphasis)" stroke-opacity="0.55" opacity="0.55"></rect>
               <text x="204" y="100" fill="var(--text-faint)" text-decoration="line-through">mail provider</text>
             </g>
 
-            <text x="200" y="322" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--text-faint)"></text>
-            <text x="204" y="130" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--accent-ink)" font-style="italic">swap it —</text>
-            <text x="204" y="144" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--accent-ink)" font-style="italic">the anchor doesn't move</text>
+            <text x="204" y="130" text-anchor="middle" font-family="var(--font-mono)" font-size="12" fill="var(--accent-ink)" font-style="italic">swap it —</text>
+            <text x="204" y="145" text-anchor="middle" font-family="var(--font-mono)" font-size="12" fill="var(--accent-ink)" font-style="italic">the anchor doesn't move</text>
           </svg>
         </div>
-        <figcaption>Figure 4 — the key is the anchor. A name, a key-name, a gateway, a relay, or a provider are all swappable pointers to the same keypair (dashed spokes); lose one, or fire one, and the anchor — the <code>IK</code> itself — holds.</figcaption>
+        <p class="scroll-hint">↔ scroll to see the full diagram</p>
+        <figcaption>Figure 5 — the key is the anchor. A name, a key-name, a gateway, a relay, or a provider are all swappable pointers to the same keypair (dashed spokes); lose one, or fire one, and the anchor — the <code>IK</code> itself — holds.</figcaption>
       </figure>
     </section>
 
