@@ -628,42 +628,42 @@
 
       <figure>
         <div class="diagram-frame">
-          <svg viewBox="0 0 900 310" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="syncTitle syncDesc" style="--diagram-min-width:820px">
+          <svg viewBox="0 0 860 310" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="syncTitle syncDesc" style="--diagram-min-width:860px">
             <title id="syncTitle">Sync — leaderless convergence across replicas, one of which is offline</title>
             <desc id="syncDesc">Three replicas, A, B and C, each sign their own operations locally; Replica B is drawn offline, still minting ops with no connection to the others. All three reconcile pairwise over the three-endpoint HTTP protocol, in any order, and join into one deterministic merged state that is byte-identical regardless of who saw which ops first.</desc>
             <g font-family="var(--font-mono)" text-anchor="middle">
-              <rect x="75"  y="20" width="200" height="56" rx="10" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.3"></rect>
-              <text x="175" y="44" fill="var(--text-primary)" font-weight="700" font-size="13">REPLICA A</text>
-              <text x="175" y="61" fill="var(--text-faint)" font-size="12">signs its own ops</text>
+              <rect x="65"  y="20" width="200" height="56" rx="10" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.3"></rect>
+              <text x="165" y="44" fill="var(--text-primary)" font-weight="700" font-size="13">REPLICA A</text>
+              <text x="165" y="61" fill="var(--text-faint)" font-size="12">signs its own ops</text>
 
-              <rect x="350" y="20" width="200" height="56" rx="10" fill="var(--bg-elevated)" stroke="var(--text-faint)" stroke-width="1.3" stroke-dasharray="5 4"></rect>
-              <text x="450" y="44" fill="var(--text-primary)" font-weight="700" font-size="13">REPLICA B</text>
-              <text x="450" y="61" fill="var(--accent-ink)" font-size="12">offline — mints ops</text>
+              <rect x="330" y="20" width="200" height="56" rx="10" fill="var(--bg-elevated)" stroke="var(--text-faint)" stroke-width="1.3" stroke-dasharray="5 4"></rect>
+              <text x="430" y="44" fill="var(--text-primary)" font-weight="700" font-size="13">REPLICA B</text>
+              <text x="430" y="61" fill="var(--accent-ink)" font-size="12">offline — mints ops</text>
 
-              <rect x="625" y="20" width="200" height="56" rx="10" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.3"></rect>
-              <text x="725" y="44" fill="var(--text-primary)" font-weight="700" font-size="13">REPLICA C</text>
-              <text x="725" y="61" fill="var(--text-faint)" font-size="12">signs its own ops</text>
+              <rect x="595" y="20" width="200" height="56" rx="10" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.3"></rect>
+              <text x="695" y="44" fill="var(--text-primary)" font-weight="700" font-size="13">REPLICA C</text>
+              <text x="695" y="61" fill="var(--text-faint)" font-size="12">signs its own ops</text>
 
-              <line x1="175" y1="110" x2="725" y2="110" stroke="var(--border-emphasis)" stroke-width="1.3" stroke-dasharray="3 3"></line>
-              <circle cx="175" cy="110" r="4" fill="var(--accent)"></circle>
-              <circle cx="450" cy="110" r="4" fill="var(--accent)"></circle>
-              <circle cx="725" cy="110" r="4" fill="var(--accent)"></circle>
-              <text x="450" y="98" fill="var(--text-faint)" font-style="italic" font-size="12">leaderless reconciliation — any replica, any order, any subset seen so far</text>
+              <line x1="165" y1="110" x2="695" y2="110" stroke="var(--border-emphasis)" stroke-width="1.3" stroke-dasharray="3 3"></line>
+              <circle cx="165" cy="110" r="4" fill="var(--accent)"></circle>
+              <circle cx="430" cy="110" r="4" fill="var(--accent)"></circle>
+              <circle cx="695" cy="110" r="4" fill="var(--accent)"></circle>
+              <text x="430" y="98" fill="var(--text-faint)" font-style="italic" font-size="12">leaderless reconciliation — any replica, any order, any subset seen so far</text>
 
-              <text x="270" y="140" fill="var(--text-secondary)" font-size="12">GET /sync/vector</text>
-              <text x="450" y="140" fill="var(--text-secondary)" font-size="12">POST /sync/pull</text>
-              <text x="630" y="140" fill="var(--text-secondary)" font-size="12">POST /sync/ops</text>
+              <text x="257" y="140" fill="var(--text-secondary)" font-size="12">GET /sync/vector</text>
+              <text x="430" y="140" fill="var(--text-secondary)" font-size="12">POST /sync/pull</text>
+              <text x="603" y="140" fill="var(--text-secondary)" font-size="12">POST /sync/ops</text>
 
-              <path d="M175,114 C175,155 260,170 300,188" stroke="var(--border-emphasis)" stroke-width="1.3" fill="none" stroke-dasharray="4 3"></path>
-              <path d="M450,114 L450,188" stroke="var(--border-emphasis)" stroke-width="1.3" fill="none" stroke-dasharray="4 3"></path>
-              <path d="M725,114 C725,155 640,170 600,188" stroke="var(--border-emphasis)" stroke-width="1.3" fill="none" stroke-dasharray="4 3"></path>
+              <path d="M165,114 C165,155 235,170 280,188" stroke="var(--border-emphasis)" stroke-width="1.3" fill="none" stroke-dasharray="4 3"></path>
+              <path d="M430,114 L430,188" stroke="var(--border-emphasis)" stroke-width="1.3" fill="none" stroke-dasharray="4 3"></path>
+              <path d="M695,114 C695,155 625,170 580,188" stroke="var(--border-emphasis)" stroke-width="1.3" fill="none" stroke-dasharray="4 3"></path>
 
-              <rect x="140" y="190" width="620" height="80" rx="14" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.6"></rect>
-              <text x="450" y="213" fill="var(--accent-ink)" font-weight="700" font-size="13">DETERMINISTIC JOIN</text>
-              <text x="450" y="233" fill="var(--text-secondary)" font-size="12">commutative · associative · idempotent — any order, same bytes</text>
-              <text x="450" y="251" fill="var(--text-faint)" font-size="12" font-style="italic">no primary · no coordinator · reconciles fully offline</text>
+              <rect x="120" y="190" width="620" height="80" rx="14" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.6"></rect>
+              <text x="430" y="213" fill="var(--accent-ink)" font-weight="700" font-size="13">DETERMINISTIC JOIN</text>
+              <text x="430" y="233" fill="var(--text-secondary)" font-size="12">commutative · associative · idempotent — any order, same bytes</text>
+              <text x="430" y="251" fill="var(--text-faint)" font-size="12" font-style="italic">no primary · no coordinator · reconciles fully offline</text>
             </g>
-            <text x="450" y="294" text-anchor="middle" font-family="var(--font-mono)" font-size="12" fill="var(--text-faint)" font-style="italic">any two replicas that have applied the same set of ops compute the same bytes</text>
+            <text x="430" y="294" text-anchor="middle" font-family="var(--font-mono)" font-size="12" fill="var(--text-faint)" font-style="italic">any two replicas that have applied the same set of ops compute the same bytes</text>
           </svg>
         </div>
         <p class="scroll-hint">↔ scroll to see the full diagram</p>
@@ -1017,7 +1017,7 @@
       <p>Recovery is adopted, not invented (§4): account abstraction, passkeys, and MPC shares heal a lost device without ever making a name, a domain, or a provider load-bearing over the key itself. A name can expire, a provider can shut down, a device can be lost or seized — the identity underneath, and everything signed under it, survives, because none of those things were ever anything more than a swappable pointer to the same <code>IK</code>.</p>
       <figure>
         <div class="diagram-frame">
-          <svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="anchorTitle anchorDesc" style="--diagram-min-width:660px">
+          <svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="anchorTitle anchorDesc" style="--diagram-min-width:720px">
             <title id="anchorTitle">The key is the anchor</title>
             <desc id="anchorDesc">A solid keypair sits at the centre. Six pointers — a DNS name, an 8-word key-name, a mail provider, a gateway, a relay, and a device — orbit it on dashed spokes. One pointer, the mail provider, is shown fading and struck through, with the caption "swap it — the anchor doesn't move."</desc>
             <defs>
