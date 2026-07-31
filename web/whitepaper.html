@@ -176,11 +176,24 @@
   .toc-list a:hover{ background:var(--bg-elevated); color:var(--text-primary); }
   .toc-list a.active{ color:var(--accent-ink); background:var(--accent-bg); border-left-color:var(--accent); font-weight:600; }
   .toc-list a.active::before{ content:''; }
-  .toc-list .toc-sub{ list-style:none; margin:0 0 6px 0; padding:0 0 0 12px; }
-  .toc-list .toc-sub a{ font-size:12px; padding:4px 10px; color:var(--text-faint); }
+  .toc-list .toc-sub{ list-style:none; margin:0 0 6px 0; padding:0 0 0 12px; border-left:1px solid var(--border-default); }
+  .toc-list .toc-sub a{ font-size:12px; padding:4px 10px; color:var(--text-faint); display:flex; align-items:center; gap:.55em; text-indent:0; }
   .toc-group-title{ font-size:12px; text-transform:uppercase; letter-spacing:.1em; color:var(--text-faint); margin:18px 0 5px 10px; }
   .toc-group-title:first-child{ margin-top:0; }
   .toc-toggle{ display:none; }
+  /* per-profile ratification-tier dot — same three colours as the .badge
+     system, so the sidebar tells the tier story before a reader opens a
+     single profile card. */
+  .toc-dot{ width:6px; height:6px; border-radius:50%; flex:none; background:var(--text-faint); }
+  .toc-dot[data-tier="live"]{ background:var(--status-live); }
+  .toc-dot[data-tier="draft"]{ background:var(--status-draft); }
+  .toc-dot[data-tier="early"]{ background:var(--status-early); }
+  .toc-legend{
+    display:flex; flex-direction:column; gap:5px; margin:16px 10px 0; padding-top:14px;
+    border-top:1px solid var(--border-default); font-size:12px; color:var(--text-faint);
+  }
+  .toc-legend span{ display:flex; align-items:center; gap:.6em; }
+  #tocReadtime{ display:block; margin:2px 10px 0; font-size:12px; color:var(--text-faint); }
 
   main{ min-width:0; padding:46px 0 130px; }
   main:focus{ outline:none; }
@@ -211,6 +224,9 @@
   .badge.b-live{ color:var(--status-live); background:var(--status-live-bg); border-color:transparent; }
   .badge.b-draft{ color:var(--status-draft); background:var(--status-draft-bg); border-color:transparent; }
   .badge.b-early{ color:var(--status-early); background:var(--status-early-bg); border-color:transparent; }
+  /* not a ratification tier — a spotlight flag for the one capability that is
+     genuinely new wire format rather than a profile of something existing. */
+  .badge.b-new{ color:var(--accent-ink); background:var(--accent-bg); border-color:transparent; }
   .badge .dot{ width:6px; height:6px; border-radius:50%; background:currentColor; display:inline-block; }
 
   hr.rule{ border:none; border-top:1px solid var(--border-strong); margin:2.8em 0; }
@@ -248,6 +264,14 @@
     margin:0 0 1.3em; max-width:100%; color:var(--text-secondary);
   }
   pre code{ background:none; border:none; padding:0; color:inherit; }
+  .pre-wrap{ position:relative; margin:0 0 1.3em; }
+  .pre-wrap pre{ margin:0; }
+  .pre-lang{
+    position:absolute; top:0; right:14px; transform:translateY(-50%);
+    font-family:var(--font-mono); font-size:12px; font-weight:700; letter-spacing:.07em;
+    text-transform:uppercase; color:var(--text-faint); background:var(--bg-base);
+    border:1px solid var(--code-border); border-radius:5px; padding:2px 7px;
+  }
 
   blockquote{
     margin:1.5em 0; padding:.5em 0 .5em 1.2em; border-left:3px solid var(--accent);
@@ -279,7 +303,10 @@
     font-family:var(--font-mono);
   }
   tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:nth-child(even){ background:color-mix(in srgb, var(--bg-surface) 55%, transparent); }
   tbody tr:hover{ background:var(--bg-surface); }
+  tbody td:first-child{ border-left:2px solid transparent; }
+  tbody tr:hover td:first-child{ border-left-color:var(--accent); }
   td code, th code{ white-space:nowrap; }
   .tablewrap.compact table{ min-width:0; }
 
@@ -319,6 +346,77 @@
   }
   @keyframes kv-pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.45; } }
   @keyframes kv-fade{ from{ opacity:0; } to{ opacity:1; } }
+
+  /* ---------- arrival: the "at a glance" orientation module ----------
+     Sits between the title block and §0 Abstract. Every fact in it is a
+     condensed restatement of something the Abstract/§1/§5/§7 already say —
+     this module orients, it does not introduce new claims. */
+  .arrival{ margin:0 0 2.6em; }
+  .arrival-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:1px;
+    background:var(--border-default); border:1px solid var(--border-default);
+    border-radius:14px; overflow:hidden; box-shadow:var(--shadow);
+  }
+  @media (max-width:720px){ .arrival-grid{ grid-template-columns:1fr; } }
+  .arrival-card{ background:var(--bg-surface); padding:20px 22px 22px; }
+  .arrival-card svg{ width:20px; height:20px; color:var(--accent); margin-bottom:10px; display:block; }
+  .arrival-kicker{
+    margin:0 0 .5em; font-family:var(--font-mono); font-size:12px; font-weight:700;
+    letter-spacing:.09em; text-transform:uppercase; color:var(--text-faint);
+  }
+  .arrival-card p{ margin:0; font-size:14.8px; line-height:1.6; color:var(--text-secondary); max-width:none; }
+  .arrival-card p strong{ color:var(--text-primary); }
+  .arrival-card .badge{ font-size:max(12px,.85em); padding:2px 8px; margin:0 .15em 0 0; vertical-align:1px; }
+  .arrival-links{ display:flex; flex-direction:column; }
+  .arrival-links ul{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+  .arrival-links li{ margin:0; }
+  .arrival-links a{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    font-family:var(--font-mono); font-size:13.5px; font-weight:600; color:var(--text-primary);
+    text-decoration:none; padding:7px 0; border-bottom:1px dashed var(--border-strong);
+  }
+  .arrival-links li:last-child a{ border-bottom:none; padding-bottom:0; }
+  .arrival-links a:hover{ color:var(--accent-hover); }
+  .arrival-links a::after{ content:'→'; opacity:.7; }
+
+  /* ---------- status legend strip ---------- */
+  .status-legend{
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px 18px;
+    font-family:var(--font-mono); font-size:12.5px; color:var(--text-tertiary);
+    margin:1.2em 0 0; padding-top:1.1em; border-top:1px dashed var(--border-default);
+  }
+  .status-legend strong{ color:var(--text-faint); font-weight:600; text-transform:uppercase; font-size:12px; letter-spacing:.06em; }
+  .status-legend .badge{ font-size:max(12px,.85em); padding:3px 9px; }
+
+  /* ---------- group dividers ----------
+     Heavier break at the three TOC group boundaries (Architecture / The
+     profiles / Discipline) — same labels as the sidebar, so the body's
+     rhythm literally maps onto the nav a reader already scanned. Ordinary
+     section-to-section transitions keep the plain hr.rule; only these three
+     transitions get the heavier treatment. */
+  .group-divider{ display:flex; align-items:center; gap:18px; margin:3.4em 0 2.6em; }
+  .group-divider::before, .group-divider::after{ content:''; flex:1 1 auto; height:1px; background:var(--border-strong); }
+  .group-divider::before{ flex:0 0 28px; }
+  .group-divider-label{
+    font-family:var(--font-mono); font-size:12.5px; font-weight:700; letter-spacing:.2em;
+    text-transform:uppercase; color:var(--accent-ink); white-space:nowrap;
+  }
+
+  /* ---------- lede / standfirst ----------
+     The opening sentence of a section, pulled visually apart from the body
+     so a reader scanning down the page gets the load-bearing claim before
+     the supporting prose. */
+  .lede{ font-size:19px; line-height:1.55; color:var(--text-primary); font-weight:500; letter-spacing:-.005em; }
+  .lede strong{ color:var(--accent-ink); }
+
+  /* ---------- section-head status chips ----------
+     Reuses the badge vocabulary at h2 scale, for the handful of sections
+     that carry an explicit status claim in their own prose (§3's "draft,
+     normative once ratified"; §2.2's "the one genuinely new" flag). Most
+     sections carry no chip — inventing a tier where the spec states none
+     would be a fabricated precision, not a design improvement. */
+  h2 .badge, h3 .badge{ font-size:max(12px,.85em); padding:3px 9px; font-weight:700; vertical-align:2px; }
+  h3{ display:flex; align-items:baseline; gap:.5em; flex-wrap:wrap; }
 
   /* ---------- misc ---------- */
   .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
@@ -443,23 +541,31 @@
         <div class="toc-group-title">The profiles</div>
         <li><a href="#profiles">§5&nbsp;&nbsp;Profiles overview</a>
           <ul class="toc-sub">
-            <li><a href="#p-mail">DMTAP mail</a></li>
-            <li><a href="#p-tract">TRACT commerce</a></li>
-            <li><a href="#p-wrap">WRAP work</a></li>
-            <li><a href="#p-media">MEDIA / Evermesh</a></li>
-            <li><a href="#p-social">SOCIAL</a></li>
-            <li><a href="#p-rtc">RTC calling</a></li>
-            <li><a href="#p-reach">REACH</a></li>
-            <li><a href="#p-search">SEARCH</a></li>
-            <li><a href="#p-depot">DEPOT cloud</a></li>
+            <li><a href="#p-mail"><span class="toc-dot" data-tier="live" aria-hidden="true"></span>DMTAP mail</a></li>
+            <li><a href="#p-tract"><span class="toc-dot" data-tier="draft" aria-hidden="true"></span>TRACT commerce</a></li>
+            <li><a href="#p-wrap"><span class="toc-dot" data-tier="draft" aria-hidden="true"></span>WRAP work</a></li>
+            <li><a href="#p-media"><span class="toc-dot" data-tier="draft" aria-hidden="true"></span>MEDIA / Evermesh</a></li>
+            <li><a href="#p-social"><span class="toc-dot" data-tier="draft" aria-hidden="true"></span>SOCIAL</a></li>
+            <li><a href="#p-rtc"><span class="toc-dot" data-tier="draft" aria-hidden="true"></span>RTC calling</a></li>
+            <li><a href="#p-reach"><span class="toc-dot" data-tier="draft" aria-hidden="true"></span>REACH</a></li>
+            <li><a href="#p-search"><span class="toc-dot" data-tier="draft" aria-hidden="true"></span>SEARCH</a></li>
+            <li><a href="#p-depot"><span class="toc-dot" data-tier="early" aria-hidden="true"></span>DEPOT cloud</a></li>
           </ul>
         </li>
+        <li><a href="#anchor">§5.9&nbsp;&nbsp;The key is the anchor</a></li>
 
         <div class="toc-group-title">Discipline</div>
         <li><a href="#honesty">§6&nbsp;&nbsp;Honest ceilings &amp; threat model</a></li>
         <li><a href="#status">§7&nbsp;&nbsp;Status &amp; governance</a></li>
         <li><a href="#references">§8&nbsp;&nbsp;References</a></li>
       </ul>
+
+      <div class="toc-legend" aria-hidden="true">
+        <span><span class="toc-dot" data-tier="live"></span> Core v1 · stable</span>
+        <span><span class="toc-dot" data-tier="draft"></span> drafted · candidate</span>
+        <span><span class="toc-dot" data-tier="early"></span> early · experimental</span>
+      </div>
+      <span id="tocReadtime"></span>
     </div>
   </nav>
 
@@ -477,12 +583,51 @@
       </div>
     </div>
 
+    <div class="arrival" aria-label="KOTVA at a glance">
+      <div class="arrival-grid">
+        <div class="arrival-card">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="2.4" fill="currentColor"/></svg>
+          <p class="arrival-kicker">In one sentence</p>
+          <p>KOTVA is a small shared substrate — <strong>six capabilities, one wire format</strong> — that mail, commerce, work, social, media and calling apps build on as thin, independent profiles instead of separate platforms.</p>
+        </div>
+        <div class="arrival-card">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16M8 5l4 7 4-7M12 12v4M9 20h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <p class="arrival-kicker">Why a narrow waist</p>
+          <p>Protocols that try to cover everything — XMPP, Matrix — die of their own weight. KOTVA stays as thin as <strong>HTTP or IP</strong>: a small waist products compose upward and downward from, adopting only what they need.</p>
+        </div>
+        <div class="arrival-card">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12l5 5L20 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <p class="arrival-kicker">What's real today</p>
+          <p><span class="badge b-live"><span class="dot"></span>live</span> DMTAP mail — Core&nbsp;v1, a numbered spec with real implementations. <span class="badge b-draft"><span class="dot"></span>draft</span> TRACT, WRAP + five further profiles. <span class="badge b-early"><span class="dot"></span>early</span> DEPOT (cloud) is the one flagged experimental, outside Core&nbsp;v1 — see <a href="#status">§7</a>.</p>
+        </div>
+        <div class="arrival-card arrival-links">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <p class="arrival-kicker">Where to go next</p>
+          <ul>
+            <li><a href="#waist">Why a narrow waist</a></li>
+            <li><a href="#p-mail">What's shipping: DMTAP mail</a></li>
+            <li><a href="#honesty">Honest ceilings &amp; threat model</a></li>
+          </ul>
+        </div>
+      </div>
+      <p class="status-legend">
+        <strong>Reading the tiers</strong>
+        <span class="badge b-live"><span class="dot"></span>Core v1 · stable</span>
+        <span class="badge b-draft"><span class="dot"></span>drafted · candidate</span>
+        <span class="badge b-early"><span class="dot"></span>early · experimental</span>
+        — carried through every profile card and the sidebar; see <a href="#status">§7</a> for the full status ledger.
+      </p>
+    </div>
+
     <section id="abstract" aria-labelledby="abstract-h">
       <h2 id="abstract-h"><span class="secnum">§0</span> Abstract</h2>
-      <p><em>Kotva</em> is Slavic for <strong>anchor</strong>. The key is the anchor: identity is a keypair its holder controls, and every name, address, alias, or operator sitting above it is a swappable pointer. KOTVA itself is not a product — it is a family of protocols sharing one narrow waist, six capabilities small enough to read in an afternoon,<sup class="fn"><a href="#r3">[3]</a></sup> plus a keystone document, the <strong>coordinator contract</strong>,<sup class="fn"><a href="#r2">[2]</a></sup> that turns "some centralisation, done safely" into a checkable property instead of a marketing promise. Above the waist sit thin <strong>profiles</strong>: DMTAP (mail, the flagship and reference profile), TRACT (commerce), WRAP (work), and a set of further drafts — media, social, real-time calling, search, reachability, cloud infrastructure. Below the waist, KOTVA adopts rather than reinvents: Ed25519, HPKE, deterministic CBOR, MLS, libp2p, SFrame, WebRTC, and a slate of external bindings for reputation, payments, storage, and dispute (Core-v1 recovery is self-contained — BIP39&nbsp;+&nbsp;FROST/Shamir, no external vendor).<sup class="fn"><a href="#r5">[5]</a></sup> The one piece of genuinely new normative engineering is <strong>Sync</strong> — a signed, multi-author CRDT operation algebra with deterministic, coordinator-free convergence. Everything else is composition, and every unavoidable point of centralisation is fenced: accountable, swappable, self-hostable, and never load-bearing.</p>
+      <p class="lede"><em>Kotva</em> is Slavic for <strong>anchor</strong>. The key is the anchor: identity is a keypair its holder controls, and every name, address, alias, or operator sitting above it is a swappable pointer.</p>
+      <p>KOTVA itself is not a product — it is a family of protocols sharing one narrow waist, six capabilities small enough to read in an afternoon,<sup class="fn"><a href="#r3">[3]</a></sup> plus a keystone document, the <strong>coordinator contract</strong>,<sup class="fn"><a href="#r2">[2]</a></sup> that turns "some centralisation, done safely" into a checkable property instead of a marketing promise.</p>
+      <p>Above the waist sit thin <strong>profiles</strong>: DMTAP (mail, the flagship and reference profile), TRACT (commerce), WRAP (work), and a set of further drafts — media, social, real-time calling, search, reachability, cloud infrastructure. Below the waist, KOTVA adopts rather than reinvents: Ed25519, HPKE, deterministic CBOR, MLS, libp2p, SFrame, WebRTC, and a slate of external bindings for reputation, payments, storage, and dispute (Core-v1 recovery is self-contained — BIP39&nbsp;+&nbsp;FROST/Shamir, no external vendor).<sup class="fn"><a href="#r5">[5]</a></sup></p>
+      <p>The one piece of genuinely new normative engineering is <strong>Sync</strong> — a signed, multi-author CRDT operation algebra with deterministic, coordinator-free convergence. Everything else is composition, and every unavoidable point of centralisation is fenced: accountable, swappable, self-hostable, and never load-bearing.</p>
     </section>
 
-    <hr class="rule">
+    <div class="group-divider" role="presentation"><span class="group-divider-label">Architecture</span></div>
 
     <section id="waist" aria-labelledby="waist-h">
       <h2 id="waist-h"><span class="secnum">§1</span> The narrow waist</h2>
@@ -595,7 +740,8 @@
       <h2 id="substrate-h"><span class="secnum">§2</span> The substrate</h2>
 
       <h3 id="substrate-caps"><span class="secnum">2.1</span> Six capabilities, one shared floor</h3>
-      <p>The substrate directory re-presents the waist as a standalone contract any non-mail product can adopt à la carte.<sup class="fn"><a href="#r3">[3]</a></sup> Five of the six capabilities <em>profile</em> existing sections of the core mail spec — they extract general machinery that happened to be written down as part of a mail protocol. Only one — Sync — is genuinely new normative ground.</p>
+      <p class="lede">The substrate directory re-presents the waist as a standalone contract any non-mail product can adopt à la carte.<sup class="fn"><a href="#r3">[3]</a></sup></p>
+      <p>Five of the six capabilities <em>profile</em> existing sections of the core mail spec — they extract general machinery that happened to be written down as part of a mail protocol. Only one — Sync — is genuinely new normative ground.</p>
 
       <div class="tablewrap">
         <table>
@@ -612,7 +758,7 @@
       </div>
       <p>The repository is candid about where implementation currently stands: roughly five independently hand-rolled sync/identity/feed implementations exist across the product suite today, <strong>none byte-interoperable with any other</strong>. The stated fix is not more prose but one compiled Rust core with thin per-language bindings (native, C-ABI/cgo, WASM, UniFFI) and frozen conformance vectors as the proof a binding is byte-identical to the core — a plan, not yet a finished fact. Two of those crates, <code>kotva-core</code> and <code>kotva-mail</code>, are tag-pinned dependencies today: consumers — the Envoir mesh node and the <strong>Ephor</strong> broker, KOTVA's reference coordinator/gateway implementation — pin a git tag rather than tracking a moving path.</p>
 
-      <h3 id="substrate-sync"><span class="secnum">2.2</span> Sync — the one new normative capability</h3>
+      <h3 id="substrate-sync"><span class="secnum">2.2</span> Sync — the one new normative capability<span class="badge b-new">only new wire format in the family</span></h3>
       <p>Every other waist capability profiles something that already exists. Sync does not: no single deployed standard covers <em>signed, deterministic, multi-author CRDT operations with snapshot and sparse namespace sync</em>. Its semantics are grounded in the mail spec's existing single-owner device-cluster CRDT, generalised to any set of independent identities converging on shared state — by making the <strong>operation itself</strong> the unit of authenticity.</p>
 
       <div class="grid-2">
@@ -672,7 +818,9 @@
 
       <h4>The <code>SyncOp</code> envelope</h4>
       <p>One envelope, six-plus CRDT types selected by a <code>kind</code> discriminator, each op individually <strong>COSE-signed</strong> (RFC 9052) or batched into a hash-chained, singly-signed <code>SyncFrame</code> for amortised signatures:</p>
-      <pre><code>SyncOp = {
+      <div class="pre-wrap">
+        <span class="pre-lang">CDDL</span>
+        <pre><code>SyncOp = {
   1  =&gt; u8,          ; kind    CRDT/op discriminator
   2  =&gt; tstr,        ; ns      namespace ("" = default)
   3  =&gt; tstr,        ; target  object id
@@ -682,6 +830,7 @@
   ? 7 =&gt; [+ AddTag],  ; observed OR-Set add-tags a remove cancels
   ? 8 =&gt; OpRef,       ; ref     RGA left-origin / tree parent
 }</code></pre>
+      </div>
 
       <div class="tablewrap compact">
         <table>
@@ -708,7 +857,7 @@
     <hr class="rule">
 
     <section id="coordinator" aria-labelledby="coordinator-h">
-      <h2 id="coordinator-h"><span class="secnum">§3</span> The coordinator contract</h2>
+      <h2 id="coordinator-h"><span class="secnum">§3</span> The coordinator contract <span class="badge b-draft"><span class="dot"></span>draft · normative once ratified</span></h2>
       <p class="lede">The keystone new specification of the family — a draft, normative once ratified — that turns "some centralisation, done safely" into a checkable property rather than a hope.</p>
       <blockquote>Decentralise the substrate and the exit. Every unavoidable coordinator is <strong>accountable, swappable, and self-hostable</strong>, and <strong>never load-bearing</strong>. Coordinators add reach; they never gate function.<sup class="fn"><a href="#r2">[2]</a></sup></blockquote>
       <p>A <strong>coordinator</strong> is any party that provides a function the peer-to-peer substrate cannot provide reciprocally: a global view (matching, ranking, search), a scarce resource (a reputable IP for legacy mail egress, a public ingress), a legal or real-world anchor (licensing, physical-event attestation), or cross-party judgement (moderation, arbitration). KOTVA does not pretend these jobs away — it fences each one behind one contract, generalised from DMTAP's legacy-mail gateway and legacy adapters into a reusable shape.</p>
@@ -810,7 +959,8 @@
 
     <section id="bindings" aria-labelledby="bindings-h">
       <h2 id="bindings-h"><span class="secnum">§4</span> Bindings — adopt, don't reinvent</h2>
-      <p>KOTVA specifies new bytes only where nothing proven exists, and binds everywhere else.<sup class="fn"><a href="#r5">[5]</a></sup> A binding is a thin mapping document — how substrate identity or objects map onto an external standard — never a re-derivation. When the frontier improves, the binding swaps; the substrate and profiles above it never change.</p>
+      <p class="lede">KOTVA specifies new bytes only where nothing proven exists, and binds everywhere else.<sup class="fn"><a href="#r5">[5]</a></sup></p>
+      <p>A binding is a thin mapping document — how substrate identity or objects map onto an external standard — never a re-derivation. When the frontier improves, the binding swaps; the substrate and profiles above it never change.</p>
 
       <div class="tablewrap">
         <table>
@@ -837,12 +987,16 @@
       </div>
     </section>
 
-    <hr class="rule">
+    <div class="group-divider" role="presentation"><span class="group-divider-label">The profiles</span></div>
 
     <section id="profiles" aria-labelledby="profiles-h">
       <h2 id="profiles-h"><span class="secnum">§5</span> The profiles</h2>
-      <p class="legend-note"><strong>How to read this section.</strong> These are <strong>reference applications</strong> that sit <em>on top</em> of the base — proof the thin substrate composes into real products; you can bring your own. The hard, domain-specific machinery (search, matching, oracles, moderation, payment) lives <em>on the side</em> as swappable <a href="#coordinator">coordinators</a> and <a href="#bindings">bindings</a>, never baked in. Each profile is tagged by ratification tier — <span class="badge b-live"><span class="dot"></span>🟢 Core&nbsp;v1 · stable</span> <span class="badge b-draft"><span class="dot"></span>🟡 stable extension · candidate</span> <span class="badge b-early"><span class="dot"></span>🔴 draft · experimental</span> — and only the base (the six waist capabilities, the wire format, and the coordinator contract) is ever <em>required</em>: a Core-v1 messaging node uses none of the primitives or profiles below.</p>
-      <p>Six primitives recur across almost every real-world service: <strong>OFFER · MATCH · RESERVE · REPUTATION · ESCROW · ATTEST</strong>.<sup class="fn"><a href="#r6">[6]</a></sup> A wider service <em>recipe</em> — <code>OFFER · MATCH/RESERVE · REPUTATION · ESCROW · ORACLE · DISPUTE · PAY</code> — is a useful shorthand for describing a product, but only six of those names are primitives: <code>ORACLE</code> is the <code>oracle</code> coordinator kind (a physical-fact attestation, i.e. <code>ORACLE</code> ⊂ <code>ATTEST</code>), <code>DISPUTE</code> is the <code>arbiter</code> coordinator kind, and <code>PAY</code> is the stablecoin binding — composite roles built from primitives and coordinators, not a seventh and eighth primitive. Because the underlying services reduce to the same six primitives, "different products" are thin profiles standing on one substrate, not separate systems: Uber, delivery, freelance work, and auctions differ mainly in MATCH's assignment rule (nearest, best-fit, highest-bid); bookings drop MATCH entirely for a single-owner RESERVE.</p>
+      <div class="callout">
+        <h4>How to read this section</h4>
+        <p>These are <strong>reference applications</strong> that sit <em>on top</em> of the base — proof the thin substrate composes into real products; you can bring your own. The hard, domain-specific machinery (search, matching, oracles, moderation, payment) lives <em>on the side</em> as swappable <a href="#coordinator">coordinators</a> and <a href="#bindings">bindings</a>, never baked in. Each profile is tagged by ratification tier — <span class="badge b-live"><span class="dot"></span>🟢 Core&nbsp;v1 · stable</span> <span class="badge b-draft"><span class="dot"></span>🟡 stable extension · candidate</span> <span class="badge b-early"><span class="dot"></span>🔴 draft · experimental</span> — and only the base (the six waist capabilities, the wire format, and the coordinator contract) is ever <em>required</em>: a Core-v1 messaging node uses none of the primitives or profiles below.</p>
+      </div>
+      <p class="lede">Six primitives recur across almost every real-world service: <strong>OFFER · MATCH · RESERVE · REPUTATION · ESCROW · ATTEST</strong>.<sup class="fn"><a href="#r6">[6]</a></sup></p>
+      <p>A wider service <em>recipe</em> — <code>OFFER · MATCH/RESERVE · REPUTATION · ESCROW · ORACLE · DISPUTE · PAY</code> — is a useful shorthand for describing a product, but only six of those names are primitives: <code>ORACLE</code> is the <code>oracle</code> coordinator kind (a physical-fact attestation, i.e. <code>ORACLE</code> ⊂ <code>ATTEST</code>), <code>DISPUTE</code> is the <code>arbiter</code> coordinator kind, and <code>PAY</code> is the stablecoin binding — composite roles built from primitives and coordinators, not a seventh and eighth primitive. Because the underlying services reduce to the same six primitives, "different products" are thin profiles standing on one substrate, not separate systems: Uber, delivery, freelance work, and auctions differ mainly in MATCH's assignment rule (nearest, best-fit, highest-bid); bookings drop MATCH entirely for a single-owner RESERVE.</p>
 
       <figure>
         <div class="diagram-frame">
@@ -1073,11 +1227,12 @@
       </figure>
     </section>
 
-    <hr class="rule">
+    <div class="group-divider" role="presentation"><span class="group-divider-label">Discipline</span></div>
 
     <section id="honesty" aria-labelledby="honesty-h">
       <h2 id="honesty-h"><span class="secnum">§6</span> Honest ceilings &amp; threat model</h2>
-      <p>KOTVA covers every service's mechanism; it discloses, rather than hides, each service's trust and legal residual. A research pass tested the substrate against roughly 35 real-world services across communication, money, the gig economy, discovery, infrastructure, civic function, media, and AI: about 29 reduce cleanly to the shared primitives (a handful with disclosed ceilings), about 3 are hard-blocked, about 2 are governance gaps, and one — a lightweight IoT profile — is simply unbuilt.</p>
+      <p class="lede">KOTVA covers every service's mechanism; it discloses, rather than hides, each service's trust and legal residual.</p>
+      <p>A research pass tested the substrate against roughly 35 real-world services across communication, money, the gig economy, discovery, infrastructure, civic function, media, and AI: about 29 reduce cleanly to the shared primitives (a handful with disclosed ceilings), about 3 are hard-blocked, about 2 are governance gaps, and one — a lightweight IoT profile — is simply unbuilt.</p>
 
       <h3><span class="secnum">6.1</span> Four root ceilings</h3>
       <div class="tablewrap">
@@ -1122,7 +1277,8 @@
 
     <section id="status" aria-labelledby="status-h">
       <h2 id="status-h"><span class="secnum">§7</span> Status &amp; governance</h2>
-      <p>KOTVA is <strong>v0.1.0 — early and evolving</strong>. The substrate, the DMTAP mail profile, and the TRACT (v0.1.0) and WRAP (v0.2.0) profiles are specified; the coordinator contract and the bindings index are the active consolidation work. Far-future cryptographic research stays quarantined to non-normative status rather than perfected on the critical path.</p>
+      <p class="lede">KOTVA is <strong>v0.1.0 — early and evolving</strong>.</p>
+      <p>The substrate, the DMTAP mail profile, and the TRACT (v0.1.0) and WRAP (v0.2.0) profiles are specified; the coordinator contract and the bindings index are the active consolidation work. Far-future cryptographic research stays quarantined to non-normative status rather than perfected on the critical path.</p>
       <ul>
         <li>Spec licence: <strong>Creative Commons Attribution 4.0 International (CC BY 4.0)</strong> — anyone may implement, quote, and build on it freely with attribution.</li>
         <li>Reference implementations (e.g. Envoir for DMTAP-mail, Ephor as the reference gateway/broker, Soko for TRACT) are licensed separately under permissive open-source terms so any party — including competitors — may embed them.</li>
@@ -1170,6 +1326,18 @@
       var open = body.classList.toggle('open');
       toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
     });
+  }
+
+  // reading time — computed from the actual rendered word count of the
+  // document body, not asserted; ~220wpm, rounded to the nearest minute.
+  var readtimeEl = document.getElementById('tocReadtime');
+  if (readtimeEl) {
+    var mainText = document.getElementById('maincontent');
+    if (mainText) {
+      var words = (mainText.innerText || mainText.textContent || '').trim().split(/\s+/).length;
+      var minutes = Math.max(1, Math.round(words / 220));
+      readtimeEl.textContent = '~' + minutes + ' min read · ' + words.toLocaleString() + ' words';
+    }
   }
 
   // scroll-spy: highlight the active TOC entry
