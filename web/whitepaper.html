@@ -235,7 +235,7 @@
   .lede{ font-size:18px; color:var(--text-secondary); }
 
   code{
-    font-family:var(--font-mono); font-size:.85em; background:var(--code-bg);
+    font-family:var(--font-mono); font-size:max(12px,.85em); background:var(--code-bg);
     border:1px solid var(--code-border); border-radius:4px; padding:.1em .4em; color:var(--accent-ink);
     word-break:break-word;
   }
@@ -262,7 +262,7 @@
   .callout.honest{ background:var(--accent-bg); border-color:var(--accent-border); }
   .callout.honest h4{ color:var(--accent-ink); }
 
-  sup.fn{ font-size:.72em; margin-left:1px; }
+  sup.fn{ font-size:max(12px,.72em); margin-left:1px; }
   sup.fn a{ color:var(--accent-ink); font-weight:700; text-decoration:none; padding:0 1px; }
   sup.fn a:hover{ text-decoration:underline; }
 
@@ -294,12 +294,22 @@
 
   /* ---------- diagrams ---------- */
   figure{ margin:1.7em 0 2.1em; }
-  figure svg{ width:100%; height:auto; display:block; }
+  /* A diagram's SVG carries a per-figure --diagram-min-width custom property (set inline,
+     one value per diagram below) so it never shrinks past the point its labels stop being
+     legible — width:100% lets it fill a wide column, min-width holds a legibility floor on
+     a narrow one. The frame scrolls internally when the floor is wider than the viewport;
+     the page itself never does (this is the same pattern as .tablewrap/table below). */
+  figure svg{ display:block; width:100%; height:auto; min-width:var(--diagram-min-width,0px); }
   figcaption{ font-family:var(--font-mono); font-size:12.5px; color:var(--text-faint); margin-top:.7em; max-width:66ch; line-height:1.55; }
   .diagram-frame{
     border:1px solid var(--border-default); border-radius:14px; background:var(--bg-surface);
-    padding:22px 20px; box-shadow:var(--shadow);
+    padding:22px 20px; box-shadow:var(--shadow); overflow-x:auto; -webkit-overflow-scrolling:touch;
   }
+  .scroll-hint{
+    display:none; align-items:center; gap:.5em; font-family:var(--font-mono); font-size:12px;
+    color:var(--accent-ink); margin:.6em 0 0; letter-spacing:.02em;
+  }
+  .scroll-hint.show{ display:flex; }
   @media (prefers-reduced-motion: no-preference){
     .pulse{ animation:kv-pulse 2.8s ease-in-out infinite; transform-origin:center; }
     .fade-in{ animation:kv-fade 900ms ease-out both; }
@@ -328,7 +338,7 @@
   .reflist li{ display:grid; grid-template-columns:2.4em 1fr; gap:10px; padding:9px 0; border-bottom:1px solid var(--border-subtle); }
   .reflist li:last-child{ border-bottom:none; }
   .reflist .refnum{ font-family:var(--font-mono); color:var(--accent-ink); font-weight:700; }
-  .reflist code{ font-size:.82em; }
+  .reflist code{ font-size:max(12px,.82em); }
 
   /* ---------- responsive ---------- */
   @media (max-width:920px){
@@ -493,10 +503,10 @@
 
       <figure>
         <div class="diagram-frame">
-          <svg viewBox="0 0 900 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="hgTitle hgDesc">
+          <svg viewBox="0 0 900 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="hgTitle hgDesc" style="--diagram-min-width:900px">
             <title id="hgTitle">The narrow-waist hourglass</title>
             <desc id="hgDesc">Nine profiles fan out at the top, funnelling down into the six waist capabilities at the neck, which funnel further down into six adopted external standards at the base.</desc>
-            <g font-family="var(--font-mono)" font-size="11.5" text-anchor="middle">
+            <g font-family="var(--font-mono)" font-size="12.5" text-anchor="middle">
               <rect x="14"  y="18" width="95" height="34" rx="7" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.1"></rect>
               <text x="61.5" y="39" fill="var(--accent-ink)" font-weight="700">DMTAP</text>
               <rect x="123" y="18" width="85" height="34" rx="7" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.1"></rect>
@@ -508,13 +518,13 @@
               <rect x="418" y="18" width="90" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
               <text x="463" y="39" fill="var(--text-secondary)" font-weight="700">SOCIAL</text>
               <rect x="522" y="18" width="70" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
-              <text x="557" y="39" fill="var(--text-secondary)" font-weight="700" font-size="11">RTC</text>
+              <text x="557" y="39" fill="var(--text-secondary)" font-weight="700" font-size="12.5">RTC</text>
               <rect x="606" y="18" width="82" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
-              <text x="647" y="39" fill="var(--text-secondary)" font-weight="700" font-size="10.5">REACH</text>
+              <text x="647" y="39" fill="var(--text-secondary)" font-weight="700" font-size="12">REACH</text>
               <rect x="702" y="18" width="88" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
-              <text x="746" y="39" fill="var(--text-secondary)" font-weight="700" font-size="10.5">SEARCH</text>
+              <text x="746" y="39" fill="var(--text-secondary)" font-weight="700" font-size="12">SEARCH</text>
               <rect x="804" y="18" width="82" height="34" rx="7" fill="var(--bg-elevated)" stroke="var(--border-emphasis)" stroke-width="1.1"></rect>
-              <text x="845" y="39" fill="var(--text-secondary)" font-weight="700" font-size="10.5">DEPOT</text>
+              <text x="845" y="39" fill="var(--text-secondary)" font-weight="700" font-size="12">DEPOT</text>
             </g>
             <g stroke="var(--border-emphasis)" stroke-width="1.1" fill="none" stroke-dasharray="3 3">
               <path d="M61.5,52 L290,150"></path>
@@ -528,9 +538,9 @@
               <path d="M845,52 L610,150"></path>
             </g>
             <rect class="pulse" x="270" y="150" width="360" height="120" rx="14" fill="var(--bg-elevated)" stroke="var(--accent)" stroke-width="1.6"></rect>
-            <g font-family="var(--font-mono)" font-size="12" text-anchor="middle" fill="var(--text-primary)">
+            <g font-family="var(--font-mono)" font-size="12.5" text-anchor="middle" fill="var(--text-primary)">
               <text x="450" y="172" font-weight="700" letter-spacing="0.09em">THE NARROW WAIST</text>
-              <g font-size="11.5">
+              <g font-size="12.5">
                 <text x="345" y="197">① Identity</text>
                 <text x="450" y="197">② MOTE</text>
                 <text x="555" y="197">③ Transport</text>
@@ -538,7 +548,7 @@
                 <text x="450" y="221">⑤ Sync</text>
                 <text x="555" y="221">⑥ Roles/Wake</text>
               </g>
-              <text x="450" y="251" fill="var(--text-faint)" font-style="italic" font-size="11">six capabilities · à-la-carte · shared signing &amp; encoding</text>
+              <text x="450" y="251" fill="var(--text-faint)" font-style="italic" font-size="12">six capabilities · à-la-carte · shared signing &amp; encoding</text>
             </g>
             <g stroke="var(--border-emphasis)" stroke-width="1.1" fill="none" stroke-dasharray="3 3">
               <path d="M340,270 L120,338"></path>
@@ -562,9 +572,10 @@
               <rect x="770" y="338" width="110" height="34" rx="7" fill="var(--code-bg)" stroke="var(--code-border)"></rect>
               <text x="825" y="359" fill="var(--text-secondary)">Web Push</text>
             </g>
-            <text x="450" y="403" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--text-faint)" font-style="italic">profiles fan out above · adopted standards fan out below · the waist invents new bytes only where nothing existed</text>
+            <text x="450" y="403" text-anchor="middle" font-family="var(--font-mono)" font-size="12" fill="var(--text-faint)" font-style="italic">profiles fan out above · adopted standards fan out below · the waist invents new bytes only where nothing existed</text>
           </svg>
         </div>
+        <p class="scroll-hint">↔ scroll to see the full diagram</p>
         <figcaption>Figure 1 — the hourglass shape. KOTVA specifies new bytes only at the neck (chiefly Sync); everything above and below is composition of existing standards and thin profiles.</figcaption>
       </figure>
 
@@ -1148,6 +1159,21 @@
       }
     });
   });
+
+  // diagram scroll affordance: a frame only ever claims to be scrollable when
+  // it actually is (its content's min-width floor exceeds the viewport), so
+  // the hint never lies on a screen wide enough to show the whole diagram.
+  var frames = Array.prototype.slice.call(document.querySelectorAll('.diagram-frame'));
+  function updateScrollHints(){
+    frames.forEach(function(frame){
+      var hint = frame.parentElement && frame.parentElement.querySelector('.scroll-hint');
+      if (!hint) return;
+      var scrollable = frame.scrollWidth > frame.clientWidth + 1;
+      hint.classList.toggle('show', scrollable);
+    });
+  }
+  updateScrollHints();
+  window.addEventListener('resize', updateScrollHints);
 })();
 </script>
 </body>
