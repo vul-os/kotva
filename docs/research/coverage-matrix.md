@@ -66,9 +66,9 @@ never classifies.
 | 19 | **Notarization / registries** | PUB(timestamped) · storage(Arweave) · attestation | — | curation (labeler-class) · oracle/attester (real-world fact) | §22 PUB | ▲ editorial + authoritative-issuer |
 | 20 | **Advertising** | PUB(sponsored obj) · indexer | OFFER · PAY | indexer (`blind`) — sponsored-listing only | §22 / TRACT | ✔ direct-buy / ✖ surveillance |
 | 21 | **IoT / telemetry** | MOTE(light) · PUB · WAKE · SYNC | — | relay (`blind`) · mailbox (`blind-routing`) | *unbuilt constrained-device profile* | ✚ constrained crypto |
-| 22 | **Private-AI** | box (self-host) · PUB(weights) · storage | OFFER(compute) · PAY(x402) | **compute** *(provisional kind, CONTRACT §5)* — `terminating` / `attested` (TEE) for blind | TRACT/WRAP for compute-OFFER | self-host ✔ / hosted-blind ✚ |
+| 22 | **Private-AI** | box (self-host) · PUB(weights) · storage | OFFER(compute) · PAY(x402) | **infra-service** — an `edge-fn` with `artifact-source = operator` on a `gpu-count` class (DEPOT §3.7); `terminating` / `attested` (TEE) for blind | TRACT/WRAP for compute-OFFER | self-host ✔ / hosted-blind ✚ |
 
-> **Infrastructure layer (not a 23rd product shape).** The `box` / `storage` / `compute`
+> **Infrastructure layer (not a 23rd product shape).** The `box` / `storage` / compute
 > resources several rows above depend on (rows 5, 11, 22, …) are specified as managed services by the
 > **DEPOT** profile ([`profiles/cloud.md`](../../profiles/cloud.md)) under one `infra-service`
 > coordinator kind — a decentralised-cloud market with operator-defined economics and distributed
@@ -119,13 +119,16 @@ waist capability, no new primitive, no new coordinator.* A thin profile plus one
 ### G2 — Hosted private-AI (blind inference) *(✚ gap; row 22)*
 **What's missing.** Private-AI on *your own box* is fully covered — it is compute on hardware
 you hold, needing no coordinator. Renting *someone else's* GPU while keeping your prompts
-private is a coordinator job (a scarce resource — accelerators — with a global-ish view); **`compute`
-is a provisional kind** in [CONTRACT §5](../../coordinator/CONTRACT.md) (`terminating` by default,
-`attested`/TEE for blind inference), but no bindings or offer/settlement wiring for it are built
-yet. A naive hosted inferencer is `terminating` (it reads your prompt).
-**Minimal fix.** Graduate **compute** from provisional to fully-specified in
-[CONTRACT §5](../../coordinator/CONTRACT.md) once its TEE
-[binding](../../bindings/README.md) and offer/settlement path are worked through end to end. The
+private is a coordinator job (a scarce resource — accelerators — with a global-ish view). It is
+**shaped, not missing**: DEPOT models it as an `edge-fn` with `artifact-source = operator` on a class
+declaring `gpu-count` ([profiles/cloud.md §3.7](../../profiles/cloud.md)), under the `infra-service`
+kind — the provisional `compute` kind that previously held this slot folded into it, because
+invoking someone's model is an attribute of running code you did not write, not a separate kind
+([CONTRACT §5](../../coordinator/CONTRACT.md) design note). A naive hosted inferencer is
+`terminating` (it reads your prompt).
+**Minimal fix.** The remaining gap is **not** a coordinator kind: it is the **TEE attestation
+[binding](../../bindings/README.md)** that raises such an `edge-fn` from `declared` to `attested`,
+plus the offer/settlement path, worked through end to end. The
 *offer* of compute-for-hire rides TRACT/WRAP unchanged; payment rides x402. *No new primitive* —
 the kind slot already exists; what remains is filling it in. The honest residual is that the
 provisional slot is **disclosed-but-undemonstrated**: the TEE residual already disclosed
@@ -188,8 +191,8 @@ so the matrix is not mistaken for incomplete.
   model *absorbs* but does not dissolve), and **editorial governance** (commerce discovery,
   registries, social rows 4, 11, 13, 19 — "who decides the canonical version"). Naming four
   roots instead of a dozen symptoms is the honest accounting.
-- **The two new seams (G1–G2) add a residual, not a guarantee.** The `compute` kind and the
-  constrained-device profile are *slots*, not solutions: blind hosted inference is only as blind
+- **The two new seams (G1–G2) add a residual, not a guarantee.** The hosted-inference shaping and
+  the constrained-device profile are *slots*, not solutions: blind hosted inference is only as blind
   as the TEE it declares (`attested`, disclosed, not trustless), and a constrained MOTE profile
   trades some of the sealed path's ratchet guarantees for footprint — which the profile MUST
   disclose per its own honest-residual section when written.

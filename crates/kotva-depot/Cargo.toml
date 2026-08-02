@@ -1,0 +1,24 @@
+[package]
+name = "kotva-depot"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT OR Apache-2.0"
+description = "DEPOT — the cloud elementals and control-plane vocabulary (KOTVA profiles/cloud.md)"
+repository = "https://github.com/vul-os/kotva"
+
+# The reference implementation of `profiles/cloud.md`. DEPOT mints **no wire object**: every schema
+# here is an integer-keyed deterministic-CBOR map that rides an existing carrier — the §18.8a
+# `CoordinatorDescriptor.policy` blob, a §22 `PubAnnounce` `meta` key, or an ATTEST claim body — and
+# the control plane is a *vocabulary* over `kotva_core::capability::CapabilityToken`, not a new
+# protocol. So this crate deliberately has no transport, no async runtime, and no I/O: it is codecs,
+# a closed verb registry, and the two derivations the spec calls "computable rather than rhetorical"
+# (formula visibility/portability inheritance, §3.6; resource attenuation, §5.1).
+
+[dependencies]
+# Integer-keyed det_cbor via kotva-core's narrower `Cv` value type (§18.1.2), so DEPOT objects
+# encode byte-identically to every other object in the family and share the frozen conformance
+# corpus in `kotva-cbor`. Also supplies `ContentId`, `TimestampMs`, and the `CapabilityToken` the
+# §5 control vocabulary scopes.
+kotva-core = { version = "0.2.0", path = "../kotva-core" }
+thiserror = "1"

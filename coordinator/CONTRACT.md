@@ -197,8 +197,8 @@ is permitted; "gate what reaches you" is not.
 ## 5. Coordinator kinds (all instances of the contract)
 
 **This table is the single canonical, authoritative list of coordinator kinds for the entire
-KOTVA family.** It names **twelve** kinds — ten fully-specified, one (`compute`) provisional, and
-one (`infra-service`) draft ([profiles/cloud.md](../profiles/cloud.md)) — and no other document may
+KOTVA family.** It names **eleven** kinds — ten fully-specified and one (`infra-service`) draft
+([profiles/cloud.md](../profiles/cloud.md)) — and no other document may
 enumerate a different count or add a kind not listed here; a document that needs to talk about "how
 many coordinator kinds exist" cites this table rather than re-deriving its own tally.
 
@@ -208,11 +208,10 @@ many coordinator kinds exist" cites this table rather than re-deriving its own t
 | **relay** | Mesh reachability for NAT'd peers | `blind` / structural |
 | **media-relay** | Forwards SFrame-encrypted call/stream media (scales calls) | `blind-routing` / `structural` **only where the operator published `sframe_required = true`** (§27.7.4) — it then holds no epoch key and cannot read media; **else it is class `terminating`** (not blind-routing): an SFU that accepts unprotected media if offered can read it, so the *class* changes, not merely the assurance level (§27.7.4, rtc.md §2.2, §3.1). Per-frame metadata, RTP routing, size, timing and participant graph are visible to the SFU regardless (RFC 9605). |
 | **reachability-adapter** | ngrok-style public subdomains for arbitrary box services | `blind-routing` (SNI-passthrough) preferred |
-| **infra-service** *(draft, [profiles/cloud.md](../profiles/cloud.md))* | Managed infrastructure — four primitives `box` / `bucket` / `volume` / `edge-fn`, with `database`, `queue` and the rest as **formulas** that compose them (profiles/cloud.md §3.2), not rows (`compute` is the general provisional case; DEPOT `edge-fn` is its managed-serverless profiling) | **per service** — `bucket`/`volume` `blind`, at `structural` **only for what the client encrypted** (§3.3) and `blind-routing` when a bucket serves public objects; `edge-fn`/`box` `terminating` (→ `attested` in a TEE), and a formula (a `database`) inherits the visibility of its parts |
+| **infra-service** *(draft, [profiles/cloud.md](../profiles/cloud.md))* | Managed infrastructure — four elementals `box` / `bucket` / `volume` / `edge-fn`, with `database`, `queue`, `cdn`, image `registry`, static `site` and **hosted inference** as **formulas** that compose them (profiles/cloud.md §3.6–§3.7), not rows. Hosted/outsourced computation — private-AI inference on rented accelerators — is an `edge-fn` with `artifact-source = operator` on a class declaring `gpu-count`, an **attribute rather than a kind** (profiles/cloud.md §3.7) | **per service** — `bucket`/`volume` `blind`, at `structural` **only for what the client encrypted** (§3.3) and `blind-routing` when a bucket serves public objects; `edge-fn`/`box` `terminating` (→ `attested` in a TEE), and a formula (a `database`) inherits the visibility of its parts |
 | **indexer** | Search / discovery / global product-and-price view | corpus is public plaintext (nothing to be blind about); query-channel `terminating` unless `attested` |
 | **labeler** | Moderation labels, opt-in, subscribable | n/a (labels public objects) |
 | **matcher** | Real-time supply↔demand matching (rides, delivery) | **terminating** (always — the class, §3.1), optionally **attested** (the assurance level, §3.3, via TEE) |
-| **compute** *(provisional)* | Hosted/outsourced computation (e.g. private-AI inference on rented GPU) | `terminating` (always — the class), optionally `attested` (the assurance level, TEE, for blind compute) |
 | **arbiter** | Dispute resolution (staked jury) | `terminating` for evidence, disclosed |
 | **oracle** | Physical-world / real-fact attestation (delivered? ride done?) | `terminating`, disclosed |
 | **custodial-escrow** | Holds the trade float for a trade window ([primitives/ESCROW.md](../primitives/ESCROW.md) SEC-6a) | `terminating` for evidence, disclosed — the family's **one load-bearing exception** (§1), confined to the **commerce extension** (TRACT); **not** in Core v1 ([SPEC tiers](../SPEC.md)) |
@@ -224,12 +223,22 @@ and [primitives/ESCROW.md](../primitives/ESCROW.md) §9–§10 (SEC-6a, "the one
 exception").
 
 **Ratification tier (normative — see [SPEC.md tiers](../SPEC.md)).** The list is canonical and
-exhaustive at twelve, but the kinds do not all ratify at once. **Core v1** uses `gateway`, `relay`,
+exhaustive at eleven, but the kinds do not all ratify at once. **Core v1** uses `gateway`, `relay`,
 `reachability-adapter` (and `labeler`). The **stable extensions** use `indexer`, `matcher`,
 `media-relay`, `arbiter`, `oracle`, and — commerce only — `custodial-escrow`. **`infra-service`
-(draft, DEPOT) and `compute` (provisional) are deferred: not part of Core v1.** So the one
-load-bearing kind and the two least-proven kinds are all outside the tier ratified and implemented
-first — the tier is a conformance seam, not a change to this table.
+(draft, DEPOT) is deferred: not part of Core v1.** So the one load-bearing kind and the
+least-proven kind are both outside the tier ratified and implemented first — the tier is a
+conformance seam, not a change to this table.
+
+**Why there is no separate `compute` kind (design note).** An earlier draft carried a provisional
+`compute` kind for hosted/outsourced computation — renting someone's GPU for private-AI inference.
+It folded into `infra-service`: invoking a model endpoint is running code you did not write on
+hardware you do not hold, which is an `edge-fn` with `artifact-source = operator`
+([profiles/cloud.md §3.2, §3.7](../profiles/cloud.md)) on a class declaring `gpu-count`. Same
+`terminating` class, same TEE path to `attested`, same metering and capability seams — so it was an
+**attribute wearing a kind's clothes**, and two kinds both meaning "run code on your machine" left a
+client with nothing to disambiguate them by. The open work it named is real and unchanged, but it is
+a **TEE attestation binding** ([bindings/README.md](../bindings/README.md)), not a coordinator kind.
 
 ---
 

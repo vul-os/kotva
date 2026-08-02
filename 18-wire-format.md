@@ -1863,7 +1863,7 @@ defined object below.
 **One object family for every coordinator kind, not one per kind.** CONTRACT §5 states that
 `gateway` (§7) and the legacy `adapter`s (§26) are the first, fully-worked instances of the
 contract, and that every other kind (`relay`, `media-relay`, `reachability-adapter`, `indexer`,
-`labeler`, `matcher`, `compute`, `infra-service`, `arbiter`, `oracle`, `custodial-escrow`) inherits the same four
+`labeler`, `matcher`, `infra-service`, `arbiter`, `oracle`, `custodial-escrow`) inherits the same four
 clauses unchanged. `CoordinatorDescriptor`/`Tariff`/`UsageReceipt` are correspondingly **one**
 object family, keyed by the `kind` field (§18.8a.1, key 2) rather than one bespoke shape per kind
 — a `gateway`'s domain/modes/attestation-selector (§7.5) and an adapter's rail/mode/initiation-

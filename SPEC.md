@@ -165,11 +165,11 @@ content-visibility class** (§2.4/§3), and **authorises but never classifies** 
 (§6). `gateway` ([`§7`](07-gateway.md)) and the legacy `adapter`s ([`§26`](26-legacy-adapters.md)) are
 the first fully-worked instances; every kind inherits the four clauses unchanged.
 
-Canonical, exhaustive kind list (12 kinds, incl. `compute`, the draft `infra-service`, and the
-load-bearing `custodial-escrow` exception): [`coordinator/CONTRACT § 5`](coordinator/CONTRACT.md) —
-that table governs; it is not reproduced here to avoid drift. The three of those twelve that carry
-the most risk — `custodial-escrow` (load-bearing), `infra-service` (draft), `compute` (provisional) —
-are all **outside Core v1** (ratification tiers below).
+Canonical, exhaustive kind list (11 kinds, incl. the draft `infra-service` and the load-bearing
+`custodial-escrow` exception): [`coordinator/CONTRACT § 5`](coordinator/CONTRACT.md) — that table
+governs; it is not reproduced here to avoid drift. The two of those eleven that carry the most risk
+— `custodial-escrow` (load-bearing) and `infra-service` (draft) — are both **outside Core v1**
+(ratification tiers below).
 
 `indexer` and `matcher` add **reach, never authority**, by contract — but whether a fenced,
 swappable role actually stops search, ranking, and matching from re-concentrating the way real
@@ -203,13 +203,14 @@ declare which tier(s) it implements; **Core v1 is complete and conformant with *
   `arbiter`, `oracle`, and — for commerce only — `custodial-escrow`, the family's *one* load-bearing
   exception, thereby confined to the extension that requires it and kept out of Core v1). An
   extension's risk is its own; it never gates the core.
-- **🔴 Draft / deferred — not part of v1.** The **DEPOT** cloud profile (`infra-service`) and the
-  provisional **`compute`** kind. These carry the newest surface and the largest unproven market
-  dynamics (the two-sided-market/demand question, DIRECTION §5/§8); they are designed and kept in
-  the tree, but a v1 ratification and a first reference implementation deliberately **do not** include
-  them. They earn their way in once the core has adoption and a real implementation.
+- **🔴 Draft / deferred — not part of v1.** The **DEPOT** cloud profile (`infra-service`), which
+  absorbs hosted computation as an `edge-fn` attribute rather than a separate kind
+  ([profiles/cloud.md §3.7](profiles/cloud.md)). It carries the newest surface and the largest
+  unproven market dynamics (the two-sided-market/demand question, DIRECTION §5/§8); it is designed
+  and kept in the tree, but a v1 ratification and a first reference implementation deliberately **do
+  not** include it. It earns its way in once the core has adoption and a real implementation.
 
-The twelve coordinator kinds ([CONTRACT §5](coordinator/CONTRACT.md)) and six waist capabilities are
+The eleven coordinator kinds ([CONTRACT §5](coordinator/CONTRACT.md)) and six waist capabilities are
 unchanged by this — the tier is a **ratification and conformance seam**, not a subtraction. Nothing
 is removed; the risky and the unproven are simply not bundled into the thing shipped and audited
 first ([DIRECTION §9](DIRECTION.md), "future-proof by seams").
@@ -312,7 +313,7 @@ Sections: [00 overview](profiles/wrap/00-overview.md) · [01 identity](profiles/
 | **SEARCH** | Discovery over public objects — following-graph first, indexer-optional. | PUB · PUBSUB; `indexer` | [`profiles/search.md`](profiles/search.md) |
 | **MEDIA** | The Evermesh profile — video & music; box-as-origin, CDN as swappable cache. | PUB · storage · media-relay; `indexer` | [`profiles/media.md`](profiles/media.md) |
 | **RTC** | Real-time voice / video / calling — the parallel media plane (family-level view of §27). | ID · MLS→SFrame; `media-relay` | [`profiles/rtc.md`](profiles/rtc.md) |
-| **DEPOT** *(draft)* | Managed infrastructure — four primitives (box / bucket incl. public-object edge serving / volume / edge-fn), with database, queue and the rest as composed formulas; operator-defined economics, distributed ratings; honest per-service visibility. | §18.8a seam · PUB · ATTEST; `infra-service` | [`profiles/cloud.md`](profiles/cloud.md) |
+| **DEPOT** *(draft)* | The cloud elementals and the control plane that provisions them — four resources (box / bucket incl. public-object edge serving / volume / edge-fn), with database, queue, CDN, registry, static site and hosted inference as composed formulas; images/snapshots and OTLP observability; a fixed capability vocabulary so any client drives any gateway; operator-defined economics, distributed ratings; honest per-service visibility. | §18.8a seam · PUB · ATTEST · §18.7.3 capabilities; `infra-service` | [`profiles/cloud.md`](profiles/cloud.md) |
 
 ---
 
@@ -390,8 +391,10 @@ TEE / `declared` honest-trust); **no protocol token, ever** ([`DIRECTION § 5`](
 ## Honest residual
 
 - **Five product shapes are genuinely uncovered — open IOUs, not hidden.** (1) **IoT / constrained
-  device** — needs a CoAP/MQTT transport binding; (2) **hosted-blind private AI** — needs the
-  provisional `compute` kind ([`coordinator/CONTRACT § 5`](coordinator/CONTRACT.md)); (3) **maps /
+  device** — needs a CoAP/MQTT transport binding; (2) **hosted-blind private AI** — shaped by DEPOT
+  as an `edge-fn` with `artifact-source = operator` ([`profiles/cloud.md §3.7`](profiles/cloud.md)),
+  so the gap is the **TEE attestation binding** that would raise it from `declared` to `attested`,
+  not a missing coordinator kind; (3) **maps /
   geo-proximity** — the waist addresses by content-hash and by key, never by coordinate, so *"what's
   near lat/lng"* needs a geo-index binding / coordinator; (4) **sealed-bid / second-price auctions** —
   need a commit-reveal convention over SYNC; (5) **cross-party calendar negotiation** — composes over

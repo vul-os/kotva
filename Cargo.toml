@@ -25,6 +25,7 @@ resolver = "2"
 members = [
     "crates/kotva-cbor",
     "crates/kotva-core",
+    "crates/kotva-depot",
     "crates/kotva-mail",
     "crates/kotva-sync",
     "crates/kotva-sync-wasm",
