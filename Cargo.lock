@@ -631,6 +631,15 @@ name = "kotva-cbor"
 version = "0.1.0"
 
 [[package]]
+name = "kotva-coordinator"
+version = "0.1.0"
+dependencies = [
+ "kotva-core",
+ "kotva-depot",
+ "thiserror",
+]
+
+[[package]]
 name = "kotva-core"
 version = "0.2.0"
 dependencies = [

@@ -1,0 +1,34 @@
+[package]
+name = "kotva-coordinator"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT OR Apache-2.0"
+description = "The §18.8a coordinator-layer wire objects — CoordinatorDescriptor, Tariff, UsageReceipt (KOTVA coordinator/CONTRACT.md §2.1, §6)"
+repository = "https://github.com/vul-os/kotva"
+
+# WHY THIS CRATE EXISTS. `Tariff` and `UsageReceipt` were spec-defined objects (§18.8a.1/§18.8a.2)
+# whose only implementation lived *inside* one consumer, and `CoordinatorDescriptor` — the object
+# the CDDL actually names — existed nowhere as a struct at all: the consumer modelled it as an
+# unsigned `Descriptor` plus a separate `SignedDescriptor`. A spec-defined object implemented in
+# exactly one place is how "conformant" quietly degenerates into "behaves like that
+# implementation" (profiles/cloud.md §8 says so in as many words), because the second implementer
+# has nothing to check against except the first implementer's source.
+#
+# So this crate is the *reference* encoding of §18.8a, in the same repo as the prose that defines
+# it, next to the frozen deterministic-CBOR corpus (`kotva-cbor`) every other object in the family
+# already shares. Like `kotva-depot` it is codecs and closed registries: no transport, no async, no
+# I/O, no clock.
+
+[dependencies]
+# Integer-keyed det_cbor via kotva-core's narrower `Cv` type (§18.1.2), the `Suite` registry
+# (§18.1.4), and the real Ed25519 / Ed25519∧ML-DSA-65 signing used for the §18.9 preimages.
+kotva-core = { version = "0.2.0", path = "../kotva-core" }
+thiserror = "1"
+
+[dev-dependencies]
+# §18.8a.1 defines `CoordinatorDescriptor.policy` as an opaque det_cbor blob, and DEPOT documents
+# `DepotServicePolicy` as *the* policy blob for `kind = "infra-service"`. That claim was prose in
+# two crates that had never met; `tests/vectors.rs` now round-trips a real one through a real
+# descriptor. Dev-only, so the wire crate keeps no dependency on a profile.
+kotva-depot = { version = "0.1.0", path = "../kotva-depot" }
