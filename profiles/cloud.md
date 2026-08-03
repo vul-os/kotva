@@ -799,6 +799,15 @@ Three rules make this vocabulary load-bearing rather than decorative:
   party you may need to leave holds the means to leave). "I forgot my key" is answered by **guardian
   / social recovery** ([§1.4](../01-identity.md)): an operator MAY be **one guardian of a quorum**,
   never sufficient alone.
+  **What the subkey still is, since "only a subkey" reads as a reduced identity.** A `DeviceCert` is
+  a working credential: the box may do whatever its `caps` allow ([§1.2](../01-identity.md)), and on
+  a `terminating` box the operator can do it too, because it has root on the machine holding the
+  key — and the hardware-keystore hardening of [§1.2a](../01-identity.md) is unavailable here, since
+  the keystore and its attestation would both be the operator's own. Non-custody bounds the
+  **aftermath and the duration** of that — the identity itself never moved, the operator cannot
+  rotate or re-issue it, cannot change the `RecoveryPolicy` alone (§1.4 makes even an `admin` device
+  one factor), cannot follow the user to the next operator, and loses everything on revocation. It
+  does not bound the **live** capability, so the limit on the damage is detection time. See §8.
 - **DEPOT-4 — swappable, honest portability.** Leaving or switching an `infra-service` MUST be a
   **config change with zero identity change** ([CONTRACT §2.2](../coordinator/CONTRACT.md)). Each
   service MUST state its **true** portability (§3): content-addressed `bucket` and stateless
@@ -863,7 +872,8 @@ Three rules make this vocabulary load-bearing rather than decorative:
   own store. The gateway MUST declare the visibility that credential actually grants it — a
   credential with read access makes the gateway `terminating` regardless of who owns the account.
   **What (d) does and does not buy, since DEPOT-12 does not apply here.** DEPOT-12 seals secrets to
-  *the box's* device key precisely so the operator cannot read them. That mechanism is unavailable
+  *the box's* device key, so that the operator's control plane, database and backups never hold them
+  in the clear (with the further bound DEPOT-12 states on its own reach). That mechanism is unavailable
   for a backing credential, because the party that must **use** it is the gateway's own control
   plane: it necessarily holds the plaintext at the moment of use. So (d) protects against a stolen
   database, a leaked backup, and a compromised third party — **never against the gateway itself**.
@@ -955,6 +965,17 @@ Three rules make this vocabulary load-bearing rather than decorative:
   distinguishes a sealed blob from a pasted plaintext. The enforceable half is the **client's**
   obligation to seal first; the operator's half is **detectable, not preventable** — via an ATTEST
   `visibility-audit` measurement (§7) and the exit (DEPOT-4).
+  **Second honest residual — the sealing target is hardware the operator runs.** A secret sealed to
+  a `box`'s device key is out of reach of the operator's **control plane, its store and its
+  backups**, which is a real reduction and the one this clause buys. It is not out of reach of the
+  **operator**: the box is `terminating`, the operator has root on it, and root reaches the key that
+  opens the envelope. `DeviceCert.key_protection` ([§1.2a](../01-identity.md)) does not rescue this
+  on a managed box, because the keystore that would make the key non-exportable is the operator's
+  own hardware and its attestation is the operator's own to produce. The mechanism that would close
+  the gap is a client-checkable TEE, which DEPOT-2 records as **inert** until a binding exists. So
+  DEPOT-12 raises the cost of a stolen dump, a leaked backup and a curious employee; it does not put
+  a secret beyond the party running the machine, and an operator MUST NOT present it as though it
+  did.
 - **DEPOT-13 — permissionless supply; durability comes from plurality, not from an SLA.** Any node
   MAY offer any `infra-service`, including a single self-hosted box contributing spare capacity: the
   open-role principle of [Roles & Wake](../substrate/ROLES.md) and the self-host clause
@@ -1053,10 +1074,17 @@ localised, never content-classified.
 - **Managed is not private.** A managed `edge-fn` or `box` — and any formula containing one — is
   `declared` trust: the operator, its cloud, and its subcontractors can read what they process. This
   is the **compute-must-see-its-inputs** ceiling ([DIRECTION §8](../DIRECTION.md)), disclosed rather
-  than dressed up as blindness. The durable protections are **DEPOT-3** (the owner-held root key — a
-  breach reads live data but cannot *become* the user or survive a device revocation) and **DEPOT-4**
-  (a real exit). TEE attestation narrows this; it does not erase the operator's original access to
-  plaintext-in-use.
+  than dressed up as blindness. The durable protections are **DEPOT-3** (the owner-held root key) and
+  **DEPOT-4** (a real exit). TEE attestation narrows this; it does not erase the operator's original
+  access to plaintext-in-use. **DEPOT-3's protection is narrower than "the operator cannot become
+  you":** a managed box holds a live `DeviceCert` subkey with its own `caps`, so an operator with
+  root on that box can **act as that authorised device** — send and receive under the identity, and
+  read what the device's cluster membership decrypts — for as long as the cert stands. What the
+  owner-held root structurally denies is different and still worth having: no rotation, no re-issue,
+  no unilateral `RecoveryPolicy` change (§1.4), nothing that follows the user to the next operator,
+  and nothing at all after revocation. The bound on the damage is therefore **detection time**, not
+  cryptography, and non-custody MUST NOT be read as impersonation-resistance while the device is
+  live.
 - **`bucket` and `volume` blindness is the client's discipline, not the operator's architecture.**
   This is the sharpest self-deception risk in the profile: the label reads like an operator guarantee
   and is a statement about the client's own habits, and the failure is **silent** — a misconfigured
