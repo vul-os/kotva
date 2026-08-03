@@ -147,26 +147,81 @@ def det_cbor_decode(data: bytes) -> None:
 
 
 # ── Loading ──────────────────────────────────────────────────────────────────────
-def load_vectors() -> tuple[dict, dict[str, str], list[str]]:
-    """name -> vector, name -> source filename, plus any load-time failures."""
+def load_vectors() -> tuple[dict, dict[str, str], list[str], list[str]]:
+    """name -> vector, name -> source filename, load-time failures, non-case corpora.
+
+    `VECTOR_DIR` holds two KINDS of file and this loader consumes only one of them.
+
+    A CASE corpus is `{"vectors": [ {"name": ..., "operation": ...}, ... ]}` — a LIST of
+    objects, each resolvable by a `suite.json` case's `vector` reference. `vectors.json`,
+    `pub_vectors.json`, `pubsub_vectors.json`, `sync_vectors.json` and
+    `chunkproof_vectors.json` are all of that kind.
+
+    A SCHEMA corpus is `{"vectors": {"crate/CONST": {"hex": ..., "bytes": ...}, ...}}` — a
+    MAP of frozen bytes with no `operation` and no case binding, consumed by the language
+    decoders (`conformance/decoders/`), not by this runner. `schema_vectors_v0.json` is of
+    that kind.
+
+    This loader assumed every file was the first kind and indexed the second one's dict as a
+    list, so `export_schema_vectors.py` landing a schema corpus in this directory made
+    `main()` die on `AttributeError: 'str' object has no attribute 'get'` — which is CI's
+    first conformance step, so every step behind it (schema-vector drift, chunk-proof
+    vector drift, and the independent Python decoder) stopped running too.
+
+    Skipping the second kind is NOT a relaxation, and it is not silent: the file is named in
+    the run's output. Everything that could hide a real defect still fails hard —
+    a `vectors` key that is neither a list nor a map, a list entry that is not an object,
+    an entry with no `name`, and a duplicate name across files.
+    """
     byname: dict[str, dict] = {}
     source: dict[str, str] = {}
     fails: list[str] = []
+    non_case: list[str] = []
     for path in sorted(VECTOR_DIR.glob("*.json")):
         try:
             doc = json.loads(path.read_text())
         except json.JSONDecodeError as e:
             fails.append(f"{path.name}: invalid JSON: {e}")
             continue
-        for vec in doc.get("vectors", []):
+        vectors = doc.get("vectors", [])
+        if isinstance(vectors, dict):
+            # A schema corpus — but only if it actually LOOKS like one. Skipping on the
+            # basis of "is a dict" alone would mean that reshaping a real case corpus into
+            # a name -> case map made 70 vectors vanish from this runner, and the ratchets
+            # below cannot see vectors that were never loaded. So the shape is asserted:
+            # every value must be a frozen-bytes entry carrying `hex`.
+            bad = [k for k, v in vectors.items() if not (isinstance(v, dict) and "hex" in v)]
+            if bad:
+                fails.append(f"{path.name}: 'vectors' is a map, which this runner only accepts as "
+                             f"a schema corpus (name -> {{hex, bytes}}), but {len(bad)} entry/ies "
+                             f"carry no 'hex' (e.g. {bad[0]!r}). A case corpus reshaped into a map "
+                             "would otherwise be skipped and its coverage would silently vanish")
+                continue
+            # A schema corpus. Disclosed, never silently dropped.
+            non_case.append(f"{path.name} ({len(vectors)} entries)")
+            continue
+        if not isinstance(vectors, list):
+            fails.append(f"{path.name}: 'vectors' is {type(vectors).__name__}, expected a list of "
+                         "case vectors or a map of schema vectors — this runner cannot tell what "
+                         "it is looking at, which is never a pass")
+            continue
+        for vec in vectors:
+            if not isinstance(vec, dict):
+                fails.append(f"{path.name}: vector entry {vec!r} is {type(vec).__name__}, not an "
+                             "object — a case referencing this file would resolve to nothing")
+                continue
             name = vec.get("name")
+            if not name:
+                fails.append(f"{path.name}: a vector entry has no 'name' — it can never be bound "
+                             "to a case, so it is coverage that does not exist")
+                continue
             if name in byname:
                 fails.append(f"{path.name}: vector name {name!r} also defined in {source[name]} — "
                              "a case referencing it would resolve ambiguously")
                 continue
             byname[name] = vec
             source[name] = path.name
-    return byname, source, fails
+    return byname, source, fails, non_case
 
 
 def as_list(x) -> list:
@@ -322,7 +377,18 @@ def main() -> int:
         return 1
     suite = json.loads(SUITE.read_text())
     cases = suite["cases"]
-    byname, source, fails = load_vectors()
+    byname, source, fails, non_case = load_vectors()
+    if fails:
+        # Stop here rather than run the later passes over a corpus we already know is
+        # malformed: `check_declared_counts` re-reads vectors.json raw and indexes
+        # `v["name"]`, so a bad entry surfaced as a bare traceback instead of the
+        # diagnostic above — "aborted with no message", which is the failure mode this
+        # repo's gates are written to avoid. Exit code is unchanged (1); only the report is.
+        print(f"FAIL ({len(fails)}) — the vector corpus could not be loaded, so nothing below "
+              "it ran. This is a load failure, not a clean tree:")
+        for msg in fails:
+            print(f"  {msg}")
+        return 1
 
     executed, f = run_self_contained(cases)
     fails += f
@@ -358,6 +424,11 @@ def main() -> int:
     if not quiet:
         print(f"conformance/suite.json — {len(cases)} cases, {len(byname)} committed vectors "
               f"across {len(set(source.values()))} file(s)\n")
+        if non_case:
+            # Named out loud: a file in the vector directory this runner does not consume is
+            # a coverage gap for THIS runner, even though another one covers it.
+            print(f"  NOT A CASE CORPUS — not read by this runner (schema vectors are driven by "
+                  f"conformance/decoders/): {', '.join(non_case)}\n")
         print(f"  EXECUTED  {executed:>3}  self-contained cases decoded here against a from-scratch "
               "§18.1.1 decoder")
         print(f"  BOUND     {bound:>3}  vectored cases resolved to a committed vector "
