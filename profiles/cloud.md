@@ -405,6 +405,17 @@ DEPOT adds **no** networking primitives, and the omission is deliberate rather t
   holds the private key, so the one-command experience costs nothing in assurance. An operator
   offering managed certificates SHOULD implement that variant and MUST NOT present a tier where it
   holds the key as though it were the tier where the box does.
+
+  A third rule the table cannot show: **these tiers rank power over the *name and the certificate*,
+  and the bottom two collapse where the naming operator also hosts the `box`.** "The box holds the
+  key" is a real distinction when the party driving ACME is not the party with root on the machine —
+  a self-hosted box, or a `box` rented from a *different* operator. Under `backing = operator` with
+  one gateway doing both, the machine holding the key is a machine that gateway has root on (§3,
+  `terminating`), so those rows differ in *who is expected to touch the key*, not in *who can*. The
+  `structural` in that row is a claim about the **naming path** — that the operator is not the sole
+  writer of a zone from which it can mint any name it likes at any time — and never a claim that TLS
+  terminating on a rented box is out of the renting operator's reach. A user who wants that row to
+  mean what it looks like has to put the box where the naming operator does not have root.
 - **A routable public IPv4** is a *quantity* (`ipv4-count`, §3.1), not a service.
 - **Private networking between boxes has no VPC row because KOTVA already provides a better one.**
   Boxes address each other over **IK-authenticated Noise** (REACH-2): mutually authenticated,
@@ -414,6 +425,16 @@ DEPOT adds **no** networking primitives, and the omission is deliberate rather t
   unchanged when the two boxes sit at *different* operators, which no VPC does. An implementation
   MUST NOT present operator-supplied network isolation as equivalent, and an operator offering a
   private-network product MUST declare it `terminating` for traffic it can observe.
+  **The boundary is around the *path*, not around the *endpoints* — and on a managed `box` the
+  operator owns the endpoints.** What the overlay removes from the trust surface is the operator's
+  switch fabric, its hypervisor vNIC, its control plane, its other tenants, and any *transit* or
+  *third* operator in between; that is a real improvement on a VPC and it is what "survives a
+  hostile operator" is entitled to mean. It does **not** survive the operator hosting either end. A
+  `box` is `terminating` (§3): the operator has root, and root reaches the Noise keys and the
+  plaintext on both sides of the tunnel. Box-to-box encryption is therefore protection against
+  everyone except the party you rented the boxes from, and it is only as strong as the weaker end's
+  host — where both ends sit at one operator it buys tenant isolation and nothing against that
+  operator, and where they sit at different operators each end is exposed to its own host alone.
 - **Load balancing** is REACH ingress plus a health policy — a formula (§3.6), not a row.
 
 ### 3.5 The stateless/stateful asymmetry (normative for any scaling claim)
