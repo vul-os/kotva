@@ -16,7 +16,6 @@
 //! Each vector is annotated with its full byte decomposition so a second implementation — in any
 //! language — can be checked against the same corpus without running this crate.
 
-use kotva_core::ContentId;
 use kotva_depot::measurement::MeasurementValue;
 use kotva_depot::{
     Backing, DepotFormula, DepotImage, DepotMeasurement, DepotServicePolicy, DepotSite,
