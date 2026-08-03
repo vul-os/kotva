@@ -159,7 +159,7 @@ vs hot**:
 |---|---|---|---|---|
 | `bucket` | S3 API / CID content-addressing; **HTTP caching** when serving public objects | **`blind`** — `structural` **only for objects the client actually encrypted** (S3 takes arbitrary bytes, so plaintext handed to it is readable and the declaration stays truthful — CONTRACT §3.3), else `declared`; **`blind-routing`** when it serves *public* objects, seeing which and when but never a private payload | GB-month + egress-GB + requests | **zero-migration** (re-pin elsewhere) |
 | `volume` | Block device (virtio-blk / NVMe-oF / iSCSI); guest-owned filesystem | **`blind`** at `structural` **only where the guest actually encrypted** (LUKS/dm-crypt — the operator then holds ciphertext blocks plus access patterns, never plaintext); an unencrypted volume is **`terminating` / `declared`**, and the operator cannot tell which it was given (CONTRACT §3.3) | GB-month (+ provisioned IOPS) | **export/import** across operators; *detach/reattach* within one operator iff `attachment = detachable` |
-| `edge-fn` | WASI / OCI | **`terminating`** (runs code, sees I/O) → **`attested`** in a TEE | CPU-ms + invocations | **zero-migration** (redeploy the artefact) |
+| `edge-fn` | WASI / OCI | **`terminating`** (runs code, sees I/O) → **`attested`** in a TEE | CPU-ms + invocations | **zero-migration** (redeploy the artefact) — *for an artefact you hold*; see §3.7 for `artifact-source = operator` |
 | `box` | OS + node (cloud-init) | **`terminating` / `declared`** — the operator has root on the host | instance-hour | **export** (keys stay with the user; data dumps out) |
 
 Only **`bucket`** and **`volume`** can keep a payload cryptographically out of the operator's reach —
@@ -548,6 +548,13 @@ DepotSite = {                                    ; "kotva-depot/site/v0"
   hardware you do not hold: the same `terminating` visibility, the same TEE path to `attested`, the
   same metering seam. It is an **attribute**, not a coordinator kind — which is why the provisional
   `compute` kind folds into `infra-service` ([CONTRACT §5](../coordinator/CONTRACT.md)).
+  *Portability is where the analogy stops, and the §3 table alone would mislead.* `edge-fn` is
+  `zero-migration` because you redeploy the artefact, and under `artifact-source = operator` the
+  artefact is not yours to redeploy: you can leave, and you leave the model behind. What ports is
+  your state (there is none) and your calling code, against whatever another operator happens to
+  offer — API-compatibility shopping, not the cooperation-free re-pin that column means everywhere
+  else, and a weaker exit the moment two operators' endpoints differ. An operator MUST NOT cite the
+  `edge-fn` row's portability for an `artifact-source = operator` endpoint.
 - **`shared filesystem` (NFS/EFS-class) = `box` + `volume`, exporting a filesystem.** Distinct from
   `attachment = shared`, which is shared *block* and explicitly leaves consistency to the guest; a
   filesystem service adds server-side consistency, and that server is a `box` someone runs.
@@ -824,6 +831,17 @@ Three rules make this vocabulary load-bearing rather than decorative:
   is an acceptable price for being able to leave at all; what is never acceptable is a format that
   makes leaving impossible. A slow or lossy export is a weaker exit and MUST be disclosed as such
   (§8).
+  **And the exit is exercisable only while the account is in good standing, which DEPOT-9 does not
+  carve out.** `export` is a request like any other, and DEPOT-9 requires an unpaid or over-quota
+  request to fail closed — so on the reading DEPOT-9 invites, the ability to leave switches off at
+  precisely the moment a user most needs it: a billing dispute, a suspension, a termination. DEPOT
+  does not settle this by fiat, because an operator may genuinely not be obliged to keep serving an
+  unpaid customer. What it requires is that the operator **state which it does** — whether `export`
+  survives non-payment, suspension and termination, and how long data is retained after each. An
+  operator that withholds `export` while an account is suspended has an exit that is **contractual,
+  not structural**, and MUST NOT present its portability as though DEPOT-4 alone secured it. The
+  `export-conformance` measurement (§7) is silent here: it records a round-trip performed by a
+  customer in good standing, which is the case that was never in doubt.
 - **DEPOT-5 — economics are the operator's; KOTVA specifies only the seam.** Prices, price model,
   billing cycle, free tier, SLA, discounts, and settlement asset are **operator policy**, carried in
   the signed `Tariff`/policy as bytes KOTVA does not inspect. KOTVA requires **only**: the tariff is
