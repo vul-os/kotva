@@ -78,7 +78,9 @@ pub use site::DepotSite;
 /// decoded struct's `Vec` order identical to the one that was encoded, so `T == decode(encode(T))`
 /// holds for the text maps (`attributes`, `resources`, `boot`) as well as for the bytes.
 pub(crate) fn canonical_key_cmp(a: &str, b: &str) -> core::cmp::Ordering {
-    a.len().cmp(&b.len()).then_with(|| a.as_bytes().cmp(b.as_bytes()))
+    a.len()
+        .cmp(&b.len())
+        .then_with(|| a.as_bytes().cmp(b.as_bytes()))
 }
 
 /// The `meta` key carrying a [`DepotFormula`] on a §22 `PubAnnounce` (§3.6, §21.20 registry).
@@ -125,13 +127,17 @@ pub enum DepotError {
 
     /// A malformed resource reference (§5.1). The grammar is `depot:<service>/<instance>`,
     /// `depot:<service>/*`, or `depot:*`.
-    #[error("malformed resource reference {0:?} — expected depot:<service>/<instance>, \
-             depot:<service>/*, or depot:* (§5.1)")]
+    #[error(
+        "malformed resource reference {0:?} — expected depot:<service>/<instance>, \
+             depot:<service>/*, or depot:* (§5.1)"
+    )]
     MalformedResource(String),
 
     /// A [`DepotFormula`] with no parts. A formula is a composition; a composition of nothing has no
     /// visibility and no portability to inherit (§3.6).
-    #[error("formula {kind:?} has no parts — nothing to inherit visibility or portability from (§3.6)")]
+    #[error(
+        "formula {kind:?} has no parts — nothing to inherit visibility or portability from (§3.6)"
+    )]
     EmptyFormula {
         /// The formula's declared `kind`.
         kind: String,
@@ -141,8 +147,10 @@ pub enum DepotError {
     ///
     /// `box` + `volume` + `bucket` gives the *ingredients* of a scalable database, never the
     /// *coordination* — and no engine gets consensus from object storage for free (§3.6).
-    #[error("formula {kind:?} claims horizontal scaling but declares no `consensus` — an absent \
-             consensus field means single-writer (§3.6)")]
+    #[error(
+        "formula {kind:?} claims horizontal scaling but declares no `consensus` — an absent \
+             consensus field means single-writer (§3.6)"
+    )]
     ScalingWithoutConsensus {
         /// The formula's declared `kind`.
         kind: String,
@@ -153,8 +161,10 @@ pub enum DepotError {
     /// Raised only by [`control::check_operator_offering`], never for a delegated grant: a token may
     /// legitimately carry `destroy` alone (a CI job reaping preview environments), and requiring the
     /// pair per-token would turn cleanup credentials into exfiltration credentials.
-    #[error("operator offers `destroy` without `export` — the account holder could delete an \
-             instance but never extract it (§5.2, DEPOT-4)")]
+    #[error(
+        "operator offers `destroy` without `export` — the account holder could delete an \
+             instance but never extract it (§5.2, DEPOT-4)"
+    )]
     DestroyWithoutExport,
 
     /// A capability lacking a `depot:coordinator` caveat, or carrying one naming a different
@@ -162,8 +172,10 @@ pub enum DepotError {
     ///
     /// A resource string names no operator, so an unbound token is valid at *every* DEPOT
     /// coordinator — the confused-deputy hole this closes.
-    #[error("capability is not bound to this coordinator: `depot:coordinator` caveat absent or \
-             naming another key (§5.1)")]
+    #[error(
+        "capability is not bound to this coordinator: `depot:coordinator` caveat absent or \
+             naming another key (§5.1)"
+    )]
     CoordinatorBindingMissing,
 
     /// A det_cbor decode or shape failure, surfaced from `kotva_core::cbor`.

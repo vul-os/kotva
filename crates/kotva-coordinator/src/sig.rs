@@ -268,15 +268,24 @@ mod tests {
             Suite::ReservedAnchorSlhDsa,
             Suite::ReservedHashSha3,
         ] {
-            assert!(!is_verifiable(s), "{s:?} has no verifier and must not claim one");
+            assert!(
+                !is_verifiable(s),
+                "{s:?} has no verifier and must not claim one"
+            );
             assert_eq!(
                 require_suite(Cv::U64(s.as_u8() as u64)),
                 Err(CoordinatorError::UnsupportedSuite(s.as_u8()))
             );
         }
         // An unregistered byte, and the reserved-zero byte.
-        assert_eq!(require_suite(Cv::U64(0x00)), Err(CoordinatorError::UnsupportedSuite(0)));
-        assert_eq!(require_suite(Cv::U64(0xff)), Err(CoordinatorError::UnsupportedSuite(0xff)));
+        assert_eq!(
+            require_suite(Cv::U64(0x00)),
+            Err(CoordinatorError::UnsupportedSuite(0))
+        );
+        assert_eq!(
+            require_suite(Cv::U64(0xff)),
+            Err(CoordinatorError::UnsupportedSuite(0xff))
+        );
         // A suite field that is not even a u8 is a type error, not a suite error.
         assert!(matches!(
             require_suite(Cv::Text("0x01".into())),
@@ -302,7 +311,13 @@ mod tests {
         // And a signature made over the *composite* representative must not verify as classical.
         let composite_sig = ik.sign_domain(DESCRIPTOR_DS, &preimage_body(Suite::PqHybrid, &body));
         assert_eq!(
-            verify(Suite::Classical, &ik.public(), DESCRIPTOR_DS, &body, &composite_sig),
+            verify(
+                Suite::Classical,
+                &ik.public(),
+                DESCRIPTOR_DS,
+                &body,
+                &composite_sig
+            ),
             Err(CoordinatorError::BadSignature)
         );
     }
@@ -340,12 +355,20 @@ mod tests {
         require_len("sig", Suite::Classical, &[0u8; 64], Which::SigVal).unwrap();
         assert!(matches!(
             require_len("identity", Suite::Classical, &[0u8; 31], Which::IkPub),
-            Err(CoordinatorError::BadFieldLength { expected: 32, actual: 31, .. })
+            Err(CoordinatorError::BadFieldLength {
+                expected: 32,
+                actual: 31,
+                ..
+            })
         ));
         // A 0x02 identity truncated to its Ed25519 half — the shape of a stripped PQ component.
         assert!(matches!(
             require_len("identity", Suite::PqHybrid, &[0u8; 32], Which::IkPub),
-            Err(CoordinatorError::BadFieldLength { expected: 1984, actual: 32, .. })
+            Err(CoordinatorError::BadFieldLength {
+                expected: 1984,
+                actual: 32,
+                ..
+            })
         ));
     }
 }

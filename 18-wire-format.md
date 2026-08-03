@@ -1867,7 +1867,7 @@ contract, and that every other kind (`relay`, `media-relay`, `reachability-adapt
 clauses unchanged. `CoordinatorDescriptor`/`Tariff`/`UsageReceipt` are correspondingly **one**
 object family, keyed by the `kind` field (§18.8a.1, key 2) rather than one bespoke shape per kind
 — a `gateway`'s domain/modes/attestation-selector (§7.5) and an adapter's rail/mode/initiation-
-class (§26.3.1) are kind-specific facts and live in the opaque `policy` field (key 4) exactly as
+class (§26.3.1) are kind-specific facts and live in the opaque `policy` field (key 5) exactly as
 they do informally today; nothing about §7.5's or §26.3.1's own field list changes. §26's
 previously-**reserved-but-undefined** `DMTAP-ADAPT-v0/…` DS-tags (§21.24g) are **retired, unused**
 in favour of the tags below (§21.24h) — an adapter, being a `gateway`-kind coordinator (CONTRACT

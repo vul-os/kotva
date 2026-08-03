@@ -112,7 +112,10 @@ impl DepotFormula {
     /// something to decide which is primary. No engine gets consensus from object storage for free.
     /// A formula advertising horizontal scaling MUST name what provides the coordination; an absent
     /// `consensus` means single-writer and MUST NOT be advertised as scaling.
-    pub fn check_scaling_claim(&self, advertises_horizontal_scaling: bool) -> Result<(), DepotError> {
+    pub fn check_scaling_claim(
+        &self,
+        advertises_horizontal_scaling: bool,
+    ) -> Result<(), DepotError> {
         if advertises_horizontal_scaling && self.consensus.is_none() {
             return Err(DepotError::ScalingWithoutConsensus {
                 kind: self.kind.clone(),
@@ -299,7 +302,10 @@ mod tests {
     fn stateless_only_formula_stays_zero_migration() {
         let f = DepotFormula::new(
             "static-site",
-            vec![part(Service::Bucket, b"op-a"), part(Service::EdgeFn, b"op-a")],
+            vec![
+                part(Service::Bucket, b"op-a"),
+                part(Service::EdgeFn, b"op-a"),
+            ],
         );
         let d = f
             .derive(&[Visibility::BLIND_ROUTING, Visibility::TERMINATING])
@@ -357,7 +363,10 @@ mod tests {
         ]));
         assert!(matches!(
             DepotFormula::from_det_cbor(&bad),
-            Err(DepotError::UnknownRegistryValue { registry: "service", .. })
+            Err(DepotError::UnknownRegistryValue {
+                registry: "service",
+                ..
+            })
         ));
     }
 

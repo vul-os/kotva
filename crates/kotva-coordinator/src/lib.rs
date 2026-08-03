@@ -1,9 +1,11 @@
 //! **The §18.8a coordinator-layer wire objects** — [`CoordinatorDescriptor`], [`Tariff`],
 //! [`UsageReceipt`].
 //!
-//! The reference implementation of [§18.8a of the wire
-//! format](https://github.com/vul-os/kotva/blob/main/18-wire-format.md), which is itself the wire
-//! form of the two MUSTs in
+//! The reference implementation of **§18.8a.1 and §18.8a.2** of [the wire
+//! format](https://github.com/vul-os/kotva/blob/main/18-wire-format.md) — *not* of §18.8a as a
+//! whole. **§18.8a.3 `GatewayAuthz` is not implemented here**; see "Not implemented here" below.
+//!
+//! §18.8a.1/§18.8a.2 are themselves the wire form of the two MUSTs in
 //! [`coordinator/CONTRACT.md`](https://github.com/vul-os/kotva/blob/main/coordinator/CONTRACT.md):
 //! §2.1 ("publish a **signed descriptor** carrying its kind, its policy, and — where it charges — a
 //! signed tariff") and §6 ("issue… signed usage receipts delivered directly to the paying party").
@@ -114,7 +116,9 @@ pub const USAGE_RECEIPT_MIME: &str = "application/vnd.dmtap.usage-receipt+cbor";
 /// where an implementer hand-builds a text-keyed map. [`DetCbor::from_text_map`] uses this; it is
 /// the same rule and the same reasoning as `kotva_depot::canonical_key_cmp`.
 pub(crate) fn canonical_key_cmp(a: &str, b: &str) -> core::cmp::Ordering {
-    a.len().cmp(&b.len()).then_with(|| a.as_bytes().cmp(b.as_bytes()))
+    a.len()
+        .cmp(&b.len())
+        .then_with(|| a.as_bytes().cmp(b.as_bytes()))
 }
 
 /// Failures this crate defines. **Every variant is a hard reject** — a caller MUST treat any error
@@ -172,8 +176,10 @@ pub enum CoordinatorError {
     /// data cannot also claim the protocol structurally prevents it from seeing the data. See
     /// [`Visibility::check`] for the divergence this rule carries in the spec text and exactly how
     /// far this crate enforces it.
-    #[error("visibility {class:?}/{level:?} is not declarable: a terminating role has no \
-             structural assurance (§18.8a.1, CONTRACT §3.3)")]
+    #[error(
+        "visibility {class:?}/{level:?} is not declarable: a terminating role has no \
+             structural assurance (§18.8a.1, CONTRACT §3.3)"
+    )]
     UndeclarableVisibility {
         /// The declared class.
         class: VisibilityClass,

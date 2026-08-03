@@ -114,7 +114,6 @@ impl ImageFormat {
             _ => return None,
         })
     }
-
 }
 
 /// A content-addressed artefact plus its manifest (§4.1).
@@ -264,7 +263,10 @@ mod tests {
         ]));
         assert!(matches!(
             DepotImage::from_det_cbor(&bad),
-            Err(DepotError::UnknownRegistryValue { registry: "image-format", .. })
+            Err(DepotError::UnknownRegistryValue {
+                registry: "image-format",
+                ..
+            })
         ));
     }
 
@@ -281,7 +283,10 @@ mod tests {
             assert!(
                 matches!(
                     DepotImage::from_det_cbor(&bad),
-                    Err(DepotError::UnknownRegistryValue { registry: "image-target", .. })
+                    Err(DepotError::UnknownRegistryValue {
+                        registry: "image-target",
+                        ..
+                    })
                 ),
                 "{bad_target:?} must not parse as a target"
             );
@@ -303,8 +308,13 @@ mod tests {
         // a conformance-vector question (`export-conformance`, §7), not a runtime branch. If a
         // vendor format is ever added to the registry, that is when the predicate earns its place.
         for f in [
-            ImageFormat::Raw, ImageFormat::Qcow2, ImageFormat::Oci, ImageFormat::Wasm,
-            ImageFormat::Qir, ImageFormat::Qasm, ImageFormat::FsDump,
+            ImageFormat::Raw,
+            ImageFormat::Qcow2,
+            ImageFormat::Oci,
+            ImageFormat::Wasm,
+            ImageFormat::Qir,
+            ImageFormat::Qasm,
+            ImageFormat::FsDump,
         ] {
             assert_eq!(ImageFormat::from_str(f.as_str()), Some(f), "{f:?}");
         }

@@ -350,7 +350,12 @@ mod tests {
 
     #[test]
     fn resource_round_trips() {
-        for wire in ["depot:*", "depot:box/*", "depot:box/7f3a91c2", "depot:bucket/photos"] {
+        for wire in [
+            "depot:*",
+            "depot:box/*",
+            "depot:box/7f3a91c2",
+            "depot:bucket/photos",
+        ] {
             let r = ResourceRef::parse(wire).unwrap();
             assert_eq!(r.to_wire(), wire);
         }
@@ -358,7 +363,15 @@ mod tests {
 
     #[test]
     fn malformed_resources_fail_closed() {
-        for bad in ["box/7f3a", "depot:", "depot:box", "depot:vm/*", "depot:box/", "depot:box/a/b", ""] {
+        for bad in [
+            "box/7f3a",
+            "depot:",
+            "depot:box",
+            "depot:vm/*",
+            "depot:box/",
+            "depot:box/a/b",
+            "",
+        ] {
             assert!(ResourceRef::parse(bad).is_err(), "{bad:?} must not parse");
         }
     }
@@ -394,7 +407,17 @@ mod tests {
     fn unknown_ability_fails_closed_and_is_not_aliased() {
         // The exact coinages a catalogue-minded implementer reaches for. Each MUST fail rather than
         // resolve to the nearby real verb (§5.2).
-        for bad in ["terminate", "delete-box", "create", "remove", "reboot", "exec", "ssh", "DESTROY", ""] {
+        for bad in [
+            "terminate",
+            "delete-box",
+            "create",
+            "remove",
+            "reboot",
+            "exec",
+            "ssh",
+            "DESTROY",
+            "",
+        ] {
             assert_eq!(Ability::from_str(bad), None, "{bad:?} must not parse");
         }
         assert_eq!(Ability::from_str("destroy"), Some(Ability::Destroy));
@@ -403,11 +426,28 @@ mod tests {
     #[test]
     fn ability_wire_round_trips() {
         let all = [
-            Ability::Provision, Ability::Inspect, Ability::List, Ability::Reconfigure,
-            Ability::Observe, Ability::Export, Ability::Destroy, Ability::Start, Ability::Stop,
-            Ability::Restart, Ability::Snapshot, Ability::Console, Ability::Attach,
-            Ability::Detach, Ability::Resize, Ability::Read, Ability::Write, Ability::Delete,
-            Ability::Serve, Ability::Deploy, Ability::Invoke, Ability::Rollback,
+            Ability::Provision,
+            Ability::Inspect,
+            Ability::List,
+            Ability::Reconfigure,
+            Ability::Observe,
+            Ability::Export,
+            Ability::Destroy,
+            Ability::Start,
+            Ability::Stop,
+            Ability::Restart,
+            Ability::Snapshot,
+            Ability::Console,
+            Ability::Attach,
+            Ability::Detach,
+            Ability::Resize,
+            Ability::Read,
+            Ability::Write,
+            Ability::Delete,
+            Ability::Serve,
+            Ability::Deploy,
+            Ability::Invoke,
+            Ability::Rollback,
         ];
         for a in all {
             assert_eq!(Ability::from_str(a.as_str()), Some(a), "{a:?}");

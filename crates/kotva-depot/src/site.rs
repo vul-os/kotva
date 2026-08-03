@@ -183,10 +183,21 @@ mod tests {
             root: ContentId::of(b"root"),
             fallback: Some("/index.html".into()),
             redirects: vec![
-                Redirect { from: "/old".into(), to: "/new".into(), status: 301 },
-                Redirect { from: "/a".into(), to: "/b".into(), status: 302 },
+                Redirect {
+                    from: "/old".into(),
+                    to: "/new".into(),
+                    status: 301,
+                },
+                Redirect {
+                    from: "/a".into(),
+                    to: "/b".into(),
+                    status: 302,
+                },
             ],
-            cache: Some(CachePolicy { max_age_s: Some(3600), immutable: Some(true) }),
+            cache: Some(CachePolicy {
+                max_age_s: Some(3600),
+                immutable: Some(true),
+            }),
         }
     }
 
@@ -209,11 +220,18 @@ mod tests {
         let mut s = site();
         s.redirects.insert(
             0,
-            Redirect { from: "/old".into(), to: "/first-wins".into(), status: 308 },
+            Redirect {
+                from: "/old".into(),
+                to: "/first-wins".into(),
+                status: 308,
+            },
         );
         assert_eq!(
             s.resolve("/old", |_| true),
-            Resolution::Redirect { to: "/first-wins".into(), status: 308 }
+            Resolution::Redirect {
+                to: "/first-wins".into(),
+                status: 308
+            }
         );
     }
 

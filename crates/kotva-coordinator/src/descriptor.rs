@@ -209,16 +209,14 @@ mod tests {
         DetCbor::from_cv(&Cv::Map(vec![(1, Cv::Text("za-jhb".into()))]))
     }
 
-    fn signed(seed: u8, kind: CoordinatorKind, v: Visibility) -> (IdentityKey, CoordinatorDescriptor) {
+    fn signed(
+        seed: u8,
+        kind: CoordinatorKind,
+        v: Visibility,
+    ) -> (IdentityKey, CoordinatorDescriptor) {
         let ik = IdentityKey::from_seed(&[seed; 32]);
-        let d = CoordinatorDescriptor::sign(
-            &sig::Signer::Classical(&ik),
-            kind,
-            v,
-            policy(),
-            None,
-        )
-        .unwrap();
+        let d = CoordinatorDescriptor::sign(&sig::Signer::Classical(&ik), kind, v, policy(), None)
+            .unwrap();
         (ik, d)
     }
 
@@ -302,23 +300,38 @@ mod tests {
         m.push((8, Cv::U64(97))); // "reputation: 97"
         assert!(matches!(
             CoordinatorDescriptor::from_det_cbor(&cbor::encode(&Cv::Map(m))),
-            Err(CoordinatorError::Cbor(kotva_core::cbor::CborError::UnknownKey(8)))
+            Err(CoordinatorError::Cbor(
+                kotva_core::cbor::CborError::UnknownKey(8)
+            ))
         ));
     }
 
     #[test]
     fn an_unknown_kind_is_rejected_rather_than_treated_as_a_near_match() {
-        let (_, d) = signed(26, CoordinatorKind::InfraService, Visibility::BLIND_STRUCTURAL);
+        let (_, d) = signed(
+            26,
+            CoordinatorKind::InfraService,
+            Visibility::BLIND_STRUCTURAL,
+        );
         let m: Vec<(u64, Cv)> = match cbor::decode(&d.det_cbor()).unwrap() {
             Cv::Map(m) => m
                 .into_iter()
-                .map(|(k, v)| if k == 2 { (k, Cv::Text("compute".into())) } else { (k, v) })
+                .map(|(k, v)| {
+                    if k == 2 {
+                        (k, Cv::Text("compute".into()))
+                    } else {
+                        (k, v)
+                    }
+                })
                 .collect(),
             _ => unreachable!(),
         };
         assert!(matches!(
             CoordinatorDescriptor::from_det_cbor(&cbor::encode(&Cv::Map(m))),
-            Err(CoordinatorError::UnknownRegistryValue { registry: "coordinator-kind", .. })
+            Err(CoordinatorError::UnknownRegistryValue {
+                registry: "coordinator-kind",
+                ..
+            })
         ));
     }
 
@@ -390,7 +403,11 @@ mod tests {
     #[test]
     fn the_pq_hybrid_suite_round_trips_a_full_descriptor_with_a_tariff() {
         let hk = kotva_core::pq::HybridSigningKey::generate();
-        let t = Tariff::sign(&sig::Signer::PqHybrid(&hk), DetCbor::from_cv(&Cv::U64(5)), None);
+        let t = Tariff::sign(
+            &sig::Signer::PqHybrid(&hk),
+            DetCbor::from_cv(&Cv::U64(5)),
+            None,
+        );
         let d = CoordinatorDescriptor::sign(
             &sig::Signer::PqHybrid(&hk),
             CoordinatorKind::ReachabilityAdapter,
@@ -406,7 +423,11 @@ mod tests {
 
     #[test]
     fn decode_is_not_verify() {
-        let (_, mut d) = signed(30, CoordinatorKind::Arbiter, Visibility::TERMINATING_ATTESTED);
+        let (_, mut d) = signed(
+            30,
+            CoordinatorKind::Arbiter,
+            Visibility::TERMINATING_ATTESTED,
+        );
         d.sig[0] ^= 0xff;
         let bytes = d.det_cbor();
         assert_eq!(CoordinatorDescriptor::from_det_cbor(&bytes).unwrap(), d);

@@ -181,7 +181,11 @@ mod tests {
             "escrow",        // truncation of the load-bearing exception
             "",
         ] {
-            assert_eq!(CoordinatorKind::from_str(bad), None, "{bad:?} must not parse");
+            assert_eq!(
+                CoordinatorKind::from_str(bad),
+                None,
+                "{bad:?} must not parse"
+            );
         }
     }
 

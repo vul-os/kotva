@@ -1769,7 +1769,7 @@
       "title": "18.8a.1 `CoordinatorDescriptor`, `Visibility`, `Tariff` (CONTRACT §2.1, §2.4, §6)",
       "musts": 9,
       "class": "IMPL",
-      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+      "reason": "byte-exact vectors DO exist \u2014 kotva-coordinator/tests/vectors.rs freezes DESCRIPTOR_V0, DESCRIPTOR_WITH_TARIFF_V0 and TARIFF_V0, hand-derived from the CDDL and byte-decomposed in their doc comments, plus corruption controls (retired `compute` kind, terminating/structural, short ik-pub, smuggled score key). Stays IMPL rather than ENCODING because ENCODING is reserved for a committed entry in conformance/vectors/, and these live in the reference crate's test suite. Mutation-verified: moving Tariff.valid_until from key 4 to key 6 in BOTH encoder and decoder leaves all 47 unit tests green and turns 4 of 9 vector tests red."
     },
     {
       "section": "18.8a.2",
@@ -1777,7 +1777,7 @@
       "title": "18.8a.2 `UsageReceipt` (CONTRACT §6)",
       "musts": 4,
       "class": "IMPL",
-      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+      "reason": "byte-exact vector DOES exist \u2014 kotva-coordinator/tests/vectors.rs freezes RECEIPT_V0, hand-derived and byte-decomposed in its doc comment. Stays IMPL rather than ENCODING because ENCODING is reserved for a committed entry in conformance/vectors/, and this lives in the reference crate's test suite. Mutation-verified: moving UsageReceipt.operation from key 3 to key 9 in BOTH encoder and decoder turns the vector tests red."
     },
     {
       "section": "18.8a.3",
@@ -1785,7 +1785,7 @@
       "title": "18.8a.3 `GatewayAuthz` (§12.2, §7.11.2, §7.12, §26.2.1)",
       "musts": 5,
       "class": "IMPL",
-      "reason": "wire-format rules with no byte-exact vector behind them — a decoder case is the only thing that checks them"
+      "reason": "wire-format rules with no byte-exact vector behind them \u2014 a decoder case is the only thing that checks them. UNIMPLEMENTED: GatewayAuthz is gateway-local state and has no type in kotva-coordinator, which implements only 18.8a.1 and 18.8a.2. These 5 MUSTs are unmet by any crate in this repo."
     },
     {
       "section": "18.9",

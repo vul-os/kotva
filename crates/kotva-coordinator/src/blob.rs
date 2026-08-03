@@ -10,7 +10,7 @@
 //! It is a distinct type rather than a bare `Vec<u8>` for one reason: **it is where an implementer
 //! hand-builds a text-keyed map, and text-keyed maps are where canonical ordering goes wrong.**
 
-use kotva_core::cbor::{self, Cv, CborError};
+use kotva_core::cbor::{self, CborError, Cv};
 
 use crate::canonical_key_cmp;
 
@@ -97,10 +97,7 @@ mod tests {
         // The order survives the round-trip, so a decoded blob compares equal to a rebuilt one.
         assert_eq!(
             blob.decode().unwrap(),
-            Cv::TextMap(vec![
-                ("gb".into(), Cv::U64(3)),
-                ("byte".into(), Cv::U64(5)),
-            ])
+            Cv::TextMap(vec![("gb".into(), Cv::U64(3)), ("byte".into(), Cv::U64(5)),])
         );
     }
 
@@ -116,10 +113,14 @@ mod tests {
         ]));
         // `cbor::encode` re-sorts canonically regardless of insertion order, so it cannot be used
         // to build the broken form — the bytes have to be laid out by hand.
-        assert_eq!(wrong, DetCbor::from_text_map([
-            ("byte".to_string(), Cv::U64(5)),
-            ("gb".to_string(), Cv::U64(3)),
-        ]).0);
+        assert_eq!(
+            wrong,
+            DetCbor::from_text_map([
+                ("byte".to_string(), Cv::U64(5)),
+                ("gb".to_string(), Cv::U64(3)),
+            ])
+            .0
+        );
         let hand_built_wrong_order: Vec<u8> = vec![
             0xa2, 0x64, b'b', b'y', b't', b'e', 0x05, 0x62, b'g', b'b', 0x03,
         ];
@@ -133,7 +134,10 @@ mod tests {
     fn empty_is_valid_but_is_not_a_decodable_item() {
         let e = DetCbor::empty();
         assert!(e.is_empty());
-        assert!(e.decode().is_err(), "empty is 'nothing declared', not a CBOR item");
+        assert!(
+            e.decode().is_err(),
+            "empty is 'nothing declared', not a CBOR item"
+        );
         assert_eq!(e, DetCbor::default());
     }
 

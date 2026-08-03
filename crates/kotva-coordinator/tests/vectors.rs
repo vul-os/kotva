@@ -304,7 +304,11 @@ fn filler_lengths_are_what_18_2_requires() {
         ("IK_RECEIPT", IK_RECEIPT, 0x3c),
     ] {
         let b = hex(s);
-        assert_eq!(b.len(), 32, "{name}: ik-pub is 32 B under suite 0x01 (§18.2)");
+        assert_eq!(
+            b.len(),
+            32,
+            "{name}: ik-pub is 32 B under suite 0x01 (§18.2)"
+        );
         assert!(b.iter().all(|x| *x == byte), "{name}: not uniform");
     }
     for (name, s, byte) in [
@@ -313,7 +317,11 @@ fn filler_lengths_are_what_18_2_requires() {
         ("SIG_RECEIPT", SIG_RECEIPT, 0x35),
     ] {
         let b = hex(s);
-        assert_eq!(b.len(), 64, "{name}: sig-val is 64 B under suite 0x01 (§18.2)");
+        assert_eq!(
+            b.len(),
+            64,
+            "{name}: sig-val is 64 B under suite 0x01 (§18.2)"
+        );
         assert!(b.iter().all(|x| *x == byte), "{name}: not uniform");
     }
 }
@@ -327,7 +335,10 @@ fn receipt_vector_decodes_to_the_specified_value() {
     // The opaque operation blob is carried, not interpreted — but it IS canonical det_cbor, and a
     // consumer that decodes it gets exactly what the decomposition claims.
     assert_eq!(r.operation, DetCbor::from_bytes(vec![0xa1, 0x01, 0x07]));
-    assert_eq!(r.operation.decode().unwrap(), Cv::Map(vec![(1, Cv::U64(7))]));
+    assert_eq!(
+        r.operation.decode().unwrap(),
+        Cv::Map(vec![(1, Cv::U64(7))])
+    );
 }
 
 #[test]
@@ -360,7 +371,10 @@ fn descriptor_vector_decodes_to_the_specified_value() {
     assert_eq!(d.visibility.class, VisibilityClass::Blind);
     assert_eq!(d.visibility.level, AssuranceLevel::Structural);
     assert_eq!(d.sig, hex(SIG_DESCRIPTOR));
-    assert!(d.tariff.is_none(), "key 6 absent ⇒ this coordinator does not charge");
+    assert!(
+        d.tariff.is_none(),
+        "key 6 absent ⇒ this coordinator does not charge"
+    );
     assert!(!d.charges());
 }
 
@@ -393,7 +407,11 @@ fn a_depot_service_policy_round_trips_through_a_real_coordinator_descriptor() {
         .expect("the descriptor's policy blob must be a DepotServicePolicy");
     assert_eq!(p.service, Service::Bucket);
     assert_eq!(p.backing, Backing::Operator);
-    assert_eq!(p.det_cbor(), d.policy.as_bytes(), "re-encode must reproduce the carried bytes");
+    assert_eq!(
+        p.det_cbor(),
+        d.policy.as_bytes(),
+        "re-encode must reproduce the carried bytes"
+    );
 
     // (b) The other direction, through a REAL signature: build a richer policy, sign a descriptor
     //     around it, encode, decode+verify, and pull the policy back out intact.
@@ -406,7 +424,8 @@ fn a_depot_service_policy_round_trips_through_a_real_coordinator_descriptor() {
         ..DepotServicePolicy::new(Service::Box, Backing::Customer)
     }
     .normalized();
-    rich.validate().expect("the sample policy must be conformant DEPOT");
+    rich.validate()
+        .expect("the sample policy must be conformant DEPOT");
 
     let signed = CoordinatorDescriptor::sign(
         &kotva_coordinator::Signer::Classical(&ik),
@@ -504,7 +523,9 @@ fn re_encoding_each_vector_reproduces_the_specified_bytes() {
         (
             "UsageReceipt",
             RECEIPT_V0,
-            UsageReceipt::from_det_cbor(&hex(RECEIPT_V0)).unwrap().det_cbor(),
+            UsageReceipt::from_det_cbor(&hex(RECEIPT_V0))
+                .unwrap()
+                .det_cbor(),
         ),
         (
             "Tariff",
@@ -514,7 +535,9 @@ fn re_encoding_each_vector_reproduces_the_specified_bytes() {
         (
             "CoordinatorDescriptor",
             DESCRIPTOR_V0,
-            CoordinatorDescriptor::from_det_cbor(&hex(DESCRIPTOR_V0)).unwrap().det_cbor(),
+            CoordinatorDescriptor::from_det_cbor(&hex(DESCRIPTOR_V0))
+                .unwrap()
+                .det_cbor(),
         ),
         (
             "CoordinatorDescriptor+Tariff",
@@ -524,7 +547,11 @@ fn re_encoding_each_vector_reproduces_the_specified_bytes() {
                 .det_cbor(),
         ),
     ];
-    assert_eq!(cases.len(), 4, "every vector must be re-encoded, not a subset");
+    assert_eq!(
+        cases.len(),
+        4,
+        "every vector must be re-encoded, not a subset"
+    );
     for (name, expected_hex, actual) in cases {
         assert_eq!(
             actual,
@@ -562,7 +589,10 @@ fn corrupted_vectors_are_rejected() {
     // A folded kind that must not survive on the wire.
     assert!(matches!(
         CoordinatorDescriptor::from_det_cbor(&hex(DESCRIPTOR_KIND_COMPUTE)),
-        Err(CoordinatorError::UnknownRegistryValue { registry: "coordinator-kind", .. })
+        Err(CoordinatorError::UnknownRegistryValue {
+            registry: "coordinator-kind",
+            ..
+        })
     ));
     // The one undeclarable class/level pair.
     assert!(matches!(
@@ -573,13 +603,20 @@ fn corrupted_vectors_are_rejected() {
     // ── §18.2 length governance ─────────────────────────────────────────────────────────────
     assert!(matches!(
         CoordinatorDescriptor::from_det_cbor(&hex(DESCRIPTOR_SHORT_IK)),
-        Err(CoordinatorError::BadFieldLength { field: "identity", expected: 32, actual: 31, .. })
+        Err(CoordinatorError::BadFieldLength {
+            field: "identity",
+            expected: 32,
+            actual: 31,
+            ..
+        })
     ));
 
     // ── the unknown-key rule §2.1's "no score field" rests on ────────────────────────────────
     assert!(matches!(
         CoordinatorDescriptor::from_det_cbor(&hex(DESCRIPTOR_SMUGGLED_SCORE)),
-        Err(CoordinatorError::Cbor(kotva_core::cbor::CborError::UnknownKey(8)))
+        Err(CoordinatorError::Cbor(
+            kotva_core::cbor::CborError::UnknownKey(8)
+        ))
     ));
 
     // ── type confusion: the tariff at key 6 delivered as a byte string rather than a map ─────

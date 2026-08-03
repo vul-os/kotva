@@ -191,7 +191,11 @@ mod tests {
     #[test]
     fn signs_verifies_and_round_trips() {
         let ik = IdentityKey::from_seed(&[1u8; 32]);
-        let t = Tariff::sign(&sig::Signer::Classical(&ik), schedule(), Some(1_700_000_000_000));
+        let t = Tariff::sign(
+            &sig::Signer::Classical(&ik),
+            schedule(),
+            Some(1_700_000_000_000),
+        );
         t.verify().unwrap();
         let b = t.det_cbor();
         let back = Tariff::from_det_cbor_verified(&b).unwrap();
@@ -223,7 +227,10 @@ mod tests {
         t.verify_at(1_000).unwrap(); // inclusive: it still stands AT valid_until
         assert_eq!(
             t.verify_at(1_001),
-            Err(CoordinatorError::TariffExpired { valid_until: 1_000, now: 1_001 })
+            Err(CoordinatorError::TariffExpired {
+                valid_until: 1_000,
+                now: 1_001
+            })
         );
         // Expiry is not a signature failure: the signature over a lapsed tariff still verifies,
         // which is what lets a client prove what the price *was*.
@@ -309,7 +316,9 @@ mod tests {
         m.push((9, Cv::U64(1)));
         assert!(matches!(
             Tariff::from_det_cbor(&cbor::encode(&Cv::Map(m))),
-            Err(CoordinatorError::Cbor(kotva_core::cbor::CborError::UnknownKey(9)))
+            Err(CoordinatorError::Cbor(
+                kotva_core::cbor::CborError::UnknownKey(9)
+            ))
         ));
         // Drop the required signature.
         let m2: Vec<(u64, Cv)> = match t.to_cv() {
@@ -318,7 +327,9 @@ mod tests {
         };
         assert!(matches!(
             Tariff::from_det_cbor(&cbor::encode(&Cv::Map(m2))),
-            Err(CoordinatorError::Cbor(kotva_core::cbor::CborError::MissingKey(5)))
+            Err(CoordinatorError::Cbor(
+                kotva_core::cbor::CborError::MissingKey(5)
+            ))
         ));
     }
 }

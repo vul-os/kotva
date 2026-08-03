@@ -336,10 +336,7 @@ mod tests {
 
     #[test]
     fn every_closed_registry_rejects_coinage() {
-        for (idx, bad, reg) in [
-            (2u64, "availability", "metric"),
-            (4, "vibes", "method"),
-        ] {
+        for (idx, bad, reg) in [(2u64, "availability", "metric"), (4, "vibes", "method")] {
             let mut m: Vec<(u64, Cv)> = vec![
                 (1, Cv::Text("box".into())),
                 (2, Cv::Text("uptime".into())),
@@ -376,7 +373,10 @@ mod tests {
         ]));
         assert!(matches!(
             DepotMeasurement::from_det_cbor(&enc),
-            Err(DepotError::UnknownRegistryValue { registry: "evidence-kind", .. })
+            Err(DepotError::UnknownRegistryValue {
+                registry: "evidence-kind",
+                ..
+            })
         ));
     }
 
@@ -421,7 +421,10 @@ mod tests {
         assert!(!t.is_independently_checkable());
 
         // No evidence at all is not checkable, however good the method.
-        let n = DepotMeasurement { evidence: None, ..uptime(1000) };
+        let n = DepotMeasurement {
+            evidence: None,
+            ..uptime(1000)
+        };
         assert!(!n.is_independently_checkable());
 
         // The one combination that is.

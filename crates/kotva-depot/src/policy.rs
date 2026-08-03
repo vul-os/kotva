@@ -141,7 +141,8 @@ impl DepotServicePolicy {
     /// policy is canonically ordered. Call this on a hand-built policy before comparing it to a
     /// decoded one.
     pub fn normalized(mut self) -> Self {
-        self.attributes.sort_by(|a, b| canonical_key_cmp(&a.0, &b.0));
+        self.attributes
+            .sort_by(|a, b| canonical_key_cmp(&a.0, &b.0));
         if let Some(c) = &mut self.capacity {
             c.resources.sort_by(|a, b| canonical_key_cmp(&a.0, &b.0));
         }
@@ -237,7 +238,11 @@ impl DepotServicePolicy {
             ab.dedup();
             m.push((
                 5,
-                Cv::Array(ab.into_iter().map(|a| Cv::Text(a.as_str().to_string())).collect()),
+                Cv::Array(
+                    ab.into_iter()
+                        .map(|a| Cv::Text(a.as_str().to_string()))
+                        .collect(),
+                ),
             ));
         }
         cbor::encode(&Cv::Map(m))
@@ -361,7 +366,10 @@ mod tests {
         ]));
         assert!(matches!(
             DepotServicePolicy::from_det_cbor(&bad),
-            Err(DepotError::UnknownRegistryValue { registry: "service", .. })
+            Err(DepotError::UnknownRegistryValue {
+                registry: "service",
+                ..
+            })
         ));
 
         let bad2 = cbor::encode(&Cv::Map(vec![
@@ -370,7 +378,10 @@ mod tests {
         ]));
         assert!(matches!(
             DepotServicePolicy::from_det_cbor(&bad2),
-            Err(DepotError::UnknownRegistryValue { registry: "backing", .. })
+            Err(DepotError::UnknownRegistryValue {
+                registry: "backing",
+                ..
+            })
         ));
     }
 
@@ -383,7 +394,10 @@ mod tests {
         ]));
         assert!(matches!(
             DepotServicePolicy::from_det_cbor(&bad),
-            Err(DepotError::UnknownRegistryValue { registry: "ability", .. })
+            Err(DepotError::UnknownRegistryValue {
+                registry: "ability",
+                ..
+            })
         ));
     }
 
@@ -400,7 +414,10 @@ mod tests {
 
     #[test]
     fn uptime_target_wellformedness() {
-        let mut c = Capacity { uptime_target: Some(1000), ..Default::default() };
+        let mut c = Capacity {
+            uptime_target: Some(1000),
+            ..Default::default()
+        };
         assert!(c.uptime_target_is_wellformed());
         c.uptime_target = Some(1001);
         assert!(!c.uptime_target_is_wellformed());
@@ -432,7 +449,10 @@ mod tests {
             ..DepotServicePolicy::new(Service::Box, Backing::Operator)
         };
         let decoded = DepotServicePolicy::from_det_cbor(&bad.det_cbor()).unwrap();
-        assert_eq!(decoded, bad, "decode must not reject a non-conformant policy");
+        assert_eq!(
+            decoded, bad,
+            "decode must not reject a non-conformant policy"
+        );
         assert_eq!(decoded.validate(), Err(DepotError::DestroyWithoutExport));
 
         // An ability meaningless for the elemental.
@@ -444,7 +464,10 @@ mod tests {
 
         // A malformed per-mille target.
         let over = DepotServicePolicy {
-            capacity: Some(Capacity { uptime_target: Some(1001), ..Default::default() }),
+            capacity: Some(Capacity {
+                uptime_target: Some(1001),
+                ..Default::default()
+            }),
             ..DepotServicePolicy::new(Service::Bucket, Backing::Operator)
         };
         assert!(over.validate().is_err());
@@ -454,8 +477,12 @@ mod tests {
     fn validate_accepts_conformant_policies_including_the_default_set() {
         // Empty abilities = the common seven, which contain both destroy and export, so the
         // default offering is conformant.
-        DepotServicePolicy::new(Service::Box, Backing::Operator).validate().unwrap();
-        DepotServicePolicy::new(Service::Bucket, Backing::Customer).validate().unwrap();
+        DepotServicePolicy::new(Service::Box, Backing::Operator)
+            .validate()
+            .unwrap();
+        DepotServicePolicy::new(Service::Bucket, Backing::Customer)
+            .validate()
+            .unwrap();
         sample().validate().unwrap();
     }
 
@@ -471,7 +498,10 @@ mod tests {
         };
         let back = DepotServicePolicy::from_det_cbor(&p.det_cbor()).unwrap();
         assert_eq!(
-            back.capacity.as_ref().unwrap().resource("accel-photonic-v3"),
+            back.capacity
+                .as_ref()
+                .unwrap()
+                .resource("accel-photonic-v3"),
             Some(2)
         );
     }

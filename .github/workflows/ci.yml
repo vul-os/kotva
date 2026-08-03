@@ -51,12 +51,20 @@ jobs:
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       # NON-BLOCKING, deliberately — the same call envoir's CI makes, for the same reason.
-      # rustfmt currently reports 1007 diffs across 47 files, none introduced by the work
-      # that added this CI. Gating on them today would mean landing a 1009-diff reformat as
-      # a prerequisite: a commit that buries real changes and makes `git blame` useless
-      # across the whole crate tree. A gate whose precondition is that commit is not a gate,
-      # it is a blocker. Promote to blocking (drop continue-on-error) once the debt is paid
-      # down in its own commit.
+      # rustfmt currently reports 1252 diffs across 65 files, ALL of them pre-existing debt in
+      # kotva-core/kotva-mail/kotva-sync/kotva-sync-wasm. Gating on them today would mean
+      # landing a four-figure reformat as a prerequisite: a commit that buries real changes and
+      # makes `git blame` useless across the whole crate tree. A gate whose precondition is that
+      # commit is not a gate, it is a blocker. Promote to blocking (drop continue-on-error) once
+      # the debt is paid down in its own commit.
+      #
+      # The count is stated so it stays honest. It was "1007 across 47 files, none introduced by
+      # the work that added this CI" until kotva-coordinator and kotva-depot landed 78 diffs of
+      # their own, at which point the sentence no longer described the tree — a caveat that
+      # quietly stops being true is the failure this repo cares most about. Those two crates are
+      # now formatted (`cargo fmt -p kotva-coordinator -p kotva-depot`) and contribute zero, so
+      # the claim is true again by making it true rather than by rewording it. NEW CRATES ARE
+      # EXPECTED TO BE FMT-CLEAN; only the four legacy crates above carry debt.
       - name: Format (report only)
         continue-on-error: true
         run: cargo fmt --all -- --check

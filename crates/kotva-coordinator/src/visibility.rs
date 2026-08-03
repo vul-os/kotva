@@ -205,19 +205,17 @@ impl Visibility {
     pub(crate) fn from_cv(cv: Cv) -> Result<Self, CoordinatorError> {
         let mut f = Fields::from_cv(cv)?;
         let class_s = as_text(f.req(1)?)?;
-        let class = VisibilityClass::from_str(&class_s).ok_or(
-            CoordinatorError::UnknownRegistryValue {
+        let class =
+            VisibilityClass::from_str(&class_s).ok_or(CoordinatorError::UnknownRegistryValue {
                 registry: "visibility-class",
                 value: class_s,
-            },
-        )?;
+            })?;
         let level_s = as_text(f.req(2)?)?;
-        let level = AssuranceLevel::from_str(&level_s).ok_or(
-            CoordinatorError::UnknownRegistryValue {
+        let level =
+            AssuranceLevel::from_str(&level_s).ok_or(CoordinatorError::UnknownRegistryValue {
                 registry: "assurance-level",
                 value: level_s,
-            },
-        )?;
+            })?;
         f.deny_unknown()?;
         let v = Visibility { class, level };
         v.check()?;
@@ -243,7 +241,14 @@ mod tests {
             assert_eq!(AssuranceLevel::from_str(l.as_str()), Some(l));
         }
         // Plausible near-misses an implementer might coin. §18.8a.1: "rejected, not defaulted".
-        for bad in ["blind_routing", "blindrouting", "Blind", "opaque", "terminal", ""] {
+        for bad in [
+            "blind_routing",
+            "blindrouting",
+            "Blind",
+            "opaque",
+            "terminal",
+            "",
+        ] {
             assert_eq!(VisibilityClass::from_str(bad), None, "{bad:?}");
         }
         for bad in ["structured", "attest", "Declared", "promised", "tee", ""] {
@@ -279,9 +284,11 @@ mod tests {
         Visibility::TERMINATING_ATTESTED.check().unwrap();
         Visibility::TERMINATING.check().unwrap();
         // And the substance both readings share is still enforced.
-        assert!(Visibility::new(VisibilityClass::Terminating, AssuranceLevel::Structural)
-            .check()
-            .is_err());
+        assert!(
+            Visibility::new(VisibilityClass::Terminating, AssuranceLevel::Structural)
+                .check()
+                .is_err()
+        );
     }
 
     #[test]
@@ -307,7 +314,9 @@ mod tests {
         ]));
         assert!(matches!(
             Visibility::from_cv(cbor::decode(&bad).unwrap()),
-            Err(CoordinatorError::Cbor(kotva_core::cbor::CborError::UnknownKey(3)))
+            Err(CoordinatorError::Cbor(
+                kotva_core::cbor::CborError::UnknownKey(3)
+            ))
         ));
     }
 

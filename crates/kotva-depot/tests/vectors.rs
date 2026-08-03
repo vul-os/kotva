@@ -16,12 +16,12 @@
 //! Each vector is annotated with its full byte decomposition so a second implementation — in any
 //! language — can be checked against the same corpus without running this crate.
 
-use kotva_depot::{
-    Backing, DepotFormula, DepotImage, DepotMeasurement, DepotServicePolicy, DepotSite, ImageFormat,
-    ImageTarget, Metric, Method, Service,
-};
-use kotva_depot::measurement::MeasurementValue;
 use kotva_core::ContentId;
+use kotva_depot::measurement::MeasurementValue;
+use kotva_depot::{
+    Backing, DepotFormula, DepotImage, DepotMeasurement, DepotServicePolicy, DepotSite,
+    ImageFormat, ImageTarget, Method, Metric, Service,
+};
 
 /// Decode a hex string into bytes. Vectors are written as hex so the byte layout is visible in
 /// review rather than hidden behind a builder.
@@ -161,7 +161,9 @@ fn re_encoding_each_vector_reproduces_the_specified_bytes() {
         (
             "DepotImage",
             IMAGE_EDGE_FN,
-            DepotImage::from_det_cbor(&hex(IMAGE_EDGE_FN)).unwrap().det_cbor(),
+            DepotImage::from_det_cbor(&hex(IMAGE_EDGE_FN))
+                .unwrap()
+                .det_cbor(),
         ),
         (
             "DepotMeasurement",
@@ -173,12 +175,16 @@ fn re_encoding_each_vector_reproduces_the_specified_bytes() {
         (
             "DepotSite",
             SITE_MINIMAL,
-            DepotSite::from_det_cbor(&hex(SITE_MINIMAL)).unwrap().det_cbor(),
+            DepotSite::from_det_cbor(&hex(SITE_MINIMAL))
+                .unwrap()
+                .det_cbor(),
         ),
         (
             "DepotFormula",
             FORMULA_REDIS,
-            DepotFormula::from_det_cbor(&hex(FORMULA_REDIS)).unwrap().det_cbor(),
+            DepotFormula::from_det_cbor(&hex(FORMULA_REDIS))
+                .unwrap()
+                .det_cbor(),
         ),
     ];
     for (name, expected_hex, actual) in cases {
@@ -209,7 +215,10 @@ fn corrupted_vectors_are_rejected() {
     assert!(DepotServicePolicy::from_det_cbor(&hex("a20162766d02686f70657261746f72")).is_err());
     // A vector whose value type is wrong: image size (key 4) as text(1) "x" rather than a uint.
     //   a4 01 67 "edge-fn" 02 64 "wasm" 03 43 010203 04 61 78
-    assert!(DepotImage::from_det_cbor(&hex("a40167656467652d666e02647761736d0343010203046178")).is_err());
+    assert!(
+        DepotImage::from_det_cbor(&hex("a40167656467652d666e02647761736d0343010203046178"))
+            .is_err()
+    );
     // And the same object with the size restored is accepted — a false-positive control, so the
     // assertion above is known to fail on the mutation rather than on some unrelated defect.
     assert!(DepotImage::from_det_cbor(&hex(IMAGE_EDGE_FN)).is_ok());
