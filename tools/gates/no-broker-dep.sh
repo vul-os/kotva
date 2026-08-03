@@ -32,7 +32,8 @@
 # mechanics to add.
 #
 # CONFIGURATION (environment)
-#   BROKER_RE     POSIX ERE, case-insensitive, naming the broker. Default: ephor|vulos-relayd
+#   BROKER_RE     POSIX ERE, case-insensitive, naming the broker.
+#                 Default: pier-|vul-os/pier|ephor|vulos-relayd
 #   SEAM_PATHS    Space-separated repo-relative path prefixes where naming the broker is
 #                 permitted — the optional provider implementation and its tests. Empty by
 #                 default, which is the strictest and correct setting for a product that has
@@ -804,7 +805,8 @@ selftest() {
 	# ---- Rust controls -----------------------------------------------------------------
 	if command -v cargo >/dev/null 2>&1; then
 		ran=$((ran + 1))
-		expected_controls=$((expected_controls + 8))
+		# 8 original + 2 CURRENT-NAME rename controls (see POSITIVE D/E below).
+		expected_controls=$((expected_controls + 10))
 		# a vendored "broker client" the fixtures can depend on with no network
 		mkdir -p "$tmp/ephor-client/src"
 		cat >"$tmp/ephor-client/Cargo.toml" <<-'EOF'
@@ -858,7 +860,31 @@ selftest() {
 		printf 'pub fn dial_ephor() {}\n' >"$tmp/rs_seam_off/src/reach/broker.rs"
 		printf '\n[features]\ndefault = []\nephor-reach = []\n' >>"$tmp/rs_seam_off/Cargo.toml"
 
-		E='BROKER_RE=ephor|vulos-relayd'
+		# POSITIVE D — the broker under its CURRENT name. Every control above is written in
+		# `ephor`, the PRE-rename name. That is why the ephor -> pier rename was able to blind
+		# this gate suite-wide while its own self-test stayed green: the fixtures could not
+		# tell the difference between "the gate matches the broker" and "the gate matches the
+		# string ephor". This control plants a `pier-` dependency and a `vul-os/pier` module
+		# path, so a BROKER_RE that has lost the current name FAILS here instead of passing.
+		mkdir -p "$tmp/pier-client/src"
+		cat >"$tmp/pier-client/Cargo.toml" <<-'EOF'
+			[package]
+			name = "pier-client"
+			version = "0.0.0"
+			edition = "2021"
+		EOF
+		echo 'pub fn dial() {}' >"$tmp/pier-client/src/lib.rs"
+		mkrust rs_dep_current_name
+		printf '\npier-client = { path = "../pier-client" }\n' >>"$tmp/rs_dep_current_name/Cargo.toml"
+		printf 'fn main() { pier_client::dial(); }\n' >"$tmp/rs_dep_current_name/src/main.rs"
+
+		# POSITIVE E — the repo/module path shape, with NO dependency, so this isolates
+		# C-START on `vul-os/pier` specifically.
+		mkrust rs_default_current_name
+		printf 'const BROKER: &str = "https://github.com/vul-os/pier";\nfn main() { let _ = BROKER; }\n' \
+			>"$tmp/rs_default_current_name/src/main.rs"
+
+		E='BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd'
 		expect rs_clean 0 "a clean tree passes with all 3 checks run" "$E" SEAM_PATHS= SEAM_FLAG=
 		expect rs_dep 1 "C-DEP catches a default-feature dependency" "$E" SEAM_PATHS= SEAM_FLAG=
 		expect rs_default 1 "C-START catches a default broker endpoint with no dependency" "$E" SEAM_PATHS= SEAM_FLAG=
@@ -877,6 +903,12 @@ selftest() {
 		# violation must outrank an unverifiable check.
 		expect rs_dep 1 "a violation outranks an unverifiable check (regression)" "$E" \
 			SEAM_PATHS="src/gone" SEAM_FLAG="ephor-reach"
+		# RENAME controls — the gate must catch the broker under the name it has TODAY, not
+		# only the name it had when these fixtures were written.
+		expect rs_dep_current_name 1 "C-DEP catches the broker under its CURRENT name (pier-)" "$E" \
+			SEAM_PATHS= SEAM_FLAG=
+		expect rs_default_current_name 1 "C-START catches the current repo path (vul-os/pier)" "$E" \
+			SEAM_PATHS= SEAM_FLAG=
 	else
 		unexercised="$unexercised rust(no-cargo)"
 	fi
@@ -925,7 +957,7 @@ selftest() {
 		printf '//go:build !broker\n\npackage reach\n\nimport "example.test/ephorclient"\n\nfunc Provider() string { return ephorclient.Dial() }\n' \
 			>"$tmp/go_planted/reach/default.go"
 
-		E='BROKER_RE=ephor|vulos-relayd'
+		E='BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd'
 		expect go_seam_off 0 "go: a build-tag seam is outside the default import closure" "$E" \
 			SEAM_PATHS="reach go.mod" SEAM_FLAG="broker"
 		expect go_planted 1 "go: C-DEP catches a broker imported by the default build" "$E" \
@@ -951,7 +983,7 @@ selftest() {
 			>"$tmp/prune_nested/web/node_modules/pkg/index.js"
 		printf 'ephor build fingerprint\n' >"$tmp/prune_nested/crates/x/target/debug/build.log"
 		expect prune_nested 0 "nested node_modules/ and target/ are pruned at any depth, not just the root" \
-			'BROKER_RE=ephor|vulos-relayd'
+			'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd'
 
 		# DEFECT 2 — monorepo blind spot. package.json at the root, go.mod in backend/. The
 		# if/elif chain read the npm closure and never looked at Go, reporting a clean pass over
@@ -970,7 +1002,7 @@ selftest() {
 		printf 'package main\n\nimport "example.test/ephorclient"\n\nfunc main() { println(ephorclient.Dial()) }\n' \
 			>"$tmp/multi_mod/backend/main.go"
 		expect multi_mod 1 "a second manifest below the root is CHECKED, not silently skipped" \
-			'BROKER_RE=ephor|vulos-relayd'
+			'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd'
 
 		# DEFECT 3 — the gate flagged a CI step whose purpose was asserting the broker's absence.
 		# The marker exempts that file and prints the stated reason; without it this same tree
@@ -981,11 +1013,11 @@ selftest() {
 		printf 'name: ci\njobs:\n  x:\n    steps:\n      - run: grep -rE "ephor" . && exit 1\n' \
 			>"$tmp/assert_absence/.github/workflows/ci.yml"
 		expect assert_absence 1 "an unmarked file naming the broker still FAILS (the marker is doing the work)" \
-			'BROKER_RE=ephor|vulos-relayd'
+			'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd'
 		printf '# no-broker-dep%s asserts this broker is absent; the grep must spell its name\n' \
 			"$_ALLOW_SUFFIX" >>"$tmp/assert_absence/.github/workflows/ci.yml"
 		expect assert_absence 0 "a file may name the broker to assert its ABSENCE, with a printed reason" \
-			'BROKER_RE=ephor|vulos-relayd'
+			'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd'
 	else
 		unexercised="$unexercised structural(no-go-toolchain)"
 	fi
@@ -1015,7 +1047,7 @@ selftest() {
 		printf 'package main\n\nfunc main() {}\n' >"$tmp/disclaimer_only/main.go"
 		disclaimer_doc disclaimer_only
 		expect disclaimer_only 0 "a GOVERNANCE.md disclaimer with NO other mention of the broker PASSES" \
-			'BROKER_RE=ephor|vulos-relayd'
+			'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd'
 
 		# CONTROL B — the SAME disclaimer, but the default build now really imports the broker
 		# (a real manifest dependency, C-DEP's subject). The disclaimer must not launder it.
@@ -1033,7 +1065,7 @@ selftest() {
 			>"$tmp/disclaimer_plus_dep/main.go"
 		disclaimer_doc disclaimer_plus_dep
 		expect disclaimer_plus_dep 1 "a real manifest dependency still FAILS behind a disclaimer doc" \
-			'BROKER_RE=ephor|vulos-relayd'
+			'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd'
 
 		# CONTROL C — the SAME disclaimer, no manifest dependency at all, but a hardcoded
 		# default broker endpoint in the startup path (C-START's subject, not C-DEP's).
@@ -1043,7 +1075,7 @@ selftest() {
 			>"$tmp/disclaimer_plus_default/main.go"
 		disclaimer_doc disclaimer_plus_default
 		expect disclaimer_plus_default 1 "a real default-endpoint in the startup path still FAILS behind a disclaimer doc" \
-			'BROKER_RE=ephor|vulos-relayd'
+			'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd'
 
 		# CONTROL D — the prune-list companion fix. A broker string sitting only inside a
 		# generated dist-lib/ (gitignored everywhere it was found) must not fail a product
@@ -1053,7 +1085,7 @@ selftest() {
 		printf 'package main\n\nfunc main() {}\n' >"$tmp/prune_dist_lib/main.go"
 		printf 'const u="https://ephor.example";export{u};\n' >"$tmp/prune_dist_lib/dist-lib/bundle.js"
 		expect prune_dist_lib 0 "a generated dist-lib/ bundle naming the broker is pruned, like node_modules/target" \
-			'BROKER_RE=ephor|vulos-relayd'
+			'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd'
 	else
 		unexercised="$unexercised docbug(no-go-toolchain)"
 	fi
@@ -1090,7 +1122,7 @@ selftest() {
 		EOF
 		expect polyglot_second_only 1 \
 			"a broker declared ONLY in the SECOND manifest of a directory (go.mod clean, package.json names it) still FAILS — the exact control whose absence let this bug survive" \
-			'BROKER_RE=ephor|vulos-relayd'
+			'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd'
 
 		# CONTROL B — same shape, but the SECOND manifest's closure cannot be read at all (a
 		# malformed package.json here; a broken/extraneous node_modules is kerf's real-world
@@ -1103,7 +1135,7 @@ selftest() {
 		printf '{ this is not valid json' >"$tmp/polyglot_second_unreadable/package.json"
 		expect polyglot_second_unreadable 2 \
 			"a second manifest whose closure cannot be read is CANNOT-CHECK, not a silent pass riding on the first manifest's clean result" \
-			'BROKER_RE=ephor|vulos-relayd'
+			'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd'
 
 		# CONTROL C — the negative: BOTH manifests in the same directory are clean. Proves
 		# checking every manifest present does not itself manufacture a false FAIL.
@@ -1114,7 +1146,7 @@ selftest() {
 			>"$tmp/polyglot_clean/package.json"
 		expect polyglot_clean 0 \
 			"a polyglot directory where EVERY manifest is clean still PASSES (checking more manifests is not itself a false positive)" \
-			'BROKER_RE=ephor|vulos-relayd'
+			'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd'
 	else
 		unexercised="$unexercised polyglot(no-go-or-npm-toolchain)"
 	fi
@@ -1170,7 +1202,7 @@ selftest() {
 			>"$tmp/seam_go_root_has_cargo/reach/broker.go"
 		expect seam_go_root_has_cargo 0 \
 			"a correct, off-by-default Go build-tag seam is genuinely verified even when an UNRELATED Cargo.toml also sits at root (not silently skipped because Cargo.toml won an elif)" \
-			'BROKER_RE=ephor|vulos-relayd' SEAM_PATHS='reach go.mod' SEAM_FLAG=broker
+			'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd' SEAM_PATHS='reach go.mod' SEAM_FLAG=broker
 
 		# CONTROL B — the SAME fixture, but the Go seam is now BROKEN (the build tag removed,
 		# so the broker compiles unconditionally). check_seam() itself must name the
@@ -1184,7 +1216,7 @@ selftest() {
 			>"$tmp/seam_go_root_has_cargo_broken/reach/broker.go"
 		expect seam_go_root_has_cargo_broken 1 \
 			"the SAME fixture with the Go build tag removed (broker compiled unconditionally) still FAILS, with C-SEAM itself now able to name the violation, not only C-DEP" \
-			'BROKER_RE=ephor|vulos-relayd' SEAM_PATHS='reach go.mod' SEAM_FLAG=broker
+			'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd' SEAM_PATHS='reach go.mod' SEAM_FLAG=broker
 	else
 		unexercised="$unexercised seam-ecosystem-mismatch(no-cargo-or-go)"
 	fi
@@ -1216,7 +1248,7 @@ selftest() {
 		EOF
 		expect seam_npm_root_has_go 2 \
 			"a genuinely off-by-default npm seam (never installed) beside an UNRELATED go.mod at root is CANNOT-CHECK, never a false FAIL from applying Go build-tag mechanics to package.json" \
-			'BROKER_RE=ephor|vulos-relayd' SEAM_PATHS=package.json SEAM_FLAG=ephor-client
+			'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd' SEAM_PATHS=package.json SEAM_FLAG=ephor-client
 	else
 		unexercised="$unexercised seam-ecosystem-mismatch-npm(no-go-or-npm)"
 	fi
@@ -1240,7 +1272,7 @@ selftest() {
 	expect_output dual_exempt_reason has \
 		'EXEMPT-FILE  docs/mentions.md — this paragraph quotes a THIRD PARTY notice verbatim' \
 		"a file exempt via BOTH a DOC_PATHS prefix match AND its own :allow-file marker still prints the marker's specific reason — not silently swallowed by the broader path rule reached first" \
-		'BROKER_RE=ephor|vulos-relayd'
+		'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd'
 
 	# NEGATIVE control — the same DOC_PATHS-exempt directory, but a file with NO marker at
 	# all. Must stay silent about that file: the fix is a pure superset of what used to print,
@@ -1248,7 +1280,7 @@ selftest() {
 	printf 'Just plain documentation prose about Ephor, no marker.\n' >"$tmp/dual_exempt_reason/docs/plain.md"
 	expect_output dual_exempt_reason lacks 'plain.md' \
 		"a DOC_PATHS-exempt file with NO marker prints nothing extra — the fix adds no noise to the common case" \
-		'BROKER_RE=ephor|vulos-relayd'
+		'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd'
 
 	# ---- Repo-self-declaration controls (`.no-broker-dep-self`) — unconditional: this
 	# mechanism short-circuits before check_dep_closure/check_startup_text ever run, so it
@@ -1265,13 +1297,13 @@ selftest() {
 		>"$tmp/self_broker_reasoned/.no-broker-dep-self"
 	expect self_broker_reasoned 0 \
 		"a reasoned .no-broker-dep-self exits 0 with ZERO checks run, on an otherwise-unverifiable empty tree" \
-		'BROKER_RE=ephor|vulos-relayd'
+		'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd'
 
 	mkdir -p "$tmp/self_broker_unreasoned"
 	printf 'no-broker-dep:self-broker\n' >"$tmp/self_broker_unreasoned/.no-broker-dep-self"
 	expect self_broker_unreasoned 2 \
 		"an UNREASONED .no-broker-dep-self is NOT honoured — falls through to a normal (here, unverifiable) scan" \
-		'BROKER_RE=ephor|vulos-relayd'
+		'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd'
 
 	# ---- DEFECT 8 (this fix) — the walk scanned gitignored, regenerated build output. ----
 	# vulos-static's own docs-ingestion and product-landing collectors (`scripts/sync-docs.mjs`,
@@ -1317,7 +1349,7 @@ selftest() {
 		) >/dev/null 2>&1
 		expect git_walk_ignored 0 \
 			"a broker mention confined to a GITIGNORED, untracked file (vulos-static's exact content/docs/.astro/public-projects shape) is never scanned at all — the fix, not a laxer gate" \
-			'BROKER_RE=ephor|vulos-relayd'
+			'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd'
 
 		# CONTROL B — the decisive discriminator. Identical tree, identical broker text, but
 		# the file is `git add`ed (staged into the index — a commit is not required for
@@ -1336,7 +1368,7 @@ selftest() {
 		) >/dev/null 2>&1
 		expect git_walk_tracked 1 \
 			"the SAME broker text in a file git actually tracks (staged, no commit needed) still FAILS — proves the fix narrowed nothing for tracked content" \
-			'BROKER_RE=ephor|vulos-relayd'
+			'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd'
 	else
 		unexercised="$unexercised gitwalk(no-git-or-go)"
 	fi
@@ -1354,7 +1386,7 @@ selftest() {
 	expected_controls=$((expected_controls + 1))
 	expect_output self_broker_unreasoned has 'CANNOT use git here' \
 		"outside a git working tree, the fallback to the static PRUNE_NAMES walk is printed loudly, not silently taken" \
-		'BROKER_RE=ephor|vulos-relayd'
+		'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd'
 
 	# CONTROL D — the git path is likewise announced when it DOES fire, so a run's own output is
 	# sufficient to tell which mechanism verified it without inferring that from the violation
@@ -1364,7 +1396,7 @@ selftest() {
 		expected_controls=$((expected_controls + 1))
 		expect_output git_walk_ignored has 'git ls-files --cached --others --exclude-standard' \
 			"inside a git working tree, the gate announces it is using git-based enumeration, not left to be inferred" \
-			'BROKER_RE=ephor|vulos-relayd'
+			'BROKER_RE=pier-|vul-os/pier|ephor|vulos-relayd'
 	else
 		unexercised="$unexercised gitwalk-announce(no-git-or-go)"
 	fi

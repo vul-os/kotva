@@ -315,7 +315,7 @@ cp kotva/tools/gates/no-broker-dep.sh <product>/tools/gates/
 sh tools/gates/no-broker-dep.sh .
 # a product that does have a seam declares it, and the manifest that legitimately names it
 # (every declared path must EXIST — a stale entry exits 2 rather than widening the exemption):
-BROKER_RE='ephor|vulos-relayd' \
+BROKER_RE='pier-|vul-os/pier|ephor|vulos-relayd' \
 SEAM_PATHS='src/reach/broker Cargo.toml' \
 SEAM_FLAG='broker-reach' \
   sh tools/gates/no-broker-dep.sh .
@@ -330,6 +330,22 @@ pass nobody earned. In this repository it is `make gates`, wired into
 [`../.github/workflows/ci.yml`](../.github/workflows/ci.yml) as a blocking job with **both** the Rust and Go
 toolchains installed and an asserted control count — 10 controls across 2 ecosystems at 2026-07-30 — so a
 selftest that quietly stopped exercising an ecosystem fails the build.
+
+**`BROKER_RE` must track the broker's name, and the self-test must plant the CURRENT one.**
+The broker was renamed `ephor` → `pier`, and the default `BROKER_RE` was not updated with it. For a
+period every copy of this gate — in this repo and in every product that had lifted it — reported
+PASS while matching only a name nothing was called any more: a product could take a hard
+`pier-client` dependency and the gate would not see it. The self-test did not catch this because
+all of its fixtures were also written in `ephor`, so they could not distinguish "the gate matches
+the broker" from "the gate matches the string `ephor`". The rule that follows: when the broker is
+renamed, the OLD name stays in `BROKER_RE` (a stale dependency is still a violation) and the new
+one is added, and a self-test control must plant the broker under its current name. Those are the
+`rs_dep_current_name` / `rs_default_current_name` controls; blank the current name out of
+`BROKER_RE` and they go red, which is the property the rest of the suite was missing.
+
+Note also that a bare `pier` is deliberately **not** used: the scans are `grep -Ei` with no word
+boundaries, so it would flag "happier"/"copier"/"occupier" in prose until someone silenced the
+gate. Match the shapes the broker actually takes (`pier-`, `vul-os/pier`) instead.
 
 ---
 
