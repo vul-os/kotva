@@ -806,7 +806,8 @@ selftest() {
 	if command -v cargo >/dev/null 2>&1; then
 		ran=$((ran + 1))
 		# 8 original + 2 CURRENT-NAME rename controls (see POSITIVE D/E below).
-		expected_controls=$((expected_controls + 10))
+		# 12, not 10: the last two omit BROKER_RE so the compiled-in DEFAULT is exercised.
+		expected_controls=$((expected_controls + 12))
 		# a vendored "broker client" the fixtures can depend on with no network
 		mkdir -p "$tmp/ephor-client/src"
 		cat >"$tmp/ephor-client/Cargo.toml" <<-'EOF'
@@ -908,6 +909,20 @@ selftest() {
 		expect rs_dep_current_name 1 "C-DEP catches the broker under its CURRENT name (pier-)" "$E" \
 			SEAM_PATHS= SEAM_FLAG=
 		expect rs_default_current_name 1 "C-START catches the current repo path (vul-os/pier)" "$E" \
+			SEAM_PATHS= SEAM_FLAG=
+
+		# THE DEFAULT ITSELF. Every control above passes BROKER_RE explicitly, and the script
+		# reads ${BROKER_RE:-...}, so an explicit value ALWAYS wins and the compiled-in default
+		# on the BROKER_RE= line is never exercised by any of them. That is precisely why the
+		# ephor -> pier rename blinded this gate without turning the self-test red: the controls
+		# proved the MATCHING LOGIC handled whatever name they handed it, never that the name
+		# the gate reaches for BY DEFAULT is the broker's current one. These two omit BROKER_RE
+		# entirely, so they fail the moment the default stops naming the live broker.
+		expect rs_dep_current_name 1 \
+			"the DEFAULT BROKER_RE (no override) still names the live broker — C-DEP" \
+			SEAM_PATHS= SEAM_FLAG=
+		expect rs_default_current_name 1 \
+			"the DEFAULT BROKER_RE (no override) still names the live repo path — C-START" \
 			SEAM_PATHS= SEAM_FLAG=
 	else
 		unexercised="$unexercised rust(no-cargo)"
