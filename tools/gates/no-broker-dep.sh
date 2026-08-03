@@ -110,7 +110,16 @@
 
 set -u
 
-BROKER_RE=${BROKER_RE:-'ephor|vulos-relayd'}
+# The broker was renamed ephor -> pier. `pier` is NOT safe as a bare alternative here: this is
+# `grep -Ei` with no word boundaries (see the closure scan and the doc scan below), so a bare
+# `pier` would flag "happier", "copier", "occupier" in ordinary prose and the gate would cry wolf
+# until someone silenced it. Match the shapes the broker actually takes instead:
+#   pier-        every crate is namespaced pier-gateway, pier-relay, pier-billing, ...
+#   vul-os/pier  the repo URL and the Go module path github.com/vul-os/pier
+#   ephor        RETAINED deliberately: a stale dependency on the pre-rename name is exactly the
+#                thing this gate should still catch, and dropping it would quietly narrow the gate
+#                at the moment it most needs to be wide.
+BROKER_RE=${BROKER_RE:-'pier-|vul-os/pier|ephor|vulos-relayd'}
 SEAM_PATHS=${SEAM_PATHS:-}
 SEAM_FLAG=${SEAM_FLAG:-}
 # `site/` is in the default set because every product in this suite mirrors `docs/` into
