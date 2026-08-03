@@ -194,9 +194,9 @@ jobs:
           npm ci
           npx vitest run --reporter=verbose 2>&1 | tee /tmp/js-test.log | tail -30
           ran=$(grep -cE '^\s*[+-]?\s*✓' /tmp/js-test.log || true)
-          echo "vitest: $ran assertions passed (92 at 2026-08-03)"
-          if [ "$ran" -lt 88 ]; then
-            echo "::error::only $ran JS tests ran (expected >= 88). NOT VERIFIED: that the browser" \
+          echo "vitest: $ran assertions passed (97 at 2026-08-03)"
+          if [ "$ran" -lt 97 ]; then
+            echo "::error::only $ran JS tests ran (expected >= 97). NOT VERIFIED: that the browser" \
                  "half reproduces the §5.3 proof algebra the Go and Rust halves implement."
             exit 1
           fi
@@ -231,6 +231,19 @@ jobs:
       # rather than emitting an empty, passing corpus).
       - name: Schema vectors are exported and current
         run: python3 conformance/vectors/export_schema_vectors.py --check
+
+      # The §5.3 cross-language corpus. chunkproof_vectors.json is what binds the browser
+      # half (bindings/js) to the Go half (pier tunnel/pubcache) — two implementations of one
+      # spec section in two repos, previously joined only by hand-copied constants. --check
+      # regenerates it from the formulas and fails on any drift, so the committed corpus
+      # cannot be quietly edited to accommodate a broken implementation; the generator itself
+      # refuses to emit a corruption control its own verifier accepts, and fails if the two
+      # §3.2 root constructions ever disagree. Both language suites additionally pin the
+      # file's sha256, which is what makes a one-sided edit visible in the OTHER repo.
+      - name: §5.3 chunk-proof vectors are current
+        run: |
+          python3 -m pip install --quiet blake3
+          python3 conformance/vectors/gen_chunkproof_vectors.py --check
 
       # The second implementation. Stdlib-only, decodes the same corpora against the spec
       # rather than against the Rust — this is what caught `hash` fields carrying 3 bytes

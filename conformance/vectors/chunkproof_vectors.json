@@ -1,0 +1,1023 @@
+{
+  "format": "kotva-conformance-vectors/1",
+  "suite": "DMTAP-PUB \u00a75.3 chunk-tree range proofs over the \u00a73.2/\u00a722.2.2 DS-tagged Merkle tree \u2014 suite 0x01 (classical): BLAKE3-256",
+  "generated_by": "conformance/vectors/gen_chunkproof_vectors.py (this repo). This is an INDEPENDENT GENERATOR in the pub_vectors.json tradition, NOT a transport like schema_vectors_v0.json: it imports neither implementation of \u00a75.3 and computes every byte here from the \u00a722.2.2 leaf/node formulas and the \u00a718.1.2 CBOR rules. Be precise about what that does and does not buy. It is NOT clean-room \u2014 it was written by an author who had read the Go implementation (pier tunnel/pubcache/{merkle,proof}.go), so it is not evidence that two independent readers of the spec would agree. It IS a third set of bytes that BOTH code halves are checked against instead of against each other, so a one-sided change to Go or to JS goes red on its own; it reproduces the constants Go pinned before this script existed; and every root is computed twice, by RFC 6962's recursive split rule and by the level-wise promotion form the audit path is built from, with generation failing if those two disagree.",
+  "methodology": "All values computed from FIXED inputs; no randomness, no wall-clock reads. BLAKE3-256 and the \u00a718.1.2 deterministic CBOR encoding are deterministic, so a second implementer following \u00a73.2, \u00a722.2.2 and \u00a75.3 alone reproduces these bytes without running this script. A conformant implementation MUST reproduce every `root_hex` from `chunks_hex`, MUST reproduce every `proof_body_hex` byte-for-byte, MUST verify every proof against its root, and MUST REJECT every entry in `corruption_controls` \u2014 each of which carries a single deliberate defect over an otherwise-valid proof, so a rejection can only be about that defect. Controls with `surface: \"verify\"` must be refused by the fold; those with `surface: \"decode\"` must be refused by the \u00a75.3 CBOR body parser.",
+  "consumed_by": [
+    "bindings/js/test/chunkProofVectors.test.js (kotva, this repo)",
+    "tunnel/pubcache/vectors_test.go (pier \u2014 reads its own byte-identical copy at tunnel/pubcache/testdata/chunkproof_vectors.json, pinned by the sha256 that both suites assert, so the two copies cannot drift apart silently)"
+  ],
+  "counts": {
+    "vectors": 10,
+    "proofs": 62,
+    "corruption_controls": 13
+  },
+  "vectors": [
+    {
+      "name": "chunkproof_n1",
+      "n": 1,
+      "chunks_hex": [
+        "646d7461702d707562206368756e6b2030206f662031"
+      ],
+      "chunk_addrs_hex": [
+        "1ee430d71de5f04aac9ae05eab458b9de607c7325983b6888a2f5c165ea38f48a4"
+      ],
+      "root_hex": "1ec7c6854c083c06af50e5fabf5d3c2dfa42b2ff843ac1162d51e37ede5b027cb6",
+      "root_b64url": "HsfGhUwIPAavUOX6v108LfpCsv-EOsEWLVHjft5bAny2",
+      "proofs": [
+        {
+          "index": 0,
+          "path_hex": [],
+          "proof_body_hex": "820080"
+        }
+      ],
+      "note": "n=1: MTH([h_0]) = leaf(h_0). The root is a leaf; the path is EMPTY, so a verifier that demands at least one path element rejects a valid proof here."
+    },
+    {
+      "name": "chunkproof_n2",
+      "n": 2,
+      "chunks_hex": [
+        "646d7461702d707562206368756e6b2030206f662032",
+        "646d7461702d707562206368756e6b2031206f662032"
+      ],
+      "chunk_addrs_hex": [
+        "1e49e9e5f81ffdf6219df5eecaa710a9e8d0d1a8c16bed6bb626e63dbc317a0956",
+        "1e8980d79a4b01505d27dc2ab19876f5ad9b533e6c730ff02bce8502b4afd68ac3"
+      ],
+      "root_hex": "1ed204383439d529f5c946633249069519eec5eb8cfdd0d273dd43d0eb695850e7",
+      "root_b64url": "HtIEODQ51Sn1yUZjMkkGlRnuxeuM_dDSc91D0OtpWFDn",
+      "proofs": [
+        {
+          "index": 0,
+          "path_hex": [
+            "08698d81ec9d7fe238568a9afc2580a0f6ee52f7fc517e63b8a9ee546911266b"
+          ],
+          "proof_body_hex": "820081582008698d81ec9d7fe238568a9afc2580a0f6ee52f7fc517e63b8a9ee546911266b"
+        },
+        {
+          "index": 1,
+          "path_hex": [
+            "76efe2718aaeaa030ba270e91ff20f9bdf9f54917c996706f210d8a97e1a1021"
+          ],
+          "proof_body_hex": "820181582076efe2718aaeaa030ba270e91ff20f9bdf9f54917c996706f210d8a97e1a1021"
+        }
+      ],
+      "note": "n=2: one interior node, one-element paths, no promotion anywhere."
+    },
+    {
+      "name": "chunkproof_n3",
+      "n": 3,
+      "chunks_hex": [
+        "646d7461702d707562206368756e6b2030206f662033",
+        "646d7461702d707562206368756e6b2031206f662033",
+        "646d7461702d707562206368756e6b2032206f662033"
+      ],
+      "chunk_addrs_hex": [
+        "1ee759bafb641471235fa2c885abeb6d22e2781ea13baa50591689c1b454a3dc5d",
+        "1efe3ed483f5ff16ab0be170d11e21fe54c1b72c1e23a4dfa15ff36e6cc9376eae",
+        "1ef4199b623ef01470ad20f61b6f29febcb1f631dbad88b3f105d38b5a6d1f6ea7"
+      ],
+      "root_hex": "1e798f63742ac4722da9a63c460c79de13adb071e8f80586a42ff11a1dc7d6b86f",
+      "root_b64url": "HnmPY3QqxHItqaY8Rgx53hOtsHHo-AWGpC_xGh3H1rhv",
+      "proofs": [
+        {
+          "index": 0,
+          "path_hex": [
+            "ee7b8531bd71782a581c33d00ddf415ad60a580e250022ea6b55fde57dfbce7c",
+            "ef84ba2f874580c99090f799f3f22511ee43257db28740ce7850f3d1e208e7ed"
+          ],
+          "proof_body_hex": "8200825820ee7b8531bd71782a581c33d00ddf415ad60a580e250022ea6b55fde57dfbce7c5820ef84ba2f874580c99090f799f3f22511ee43257db28740ce7850f3d1e208e7ed"
+        },
+        {
+          "index": 1,
+          "path_hex": [
+            "93f6b78af0fdef9d4c3fe907afb6c991ece9cc1144f5ab2077db2e180461416a",
+            "ef84ba2f874580c99090f799f3f22511ee43257db28740ce7850f3d1e208e7ed"
+          ],
+          "proof_body_hex": "820182582093f6b78af0fdef9d4c3fe907afb6c991ece9cc1144f5ab2077db2e180461416a5820ef84ba2f874580c99090f799f3f22511ee43257db28740ce7850f3d1e208e7ed"
+        },
+        {
+          "index": 2,
+          "path_hex": [
+            "8c79100ae9adf62b4a0550bb9d1ca4e0e080240cef419a9b67344a55a96c4a34"
+          ],
+          "proof_body_hex": "82028158208c79100ae9adf62b4a0550bb9d1ca4e0e080240cef419a9b67344a55a96c4a34"
+        }
+      ],
+      "note": "n=3: the smallest promotion. Chunk 2 is promoted at level 1 and pairs at level 2, so its path is one element where chunks 0-1 carry two."
+    },
+    {
+      "name": "chunkproof_n4",
+      "n": 4,
+      "chunks_hex": [
+        "646d7461702d707562206368756e6b2030206f662034",
+        "646d7461702d707562206368756e6b2031206f662034",
+        "646d7461702d707562206368756e6b2032206f662034",
+        "646d7461702d707562206368756e6b2033206f662034"
+      ],
+      "chunk_addrs_hex": [
+        "1e1c6462fc5ca0571f66159a2add665c099ed12e92ed6fa1e39252415a993f2304",
+        "1ea90cc4f6af0564a38c9187e9ac4886ae121759ef1ff8e02244decfaef6ee7ea0",
+        "1ef2075a1c6f50d43562359a1c962fa72942b7a55ffdebf73578baf3056d31e48c",
+        "1e07939bbb236ada9a0321b388b046c6f1e42acec0efc1da4e953babdaa5960ebc"
+      ],
+      "root_hex": "1e48f9e2e80ae5e6dc288e309c8daeb0fdc436088723d6ff1b98d5978e6cc7c4ff",
+      "root_b64url": "Hkj54ugK5ebcKI4wnI2usP3ENgiHI9b_G5jVl45sx8T_",
+      "proofs": [
+        {
+          "index": 0,
+          "path_hex": [
+            "e28e2ae9b9d209d7b289fdc8368c7c264a50ca39a98c1a20e4ba2ecac2b524ca",
+            "042cbf3f6d04bcdccd917d1a94762bc9323ea6e6dc4caa4c8c7a524bf76b4b1a"
+          ],
+          "proof_body_hex": "8200825820e28e2ae9b9d209d7b289fdc8368c7c264a50ca39a98c1a20e4ba2ecac2b524ca5820042cbf3f6d04bcdccd917d1a94762bc9323ea6e6dc4caa4c8c7a524bf76b4b1a"
+        },
+        {
+          "index": 1,
+          "path_hex": [
+            "99b1b0bc198ceb58653774e242e2c645a9b5645b041c24ea0fe0ddb9bf055c9f",
+            "042cbf3f6d04bcdccd917d1a94762bc9323ea6e6dc4caa4c8c7a524bf76b4b1a"
+          ],
+          "proof_body_hex": "820182582099b1b0bc198ceb58653774e242e2c645a9b5645b041c24ea0fe0ddb9bf055c9f5820042cbf3f6d04bcdccd917d1a94762bc9323ea6e6dc4caa4c8c7a524bf76b4b1a"
+        },
+        {
+          "index": 2,
+          "path_hex": [
+            "ddce9eb45cc516bef327aaa32ceb801031ab81fa1391aded230372b852da285d",
+            "6a2924c532f7c8b6827d26f48410d74cf9888777e5497d750b29e73b096fb99e"
+          ],
+          "proof_body_hex": "8202825820ddce9eb45cc516bef327aaa32ceb801031ab81fa1391aded230372b852da285d58206a2924c532f7c8b6827d26f48410d74cf9888777e5497d750b29e73b096fb99e"
+        },
+        {
+          "index": 3,
+          "path_hex": [
+            "caafa14e56d9bd00b2bcb79b904f78ac78a63fb2c7915828e87061a9aa20eb2b",
+            "6a2924c532f7c8b6827d26f48410d74cf9888777e5497d750b29e73b096fb99e"
+          ],
+          "proof_body_hex": "8203825820caafa14e56d9bd00b2bcb79b904f78ac78a63fb2c7915828e87061a9aa20eb2b58206a2924c532f7c8b6827d26f48410d74cf9888777e5497d750b29e73b096fb99e"
+        }
+      ],
+      "note": "n=4: a perfect tree. Every path is two elements and no promotion occurs \u2014 the shape a verifier that ignored the promotion rule would still get right."
+    },
+    {
+      "name": "chunkproof_n5_abcde",
+      "n": 5,
+      "chunks_hex": [
+        "61",
+        "62",
+        "63",
+        "64",
+        "65"
+      ],
+      "chunk_addrs_hex": [
+        "1e17762fddd969a453925d65717ac3eea21320b66b54342fde15128d6caf21215f",
+        "1e10e5cf3d3c8a4f9f3468c8cc58eea84892a22fdadbc1acb22410190044c1d553",
+        "1eea7aa1fc9efdbe106dbb70369a75e9671fa29d52bd55536711bf197477b8f021",
+        "1ed5ede538f628f687e5e0422c7755b503653de2dcd7053ca8791afa5d4787d843",
+        "1e27bb492e108bf5e9c724176d7ae75d4cedc422fe4065020bd6140c3fcad3a9e7"
+      ],
+      "root_hex": "1ea992e2e243d8924e66399e17e6198a446122664e806bd91dee88c023a94724ff",
+      "root_b64url": "HqmS4uJD2JJOZjmeF-YZikRhImZOgGvZHe6IwCOpRyT_",
+      "proofs": [
+        {
+          "index": 0,
+          "path_hex": [
+            "609ad16ca3186fc12dd32ce1d49ed57dd879c802246de385a20f7dbee2f89439",
+            "c97979256dd9f06e0dc6be9fabf2baef2acd2118939563d18bfa79661dc36dce",
+            "1365330142a154c52d28959cc1db9166d7b10c2591a9acc25d959ec7e1b8d242"
+          ],
+          "proof_body_hex": "8200835820609ad16ca3186fc12dd32ce1d49ed57dd879c802246de385a20f7dbee2f894395820c97979256dd9f06e0dc6be9fabf2baef2acd2118939563d18bfa79661dc36dce58201365330142a154c52d28959cc1db9166d7b10c2591a9acc25d959ec7e1b8d242"
+        },
+        {
+          "index": 1,
+          "path_hex": [
+            "208e131bd1411e9d8c1d8417b9e9f370e2118a32b37535c77357c6d152348ac7",
+            "c97979256dd9f06e0dc6be9fabf2baef2acd2118939563d18bfa79661dc36dce",
+            "1365330142a154c52d28959cc1db9166d7b10c2591a9acc25d959ec7e1b8d242"
+          ],
+          "proof_body_hex": "8201835820208e131bd1411e9d8c1d8417b9e9f370e2118a32b37535c77357c6d152348ac75820c97979256dd9f06e0dc6be9fabf2baef2acd2118939563d18bfa79661dc36dce58201365330142a154c52d28959cc1db9166d7b10c2591a9acc25d959ec7e1b8d242"
+        },
+        {
+          "index": 2,
+          "path_hex": [
+            "8cc8a6db6f14fc57eacea4131385777a244b1f6feaeae1fed47ee8ef6e0982cf",
+            "abd36c78c5c484698bf962a24adc9293467661696e0897a500df261d2b1664f2",
+            "1365330142a154c52d28959cc1db9166d7b10c2591a9acc25d959ec7e1b8d242"
+          ],
+          "proof_body_hex": "82028358208cc8a6db6f14fc57eacea4131385777a244b1f6feaeae1fed47ee8ef6e0982cf5820abd36c78c5c484698bf962a24adc9293467661696e0897a500df261d2b1664f258201365330142a154c52d28959cc1db9166d7b10c2591a9acc25d959ec7e1b8d242"
+        },
+        {
+          "index": 3,
+          "path_hex": [
+            "93ce26dbcfb499cfd2b7ddfda025f4377f02bf62416d7f4799ea467720edaddd",
+            "abd36c78c5c484698bf962a24adc9293467661696e0897a500df261d2b1664f2",
+            "1365330142a154c52d28959cc1db9166d7b10c2591a9acc25d959ec7e1b8d242"
+          ],
+          "proof_body_hex": "820383582093ce26dbcfb499cfd2b7ddfda025f4377f02bf62416d7f4799ea467720edaddd5820abd36c78c5c484698bf962a24adc9293467661696e0897a500df261d2b1664f258201365330142a154c52d28959cc1db9166d7b10c2591a9acc25d959ec7e1b8d242"
+        },
+        {
+          "index": 4,
+          "path_hex": [
+            "5fa8b1b087f0c5dec0dc650c299f1779e735fd3b317e85793bbedac488a5183f"
+          ],
+          "proof_body_hex": "82048158205fa8b1b087f0c5dec0dc650c299f1779e735fd3b317e85793bbedac488a5183f"
+        }
+      ],
+      "note": "n=5: THE PINNED VECTOR, payloads \"a\"..\"e\", one byte each. The smallest tree that promotes an odd node at TWO levels: chunk 4 carries a one-element path where chunks 0-3 carry three. Root and proof bodies here are byte-identical to the constants pinned in pier tunnel/pubcache/proof_test.go before this file existed."
+    },
+    {
+      "name": "chunkproof_n6",
+      "n": 6,
+      "chunks_hex": [
+        "646d7461702d707562206368756e6b2030206f662036",
+        "646d7461702d707562206368756e6b2031206f662036",
+        "646d7461702d707562206368756e6b2032206f662036",
+        "646d7461702d707562206368756e6b2033206f662036",
+        "646d7461702d707562206368756e6b2034206f662036",
+        "646d7461702d707562206368756e6b2035206f662036"
+      ],
+      "chunk_addrs_hex": [
+        "1ee3bed662aa6a46af3d8ba668f003b1c9346acb1242bf68061f498d4e3d68a294",
+        "1e33773067043eb908d8b2a967fced8f27c0121cf4c6554920bbe9be38afc8e557",
+        "1eecc05cf236bcfa31844201c6651bee2fd39aacaaa6aeeb0346900859c2416185",
+        "1edf1b1dccdf09a46444c2ceb5981463739e3d0265034763a46b7cbc179fbe6ac4",
+        "1e72f6a2aa62bd50ae200d90b5a2d758e6d23be9cfcf80c9d4d527c0bcbd97c317",
+        "1eee0bc9aa1c74392120f9c48277cd385c5e35b37a4325f1c5e38f12fdea94f44c"
+      ],
+      "root_hex": "1e796bcd89814409edb63ddc35ce21218b3efb251afddefa70f70aeabdcf9eb38e",
+      "root_b64url": "HnlrzYmBRAnttj3cNc4hIYs--yUa_d76cPcK6r3PnrOO",
+      "proofs": [
+        {
+          "index": 0,
+          "path_hex": [
+            "226c48acf14de363114e16ea1bf69ac63d8079ea689f56b7eece9cc2f4c3cfd7",
+            "492d8a00af355bf16f2f398cb0207729a5327c083130647ef174d70a444542c5",
+            "fdbf6ab60db2a8e7659ce5fd5103ceaea382ca1812752a84d8e9b6bf79acd616"
+          ],
+          "proof_body_hex": "8200835820226c48acf14de363114e16ea1bf69ac63d8079ea689f56b7eece9cc2f4c3cfd75820492d8a00af355bf16f2f398cb0207729a5327c083130647ef174d70a444542c55820fdbf6ab60db2a8e7659ce5fd5103ceaea382ca1812752a84d8e9b6bf79acd616"
+        },
+        {
+          "index": 1,
+          "path_hex": [
+            "a37b049de5c82b673a34c8241610233b3ae6ff45441179f29f11c5824a5b9f4b",
+            "492d8a00af355bf16f2f398cb0207729a5327c083130647ef174d70a444542c5",
+            "fdbf6ab60db2a8e7659ce5fd5103ceaea382ca1812752a84d8e9b6bf79acd616"
+          ],
+          "proof_body_hex": "8201835820a37b049de5c82b673a34c8241610233b3ae6ff45441179f29f11c5824a5b9f4b5820492d8a00af355bf16f2f398cb0207729a5327c083130647ef174d70a444542c55820fdbf6ab60db2a8e7659ce5fd5103ceaea382ca1812752a84d8e9b6bf79acd616"
+        },
+        {
+          "index": 2,
+          "path_hex": [
+            "d1dd431c76d26044fbb103c9fa627fa5100ed6f3e6ad4179f0ff382d14e76a5f",
+            "33365e218c164aca13d2a3050cb6dd48afe5d9b80b377f0a686bbecc1e77968a",
+            "fdbf6ab60db2a8e7659ce5fd5103ceaea382ca1812752a84d8e9b6bf79acd616"
+          ],
+          "proof_body_hex": "8202835820d1dd431c76d26044fbb103c9fa627fa5100ed6f3e6ad4179f0ff382d14e76a5f582033365e218c164aca13d2a3050cb6dd48afe5d9b80b377f0a686bbecc1e77968a5820fdbf6ab60db2a8e7659ce5fd5103ceaea382ca1812752a84d8e9b6bf79acd616"
+        },
+        {
+          "index": 3,
+          "path_hex": [
+            "0c41b938910d0d9682fc85babbd4fcaa961aad7d5d873ce67c2ab2c4011fac72",
+            "33365e218c164aca13d2a3050cb6dd48afe5d9b80b377f0a686bbecc1e77968a",
+            "fdbf6ab60db2a8e7659ce5fd5103ceaea382ca1812752a84d8e9b6bf79acd616"
+          ],
+          "proof_body_hex": "82038358200c41b938910d0d9682fc85babbd4fcaa961aad7d5d873ce67c2ab2c4011fac72582033365e218c164aca13d2a3050cb6dd48afe5d9b80b377f0a686bbecc1e77968a5820fdbf6ab60db2a8e7659ce5fd5103ceaea382ca1812752a84d8e9b6bf79acd616"
+        },
+        {
+          "index": 4,
+          "path_hex": [
+            "e818001b07f5b18883e7093775b9570821468f0ed1b354a2b741802e3956f34f",
+            "c7c12ef7007b93c69fed08f0298f2472ed3b57086611bafa406683cf74795130"
+          ],
+          "proof_body_hex": "8204825820e818001b07f5b18883e7093775b9570821468f0ed1b354a2b741802e3956f34f5820c7c12ef7007b93c69fed08f0298f2472ed3b57086611bafa406683cf74795130"
+        },
+        {
+          "index": 5,
+          "path_hex": [
+            "3bc8978a46b205d50653ea24a1c67a21f72f8f1a2e1fbd6bc30f0c12da517d65",
+            "c7c12ef7007b93c69fed08f0298f2472ed3b57086611bafa406683cf74795130"
+          ],
+          "proof_body_hex": "82058258203bc8978a46b205d50653ea24a1c67a21f72f8f1a2e1fbd6bc30f0c12da517d655820c7c12ef7007b93c69fed08f0298f2472ed3b57086611bafa406683cf74795130"
+        }
+      ],
+      "note": "n=6: promotion at the SECOND level only (3 nodes reduce to 2 with the last promoted), which is a different skip pattern from n=5's."
+    },
+    {
+      "name": "chunkproof_n7",
+      "n": 7,
+      "chunks_hex": [
+        "646d7461702d707562206368756e6b2030206f662037",
+        "646d7461702d707562206368756e6b2031206f662037",
+        "646d7461702d707562206368756e6b2032206f662037",
+        "646d7461702d707562206368756e6b2033206f662037",
+        "646d7461702d707562206368756e6b2034206f662037",
+        "646d7461702d707562206368756e6b2035206f662037",
+        "646d7461702d707562206368756e6b2036206f662037"
+      ],
+      "chunk_addrs_hex": [
+        "1efbed820f1044c291931e5da9c55dcb053c1dd474893e64fc3bcecabe3ac37917",
+        "1ef41bede58c188e25e3ac13c2ecc62893741ca97aeac9af59aac26fe52ee11179",
+        "1eb6cc393c8ad91f9e727053175c5f3f54f0cb948443c800790a788344055fc853",
+        "1ef05a3d0206264abc4f56a5cc98688e110833b2de1ca3b68bf33a1d4a2f47010f",
+        "1ec7f6c9331a935da138332199effd0563091e17d24bb3f307290d6fc61e7b2085",
+        "1e777e1934aafa38e976e3a8473e23097e5eb0d673b1add5509088b663ad25b8b4",
+        "1ee9407cd865c0036f357b80ae75a4a003810df8f67d64f84d6be25cbad4b82bb6"
+      ],
+      "root_hex": "1ea7481c2153ca921450d66fead00f3917dda174972da2fbd11bc2ff7cc210aebf",
+      "root_b64url": "HqdIHCFTypIUUNZv6tAPORfdoXSXLaL70RvC_3zCEK6_",
+      "proofs": [
+        {
+          "index": 0,
+          "path_hex": [
+            "3f2c6eea79b0d3a1addccfc55909dd9a8230c3cd145b4095465f1f248b06c94a",
+            "d28db0ddcf338dca9f495181b6ca2b82b000222a7cd31aa619ad9e108ce92f67",
+            "0716a1593bc6c7a92a5395385cf42cb552c116852371d767f06ebd58cdfb1290"
+          ],
+          "proof_body_hex": "82008358203f2c6eea79b0d3a1addccfc55909dd9a8230c3cd145b4095465f1f248b06c94a5820d28db0ddcf338dca9f495181b6ca2b82b000222a7cd31aa619ad9e108ce92f6758200716a1593bc6c7a92a5395385cf42cb552c116852371d767f06ebd58cdfb1290"
+        },
+        {
+          "index": 1,
+          "path_hex": [
+            "1acdc13749697e76055e9540a5ad4ca2e17e7250f49617f341b0eea2f9dd0e96",
+            "d28db0ddcf338dca9f495181b6ca2b82b000222a7cd31aa619ad9e108ce92f67",
+            "0716a1593bc6c7a92a5395385cf42cb552c116852371d767f06ebd58cdfb1290"
+          ],
+          "proof_body_hex": "82018358201acdc13749697e76055e9540a5ad4ca2e17e7250f49617f341b0eea2f9dd0e965820d28db0ddcf338dca9f495181b6ca2b82b000222a7cd31aa619ad9e108ce92f6758200716a1593bc6c7a92a5395385cf42cb552c116852371d767f06ebd58cdfb1290"
+        },
+        {
+          "index": 2,
+          "path_hex": [
+            "7fae7654dbc538eacfbc7d99e0c93831e3a2dc50be3fc708488cedc17b78d84c",
+            "4b76c76b36d00f699fdc106e1237ff1c254324fedd7504c0e2db1e3a7659bfa5",
+            "0716a1593bc6c7a92a5395385cf42cb552c116852371d767f06ebd58cdfb1290"
+          ],
+          "proof_body_hex": "82028358207fae7654dbc538eacfbc7d99e0c93831e3a2dc50be3fc708488cedc17b78d84c58204b76c76b36d00f699fdc106e1237ff1c254324fedd7504c0e2db1e3a7659bfa558200716a1593bc6c7a92a5395385cf42cb552c116852371d767f06ebd58cdfb1290"
+        },
+        {
+          "index": 3,
+          "path_hex": [
+            "3cf4967261ca3935028d3941e595c84fae324b74017697bbd2e45522cdf4ccc2",
+            "4b76c76b36d00f699fdc106e1237ff1c254324fedd7504c0e2db1e3a7659bfa5",
+            "0716a1593bc6c7a92a5395385cf42cb552c116852371d767f06ebd58cdfb1290"
+          ],
+          "proof_body_hex": "82038358203cf4967261ca3935028d3941e595c84fae324b74017697bbd2e45522cdf4ccc258204b76c76b36d00f699fdc106e1237ff1c254324fedd7504c0e2db1e3a7659bfa558200716a1593bc6c7a92a5395385cf42cb552c116852371d767f06ebd58cdfb1290"
+        },
+        {
+          "index": 4,
+          "path_hex": [
+            "73022446b4907dccbe62cea714603e6063c9d4861925b01a20764ce3a807c0f3",
+            "e3bbfbe372bdce4cbab8a340bfc0e2ab6e7002e3d7f51a56af9435d38bc088f6",
+            "83947894feba91a4a2e1c105723d9083709d382e7bfed0721e7a0ce23119d340"
+          ],
+          "proof_body_hex": "820483582073022446b4907dccbe62cea714603e6063c9d4861925b01a20764ce3a807c0f35820e3bbfbe372bdce4cbab8a340bfc0e2ab6e7002e3d7f51a56af9435d38bc088f6582083947894feba91a4a2e1c105723d9083709d382e7bfed0721e7a0ce23119d340"
+        },
+        {
+          "index": 5,
+          "path_hex": [
+            "75f8c0d28585616d1ec259af08acf1e4f09589484d510524279892aca6a0132e",
+            "e3bbfbe372bdce4cbab8a340bfc0e2ab6e7002e3d7f51a56af9435d38bc088f6",
+            "83947894feba91a4a2e1c105723d9083709d382e7bfed0721e7a0ce23119d340"
+          ],
+          "proof_body_hex": "820583582075f8c0d28585616d1ec259af08acf1e4f09589484d510524279892aca6a0132e5820e3bbfbe372bdce4cbab8a340bfc0e2ab6e7002e3d7f51a56af9435d38bc088f6582083947894feba91a4a2e1c105723d9083709d382e7bfed0721e7a0ce23119d340"
+        },
+        {
+          "index": 6,
+          "path_hex": [
+            "757c3cbd323e223f8999ddaaa693fb458dc1858c20e80dcbbc024e2fb0a93248",
+            "83947894feba91a4a2e1c105723d9083709d382e7bfed0721e7a0ce23119d340"
+          ],
+          "proof_body_hex": "8206825820757c3cbd323e223f8999ddaaa693fb458dc1858c20e80dcbbc024e2fb0a93248582083947894feba91a4a2e1c105723d9083709d382e7bfed0721e7a0ce23119d340"
+        }
+      ],
+      "note": "n=7: promotion at the first level only."
+    },
+    {
+      "name": "chunkproof_n8",
+      "n": 8,
+      "chunks_hex": [
+        "646d7461702d707562206368756e6b2030206f662038",
+        "646d7461702d707562206368756e6b2031206f662038",
+        "646d7461702d707562206368756e6b2032206f662038",
+        "646d7461702d707562206368756e6b2033206f662038",
+        "646d7461702d707562206368756e6b2034206f662038",
+        "646d7461702d707562206368756e6b2035206f662038",
+        "646d7461702d707562206368756e6b2036206f662038",
+        "646d7461702d707562206368756e6b2037206f662038"
+      ],
+      "chunk_addrs_hex": [
+        "1e10f61ffda14437efc037c1a5e774f5c8cfb42c0025a9897111d01e243a9e44c4",
+        "1ee313038d2fcfff03601357931be5ffb1a9a1d6caae022ecfd28701d7d9ebde0e",
+        "1e3bdad8face4b1ebd965e196b5f009d153f048cc3e1232363a7adf88ff846bb34",
+        "1e5bbc8b4105ef3d79c48ef18642be42563cca4b283d2598922ee30eb00c42e56c",
+        "1eb34c100f0e00fe88064e526ebdeb6244e85efebce39d7dfd6c8cf95a88fda4ea",
+        "1e423ea1b2bb06e24924d9719ef8cb37e60d816768f2ff465a941f44b5716bd0fa",
+        "1e0c54f99e1c5e5eff8adda6a115d76e2eae2cacce75f51deb68d0e76f1aafe763",
+        "1ed1b3a955fd33110df484ea8f47565aacb0813a210c84d439065f6911285804d9"
+      ],
+      "root_hex": "1eb815f819f1091be0dba97a787415656577b9adafa2cfec05012bb5c2e967fdd5",
+      "root_b64url": "HrgV-BnxCRvg26l6eHQVZWV3ua2vos_sBQErtcLpZ_3V",
+      "proofs": [
+        {
+          "index": 0,
+          "path_hex": [
+            "80b5cd5079ca31029e79972fda0ab8a8923c2fd2aa01ad962d6412c7eef28a6f",
+            "14f2a75b32ba5365888b2b0f1809fbdcdc92440a819a1558c7029be8827356b7",
+            "7ad74b8486f7e799a51cf61fabe62f99f449a81c5b6529a9da81ff3f8c8d205e"
+          ],
+          "proof_body_hex": "820083582080b5cd5079ca31029e79972fda0ab8a8923c2fd2aa01ad962d6412c7eef28a6f582014f2a75b32ba5365888b2b0f1809fbdcdc92440a819a1558c7029be8827356b758207ad74b8486f7e799a51cf61fabe62f99f449a81c5b6529a9da81ff3f8c8d205e"
+        },
+        {
+          "index": 1,
+          "path_hex": [
+            "299c55702b56cb2caa5f56020b2d00bf5dd961af712d96b166ef3f87138863c3",
+            "14f2a75b32ba5365888b2b0f1809fbdcdc92440a819a1558c7029be8827356b7",
+            "7ad74b8486f7e799a51cf61fabe62f99f449a81c5b6529a9da81ff3f8c8d205e"
+          ],
+          "proof_body_hex": "8201835820299c55702b56cb2caa5f56020b2d00bf5dd961af712d96b166ef3f87138863c3582014f2a75b32ba5365888b2b0f1809fbdcdc92440a819a1558c7029be8827356b758207ad74b8486f7e799a51cf61fabe62f99f449a81c5b6529a9da81ff3f8c8d205e"
+        },
+        {
+          "index": 2,
+          "path_hex": [
+            "b9e29a64e2fc5e1a313a9240522d235be5884970f95880b9942317d69083ac4a",
+            "f69db08f4df5c1f8cf87a53594685a65fdf1180a8d1efe612329192343a767f1",
+            "7ad74b8486f7e799a51cf61fabe62f99f449a81c5b6529a9da81ff3f8c8d205e"
+          ],
+          "proof_body_hex": "8202835820b9e29a64e2fc5e1a313a9240522d235be5884970f95880b9942317d69083ac4a5820f69db08f4df5c1f8cf87a53594685a65fdf1180a8d1efe612329192343a767f158207ad74b8486f7e799a51cf61fabe62f99f449a81c5b6529a9da81ff3f8c8d205e"
+        },
+        {
+          "index": 3,
+          "path_hex": [
+            "03d9f61626dadd44508ce62d631c69b0a2352321128e1b0d1169bdcd1a48c635",
+            "f69db08f4df5c1f8cf87a53594685a65fdf1180a8d1efe612329192343a767f1",
+            "7ad74b8486f7e799a51cf61fabe62f99f449a81c5b6529a9da81ff3f8c8d205e"
+          ],
+          "proof_body_hex": "820383582003d9f61626dadd44508ce62d631c69b0a2352321128e1b0d1169bdcd1a48c6355820f69db08f4df5c1f8cf87a53594685a65fdf1180a8d1efe612329192343a767f158207ad74b8486f7e799a51cf61fabe62f99f449a81c5b6529a9da81ff3f8c8d205e"
+        },
+        {
+          "index": 4,
+          "path_hex": [
+            "4339c03b27fd5196546adf9af4ca01a66e5a7dbe1fc125ef918cd52a7b67cb67",
+            "cd579c9f55c3b6ef094162dad538755606eb55157ff2a5737c4546933308a872",
+            "706c3f0344dca6cce7e328e250cca08f42e16662734971e76bf66d588e706827"
+          ],
+          "proof_body_hex": "82048358204339c03b27fd5196546adf9af4ca01a66e5a7dbe1fc125ef918cd52a7b67cb675820cd579c9f55c3b6ef094162dad538755606eb55157ff2a5737c4546933308a8725820706c3f0344dca6cce7e328e250cca08f42e16662734971e76bf66d588e706827"
+        },
+        {
+          "index": 5,
+          "path_hex": [
+            "8c0a20e4967405b9f63bc0cec93710bbd1e2696e02181c79d100cdc35915b864",
+            "cd579c9f55c3b6ef094162dad538755606eb55157ff2a5737c4546933308a872",
+            "706c3f0344dca6cce7e328e250cca08f42e16662734971e76bf66d588e706827"
+          ],
+          "proof_body_hex": "82058358208c0a20e4967405b9f63bc0cec93710bbd1e2696e02181c79d100cdc35915b8645820cd579c9f55c3b6ef094162dad538755606eb55157ff2a5737c4546933308a8725820706c3f0344dca6cce7e328e250cca08f42e16662734971e76bf66d588e706827"
+        },
+        {
+          "index": 6,
+          "path_hex": [
+            "77a936b36f204a1b9c7e674ec70bf3d2b411e5a66fda4c2afe99899f4719661a",
+            "69b143f790101cdc79a34f58a7f6252da9367bae497d29960dc83245ee6eaa1a",
+            "706c3f0344dca6cce7e328e250cca08f42e16662734971e76bf66d588e706827"
+          ],
+          "proof_body_hex": "820683582077a936b36f204a1b9c7e674ec70bf3d2b411e5a66fda4c2afe99899f4719661a582069b143f790101cdc79a34f58a7f6252da9367bae497d29960dc83245ee6eaa1a5820706c3f0344dca6cce7e328e250cca08f42e16662734971e76bf66d588e706827"
+        },
+        {
+          "index": 7,
+          "path_hex": [
+            "9d066712aa107839fe37b3633f81cd6a2afabcf73ebe1e85b0514f4652ac6525",
+            "69b143f790101cdc79a34f58a7f6252da9367bae497d29960dc83245ee6eaa1a",
+            "706c3f0344dca6cce7e328e250cca08f42e16662734971e76bf66d588e706827"
+          ],
+          "proof_body_hex": "82078358209d066712aa107839fe37b3633f81cd6a2afabcf73ebe1e85b0514f4652ac6525582069b143f790101cdc79a34f58a7f6252da9367bae497d29960dc83245ee6eaa1a5820706c3f0344dca6cce7e328e250cca08f42e16662734971e76bf66d588e706827"
+        }
+      ],
+      "note": "n=8: a perfect 3-level tree; every path is three elements."
+    },
+    {
+      "name": "chunkproof_n9",
+      "n": 9,
+      "chunks_hex": [
+        "646d7461702d707562206368756e6b2030206f662039",
+        "646d7461702d707562206368756e6b2031206f662039",
+        "646d7461702d707562206368756e6b2032206f662039",
+        "646d7461702d707562206368756e6b2033206f662039",
+        "646d7461702d707562206368756e6b2034206f662039",
+        "646d7461702d707562206368756e6b2035206f662039",
+        "646d7461702d707562206368756e6b2036206f662039",
+        "646d7461702d707562206368756e6b2037206f662039",
+        "646d7461702d707562206368756e6b2038206f662039"
+      ],
+      "chunk_addrs_hex": [
+        "1e16ec5fd4d608e8fae2ab7aad21cab0c3c25462b70635cfb7bdbafa1616d46be2",
+        "1e046136ba07b07d0442eba431ad6c0ddd361c22e736e8c4149f909412196c3b68",
+        "1e947574dbb8d256def1028b00085c34f20ab5e66193163b3cb2e044b5a9540bfd",
+        "1e91f3123476b94f03a5c0f985e5573c0107c69608ea1745e41b0b96be60f0067d",
+        "1ed3c506ed0bcfb02e4f8d43f2cbe5e4d9fb8a509eb583a869fbf7be887219940f",
+        "1efe6257823376ddcb8752bd7f48e3ff82b8d28b4625da27a52e1b5e1e7b5122dc",
+        "1e0aa29fd00e1ea8b00cb31b8c171c752972269e9d036db5476b202b679e35e4f6",
+        "1e3055b242656fea97ac0286ec3f1a1b6480069690311352f60b977256913a7fb6",
+        "1e0eab0d34085187476908d4e31f54605dbb4f5f40f06060731bb1ff495c3e03c3"
+      ],
+      "root_hex": "1e743e0b7d45675ad35006fe2ec7bc15383c3e69a621a3d7b5e35577e58776094e",
+      "root_b64url": "HnQ-C31FZ1rTUAb-Lse8FTg8PmmmIaPXteNVd-WHdglO",
+      "proofs": [
+        {
+          "index": 0,
+          "path_hex": [
+            "51b347b2cbc1151862837c9c7b56f4beb724f13df3cac5be1543398eae6011b9",
+            "486f5d00f9ad7f33c8bf79f1ad4535a93c13e846b46f14a8255690e2792ca2b3",
+            "c7f3a12a3b845cddeaee6a0f06aaab5bc3769916c35a0bbf846dafe55818ab4c",
+            "5c02973ae9e8e4a2db9c543214edaf780d7489bc08c8d17017ace53608254faa"
+          ],
+          "proof_body_hex": "820084582051b347b2cbc1151862837c9c7b56f4beb724f13df3cac5be1543398eae6011b95820486f5d00f9ad7f33c8bf79f1ad4535a93c13e846b46f14a8255690e2792ca2b35820c7f3a12a3b845cddeaee6a0f06aaab5bc3769916c35a0bbf846dafe55818ab4c58205c02973ae9e8e4a2db9c543214edaf780d7489bc08c8d17017ace53608254faa"
+        },
+        {
+          "index": 1,
+          "path_hex": [
+            "dca0b0c4f630c91a6eddb8316037cadd7a7e444bf3f4328b87c175b30cd094cd",
+            "486f5d00f9ad7f33c8bf79f1ad4535a93c13e846b46f14a8255690e2792ca2b3",
+            "c7f3a12a3b845cddeaee6a0f06aaab5bc3769916c35a0bbf846dafe55818ab4c",
+            "5c02973ae9e8e4a2db9c543214edaf780d7489bc08c8d17017ace53608254faa"
+          ],
+          "proof_body_hex": "8201845820dca0b0c4f630c91a6eddb8316037cadd7a7e444bf3f4328b87c175b30cd094cd5820486f5d00f9ad7f33c8bf79f1ad4535a93c13e846b46f14a8255690e2792ca2b35820c7f3a12a3b845cddeaee6a0f06aaab5bc3769916c35a0bbf846dafe55818ab4c58205c02973ae9e8e4a2db9c543214edaf780d7489bc08c8d17017ace53608254faa"
+        },
+        {
+          "index": 2,
+          "path_hex": [
+            "d6be64cf77a4474a1ce4ef01742b07bce40859b41ecf9639a57a1a669d40e193",
+            "d9a6cd31e0397171ded982e9eb7ce9b90147b22dc193f091592a4b96562cf561",
+            "c7f3a12a3b845cddeaee6a0f06aaab5bc3769916c35a0bbf846dafe55818ab4c",
+            "5c02973ae9e8e4a2db9c543214edaf780d7489bc08c8d17017ace53608254faa"
+          ],
+          "proof_body_hex": "8202845820d6be64cf77a4474a1ce4ef01742b07bce40859b41ecf9639a57a1a669d40e1935820d9a6cd31e0397171ded982e9eb7ce9b90147b22dc193f091592a4b96562cf5615820c7f3a12a3b845cddeaee6a0f06aaab5bc3769916c35a0bbf846dafe55818ab4c58205c02973ae9e8e4a2db9c543214edaf780d7489bc08c8d17017ace53608254faa"
+        },
+        {
+          "index": 3,
+          "path_hex": [
+            "91605a2a0e400804f3959a1ff989b4a6ebd9d1c33a93f1c8e5d3454319ddabf1",
+            "d9a6cd31e0397171ded982e9eb7ce9b90147b22dc193f091592a4b96562cf561",
+            "c7f3a12a3b845cddeaee6a0f06aaab5bc3769916c35a0bbf846dafe55818ab4c",
+            "5c02973ae9e8e4a2db9c543214edaf780d7489bc08c8d17017ace53608254faa"
+          ],
+          "proof_body_hex": "820384582091605a2a0e400804f3959a1ff989b4a6ebd9d1c33a93f1c8e5d3454319ddabf15820d9a6cd31e0397171ded982e9eb7ce9b90147b22dc193f091592a4b96562cf5615820c7f3a12a3b845cddeaee6a0f06aaab5bc3769916c35a0bbf846dafe55818ab4c58205c02973ae9e8e4a2db9c543214edaf780d7489bc08c8d17017ace53608254faa"
+        },
+        {
+          "index": 4,
+          "path_hex": [
+            "976df8c30005189a5a654caed7c6984123c90903a0185eb39434957193587da7",
+            "194b003ae22938b77c6a82f7a495df10277511a4c4c33c882d6761b23a91886d",
+            "94a040dd2a8d820c992c9f96fec62bac4caaf1dd2fe7f611f01a3d96e38495d4",
+            "5c02973ae9e8e4a2db9c543214edaf780d7489bc08c8d17017ace53608254faa"
+          ],
+          "proof_body_hex": "8204845820976df8c30005189a5a654caed7c6984123c90903a0185eb39434957193587da75820194b003ae22938b77c6a82f7a495df10277511a4c4c33c882d6761b23a91886d582094a040dd2a8d820c992c9f96fec62bac4caaf1dd2fe7f611f01a3d96e38495d458205c02973ae9e8e4a2db9c543214edaf780d7489bc08c8d17017ace53608254faa"
+        },
+        {
+          "index": 5,
+          "path_hex": [
+            "b227c7590980df1438371eb411384db04a33594280bb9207559aa6ae7e617e3d",
+            "194b003ae22938b77c6a82f7a495df10277511a4c4c33c882d6761b23a91886d",
+            "94a040dd2a8d820c992c9f96fec62bac4caaf1dd2fe7f611f01a3d96e38495d4",
+            "5c02973ae9e8e4a2db9c543214edaf780d7489bc08c8d17017ace53608254faa"
+          ],
+          "proof_body_hex": "8205845820b227c7590980df1438371eb411384db04a33594280bb9207559aa6ae7e617e3d5820194b003ae22938b77c6a82f7a495df10277511a4c4c33c882d6761b23a91886d582094a040dd2a8d820c992c9f96fec62bac4caaf1dd2fe7f611f01a3d96e38495d458205c02973ae9e8e4a2db9c543214edaf780d7489bc08c8d17017ace53608254faa"
+        },
+        {
+          "index": 6,
+          "path_hex": [
+            "1965f10a8f052eba6d0fe9c71b1011ea87ce9b8a06dfa903a0bfed0b5528f815",
+            "36cead981434eeb01b0697f04be66dba3fee567a62043c14d012bf95d9331f4a",
+            "94a040dd2a8d820c992c9f96fec62bac4caaf1dd2fe7f611f01a3d96e38495d4",
+            "5c02973ae9e8e4a2db9c543214edaf780d7489bc08c8d17017ace53608254faa"
+          ],
+          "proof_body_hex": "82068458201965f10a8f052eba6d0fe9c71b1011ea87ce9b8a06dfa903a0bfed0b5528f815582036cead981434eeb01b0697f04be66dba3fee567a62043c14d012bf95d9331f4a582094a040dd2a8d820c992c9f96fec62bac4caaf1dd2fe7f611f01a3d96e38495d458205c02973ae9e8e4a2db9c543214edaf780d7489bc08c8d17017ace53608254faa"
+        },
+        {
+          "index": 7,
+          "path_hex": [
+            "9cce498ba6e8bd291e5887433b011206dc6e9b91a71c0545f2f9aaf432a66c18",
+            "36cead981434eeb01b0697f04be66dba3fee567a62043c14d012bf95d9331f4a",
+            "94a040dd2a8d820c992c9f96fec62bac4caaf1dd2fe7f611f01a3d96e38495d4",
+            "5c02973ae9e8e4a2db9c543214edaf780d7489bc08c8d17017ace53608254faa"
+          ],
+          "proof_body_hex": "82078458209cce498ba6e8bd291e5887433b011206dc6e9b91a71c0545f2f9aaf432a66c18582036cead981434eeb01b0697f04be66dba3fee567a62043c14d012bf95d9331f4a582094a040dd2a8d820c992c9f96fec62bac4caaf1dd2fe7f611f01a3d96e38495d458205c02973ae9e8e4a2db9c543214edaf780d7489bc08c8d17017ace53608254faa"
+        },
+        {
+          "index": 8,
+          "path_hex": [
+            "cc75ef47485bb8085a93277b0545b3cf13b6282fca22233855355fdb152e0ced"
+          ],
+          "proof_body_hex": "8208815820cc75ef47485bb8085a93277b0545b3cf13b6282fca22233855355fdb152e0ced"
+        }
+      ],
+      "note": "n=9: one leaf hanging off a perfect 8-leaf tree \u2014 chunk 8 is promoted at three consecutive levels and its path is a single element."
+    },
+    {
+      "name": "chunkproof_n17",
+      "n": 17,
+      "chunks_hex": [
+        "646d7461702d707562206368756e6b2030206f66203137",
+        "646d7461702d707562206368756e6b2031206f66203137",
+        "646d7461702d707562206368756e6b2032206f66203137",
+        "646d7461702d707562206368756e6b2033206f66203137",
+        "646d7461702d707562206368756e6b2034206f66203137",
+        "646d7461702d707562206368756e6b2035206f66203137",
+        "646d7461702d707562206368756e6b2036206f66203137",
+        "646d7461702d707562206368756e6b2037206f66203137",
+        "646d7461702d707562206368756e6b2038206f66203137",
+        "646d7461702d707562206368756e6b2039206f66203137",
+        "646d7461702d707562206368756e6b203130206f66203137",
+        "646d7461702d707562206368756e6b203131206f66203137",
+        "646d7461702d707562206368756e6b203132206f66203137",
+        "646d7461702d707562206368756e6b203133206f66203137",
+        "646d7461702d707562206368756e6b203134206f66203137",
+        "646d7461702d707562206368756e6b203135206f66203137",
+        "646d7461702d707562206368756e6b203136206f66203137"
+      ],
+      "chunk_addrs_hex": [
+        "1eeac5703a785b275c4b2fdef462a1404bcbe6a0f29f489acbea1b1728d6eea591",
+        "1ed076dd88d8aabe6fa2b3aa102646bcd3d7ac7cd1aca41b89e4a4b5d3ece139e7",
+        "1ebc8d8a9c3198db066e20220a26060b975e0dd2750e8053c0ac52c292a1dc7b73",
+        "1ed844ddd3cfa93b052790f2955f96b671907af6ee0445600ecd943314ebed290e",
+        "1ec08630d36f683576a3648f26b7b39153bb3c50de736500fd734cae42cb0d2046",
+        "1e366a7554edcf5be8d2013ff5b992e2168e9243fa4e928abbc7d9317ee001698f",
+        "1e798b4b01d8be2acfcf7112645c278c00ee7f71a313c1766e6f9f3a8c9ce1d6c0",
+        "1e1b33c3f8163c591edf012f3adb9704fd81fba117144f09d246bc83d7155115c1",
+        "1eca4c13b01180146842680d0e8aaeb3b7506e80dabb1fd9c16239a228388ffb15",
+        "1edad9be56fc3dfd3c655335af293b65703b89dd435bf48bcfc6c49cfe50c2f060",
+        "1eff9dcec9efb17824a35cba6612a56657baa8e94bf93c6b454b6db87ecc23f0ab",
+        "1e08ccb59e0adc3a0f65e8ad998865fd958369e215c551bdda7e3ce3ccda877550",
+        "1e9444d6b5774f15def2f41f328f0c78c2530b0696d1c3e9d4da43cc33d2193d6d",
+        "1ef154b65e46dba4a03b3b9dec1c857344b9168f7fa47572126d124e0a89f52fe7",
+        "1e5cbcbec1d206b213f92938ad8e8ec6394cc69e2c4894260fb5f9f78def827241",
+        "1e6a1763a6ff46ca5c2dfff60637c04cb24fd01181e772d6dfdf117937f7afd020",
+        "1e998d5e05057daf7a3d5025ed0a7b88c61e6c38be81f54244a5c452c48ccb6ed1"
+      ],
+      "root_hex": "1e7de4812410f9cc3fb89eae12c9e259f4a3aabb48dfeb7291a98c42ba1d6fca64",
+      "root_b64url": "Hn3kgSQQ-cw_uJ6uEsniWfSjqrtI3-tykamMQrodb8pk",
+      "proofs": [
+        {
+          "index": 0,
+          "path_hex": [
+            "3cb9828bebf28cd480d79b64921aea10231db7d25d5733392c4a6601b1f1677d",
+            "bc5971045079b50b49d4513071c17e3bb4a53c820fbd6cb13aace22f80b49cb8",
+            "6a3aa843b327df5d7dc18a1dbb5e7373199cc7ecd7dac55f1b3c9ef0a2af85f9",
+            "b712502d62f22544d4a211d6e2cf683fe83aafe3fae9f39949bdbd3f12a0f6b7",
+            "2020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+          ],
+          "proof_body_hex": "82008558203cb9828bebf28cd480d79b64921aea10231db7d25d5733392c4a6601b1f1677d5820bc5971045079b50b49d4513071c17e3bb4a53c820fbd6cb13aace22f80b49cb858206a3aa843b327df5d7dc18a1dbb5e7373199cc7ecd7dac55f1b3c9ef0a2af85f95820b712502d62f22544d4a211d6e2cf683fe83aafe3fae9f39949bdbd3f12a0f6b758202020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+        },
+        {
+          "index": 1,
+          "path_hex": [
+            "a021ac04b7e6b884be6b6f4e1b30c65837d81ace838aa45d6a5cc66c6111ea3e",
+            "bc5971045079b50b49d4513071c17e3bb4a53c820fbd6cb13aace22f80b49cb8",
+            "6a3aa843b327df5d7dc18a1dbb5e7373199cc7ecd7dac55f1b3c9ef0a2af85f9",
+            "b712502d62f22544d4a211d6e2cf683fe83aafe3fae9f39949bdbd3f12a0f6b7",
+            "2020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+          ],
+          "proof_body_hex": "8201855820a021ac04b7e6b884be6b6f4e1b30c65837d81ace838aa45d6a5cc66c6111ea3e5820bc5971045079b50b49d4513071c17e3bb4a53c820fbd6cb13aace22f80b49cb858206a3aa843b327df5d7dc18a1dbb5e7373199cc7ecd7dac55f1b3c9ef0a2af85f95820b712502d62f22544d4a211d6e2cf683fe83aafe3fae9f39949bdbd3f12a0f6b758202020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+        },
+        {
+          "index": 2,
+          "path_hex": [
+            "bd8b375547528b34d49bf575ff259a756638abaca6691f6edc2fc2e443db4a21",
+            "ff3dbfa9c5badb17bca25f4ae48080219ae5de969afdf13a6b65985d6e194a1d",
+            "6a3aa843b327df5d7dc18a1dbb5e7373199cc7ecd7dac55f1b3c9ef0a2af85f9",
+            "b712502d62f22544d4a211d6e2cf683fe83aafe3fae9f39949bdbd3f12a0f6b7",
+            "2020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+          ],
+          "proof_body_hex": "8202855820bd8b375547528b34d49bf575ff259a756638abaca6691f6edc2fc2e443db4a215820ff3dbfa9c5badb17bca25f4ae48080219ae5de969afdf13a6b65985d6e194a1d58206a3aa843b327df5d7dc18a1dbb5e7373199cc7ecd7dac55f1b3c9ef0a2af85f95820b712502d62f22544d4a211d6e2cf683fe83aafe3fae9f39949bdbd3f12a0f6b758202020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+        },
+        {
+          "index": 3,
+          "path_hex": [
+            "422df55044830f7d0351853ec9aa828d7b7c7fe8d684c6a9deb10bd6d3868886",
+            "ff3dbfa9c5badb17bca25f4ae48080219ae5de969afdf13a6b65985d6e194a1d",
+            "6a3aa843b327df5d7dc18a1dbb5e7373199cc7ecd7dac55f1b3c9ef0a2af85f9",
+            "b712502d62f22544d4a211d6e2cf683fe83aafe3fae9f39949bdbd3f12a0f6b7",
+            "2020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+          ],
+          "proof_body_hex": "8203855820422df55044830f7d0351853ec9aa828d7b7c7fe8d684c6a9deb10bd6d38688865820ff3dbfa9c5badb17bca25f4ae48080219ae5de969afdf13a6b65985d6e194a1d58206a3aa843b327df5d7dc18a1dbb5e7373199cc7ecd7dac55f1b3c9ef0a2af85f95820b712502d62f22544d4a211d6e2cf683fe83aafe3fae9f39949bdbd3f12a0f6b758202020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+        },
+        {
+          "index": 4,
+          "path_hex": [
+            "1a839c3b7ed90663bb58546756c097596a29986f33553958b734be1c2d0deba9",
+            "f1afb34596356a81e334a5631bf31cdfe0743bc089918e538e92535b716e4f82",
+            "550dc313cf38d1b63551114bc3604367cf827acd24fc7df4e754d089668e9ed3",
+            "b712502d62f22544d4a211d6e2cf683fe83aafe3fae9f39949bdbd3f12a0f6b7",
+            "2020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+          ],
+          "proof_body_hex": "82048558201a839c3b7ed90663bb58546756c097596a29986f33553958b734be1c2d0deba95820f1afb34596356a81e334a5631bf31cdfe0743bc089918e538e92535b716e4f825820550dc313cf38d1b63551114bc3604367cf827acd24fc7df4e754d089668e9ed35820b712502d62f22544d4a211d6e2cf683fe83aafe3fae9f39949bdbd3f12a0f6b758202020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+        },
+        {
+          "index": 5,
+          "path_hex": [
+            "58ba70d31ac8839eb64551bc2add61923f2f14ed98a24dd0ef7c3e80d6fb5cdc",
+            "f1afb34596356a81e334a5631bf31cdfe0743bc089918e538e92535b716e4f82",
+            "550dc313cf38d1b63551114bc3604367cf827acd24fc7df4e754d089668e9ed3",
+            "b712502d62f22544d4a211d6e2cf683fe83aafe3fae9f39949bdbd3f12a0f6b7",
+            "2020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+          ],
+          "proof_body_hex": "820585582058ba70d31ac8839eb64551bc2add61923f2f14ed98a24dd0ef7c3e80d6fb5cdc5820f1afb34596356a81e334a5631bf31cdfe0743bc089918e538e92535b716e4f825820550dc313cf38d1b63551114bc3604367cf827acd24fc7df4e754d089668e9ed35820b712502d62f22544d4a211d6e2cf683fe83aafe3fae9f39949bdbd3f12a0f6b758202020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+        },
+        {
+          "index": 6,
+          "path_hex": [
+            "694e2b834e1e066bbc945303126de87a0f38d9a773cf8629e1324f55c43a6dd7",
+            "27d127a5bd974c7eff7bfb77d458ae4862cdf7b983566d1d00a8ffa5322520f2",
+            "550dc313cf38d1b63551114bc3604367cf827acd24fc7df4e754d089668e9ed3",
+            "b712502d62f22544d4a211d6e2cf683fe83aafe3fae9f39949bdbd3f12a0f6b7",
+            "2020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+          ],
+          "proof_body_hex": "8206855820694e2b834e1e066bbc945303126de87a0f38d9a773cf8629e1324f55c43a6dd7582027d127a5bd974c7eff7bfb77d458ae4862cdf7b983566d1d00a8ffa5322520f25820550dc313cf38d1b63551114bc3604367cf827acd24fc7df4e754d089668e9ed35820b712502d62f22544d4a211d6e2cf683fe83aafe3fae9f39949bdbd3f12a0f6b758202020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+        },
+        {
+          "index": 7,
+          "path_hex": [
+            "aa88e1c48462924d7d415718975c5d6ecaff4bb1150365fb3df1ad99ce001bf1",
+            "27d127a5bd974c7eff7bfb77d458ae4862cdf7b983566d1d00a8ffa5322520f2",
+            "550dc313cf38d1b63551114bc3604367cf827acd24fc7df4e754d089668e9ed3",
+            "b712502d62f22544d4a211d6e2cf683fe83aafe3fae9f39949bdbd3f12a0f6b7",
+            "2020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+          ],
+          "proof_body_hex": "8207855820aa88e1c48462924d7d415718975c5d6ecaff4bb1150365fb3df1ad99ce001bf1582027d127a5bd974c7eff7bfb77d458ae4862cdf7b983566d1d00a8ffa5322520f25820550dc313cf38d1b63551114bc3604367cf827acd24fc7df4e754d089668e9ed35820b712502d62f22544d4a211d6e2cf683fe83aafe3fae9f39949bdbd3f12a0f6b758202020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+        },
+        {
+          "index": 8,
+          "path_hex": [
+            "574fe782db9d611f58c606a8844ea312c50ad7a62a5f59968f73266b3f6c2914",
+            "e29c3075b7be5ed9ae3b23f8a4692e9bb4b274eb6b41db47e39e0fba8b89696a",
+            "b4bcc30007f0ed9d5355f668d265d82b3d66b1c7406478d4180dc313543dbb55",
+            "e5bd946e0f424948668e9c995e45193223e5cb5b788dc53f46d97a8dbb61f6a8",
+            "2020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+          ],
+          "proof_body_hex": "8208855820574fe782db9d611f58c606a8844ea312c50ad7a62a5f59968f73266b3f6c29145820e29c3075b7be5ed9ae3b23f8a4692e9bb4b274eb6b41db47e39e0fba8b89696a5820b4bcc30007f0ed9d5355f668d265d82b3d66b1c7406478d4180dc313543dbb555820e5bd946e0f424948668e9c995e45193223e5cb5b788dc53f46d97a8dbb61f6a858202020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+        },
+        {
+          "index": 9,
+          "path_hex": [
+            "70e91609efe9c057d28e764dda117ffc35e1b066f5fcd1c268f3e5ee0a6c7f40",
+            "e29c3075b7be5ed9ae3b23f8a4692e9bb4b274eb6b41db47e39e0fba8b89696a",
+            "b4bcc30007f0ed9d5355f668d265d82b3d66b1c7406478d4180dc313543dbb55",
+            "e5bd946e0f424948668e9c995e45193223e5cb5b788dc53f46d97a8dbb61f6a8",
+            "2020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+          ],
+          "proof_body_hex": "820985582070e91609efe9c057d28e764dda117ffc35e1b066f5fcd1c268f3e5ee0a6c7f405820e29c3075b7be5ed9ae3b23f8a4692e9bb4b274eb6b41db47e39e0fba8b89696a5820b4bcc30007f0ed9d5355f668d265d82b3d66b1c7406478d4180dc313543dbb555820e5bd946e0f424948668e9c995e45193223e5cb5b788dc53f46d97a8dbb61f6a858202020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+        },
+        {
+          "index": 10,
+          "path_hex": [
+            "48253501d1454da5abdf6ef0603eaa084ca708af04b619249db07a6abac59700",
+            "a578c9dd7dfad99d89a9fb3b847637c333f0bc4ce3cf64cd4ac581f0e038c42d",
+            "b4bcc30007f0ed9d5355f668d265d82b3d66b1c7406478d4180dc313543dbb55",
+            "e5bd946e0f424948668e9c995e45193223e5cb5b788dc53f46d97a8dbb61f6a8",
+            "2020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+          ],
+          "proof_body_hex": "820a85582048253501d1454da5abdf6ef0603eaa084ca708af04b619249db07a6abac597005820a578c9dd7dfad99d89a9fb3b847637c333f0bc4ce3cf64cd4ac581f0e038c42d5820b4bcc30007f0ed9d5355f668d265d82b3d66b1c7406478d4180dc313543dbb555820e5bd946e0f424948668e9c995e45193223e5cb5b788dc53f46d97a8dbb61f6a858202020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+        },
+        {
+          "index": 11,
+          "path_hex": [
+            "03af9b1fb31859ee3a7517bfb82b4472a377371762975db9d626506c321f3f18",
+            "a578c9dd7dfad99d89a9fb3b847637c333f0bc4ce3cf64cd4ac581f0e038c42d",
+            "b4bcc30007f0ed9d5355f668d265d82b3d66b1c7406478d4180dc313543dbb55",
+            "e5bd946e0f424948668e9c995e45193223e5cb5b788dc53f46d97a8dbb61f6a8",
+            "2020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+          ],
+          "proof_body_hex": "820b85582003af9b1fb31859ee3a7517bfb82b4472a377371762975db9d626506c321f3f185820a578c9dd7dfad99d89a9fb3b847637c333f0bc4ce3cf64cd4ac581f0e038c42d5820b4bcc30007f0ed9d5355f668d265d82b3d66b1c7406478d4180dc313543dbb555820e5bd946e0f424948668e9c995e45193223e5cb5b788dc53f46d97a8dbb61f6a858202020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+        },
+        {
+          "index": 12,
+          "path_hex": [
+            "548e5190a22269e39b5de5cea0fc08d13daadca19390ea0967a8c1e2b495d73a",
+            "729336f076c6aad4279ac59eb0aaccd62f9f0823c5727cddf5b45cf6d703565f",
+            "b970ca73567c6a571aa350712de9cda8d421ae8f0a7f81d448835cade13d842d",
+            "e5bd946e0f424948668e9c995e45193223e5cb5b788dc53f46d97a8dbb61f6a8",
+            "2020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+          ],
+          "proof_body_hex": "820c855820548e5190a22269e39b5de5cea0fc08d13daadca19390ea0967a8c1e2b495d73a5820729336f076c6aad4279ac59eb0aaccd62f9f0823c5727cddf5b45cf6d703565f5820b970ca73567c6a571aa350712de9cda8d421ae8f0a7f81d448835cade13d842d5820e5bd946e0f424948668e9c995e45193223e5cb5b788dc53f46d97a8dbb61f6a858202020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+        },
+        {
+          "index": 13,
+          "path_hex": [
+            "c747948a19289c3789b9957e299b479033ab4481e7b100385e2b190574f60bd7",
+            "729336f076c6aad4279ac59eb0aaccd62f9f0823c5727cddf5b45cf6d703565f",
+            "b970ca73567c6a571aa350712de9cda8d421ae8f0a7f81d448835cade13d842d",
+            "e5bd946e0f424948668e9c995e45193223e5cb5b788dc53f46d97a8dbb61f6a8",
+            "2020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+          ],
+          "proof_body_hex": "820d855820c747948a19289c3789b9957e299b479033ab4481e7b100385e2b190574f60bd75820729336f076c6aad4279ac59eb0aaccd62f9f0823c5727cddf5b45cf6d703565f5820b970ca73567c6a571aa350712de9cda8d421ae8f0a7f81d448835cade13d842d5820e5bd946e0f424948668e9c995e45193223e5cb5b788dc53f46d97a8dbb61f6a858202020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+        },
+        {
+          "index": 14,
+          "path_hex": [
+            "ef516848ef63c10c84643f969a3ec88e72aaf190be07a029b063192dfee345b2",
+            "f9972cb984dd1190293959109ea9b0d52db872fb335ed568f23b2e71ace8ae6a",
+            "b970ca73567c6a571aa350712de9cda8d421ae8f0a7f81d448835cade13d842d",
+            "e5bd946e0f424948668e9c995e45193223e5cb5b788dc53f46d97a8dbb61f6a8",
+            "2020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+          ],
+          "proof_body_hex": "820e855820ef516848ef63c10c84643f969a3ec88e72aaf190be07a029b063192dfee345b25820f9972cb984dd1190293959109ea9b0d52db872fb335ed568f23b2e71ace8ae6a5820b970ca73567c6a571aa350712de9cda8d421ae8f0a7f81d448835cade13d842d5820e5bd946e0f424948668e9c995e45193223e5cb5b788dc53f46d97a8dbb61f6a858202020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+        },
+        {
+          "index": 15,
+          "path_hex": [
+            "8071ac7a8dd2541272fc9c66a2e1e52c2eb9ce05f86f588c718398d472780fee",
+            "f9972cb984dd1190293959109ea9b0d52db872fb335ed568f23b2e71ace8ae6a",
+            "b970ca73567c6a571aa350712de9cda8d421ae8f0a7f81d448835cade13d842d",
+            "e5bd946e0f424948668e9c995e45193223e5cb5b788dc53f46d97a8dbb61f6a8",
+            "2020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+          ],
+          "proof_body_hex": "820f8558208071ac7a8dd2541272fc9c66a2e1e52c2eb9ce05f86f588c718398d472780fee5820f9972cb984dd1190293959109ea9b0d52db872fb335ed568f23b2e71ace8ae6a5820b970ca73567c6a571aa350712de9cda8d421ae8f0a7f81d448835cade13d842d5820e5bd946e0f424948668e9c995e45193223e5cb5b788dc53f46d97a8dbb61f6a858202020f5d43b6b1692dcdc69a66618929efb1644c52971c7644a70a14242f8f2c7"
+        },
+        {
+          "index": 16,
+          "path_hex": [
+            "9e40a67f4805f19c5ddb1be8a05a8c00a8861b46ef833d80f4f18af7d65874b1"
+          ],
+          "proof_body_hex": "82108158209e40a67f4805f19c5ddb1be8a05a8c00a8861b46ef833d80f4f18af7d65874b1"
+        }
+      ],
+      "note": "n=17: the same one-hanging-leaf shape a level deeper, and wide enough that a verifier confusing \u2308n/2\u2309 with \u230an/2\u230b diverges."
+    }
+  ],
+  "corruption_controls": [
+    {
+      "name": "tampered_chunk_byte",
+      "surface": "verify",
+      "base_vector": "chunkproof_n5_abcde",
+      "defect": "chunk_byte_flipped",
+      "root_hex": "1ea992e2e243d8924e66399e17e6198a446122664e806bd91dee88c023a94724ff",
+      "n_chunks": 5,
+      "index": 2,
+      "chunk_hex": "43",
+      "path_hex": [
+        "8cc8a6db6f14fc57eacea4131385777a244b1f6feaeae1fed47ee8ef6e0982cf",
+        "abd36c78c5c484698bf962a24adc9293467661696e0897a500df261d2b1664f2",
+        "1365330142a154c52d28959cc1db9166d7b10c2591a9acc25d959ec7e1b8d242"
+      ],
+      "expect": "reject",
+      "note": "Chunk 2's bytes changed from \"c\" to \"C\" with a valid path for chunk 2. The leaf is taken over the chunk ADDRESS, so one flipped bit changes h_i and the fold diverges."
+    },
+    {
+      "name": "swapped_sibling_order",
+      "surface": "verify",
+      "base_vector": "chunkproof_n5_abcde",
+      "defect": "path_reversed",
+      "root_hex": "1ea992e2e243d8924e66399e17e6198a446122664e806bd91dee88c023a94724ff",
+      "n_chunks": 5,
+      "index": 1,
+      "chunk_hex": "62",
+      "path_hex": [
+        "1365330142a154c52d28959cc1db9166d7b10c2591a9acc25d959ec7e1b8d242",
+        "c97979256dd9f06e0dc6be9fabf2baef2acd2118939563d18bfa79661dc36dce",
+        "208e131bd1411e9d8c1d8417b9e9f370e2118a32b37535c77357c6d152348ac7"
+      ],
+      "expect": "reject",
+      "note": "Chunk 1's three-element path reversed. Order is fixed by the node's own index parity; a verifier that took order from the path's position folds to a different root."
+    },
+    {
+      "name": "truncated_path",
+      "surface": "verify",
+      "base_vector": "chunkproof_n5_abcde",
+      "defect": "path_last_element_dropped",
+      "root_hex": "1ea992e2e243d8924e66399e17e6198a446122664e806bd91dee88c023a94724ff",
+      "n_chunks": 5,
+      "index": 0,
+      "chunk_hex": "61",
+      "path_hex": [
+        "609ad16ca3186fc12dd32ce1d49ed57dd879c802246de385a20f7dbee2f89439",
+        "c97979256dd9f06e0dc6be9fabf2baef2acd2118939563d18bfa79661dc36dce"
+      ],
+      "expect": "reject",
+      "note": "Chunk 0's path minus its top element: the fold runs out of siblings at the last level and MUST fail rather than stopping early at a partial root."
+    },
+    {
+      "name": "padded_path",
+      "surface": "verify",
+      "base_vector": "chunkproof_n5_abcde",
+      "defect": "path_extra_element_appended",
+      "root_hex": "1ea992e2e243d8924e66399e17e6198a446122664e806bd91dee88c023a94724ff",
+      "n_chunks": 5,
+      "index": 4,
+      "chunk_hex": "65",
+      "path_hex": [
+        "5fa8b1b087f0c5dec0dc650c299f1779e735fd3b317e85793bbedac488a5183f",
+        "609ad16ca3186fc12dd32ce1d49ed57dd879c802246de385a20f7dbee2f89439"
+      ],
+      "expect": "reject",
+      "note": "Chunk 4 is the promoted odd node and its path is ONE element; a second element is appended. The verifier must reject leftover material rather than ignore it."
+    },
+    {
+      "name": "index_shifted",
+      "surface": "verify",
+      "base_vector": "chunkproof_n5_abcde",
+      "defect": "valid_path_wrong_index",
+      "root_hex": "1ea992e2e243d8924e66399e17e6198a446122664e806bd91dee88c023a94724ff",
+      "n_chunks": 5,
+      "index": 3,
+      "chunk_hex": "64",
+      "path_hex": [
+        "8cc8a6db6f14fc57eacea4131385777a244b1f6feaeae1fed47ee8ef6e0982cf",
+        "abd36c78c5c484698bf962a24adc9293467661696e0897a500df261d2b1664f2",
+        "1365330142a154c52d28959cc1db9166d7b10c2591a9acc25d959ec7e1b8d242"
+      ],
+      "expect": "reject",
+      "note": "Chunk 3's bytes with CHUNK 2's path \u2014 both real, paired wrongly. Parity differs, so the fold combines in the wrong order and diverges."
+    },
+    {
+      "name": "wrong_root",
+      "surface": "verify",
+      "base_vector": "chunkproof_n5_abcde",
+      "defect": "root_last_byte_flipped",
+      "root_hex": "1ea992e2e243d8924e66399e17e6198a446122664e806bd91dee88c023a94724fe",
+      "n_chunks": 5,
+      "index": 0,
+      "chunk_hex": "61",
+      "path_hex": [
+        "609ad16ca3186fc12dd32ce1d49ed57dd879c802246de385a20f7dbee2f89439",
+        "c97979256dd9f06e0dc6be9fabf2baef2acd2118939563d18bfa79661dc36dce",
+        "1365330142a154c52d28959cc1db9166d7b10c2591a9acc25d959ec7e1b8d242"
+      ],
+      "expect": "reject",
+      "note": "A wholly valid proof folded against a root one bit away from the real one. The root is the authenticator; nothing else in the proof is."
+    },
+    {
+      "name": "nchunks_changes_promotion",
+      "surface": "verify",
+      "base_vector": "chunkproof_n5_abcde",
+      "defect": "n_chunks_9_instead_of_5",
+      "root_hex": "1ea992e2e243d8924e66399e17e6198a446122664e806bd91dee88c023a94724ff",
+      "n_chunks": 9,
+      "index": 4,
+      "chunk_hex": "65",
+      "path_hex": [
+        "5fa8b1b087f0c5dec0dc650c299f1779e735fd3b317e85793bbedac488a5183f"
+      ],
+      "expect": "reject",
+      "note": "The same proof declared to be from a 9-chunk tree. nChunks is structural metadata (\u00a75.3 corollary), and this is the case where getting it wrong changes which levels promote and the fold therefore diverges."
+    },
+    {
+      "name": "short_sibling_hash",
+      "surface": "verify",
+      "base_vector": "chunkproof_n5_abcde",
+      "defect": "path_element_31_bytes",
+      "root_hex": "1ea992e2e243d8924e66399e17e6198a446122664e806bd91dee88c023a94724ff",
+      "n_chunks": 5,
+      "index": 0,
+      "chunk_hex": "61",
+      "path_hex": [
+        "609ad16ca3186fc12dd32ce1d49ed57dd879c802246de385a20f7dbee2f894",
+        "c97979256dd9f06e0dc6be9fabf2baef2acd2118939563d18bfa79661dc36dce",
+        "1365330142a154c52d28959cc1db9166d7b10c2591a9acc25d959ec7e1b8d242"
+      ],
+      "expect": "reject",
+      "note": "A 31-byte path element. A verifier that concatenated without checking width would hash a differently-sized preimage instead of refusing."
+    },
+    {
+      "name": "nonminimal_index",
+      "surface": "decode",
+      "base_vector": "chunkproof_n5_abcde",
+      "defect": "cbor_index_encoded_in_two_bytes",
+      "proof_body_hex": "8218048158205fa8b1b087f0c5dec0dc650c299f1779e735fd3b317e85793bbedac488a5183f",
+      "expect": "reject",
+      "note": "Chunk index 4 written as the two-byte head 0x18 0x04 instead of 0x04. Deterministic CBOR (\u00a718.1.2) admits exactly one spelling; a proof two byte strings could both mean is not a proof."
+    },
+    {
+      "name": "indefinite_length_path",
+      "surface": "decode",
+      "base_vector": "chunkproof_n5_abcde",
+      "defect": "cbor_indefinite_array",
+      "proof_body_hex": "82049f58205fa8b1b087f0c5dec0dc650c299f1779e735fd3b317e85793bbedac488a5183fff",
+      "expect": "reject",
+      "note": "The path array as an indefinite-length array (0x9f \u2026 0xff). Rejected on sight: indefinite lengths are outside the \u00a718.1.2 profile."
+    },
+    {
+      "name": "trailing_bytes",
+      "surface": "decode",
+      "base_vector": "chunkproof_n5_abcde",
+      "defect": "one_byte_appended",
+      "proof_body_hex": "82048158205fa8b1b087f0c5dec0dc650c299f1779e735fd3b317e85793bbedac488a5183f00",
+      "expect": "reject",
+      "note": "A valid proof body with one trailing byte. Accepting it would let a server append material the decoder never examined."
+    },
+    {
+      "name": "path_count_over_bound",
+      "surface": "decode",
+      "base_vector": "chunkproof_n5_abcde",
+      "defect": "declared_path_of_41",
+      "proof_body_hex": "82049829",
+      "expect": "reject",
+      "note": "A path array head declaring 41 elements, one past the 40-level bound, with no elements following. The bound must be enforced from the HEAD, before allocating or reading an attacker-chosen count."
+    },
+    {
+      "name": "not_a_two_element_array",
+      "surface": "decode",
+      "base_vector": "chunkproof_n5_abcde",
+      "defect": "cbor_array_of_3",
+      "proof_body_hex": "83048000",
+      "expect": "reject",
+      "note": "A three-element array [4, [], 0] \u2014 the shape \u00a75.3 explicitly declines to adopt (option (b), `[i, path, tree_size]`). An old client MUST NOT silently misparse it."
+    }
+  ]
+}
