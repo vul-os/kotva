@@ -18,7 +18,7 @@ use kotva_core::cbor::{self, as_bytes, as_text, Cv, Fields};
 use kotva_core::ContentId;
 
 use crate::service::{Portability, Service, Visibility};
-use crate::DepotError;
+use crate::{check_hash_shape, DepotError};
 
 /// One primitive coordinator a formula composes (§3.6).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -165,7 +165,13 @@ impl DepotFormula {
                 value: s,
             })?;
             let provider = as_bytes(pf.req(2)?)?;
-            let descriptor = pf.take(3).map(as_bytes).transpose()?.map(ContentId);
+            let descriptor = match pf.take(3).map(as_bytes).transpose()? {
+                Some(d) => {
+                    check_hash_shape("DepotFormula.Part.descriptor", &d)?;
+                    Some(ContentId(d))
+                }
+                None => None,
+            };
             pf.deny_unknown()?;
             parts.push(Part {
                 service,

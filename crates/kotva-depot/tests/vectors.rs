@@ -50,10 +50,10 @@ const POLICY_MINIMAL: &str = "a201666275636b657402686f70657261746f72";
 /// a4                          map(4)
 ///   01 67 65 64 67 65 2d 66 6e  1 : text(7) "edge-fn"
 ///   02 64 77 61 73 6d           2 : text(4) "wasm"
-///   03 43 01 02 03              3 : bytes(3) 010203
+///   03 58 21 1e <32 B d1>       3 : bytes(33) — a v0 hash, 0x1e || BLAKE3-256 (§18.1.5)
 ///   04 19 10 00                 4 : unsigned(4096)  ; uint16 form, 0x1000
 /// ```
-const IMAGE_EDGE_FN: &str = "a40167656467652d666e02647761736d034301020304191000";
+const IMAGE_EDGE_FN: &str = "a40167656467652d666e02647761736d0358211ed1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d104191000";
 
 /// `DepotMeasurement { service: "box", metric: "uptime", value: 995, method: "probe",
 /// observed_at: 1 }` (§7). `value` is per-mille, so 995 encodes as uint16 `0x03e3`.
@@ -71,9 +71,10 @@ const MEASUREMENT_UPTIME: &str = "a50163626f780266757074696d65031903e3046570726f
 /// `DepotSite { root: h'010203' }` — the minimal site (§3.7).
 ///
 /// ```text
-/// a1 01 43 01 02 03           map(1) { 1 : bytes(3) 010203 }
+/// a1 01 58 21 1e <32 B d1>   map(1) { 1 : bytes(33) — a v0 hash (§18.1.5) }
 /// ```
-const SITE_MINIMAL: &str = "a10143010203";
+const SITE_MINIMAL: &str =
+    "a10158211ed1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1";
 
 /// `DepotFormula { kind: "redis", parts: [{ service: "box", provider: h'aa' }] }` (§3.6).
 ///
@@ -102,7 +103,12 @@ fn image_vector_decodes_to_the_specified_value() {
     let i = DepotImage::from_det_cbor(&hex(IMAGE_EDGE_FN)).expect("vector must decode");
     assert_eq!(i.target, ImageTarget::EdgeFn);
     assert_eq!(i.format, ImageFormat::Wasm);
-    assert_eq!(i.digest, ContentId(vec![1, 2, 3]));
+    assert_eq!(
+        i.digest.0.len(),
+        33,
+        "a v0 hash is exactly 33 bytes (§18.1.5)"
+    );
+    assert_eq!(i.digest.0[0], 0x1e, "multicodec prefix for BLAKE3-256");
     assert_eq!(i.bytes, 4096);
     assert_eq!(i.arch, None);
     assert!(i.boot.is_empty());
@@ -124,7 +130,12 @@ fn measurement_vector_decodes_to_the_specified_value() {
 #[test]
 fn site_vector_decodes_to_the_specified_value() {
     let s = DepotSite::from_det_cbor(&hex(SITE_MINIMAL)).expect("vector must decode");
-    assert_eq!(s.root, ContentId(vec![1, 2, 3]));
+    assert_eq!(
+        s.root.0.len(),
+        33,
+        "a v0 hash is exactly 33 bytes (§18.1.5)"
+    );
+    assert_eq!(s.root.0[0], 0x1e, "multicodec prefix for BLAKE3-256");
     assert_eq!(s.fallback, None);
     assert!(s.redirects.is_empty());
     assert_eq!(s.cache, None);

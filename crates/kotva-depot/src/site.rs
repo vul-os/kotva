@@ -13,7 +13,7 @@
 use kotva_core::cbor::{self, as_bool, as_text, as_u64, Cv, Fields};
 use kotva_core::ContentId;
 
-use crate::DepotError;
+use crate::{check_hash_shape, DepotError};
 
 /// One redirect rule.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -121,7 +121,9 @@ impl DepotSite {
     /// Decode from deterministic CBOR.
     pub fn from_det_cbor(bytes: &[u8]) -> Result<Self, DepotError> {
         let mut f = Fields::from_cv(cbor::decode(bytes)?)?;
-        let root = ContentId(cbor::as_bytes(f.req(1)?)?);
+        let root_bytes = cbor::as_bytes(f.req(1)?)?;
+        check_hash_shape("DepotSite.root", &root_bytes)?;
+        let root = ContentId(root_bytes);
         let fallback = f.take(2).map(as_text).transpose()?;
 
         let mut redirects = Vec::new();

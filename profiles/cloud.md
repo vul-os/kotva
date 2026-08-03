@@ -535,7 +535,7 @@ reader proposing it as a fifth elemental should find it already answered.
 - **`static site` / SPA hosting = PUB objects in a public-serving `bucket`, named via REACH.** A
   deploy is publishing a new content-addressed root plus a signed announcement superseding the
   previous one — which makes the switch **atomic** and **rollback** a pointer back to a root that is
-  still addressable. It needs one schema, purely to stay portable between providers:
+  still addressable, subject to §4.1's retention caveat: addressable is not stored. It needs one schema, purely to stay portable between providers:
 
 ```cddl
 DepotSite = {                                    ; "kotva-depot/site/v0"
@@ -591,7 +591,10 @@ An image is **immutable content-addressed bytes in a `bucket`** plus a manifest 
 site root, and not a fifth elemental. A **mutable tag** (`myapp:latest` → digest), the one thing a
 bucket does not supply, is a **signed PUB announcement superseding the previous one**: atomic,
 attributable, and better than a registry tag because the superseded digest stays addressable, so
-rollback is a pointer rather than a rebuild.
+rollback is a pointer rather than a rebuild — **for as long as someone still stores the superseded
+bytes.** An address survives deletion and an artefact does not, so rollback is a retention policy
+wearing a content address; an operator that garbage-collects unreferenced blobs has removed the
+rollback without removing the pointer.
 
 ```cddl
 DepotImage = {                    ; "kotva-depot/image/v0"
@@ -1222,8 +1225,10 @@ localised, never content-classified.
   state, and the honest statement is that they are *unmitigated*, not merely weakened. What still
   holds at one operator is exactly the set that never depended on the market: the **owner-held root
   key** (DEPOT-3), **client-side encryption** of `bucket`/`volume` (§3), **content-addressing** (a
-  bucket's bytes can be re-pinned by anyone, including the user, without the operator's
-  cooperation), and the **self-host backstop** (DEPOT-15) — whose own limit is already disclosed
+  bucket's bytes can be re-pinned, without the operator's cooperation, by anyone who **has** them —
+  a hash is a verifiable *name* and never a *copy*, so at the one operator that has deleted or is
+  withholding the bytes the address is worthless, and this protection is only as real as the copy
+  the user or a third party actually retained), and the **self-host backstop** (DEPOT-15) — whose own limit is already disclosed
   above: the user who most needs a managed box is the one who cannot be their own. The protocol
   guarantees **permissionless entry**, never **actual plurality**; a reader MUST NOT treat DEPOT-13
   as though it delivered the latter.
@@ -1236,7 +1241,18 @@ localised, never content-classified.
   because every measured party shares the bug. `ability-conformance` is explicitly vacuous there
   (§7). The mitigation is not a rule this profile can impose — it is the **hand-derived schema
   vector corpus**, which is written from this document rather than emitted by any implementation and
-  so remains a second opinion when no second implementation exists. That corpus is load-bearing in a
+  so remains a second opinion when no second implementation exists — **and it is a second opinion
+  about *bytes*, which is the smaller half of this profile.** The corpus is five deterministic-CBOR
+  schema corpora (`DepotServicePolicy`, `DepotImage`, `DepotMeasurement`, `DepotSite`,
+  `DepotFormula`) with a re-encode assertion and a corruption control (`conformance/SUITE.md`);
+  DEPOT mints no wire object, so there is no protocol exchange to vector at all. Nearly every
+  normative rule here is **behavioural** and outside its reach: that `destroy` left nothing
+  recoverable (§5.3), that an export actually ingested elsewhere (DEPOT-4), that secrets arrived
+  sealed (DEPOT-12), that a declared visibility matches what the operator can see (DEPOT-2), that
+  the ability vocabulary is honoured without aliasing (§5.2 — whose probe `SUITE.md` lists as still
+  to be vectored). An implementation that encodes the schemas correctly and behaves wrongly passes
+  the corpus completely. It therefore retires **schema** drift and leaves **semantic** drift exactly
+  where it was. That corpus is load-bearing in a
   way its size suggests it is not, and the honest ranking of what would retire this residual is: an
   independent **decoder** in another language reading the same vectors (cheap, and the rung actually
   worth buying), then a genuinely independent implementation (expensive, and its absence should be

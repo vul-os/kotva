@@ -70,6 +70,29 @@ pub use service::{
 };
 pub use site::DepotSite;
 
+/// Validate a `hash`-typed field's shape (§18.1.5).
+///
+/// A v0 `hash` is **exactly 33 bytes**: a one-byte multicodec prefix `0x1e` followed by a 32-byte
+/// BLAKE3-256 digest, and §18.1.5 says a verifier MUST REJECT one whose prefix or length is wrong
+/// rather than guess. Every `hash`-typed DEPOT field goes through here — `DepotImage.digest` and
+/// `.parent`, `DepotSite.root`, `DepotFormula.Part.descriptor`.
+///
+/// This was missing until an INDEPENDENT PYTHON DECODER, written from the spec rather than from
+/// this crate, refused vectors these decoders accepted. Nothing in Rust could have caught it: the
+/// encoder, the decoder and the hand-written corpus all agreed on a 3-byte placeholder, so every
+/// round-trip AND every foreign-byte test between the two Rust crates passed. It took a reader that
+/// had only ever seen §18.1.5.
+pub(crate) fn check_hash_shape(field: &'static str, b: &[u8]) -> Result<(), DepotError> {
+    const MH_BLAKE3_256: u8 = 0x1e;
+    if b.len() == 33 && b[0] == MH_BLAKE3_256 {
+        return Ok(());
+    }
+    Err(DepotError::MalformedHash {
+        field,
+        len: b.len(),
+    })
+}
+
 /// Order two text map keys the way canonical CBOR does (§18.1.1, RFC 8949 §4.2.1).
 ///
 /// Deterministic CBOR sorts map entries by their **encoded key bytes**, and a text string's head
@@ -177,6 +200,16 @@ pub enum DepotError {
              naming another key (§5.1)"
     )]
     CoordinatorBindingMissing,
+
+    /// A `hash`-typed field whose bytes are not a v0 content address (§18.1.5): exactly 33 bytes,
+    /// prefix `0x1e`, 32-byte BLAKE3-256 digest.
+    #[error("{field}: not a v0 hash — expected 33 bytes prefixed 0x1e, got {len} (§18.1.5)")]
+    MalformedHash {
+        /// Which field failed.
+        field: &'static str,
+        /// The length actually present.
+        len: usize,
+    },
 
     /// A det_cbor decode or shape failure, surfaced from `kotva_core::cbor`.
     #[error("cbor: {0}")]

@@ -18,7 +18,7 @@ use kotva_core::cbor::{self, as_bytes, as_text, as_u64, Cv, Fields};
 use kotva_core::ContentId;
 
 use crate::service::Service;
-use crate::{canonical_key_cmp, DepotError};
+use crate::{canonical_key_cmp, check_hash_shape, DepotError};
 
 /// What a [`DepotImage`] instantiates (§4.1, CLOSED).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -191,7 +191,9 @@ impl DepotImage {
             value: fmt_s,
         })?;
 
-        let digest = ContentId(as_bytes(f.req(3)?)?);
+        let digest_bytes = as_bytes(f.req(3)?)?;
+        check_hash_shape("DepotImage.digest", &digest_bytes)?;
+        let digest = ContentId(digest_bytes);
         let size = as_u64(f.req(4)?)?;
         let arch = f.take(5).map(as_text).transpose()?;
 
@@ -202,7 +204,13 @@ impl DepotImage {
             }
         }
 
-        let parent = f.take(7).map(as_bytes).transpose()?.map(ContentId);
+        let parent = match f.take(7).map(as_bytes).transpose()? {
+            Some(p) => {
+                check_hash_shape("DepotImage.parent", &p)?;
+                Some(ContentId(p))
+            }
+            None => None,
+        };
 
         f.deny_unknown()?;
         Ok(DepotImage {

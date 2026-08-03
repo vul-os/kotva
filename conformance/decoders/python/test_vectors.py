@@ -217,7 +217,7 @@ class DepotVectors(unittest.TestCase):
         i = kd.read_depot_image(h(DEPOT["IMAGE_EDGE_FN"]))
         self.assertEqual(i.target, "edge-fn")
         self.assertEqual(i.format, "wasm")
-        self.assertEqual(i.digest, bytes([1, 2, 3]))
+        self.assertEqual(i.digest, bytes([0x1E]) + bytes([0xD1]) * 32)
         self.assertEqual(i.size_bytes, 4096)
         self.assertIsNone(i.arch)
         self.assertEqual(i.boot, ())
@@ -235,7 +235,7 @@ class DepotVectors(unittest.TestCase):
 
     def test_site(self):
         s = kd.read_depot_site(h(DEPOT["SITE_MINIMAL"]))
-        self.assertEqual(s.root, bytes([1, 2, 3]))
+        self.assertEqual(s.root, bytes([0x1E]) + bytes([0xD1]) * 32)
         self.assertIsNone(s.fallback)
         self.assertEqual(s.redirects, ())
         self.assertIsNone(s.cache_max_age_s)
@@ -496,15 +496,27 @@ class SpecCorpusDisagreements(unittest.TestCase):
     fails this test, which is the point — the discrepancy cannot quietly change size.
     """
 
-    def test_depot_hash_fields_are_3_bytes_where_18_1_5_requires_33(self):
+    def test_depot_hash_fields_now_honour_18_1_5(self):
+        """RESOLVED — kept as a record, and as a regression guard.
+
+        This decoder originally refused `DepotImage.digest` and `DepotSite.root`: both are typed
+        `hash`, which §18.1.5 fixes at exactly 33 bytes (`0x1e` multicodec prefix followed by a
+        32-byte BLAKE3-256 digest), and the frozen corpus carried a 3-byte placeholder. NOTHING IN
+        RUST COULD SEE IT: the encoder, the decoder and the hand-written vectors all agreed on the
+        placeholder, so every round-trip AND every foreign-byte test between the two Rust crates
+        passed. It took a reader that had only ever seen §18.1.5.
+
+        Both sides are now fixed — the corpus carries real 33-byte addresses and kotva-depot
+        enforces the shape at every `hash`-typed decode site. This assertion is what stops it
+        regressing, and the docstring is what stops the history being lost.
+        """
         image = kd.read_depot_image(h(DEPOT["IMAGE_EDGE_FN"]))
         site = kd.read_depot_site(h(DEPOT["SITE_MINIMAL"]))
-        self.assertEqual(len(image.digest), 3)
-        self.assertEqual(len(site.root), 3)
-        self.assertEqual(len(image.deviations), 1, image.deviations)
-        self.assertEqual(len(site.deviations), 1, site.deviations)
-        self.assertIn("§18.1.5", image.deviations[0])
-        self.assertIn("§18.1.5", site.deviations[0])
+        for name, v in (("DepotImage.digest", image.digest), ("DepotSite.root", site.root)):
+            self.assertEqual(len(v), 33, f"{name}: §18.1.5 fixes a v0 hash at 33 bytes")
+            self.assertEqual(v[0], 0x1e, f"{name}: multicodec prefix for BLAKE3-256")
+        self.assertEqual(list(image.deviations), [], "resolved, not merely moved")
+        self.assertEqual(list(site.deviations), [], "resolved, not merely moved")
 
     def test_formula_provider_is_1_byte_and_no_suite_hook_can_govern_it(self):
         formula = kd.read_depot_formula(h(DEPOT["FORMULA_REDIS"]))
