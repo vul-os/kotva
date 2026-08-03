@@ -207,7 +207,7 @@ recompute and check `announce_id`; verify `sig` under `signer`; verify `signer` 
 (`signer == pub`, or a valid non-revoked `DeviceCert` chain); if `supersedes` is present, require the
 predecessor's `pub` to match (a publisher may only supersede its own announcements). A name is needed
 only to *display* who `pub` is — verification never needs a name lookup (§3.13, and see
-[`IDENTITY.md § 6`](IDENTITY.md#the-naming-ladder-is-not-inverted)).
+[`IDENTITY.md § 6`](IDENTITY.md#6-the-naming-ladder-is-not-inverted)).
 
 ### 4.3 Anti-rollback and equivocation (§22.4.2)
 

@@ -183,7 +183,7 @@ The family is large on purpose but does **not** ratify as one monolith. It ratif
 shipping on its own clock, so the least-proven parts never block the core. An implementation MUST
 declare which tier(s) it implements; **Core v1 is complete and conformant with *no* extension.**
 
-- **🟢 Core v1 — ratifiable now.** The six waist capabilities ([②](#-substrate--the-narrow-waist)), the
+- **🟢 Core v1 — ratifiable now.** The six waist capabilities ([②](#②-substrate--the-narrow-waist)), the
   [coordinator contract](coordinator/CONTRACT.md), the coordinator kinds the messaging core actually
   uses — **`gateway`, `relay`, `reachability-adapter`** (and `labeler`, opt-in) — and the
   **DMTAP-mail** reference profile: the identity, MOTE, naming, transport, messaging, privacy,

@@ -79,7 +79,7 @@ already minimal and mail-agnostic.
 > **Wake**. Wake is folded into capability 6 rather than numbered on its own because a *wake origin* is an
 > infrastructure role like a relay or a mailbox — but a product may want it *without* running any of the
 > other roles (a lone always-off client that only needs to be woken), which is why it gets its own
-> [named section](ROLES.md#wake) inside the shared document.
+> [named section](ROLES.md#8-wake--content-free-sender-blind-push-part-of-capability-⑥-roles--wake-profile-of-49) inside the shared document.
 
 ### The layering picture
 
@@ -153,7 +153,7 @@ compatibility swamp:
    scheme in which a name is authoritative over a key, or in which possessing a name confers identity. The
    8-word **key-name** (§3.9.6) remains the zero-authority floor every product inherits for free; `name@domain`
    (§3.9.1) remains an optional convenience layered *over* the key, neutralized by KT + pinning. See
-   [`IDENTITY.md § The naming ladder is not inverted`](IDENTITY.md#the-naming-ladder-is-not-inverted).
+   [`IDENTITY.md § The naming ladder is not inverted`](IDENTITY.md#6-the-naming-ladder-is-not-inverted).
 
 ---
 

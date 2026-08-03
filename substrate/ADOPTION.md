@@ -76,7 +76,7 @@ The reference core (see [`BINDINGS.md`](BINDINGS.md) for the full crate layout).
   gap:** confirm or build the mailbox role and verify `pubserve.rs` actually serves the
   `/.well-known/dmtap-pub/*` surface per [`FEEDS.md § 5.1`](FEEDS.md#51-the-public-object-http-endpoint-2251).
 - **Wake — not built.** No VAPID/Web Push/UnifiedPush code found anywhere in the workspace. **What would
-  close the gap:** implement `PushSubscription`/`WakePing` per [`ROLES.md § 8`](ROLES.md#8-wake--content-free-sender-blind-push-capability-⑤-profile-of-49) — envoir has no wake path today, so this is greenfield, not a rewrite.
+  close the gap:** implement `PushSubscription`/`WakePing` per [`ROLES.md § 8`](ROLES.md#8-wake--content-free-sender-blind-push-part-of-capability-⑥-roles--wake-profile-of-49) — envoir has no wake path today, so this is greenfield, not a rewrite.
 
 ### vulos — `vulos`
 
@@ -117,7 +117,7 @@ the substrate's shape without speaking its bytes.
   using an open standard. But the payload (`Payload{Title, Body, Tag, Source, URL}`) carries a
   human-visible title/body — it is a **push notification**, not the spec's content-free wake-and-fetch
   hint. This is a legitimate, different design goal (rendering a notification vs. silently triggering a
-  sync), not a bug, but it is not what [`ROLES.md § 8`](ROLES.md#8-wake--content-free-sender-blind-push-capability-⑤-profile-of-49)
+  sync), not a bug, but it is not what [`ROLES.md § 8`](ROLES.md#8-wake--content-free-sender-blind-push-part-of-capability-⑥-roles--wake-profile-of-49)
   defines as Wake. **What would move it:** add a second, genuinely content-free `WakePing` path
   alongside the existing notification push, rather than repurposing the notification payload.
 
