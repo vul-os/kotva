@@ -819,6 +819,19 @@ Three rules make this vocabulary load-bearing rather than decorative:
   with its own declaration, DEPOT-14), and the commodity cloud underneath (declare it, do not launder
   it). An operator may depend on whatever it likes; the user must be able to leave all of it by
   leaving the operator.
+  **What the invariant does not buy, because three natural readings of it are wrong.** It is a rule
+  about **accountability and replaceability**, not about exposure. (i) A subcontractor carrying a
+  `terminating` leg **is** in the user's confidentiality surface — it reads the same plaintext the
+  declaring operator does and answers to its own jurisdiction, whatever the user's contract with the
+  declaring operator says. "MUST NOT become a party the user must trust" means the user need hold no
+  *relationship* with it and depend on no *promise* of its; it never means the subcontractor cannot
+  read. (ii) Leaving is **forward-looking**. It ends future exposure and does nothing about bytes,
+  backups or logs the subcontractor already holds. (iii) **`backing` does not name the
+  subcontractor.** It is three values (§1.2), and `operator` covers a rack in a basement and a
+  resold hyperscaler equally. So "declare it, do not launder it" forbids *claiming a blindness you
+  do not have*; it does not tell a client which cloud is underneath, and DEPOT mints no field that
+  does. A user who needs to know the supplier must ask off-wire and MUST NOT expect a descriptor to
+  answer.
 - **DEPOT-7 — customer-supplied backing is delegated, attenuated, and revocable.** Where
   `backing = customer` (§1.2) — the user's own Hetzner, Vultr, Fly, Tigris or S3 account, operated by
   the gateway — the credential the gateway holds MUST be (a) **created by the user in their own
@@ -937,6 +950,17 @@ Three rules make this vocabulary load-bearing rather than decorative:
   MUST NOT read "several providers" as fault diversity unless the providers actually differ in
   software, and an operator MUST NOT advertise it as such. Plurality bounds *operator* risk; only
   implementation diversity bounds *code* risk, and DEPOT can require neither.
+  **Nor is independent ownership the same as independent infrastructure, and this one is invisible
+  to the protocol.** Under `backing = operator` a gateway may be reselling a commodity cloud (§1.2,
+  DEPOT-6), so two separately-owned, separately-keyed gateways reselling the **same** hyperscaler in
+  the same region share precisely the outage, the jurisdiction and the seizure the client chose two
+  providers to diversify — while looking, on the wire, exactly like two independent ones. No field in
+  a descriptor names the supplier beneath (DEPOT-6), so unlike the implementation-diversity gap
+  above — which a client can at least ask about and an operator can answer — this correlation cannot
+  be detected from anything DEPOT carries. What plurality verifiably delivers is independence of
+  **keys**; independence of ownership, jurisdiction and infrastructure are inferences a client draws
+  from off-wire knowledge, and a client that has not done that work holds fewer of them than the
+  word "independent" implies.
   **Honest asymmetry:** `volume`, `box`, and any formula built on them do **NOT** replicate freely
   (§3.5). A `detachable` volume is not a counter-example: it moves between boxes of one operator,
   never between operators. A profile MUST NOT present multi-provider replication as though it made a
