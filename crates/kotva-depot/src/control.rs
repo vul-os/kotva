@@ -217,6 +217,37 @@ impl Ability {
         })
     }
 
+    /// Every verb in the §5.2 registry, in table order: the seven common lifecycle verbs, then
+    /// `box`, `volume`, `bucket`, `edge-fn`.
+    ///
+    /// This is the enumeration a probe iterates ([`crate::probe`]). It is deliberately a hand-written
+    /// array rather than a derive: adding a variant without adding it here leaves the new verb
+    /// unprobed, and [`crate::probe::ABILITY_REGISTRY_SIZE`] is the assertion that catches that.
+    pub const ALL: [Ability; 22] = [
+        Ability::Provision,
+        Ability::Inspect,
+        Ability::List,
+        Ability::Reconfigure,
+        Ability::Observe,
+        Ability::Export,
+        Ability::Destroy,
+        Ability::Start,
+        Ability::Stop,
+        Ability::Restart,
+        Ability::Snapshot,
+        Ability::Console,
+        Ability::Attach,
+        Ability::Detach,
+        Ability::Resize,
+        Ability::Read,
+        Ability::Write,
+        Ability::Delete,
+        Ability::Serve,
+        Ability::Deploy,
+        Ability::Invoke,
+        Ability::Rollback,
+    ];
+
     /// The seven abilities every elemental accepts (§5.2).
     pub const COMMON: [Ability; 7] = [
         Ability::Provision,

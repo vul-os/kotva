@@ -30,6 +30,12 @@
 //!    fail closed (§5.2) — the fix for `Capability`'s free-text `resource`/`ability`, which would
 //!    otherwise let two conformant gateways diverge *silently*.
 //!
+//! ...plus one **probe** ([`probe`]), which is the §7 `ability-conformance` metric made runnable: it
+//! asks a live coordinator whether it accepts each §5.2 verb and refuses a curated corpus of
+//! near-miss coinages, and returns a [`measurement::DepotMeasurement`]. §7's caveat that the metric
+//! is **vacuous below two independent implementations** is carried in
+//! [`probe::VACUITY_CAVEAT`] and printed with every result.
+//!
 //! # The four elementals
 //!
 //! [`service::Service`] is `bucket` / `volume` / `edge-fn` / `box` and is meant to stay four.
@@ -44,6 +50,7 @@ pub mod formula;
 pub mod image;
 pub mod measurement;
 pub mod policy;
+pub mod probe;
 pub mod service;
 pub mod site;
 
@@ -52,8 +59,12 @@ pub use control::{
 };
 pub use formula::{DepotFormula, DerivedProperties, Part};
 pub use image::{DepotImage, ImageFormat, ImageTarget};
-pub use measurement::{DepotMeasurement, EvidenceKind, Method, Metric};
+pub use measurement::{DepotMeasurement, EvidenceKind, MeasurementValue, Method, Metric};
 pub use policy::{Capacity, DepotServicePolicy};
+pub use probe::{
+    probe_all_elementals, probe_service, AbilityConformance, AbilityOracle, AbilityProbeReport,
+    NEAR_MISS_COINAGES, VACUITY_CAVEAT,
+};
 pub use service::{
     check_visibility, Assurance, Backing, Portability, Service, Visibility, VisibilityClass,
 };
