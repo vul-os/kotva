@@ -642,7 +642,18 @@ mod tests {
 
     #[test]
     fn from_i64_as_i64_round_trip() {
-        for v in [0i64, 1, -1, 23, -24, 255, -256, i64::MAX, i64::MIN, i64::MIN + 1] {
+        for v in [
+            0i64,
+            1,
+            -1,
+            23,
+            -24,
+            255,
+            -256,
+            i64::MAX,
+            i64::MIN,
+            i64::MIN + 1,
+        ] {
             assert_eq!(Value::from_i64(v).as_i64(), Some(v), "round trip for {v}");
         }
     }
@@ -712,7 +723,10 @@ mod tests {
         assert_eq!(enc(&Value::Uint(24)), vec![0x18, 0x18]);
         assert_eq!(enc(&Value::Uint(255)), vec![0x18, 0xff]);
         assert_eq!(enc(&Value::Uint(256)), vec![0x19, 0x01, 0x00]);
-        assert_eq!(enc(&Value::Uint(65_536)), vec![0x1a, 0x00, 0x01, 0x00, 0x00]);
+        assert_eq!(
+            enc(&Value::Uint(65_536)),
+            vec![0x1a, 0x00, 0x01, 0x00, 0x00]
+        );
         assert_eq!(
             enc(&Value::Uint(u64::MAX)),
             vec![0x1b, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
@@ -729,7 +743,10 @@ mod tests {
     #[test]
     fn kat_strings_arrays_maps_simple() {
         assert_eq!(enc(&Value::Text(String::new())), vec![0x60]);
-        assert_eq!(enc(&Value::Text("IETF".into())), vec![0x64, b'I', b'E', b'T', b'F']);
+        assert_eq!(
+            enc(&Value::Text("IETF".into())),
+            vec![0x64, b'I', b'E', b'T', b'F']
+        );
         assert_eq!(enc(&Value::Bytes(vec![1, 2, 3, 4])), vec![0x44, 1, 2, 3, 4]);
         assert_eq!(
             enc(&Value::Array(vec![
@@ -773,7 +790,10 @@ mod tests {
             (Value::Text("aa".into()), Value::Uint(1)),
             (Value::Text("b".into()), Value::Uint(2)),
         ]);
-        assert_eq!(enc(&v), vec![0xa2, 0x61, 0x62, 0x02, 0x62, 0x61, 0x61, 0x01]);
+        assert_eq!(
+            enc(&v),
+            vec![0xa2, 0x61, 0x62, 0x02, 0x62, 0x61, 0x61, 0x01]
+        );
     }
 
     #[test]
@@ -876,7 +896,10 @@ mod tests {
         assert_eq!(err(&[0x18, 0x17]), CborError::NonShortestForm);
         assert_eq!(err(&[0x18, 0x0a]), CborError::NonShortestForm);
         assert_eq!(err(&[0x19, 0x00, 0xc8]), CborError::NonShortestForm);
-        assert_eq!(err(&[0x1b, 0, 0, 0, 0, 0, 0, 0, 0]), CborError::NonShortestForm);
+        assert_eq!(
+            err(&[0x1b, 0, 0, 0, 0, 0, 0, 0, 0]),
+            CborError::NonShortestForm
+        );
         assert_eq!(err(&[0x58, 0x01, 0xaa]), CborError::NonShortestForm);
         assert_eq!(
             err(&[0x59, 0x00, 0x05, 0, 0, 0, 0, 0]),
@@ -889,7 +912,10 @@ mod tests {
     #[test]
     fn accepts_genuine_shortest_forms() {
         assert_eq!(decode_canonical(&[0x18, 0x18]).unwrap(), Value::Uint(24));
-        assert_eq!(decode_canonical(&[0x19, 0x01, 0x00]).unwrap(), Value::Uint(256));
+        assert_eq!(
+            decode_canonical(&[0x19, 0x01, 0x00]).unwrap(),
+            Value::Uint(256)
+        );
     }
 
     #[test]
@@ -963,9 +989,15 @@ mod tests {
         );
         // An array head claiming ~2^32 elements, with nothing following: refused
         // on the COUNT, not after 4 billion iterations.
-        assert_eq!(err(&[0x9a, 0xff, 0xff, 0xff, 0xff]), CborError::LengthExceedsInput);
+        assert_eq!(
+            err(&[0x9a, 0xff, 0xff, 0xff, 0xff]),
+            CborError::LengthExceedsInput
+        );
         // Same for a map.
-        assert_eq!(err(&[0xba, 0xff, 0xff, 0xff, 0xff]), CborError::LengthExceedsInput);
+        assert_eq!(
+            err(&[0xba, 0xff, 0xff, 0xff, 0xff]),
+            CborError::LengthExceedsInput
+        );
     }
 
     #[test]

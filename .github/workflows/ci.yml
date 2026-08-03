@@ -51,7 +51,7 @@ jobs:
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       # NON-BLOCKING, deliberately — the same call envoir's CI makes, for the same reason.
-      # rustfmt currently reports 1252 diffs across 65 files, ALL of them pre-existing debt in
+      # rustfmt currently reports 1240 diffs across 62 files, ALL of them pre-existing debt in
       # kotva-core/kotva-mail/kotva-sync/kotva-sync-wasm. Gating on them today would mean
       # landing a four-figure reformat as a prerequisite: a commit that buries real changes and
       # makes `git blame` useless across the whole crate tree. A gate whose precondition is that
@@ -65,6 +65,17 @@ jobs:
       # now formatted (`cargo fmt -p kotva-coordinator -p kotva-depot`) and contribute zero, so
       # the claim is true again by making it true rather than by rewording it. NEW CRATES ARE
       # EXPECTED TO BE FMT-CLEAN; only the four legacy crates above carry debt.
+      #
+      # It went stale a second time, and in the way that is hardest to notice: the COUNT stayed
+      # right while the ATTRIBUTION went wrong. 1252/65 was accurate, but 12 of those diffs
+      # across 3 files were in kotva-cbor — a fifth crate, and not one of the four this comment
+      # names. Both sentences above were therefore false while the headline number verified
+      # cleanly, which is why the per-crate breakdown is the thing to re-measure, not the total:
+      #
+      #   581 kotva-core  423 kotva-mail  122 kotva-sync-wasm  114 kotva-sync   (= 1240, 62 files)
+      #
+      # kotva-cbor is formatted (`cargo fmt -p kotva-cbor`); its 29 unit tests and the 5
+      # evermesh-conformance tests still pass, so the byte-identical corpus is undisturbed.
       - name: Format (report only)
         continue-on-error: true
         run: cargo fmt --all -- --check

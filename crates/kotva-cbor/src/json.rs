@@ -340,8 +340,9 @@ impl<'a> Parser<'a> {
                                 if !(0xDC00..=0xDFFF).contains(&low) {
                                     return Err(CborError::Json("invalid surrogate pair"));
                                 }
-                                let combined =
-                                    0x10000u32 + ((cp as u32 - 0xD800) << 10) + (low as u32 - 0xDC00);
+                                let combined = 0x10000u32
+                                    + ((cp as u32 - 0xD800) << 10)
+                                    + (low as u32 - 0xDC00);
                                 s.push(
                                     char::from_u32(combined)
                                         .ok_or(CborError::Json("invalid unicode scalar"))?,

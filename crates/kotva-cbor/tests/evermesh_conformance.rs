@@ -110,7 +110,10 @@ fn every_canonical_vector_re_encodes_to_itself() {
         );
         checked += 1;
     }
-    assert_eq!(checked, EXPECT_ACCEPT, "not every accept vector was checked");
+    assert_eq!(
+        checked, EXPECT_ACCEPT,
+        "not every accept vector was checked"
+    );
 }
 
 /// Every vector evermesh classifies as `cbor` or `non-canonical` must be refused
@@ -134,7 +137,10 @@ fn every_non_canonical_vector_is_refused() {
         );
         checked += 1;
     }
-    assert_eq!(checked, EXPECT_REJECT, "not every reject vector was checked");
+    assert_eq!(
+        checked, EXPECT_REJECT,
+        "not every reject vector was checked"
+    );
 }
 
 /// A decoded value's in-memory form must already be in canonical order, so a
@@ -189,7 +195,15 @@ fn corpus_exercises_the_shapes_it_claims_to() {
             }
             Value::Array(items) => {
                 for i in items {
-                    walk(i, depth + 1, int_keys, text_keys, deep, wide_heads, byte_strings);
+                    walk(
+                        i,
+                        depth + 1,
+                        int_keys,
+                        text_keys,
+                        deep,
+                        wide_heads,
+                        byte_strings,
+                    );
                 }
             }
             Value::Map(entries) => {
@@ -199,7 +213,15 @@ fn corpus_exercises_the_shapes_it_claims_to() {
                         Value::Text(_) => *text_keys += 1,
                         _ => {}
                     }
-                    walk(val, depth + 1, int_keys, text_keys, deep, wide_heads, byte_strings);
+                    walk(
+                        val,
+                        depth + 1,
+                        int_keys,
+                        text_keys,
+                        deep,
+                        wide_heads,
+                        byte_strings,
+                    );
                 }
             }
             _ => {}
