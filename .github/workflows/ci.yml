@@ -172,6 +172,40 @@ jobs:
             exit 1
           fi
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: bindings/js/package-lock.json
+
+      # The FOURTH surface: the browser half. `bindings/js` (kotva-client) holds the client-side
+      # implementations of §5.3 chunk-tree range proofs, X3DH prekeys, signalling and rendezvous —
+      # carved out of the pier product repo, where a spec section's second implementation had been
+      # living. FEEDS.md §5.3 cites pier's `tunnel/pubcache` by name as fielded evidence, so the
+      # spec and the product had been citing each other with nothing between them.
+      #
+      # This step exists because the suite shipped WITHOUT it. An unwired suite proves nothing, and
+      # that is the second time in this repo's history a check has been written, passed locally and
+      # never executed by CI — the Python decoder under conformance/decoders/ was the first.
+      - name: Cross-surface parity — browser half
+        working-directory: bindings/js
+        run: |
+          set -o pipefail
+          npm ci
+          npx vitest run --reporter=verbose 2>&1 | tee /tmp/js-test.log | tail -30
+          ran=$(grep -cE '^\s*[+-]?\s*✓' /tmp/js-test.log || true)
+          echo "vitest: $ran assertions passed (92 at 2026-08-03)"
+          if [ "$ran" -lt 88 ]; then
+            echo "::error::only $ran JS tests ran (expected >= 88). NOT VERIFIED: that the browser" \
+                 "half reproduces the §5.3 proof algebra the Go and Rust halves implement."
+            exit 1
+          fi
+          if grep -qE '↓|skipped' /tmp/js-test.log; then
+            echo "::error::JS tests were SKIPPED. The vectors and the sources are both in-tree" \
+                 "here, so there is no legitimate skip — a skip means a guard stopped guarding."
+            exit 1
+          fi
+
   conformance:
     runs-on: ubuntu-latest
     timeout-minutes: 10
