@@ -189,6 +189,22 @@ jobs:
       - name: Conformance suite
         run: python3 tools/conformance.py
 
+      # The DEPOT + §18.8a hex corpora live in Rust test files; this exports them to
+      # conformance/vectors/schema_vectors_v0.json so an implementation in ANY language can
+      # read them without parsing Rust source. --check fails on drift rather than silently
+      # serving a corpus that no longer matches the crates, and the exporter refuses to write
+      # a file when its parser extracts nothing (verified: breaking the regex exits non-zero
+      # rather than emitting an empty, passing corpus).
+      - name: Schema vectors are exported and current
+        run: python3 conformance/vectors/export_schema_vectors.py --check
+
+      # The second implementation. Stdlib-only, decodes the same corpora against the spec
+      # rather than against the Rust — this is what caught `hash` fields carrying 3 bytes
+      # where §18.1.5 fixes 33, which every Rust test and every cross-crate foreign-byte
+      # test passed straight through.
+      - name: Independent Python decoder
+        run: python3 -m unittest discover -s conformance/decoders/python
+
   # --- the shipped product gate's own self-control (substrate/SOVEREIGNTY.md §5) --------
   # This repo SHIPS a gate other products LIFT: tools/gates/no-broker-dep.sh, the R-SOV-1
   # gate ("no hard dependency on a reachability broker in any default build or startup

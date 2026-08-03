@@ -1,0 +1,87 @@
+{
+  "format": "kotva-conformance-vectors/1",
+  "suite": "KOTVA DEPOT (profiles/cloud.md) + \u00a718.8a coordinator objects \u2014 suite 0x01 (classical)",
+  "generated_by": "conformance/vectors/export_schema_vectors.py, which lifts the hex verbatim out of the two Rust test files. PROVENANCE, STATED PLAINLY: unlike pub_vectors.json \u2014 whose bytes are produced by an independent Python generator and which Rust then checks against \u2014 these bytes were HAND-DERIVED FROM THE CDDL and live in Rust first. This file is therefore a TRANSPORT, not a second opinion: it makes the corpus readable by any language without parsing Rust source, and nothing more. The second opinion is conformance/decoders/python/, which decodes these bytes against the spec independently.",
+  "methodology": "Each vector is deterministic CBOR (\u00a718.1). A conformant decoder MUST decode every entry in `vectors`, MUST re-encode it to byte-identical output, and MUST REJECT every entry in `corruption_controls` \u2014 each of which is a single deliberate defect over an otherwise valid vector, so a rejection can only be about that defect.",
+  "generated_at": "2026-08-03",
+  "vectors": {
+    "kotva-depot/FORMULA_REDIS": {
+      "hex": "a2016572656469730281a20163626f780241aa",
+      "bytes": 19
+    },
+    "kotva-depot/IMAGE_EDGE_FN": {
+      "hex": "a40167656467652d666e02647761736d0358211ed1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d104191000",
+      "bytes": 56
+    },
+    "kotva-depot/MEASUREMENT_UPTIME": {
+      "hex": "a50163626f780266757074696d65031903e3046570726f62650501",
+      "bytes": 27
+    },
+    "kotva-depot/POLICY_MINIMAL": {
+      "hex": "a201666275636b657402686f70657261746f72",
+      "bytes": 19
+    },
+    "kotva-depot/SITE_MINIMAL": {
+      "hex": "a10158211ed1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+      "bytes": 37
+    },
+    "kotva-coordinator/DESCRIPTOR_SHORT_IK": {
+      "hex": "a60101026d696e6672612d7365727669636503581fd1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d104a20165626c696e64026a7374727563747572616c0553a201666275636b657402686f70657261746f72075840d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5",
+      "bytes": 161
+    },
+    "kotva-coordinator/DESCRIPTOR_SMUGGLED_SCORE": {
+      "hex": "a70101026d696e6672612d73657276696365035820d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d104a20165626c696e64026a7374727563747572616c0553a201666275636b657402686f70657261746f72075840d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5081861",
+      "bytes": 165
+    },
+    "kotva-coordinator/DESCRIPTOR_TERMINATING_STRUCTURAL": {
+      "hex": "a60101026d696e6672612d73657276696365035820d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d104a2016b7465726d696e6174696e67026a7374727563747572616c0553a201666275636b657402686f70657261746f72075840d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5",
+      "bytes": 168
+    },
+    "kotva-coordinator/DESCRIPTOR_V0": {
+      "hex": "a60101026d696e6672612d73657276696365035820d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d104a20165626c696e64026a7374727563747572616c0553a201666275636b657402686f70657261746f72075840d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5",
+      "bytes": 162
+    },
+    "kotva-coordinator/DESCRIPTOR_WITH_TARIFF_V0": {
+      "hex": "a70101026d696e6672612d73657276696365035820d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d104a20165626c696e64026a7374727563747572616c0553a201666275636b657402686f70657261746f7206a501010258207a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a034ba262676203646279746505041b0000018bcfe5680005584075757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575075840d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5",
+      "bytes": 291
+    },
+    "kotva-coordinator/IK_DESCRIPTOR": {
+      "hex": "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+      "bytes": 32
+    },
+    "kotva-coordinator/IK_RECEIPT": {
+      "hex": "3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c",
+      "bytes": 32
+    },
+    "kotva-coordinator/IK_TARIFF": {
+      "hex": "7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a",
+      "bytes": 32
+    },
+    "kotva-coordinator/RECEIPT_V0": {
+      "hex": "a401010258203c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c0343a1010704584035353535353535353535353535353535353535353535353535353535353535353535353535353535353535353535353535353535353535353535353535353535",
+      "bytes": 110
+    },
+    "kotva-coordinator/SIG_DESCRIPTOR": {
+      "hex": "d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5",
+      "bytes": 64
+    },
+    "kotva-coordinator/SIG_RECEIPT": {
+      "hex": "35353535353535353535353535353535353535353535353535353535353535353535353535353535353535353535353535353535353535353535353535353535",
+      "bytes": 64
+    },
+    "kotva-coordinator/SIG_TARIFF": {
+      "hex": "75757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575",
+      "bytes": 64
+    },
+    "kotva-coordinator/TARIFF_V0": {
+      "hex": "a501010258207a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a034ba262676203646279746505041b0000018bcfe5680005584075757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575",
+      "bytes": 128
+    }
+  },
+  "corruption_controls": {
+    "kotva-coordinator/DESCRIPTOR_KIND_COMPUTE": {
+      "hex": "a601010267636f6d70757465035820d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d104a20165626c696e64026a7374727563747572616c0553a201666275636b657402686f70657261746f72075840d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5",
+      "bytes": 156
+    }
+  }
+}
