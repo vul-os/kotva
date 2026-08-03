@@ -657,7 +657,10 @@ mod tests {
         let out = probe_all_elementals(conformant);
         let ms = out.measurements(
             1_754_000_000_000,
-            Some((EvidenceKind::Recipe, "cargo test -p kotva-depot probe".into())),
+            Some((
+                EvidenceKind::Recipe,
+                "cargo test -p kotva-depot probe".into(),
+            )),
         );
         assert_eq!(ms.len(), 4);
         for (m, s) in ms.iter().zip(Service::ALL) {
