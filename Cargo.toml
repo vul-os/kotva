@@ -1,5 +1,5 @@
 # KOTVA Rust crates — the substrate implementation carved out of envoir so consumers (the envoir
-# node, the Ephor broker) can depend on a stable, *tag-pinned* core instead of tracking a moving
+# node, the Pier broker) can depend on a stable, *tag-pinned* core instead of tracking a moving
 # path dependency (the isango churn lesson). The spec itself remains prose in this repo; these
 # crates are the reference implementation of the substrate wire.
 #
@@ -16,7 +16,7 @@
 # mail-profile capability -> `dmtap-*`. The Rust module paths (`dmtap_core::`, `dmtap_sync::`) are
 # unchanged everywhere by dependency-rename, so no consumer source moved.
 #
-# no-broker-dep:allow-file: line 2 names Ephor only as an example downstream consumer of this
+# no-broker-dep:allow-file: line 2 names Pier only as an example downstream consumer of this
 # tag-pinned workspace (kotva has no dependency on it — this manifest is the one being depended
 # ON). `cargo tree` over the workspace's default features contains no broker crate.
 

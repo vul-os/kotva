@@ -1,4 +1,4 @@
-<!-- no-broker-dep:allow-file: the capability table below cites Ephor as the existence proof for
+<!-- no-broker-dep:allow-file: the capability table below cites Pier as the existence proof for
      the Transport/Roles & Wake row (its vulos-relayd rendezvous/pubcache roles and relay crate)
      — expository prose in a spec document, not a build or startup path. -->
 
@@ -233,7 +233,7 @@ standard or required to speak it. These are named only as existence proofs that 
 | Identity, MOTE | the core spec's own implementations (§1, §2, `conformance/`) | no standalone substrate-only implementation is needed — both are profiled directly by the numbered spec |
 | PUB (Feeds & Blobs) | **kerf-pub** (`kerf`/packages/kerf-pub`) | §22 served over plain HTTPS, no mesh (the HTTP test) |
 | SYNC | **flowstock** stateless sync (`flowstock`); **kotva-clustersync (still in envoir)** CRDTs (`this repository`) | the op algebra + `/sync/vector`·`/sync/pull`·`/sync/ops` wire (the flowstock test) |
-| Transport, Roles & Wake | **Ephor** (`github.com/vul-os/ephor`) — `vulos-relayd`'s rendezvous role (`tunnel/rendezvous`) and pubcache role (`tunnel/pubcache`); the `relay` crate for circuit relay | announce-resolve / signalling / mailbox / cache-pin are real and content-blind (rendezvous + pubcache), and circuit relay is a real, tested libp2p Circuit Relay v2 server (the `relay` crate) — wake has no reference implementation |
+| Transport, Roles & Wake | **Pier** (`github.com/vul-os/pier`) — `vulos-relayd`'s rendezvous role (`tunnel/rendezvous`) and pubcache role (`tunnel/pubcache`); the `relay` crate for circuit relay | announce-resolve / signalling / mailbox / cache-pin are real and content-blind (rendezvous + pubcache), and circuit relay is a real, tested libp2p Circuit Relay v2 server (the `relay` crate) — wake has no reference implementation |
 
 Independent implementations **MUST** be buildable from the substrate documents and the core spec alone,
 without reading any of the above (repository README). Where a reference and the spec disagree, the spec wins.

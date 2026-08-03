@@ -13,7 +13,7 @@
 //!     every platform rail is *platform-asserted* and unverifiable;
 //!   * the canonical **per-rail property table** (§26.4) as data, with tests that pin it to the spec.
 //!
-//! no-broker-dep:allow-file: `DeploymentMode::Gateway`'s doc comment below names Ephor only as
+//! no-broker-dep:allow-file: `DeploymentMode::Gateway`'s doc comment below names Pier only as
 //! an illustrative example of an operator who might run this adapter in gateway mode — the enum
 //! variant itself carries no reference to any broker crate or endpoint, and this module has no
 //! dependency on one.
@@ -123,7 +123,7 @@ pub enum PriceShape {
 pub enum DeploymentMode {
     /// The user runs the adapter for themselves, with their own credentials/hardware.
     Node,
-    /// An operator (e.g. Ephor) runs the adapter for others — taking on the plaintext exposure and,
+    /// An operator (e.g. Pier) runs the adapter for others — taking on the plaintext exposure and,
     /// for a platform rail, the platform's terms.
     Gateway,
 }

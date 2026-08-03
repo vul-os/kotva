@@ -6,10 +6,10 @@
 <title>KOTVA — a narrow-waist protocol family</title>
 <meta name="description" content="KOTVA: a narrow-waist substrate (identity, MOTE, transport, PUB, sync, coordinator roles) with a checkable coordinator contract and thin protocol profiles for mail, commerce, work, media, social, real-time calling, search and reachability.">
 <meta name="color-scheme" content="dark light">
-<!-- no-broker-dep:allow-file: this whitepaper's body names Ephor, KOTVA's reference
+<!-- no-broker-dep:allow-file: this whitepaper's body names Pier, KOTVA's reference
      gateway/broker/coordinator implementation, as expository prose describing the substrate's
      existing reference pair and reference roles table — no script, build step, or runtime path
-     on this static page loads or dials anything named Ephor. -->
+     on this static page loads or dials anything named Pier. -->
 
 <link rel="icon" type="image/svg+xml" href="../public/favicon.svg">
 <style>
@@ -752,11 +752,11 @@
             <tr><td>3</td><td>Transport</td><td>libp2p (Kademlia, Circuit Relay v2, DCUtR); store-and-forward at the edge — reach a key online, offline, or over a mesh</td><td><code>dmtap-p2p</code> (Envoir mesh)</td></tr>
             <tr><td>4</td><td>PUB — Feeds &amp; Blobs</td><td>Nostr-class signed events, IPFS-class content addressing, RFC 6962 Merkle, HTTP caching</td><td><code>kerf-pub</code> — serves §22 over plain HTTPS, no mesh</td></tr>
             <tr><td>5</td><td>Sync</td><td>CBOR/COSE, Hybrid Logical Clocks, version vectors, range-based set reconciliation</td><td><code>flowstock</code> stateless sync; <code>dmtap-clustersync</code> CRDTs (Envoir)</td></tr>
-            <tr><td>6</td><td>Roles &amp; Wake</td><td>libp2p infrastructure roles (announce/resolve, Circuit Relay v2, short-TTL content-blind mailbox, cache) + content-free, sender-blind Web Push (RFC 8030/8291/8292, VAPID), UnifiedPush</td><td>the reference gateway/broker, <strong>Ephor</strong>, built on the <code>kotva-core</code>/<code>kotva-mail</code> crates</td></tr>
+            <tr><td>6</td><td>Roles &amp; Wake</td><td>libp2p infrastructure roles (announce/resolve, Circuit Relay v2, short-TTL content-blind mailbox, cache) + content-free, sender-blind Web Push (RFC 8030/8291/8292, VAPID), UnifiedPush</td><td>the reference gateway/broker, <strong>Pier</strong>, built on the <code>kotva-core</code>/<code>kotva-mail</code> crates</td></tr>
           </tbody>
         </table>
       </div>
-      <p>The repository is candid about where implementation currently stands: roughly five independently hand-rolled sync/identity/feed implementations exist across the product suite today, <strong>none byte-interoperable with any other</strong>. The stated fix is not more prose but one compiled Rust core with thin per-language bindings (native, C-ABI/cgo, WASM, UniFFI) and frozen conformance vectors as the proof a binding is byte-identical to the core — a plan, not yet a finished fact. Two of those crates, <code>kotva-core</code> and <code>kotva-mail</code>, are tag-pinned dependencies today: consumers — the Envoir mesh node and the <strong>Ephor</strong> broker, KOTVA's reference coordinator/gateway implementation — pin a git tag rather than tracking a moving path.</p>
+      <p>The repository is candid about where implementation currently stands: roughly five independently hand-rolled sync/identity/feed implementations exist across the product suite today, <strong>none byte-interoperable with any other</strong>. The stated fix is not more prose but one compiled Rust core with thin per-language bindings (native, C-ABI/cgo, WASM, UniFFI) and frozen conformance vectors as the proof a binding is byte-identical to the core — a plan, not yet a finished fact. Two of those crates, <code>kotva-core</code> and <code>kotva-mail</code>, are tag-pinned dependencies today: consumers — the Envoir mesh node and the <strong>Pier</strong> broker, KOTVA's reference coordinator/gateway implementation — pin a git tag rather than tracking a moving path.</p>
 
       <h3 id="substrate-sync"><span class="secnum">2.2</span> Sync — the one new normative capability<span class="badge b-new">only new wire format in the family</span></h3>
       <p>Every other waist capability profiles something that already exists. Sync does not: no single deployed standard covers <em>signed, deterministic, multi-author CRDT operations with snapshot and sparse namespace sync</em>. Its semantics are grounded in the mail spec's existing single-owner device-cluster CRDT, generalised to any set of independent identities converging on shared state — by making the <strong>operation itself</strong> the unit of authenticity.</p>
@@ -952,7 +952,7 @@
           </tbody>
         </table>
       </div>
-      <p>Every kind above inherits the four clauses and the visibility property unchanged. The <strong>custodial-escrow</strong> operator is the one disclosed departure: it satisfies all four clauses like every other kind but, uniquely, does not fade once hired — holding money for strangers during a trade window is a real, licensed, structurally necessary role, bounded by staking sized to the float rather than eliminated by wishful design. The reference implementation of the <code>gateway</code> kind — <strong>Ephor</strong> — carries the same fencing: a mail-adapter competitor can swap it out for its own gateway without asking KOTVA's permission, because the contract, not the implementation, is what conformance checks against.</p>
+      <p>Every kind above inherits the four clauses and the visibility property unchanged. The <strong>custodial-escrow</strong> operator is the one disclosed departure: it satisfies all four clauses like every other kind but, uniquely, does not fade once hired — holding money for strangers during a trade window is a real, licensed, structurally necessary role, bounded by staking sized to the float rather than eliminated by wishful design. The reference implementation of the <code>gateway</code> kind — <strong>Pier</strong> — carries the same fencing: a mail-adapter competitor can swap it out for its own gateway without asking KOTVA's permission, because the contract, not the implementation, is what conformance checks against.</p>
     </section>
 
     <hr class="rule">
@@ -1050,7 +1050,7 @@
         <dl>
           <dt>Adopts</dt><dd>All six substrate capabilities unchanged, plus MLS groups (§5), the opt-in/research mixnet privacy tiers (§6), cold-contact anti-abuse economics (§9), and the legacy SMTP/IMAP/JMAP gateway (§7, §8) on top.</dd>
           <dt>Narrow waist</dt><dd>Sync for the device-cluster mailbox; Feeds for public list archives and release announcements; Roles for reachability and NAT'd circuit relay; Wake for push-woken mobile clients.</dd>
-          <dt>Status</dt><dd>The core, numbered specification (§0–§27); slated for relocation under <code>profiles/dmtap-mail/</code> in a later restructure without changing its normative content. One binary, roles selected at runtime (<code>--relay</code>, <code>--mix</code>, <code>--gateway</code>) — the gateway is the family's original, fully-worked coordinator instance, and the only DMTAP function needing a scarce resource (send reputation for legacy SMTP egress). <strong>Ephor</strong> is its reference gateway/broker implementation, built on <code>kotva-core</code> and <code>kotva-mail</code>.</dd>
+          <dt>Status</dt><dd>The core, numbered specification (§0–§27); slated for relocation under <code>profiles/dmtap-mail/</code> in a later restructure without changing its normative content. One binary, roles selected at runtime (<code>--relay</code>, <code>--mix</code>, <code>--gateway</code>) — the gateway is the family's original, fully-worked coordinator instance, and the only DMTAP function needing a scarce resource (send reputation for legacy SMTP egress). <strong>Pier</strong> is its reference gateway/broker implementation, built on <code>kotva-core</code> and <code>kotva-mail</code>.</dd>
           <dt>Honest caveat</dt><dd>The mixnet's per-hop cryptography (the Sphinx-style onion layer) is, in the current Rust implementation, an explicit stand-in — not yet the real per-hop construction the spec specifies — and far-future privacy cryptography (mixnet, VDF, PQ envelope tuning) is deliberately quarantined as non-normative research rather than perfected on the critical path.</dd>
         </dl>
       </div>
@@ -1281,7 +1281,7 @@
       <p>The substrate, the DMTAP mail profile, and the TRACT (v0.1.0) and WRAP (v0.2.0) profiles are specified; the coordinator contract and the bindings index are the active consolidation work. Far-future cryptographic research stays quarantined to non-normative status rather than perfected on the critical path.</p>
       <ul>
         <li>Spec licence: <strong>Creative Commons Attribution 4.0 International (CC BY 4.0)</strong> — anyone may implement, quote, and build on it freely with attribution.</li>
-        <li>Reference implementations (e.g. Envoir for DMTAP-mail, Ephor as the reference gateway/broker, Soko for TRACT) are licensed separately under permissive open-source terms so any party — including competitors — may embed them.</li>
+        <li>Reference implementations (e.g. Envoir for DMTAP-mail, Pier as the reference gateway/broker, Soko for TRACT) are licensed separately under permissive open-source terms so any party — including competitors — may embed them.</li>
         <li><strong>No protocol token exists, and none will be added.</strong> Money is an existing stablecoin; trust is staked existing value; free tiers and subsidies are operator policy, never a protocol requirement.</li>
         <li>Copyright © 2026 VulOS (<code>github.com/vul-os</code>).</li>
       </ul>
@@ -1304,7 +1304,7 @@
         <li id="r9"><span class="refnum">[9]</span><span><code>profiles/media.md</code>, <code>social.md</code>, <code>rtc.md</code>, <code>reachability.md</code>, <code>search.md</code>, <code>cloud.md</code> — the MEDIA, SOCIAL, RTC, REACH, SEARCH, and DEPOT profile drafts.</span></li>
         <li id="r10"><span class="refnum">[10]</span><span><code>THREAT-MODEL.md</code> — the family threat model: SEC-1 through SEC-9 and the numbered residuals (R-1 … R-9).</span></li>
         <li id="r11"><span class="refnum">[11]</span><span><code>docs/research/</code> (<code>mixnet.md</code>, <code>vdf.md</code>, <code>PRIMITIVES.md</code>) — far-future cryptography, deliberately quarantined as non-normative.</span></li>
-        <li id="r12"><span class="refnum">[12]</span><span><code>GOVERNANCE.md</code>, <code>LICENSE.md</code>, <code>VERSION</code>, <code>Cargo.toml</code> / <code>crates/kotva-mail/Cargo.toml</code> — status, licensing, versioning, and the reference crates behind Ephor and the Envoir mesh node.</span></li>
+        <li id="r12"><span class="refnum">[12]</span><span><code>GOVERNANCE.md</code>, <code>LICENSE.md</code>, <code>VERSION</code>, <code>Cargo.toml</code> / <code>crates/kotva-mail/Cargo.toml</code> — status, licensing, versioning, and the reference crates behind Pier and the Envoir mesh node.</span></li>
       </ol>
     </section>
 

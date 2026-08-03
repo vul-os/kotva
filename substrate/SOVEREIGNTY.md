@@ -1,6 +1,6 @@
 <!-- no-broker-dep:allow-file: this document IS the substrate's sovereignty ruling — it names
-     Ephor repeatedly because its entire subject is the adoption boundary between the substrate
-     and the broker (including the standing "Ephor is not ready" caveat this document states
+     Pier repeatedly because its entire subject is the adoption boundary between the substrate
+     and the broker (including the standing "Pier is not ready" caveat this document states
      itself). It is a spec, not a build or startup path. -->
 
 # Substrate — Product Sovereignty (adopting the substrate without adopting a broker)
@@ -27,12 +27,12 @@ contract ([`SYNC § 2.2`](SYNC.md#22-determinism-is-the-contract)) and two indep
 merge algebra agree only **most** of the time — they diverge the first time one of them encodes a float,
 sorts a map, or folds a hash differently, and they diverge silently, because each is internally consistent.
 
-**envoir and ephor are the reference implementation pair** of that substrate — envoir the node, ephor the
+**envoir and pier are the reference implementation pair** of that substrate — envoir the node, pier the
 reachability half. They go hand in hand, and their tight coupling to KOTVA is *correct*: a reference
 implementation is supposed to track the spec closely. It is not a template. A product that copies the
 pair's shape inherits a dependency the pair is entitled to and the product is not.
 
-**Ephor is not ready.** As of this ruling the substrate does not treat Ephor as an available component.
+**Pier is not ready.** As of this ruling the substrate does not treat Pier as an available component.
 
 Therefore: **every product that is not the reference pair takes its decentralisation from the
 specification and the shared libraries alone, and MUST additionally be able to deploy itself as a node on
@@ -48,7 +48,7 @@ about whether the product can **stand up its own node**. §3.4 is that addition.
 
 ## 2. The distinction that must be unmistakable
 
-**Adopting the substrate is REQUIRED. Adopting Ephor is NOT.**
+**Adopting the substrate is REQUIRED. Adopting Pier is NOT.**
 
 Those two sentences are not symmetric statements about two optional things. The first is the
 [`README § 3`](README.md#3-adoption-rules-normative) rule 2 obligation — *if a product implements a
@@ -104,7 +104,8 @@ starts the product with the broker configuration absent and asserts it reaches a
 reachability provider reporting `not reachable from behind NAT` — an explicit state, not a silent retry
 loop (`OFFLINE` R-GRADE-1 forbids the silent version).
 
-**What a failing product looks like:** a `use ephor_client::…` in a startup path; a default configuration
+**What a failing product looks like:** a `use pier_gateway::…` (or a stale `ephor_*`, which `BROKER_RE`
+still matches on purpose) in a startup path; a default configuration
 value naming a broker host; a compose file whose only documented peer is a broker; a build that will not
 link without the broker crate present.
 
@@ -222,9 +223,9 @@ against the state root, not against a rendered projection.
 
 ---
 
-## 4. Ephor's position
+## 4. Pier's position
 
-The reachability role Ephor fills is **legitimate and self-hostable**: announce/resolve, signalling,
+The reachability role Pier fills is **legitimate and self-hostable**: announce/resolve, signalling,
 circuit relay and the short-TTL content-blind mailbox — [`ROLES.md`](ROLES.md) sections 2–5, profiling the
 core's §4.2, §14.3 and §14.5 — plus the `reachability-adapter` shape of
 [`profiles/reachability.md`](../profiles/reachability.md). Anyone with a VPS can run one (REACH-9), which is
@@ -238,15 +239,15 @@ one), §2.2 swappable with zero migration (COORD-2), §2.3 the self-host backsto
 scarcity classes, of which network reachability is one (COORD-3), and §2.4/§3 declared visibility
 (COORD-4). This document adds only the named-case reading:
 
-- **R-SOV-1a.** Ephor is one possible implementation behind a product's reachability seam, never the seam
-  itself. A product MUST NOT name Ephor in a default configuration value, a default-on build feature, or
+- **R-SOV-1a.** Pier is one possible implementation behind a product's reachability seam, never the seam
+  itself. A product MUST NOT name Pier in a default configuration value, a default-on build feature, or
   the minimum-setup path of its documentation. Naming it under "optional: NAT traversal" is correct;
   naming it under "getting started" is a violation of §3.1.
-- **R-SOV-1b.** Not-ready is a **status**, and status claims decay. A product MUST NOT record Ephor as
-  available, and a document that describes Ephor's state MUST date the claim, so that "not ready" is
+- **R-SOV-1b.** Not-ready is a **status**, and status claims decay. A product MUST NOT record Pier as
+  available, and a document that describes Pier's state MUST date the claim, so that "not ready" is
   re-checked rather than inherited forever in either direction.
 
-Nothing here demotes the reference pair. envoir and ephor may depend on each other as closely as they
+Nothing here demotes the reference pair. envoir and pier may depend on each other as closely as they
 like; that coupling is the reference pair's business and this document constrains only products that are
 not it.
 
@@ -315,7 +316,7 @@ cp kotva/tools/gates/no-broker-dep.sh <product>/tools/gates/
 sh tools/gates/no-broker-dep.sh .
 # a product that does have a seam declares it, and the manifest that legitimately names it
 # (every declared path must EXIST — a stale entry exits 2 rather than widening the exemption):
-BROKER_RE='pier-|vul-os/pier|ephor|vulos-relayd' \
+BROKER_RE='pier-|vul-os/pier|pier|vulos-relayd' \
 SEAM_PATHS='src/reach/broker Cargo.toml' \
 SEAM_FLAG='broker-reach' \
   sh tools/gates/no-broker-dep.sh .
@@ -332,12 +333,12 @@ toolchains installed and an asserted control count — 10 controls across 2 ecos
 selftest that quietly stopped exercising an ecosystem fails the build.
 
 **`BROKER_RE` must track the broker's name, and the self-test must plant the CURRENT one.**
-The broker was renamed `ephor` → `pier`, and the default `BROKER_RE` was not updated with it. For a
+The broker was renamed `pier` → `pier`, and the default `BROKER_RE` was not updated with it. For a
 period every copy of this gate — in this repo and in every product that had lifted it — reported
 PASS while matching only a name nothing was called any more: a product could take a hard
 `pier-client` dependency and the gate would not see it. The self-test did not catch this because
-all of its fixtures were also written in `ephor`, so they could not distinguish "the gate matches
-the broker" from "the gate matches the string `ephor`". The rule that follows: when the broker is
+all of its fixtures were also written in `pier`, so they could not distinguish "the gate matches
+the broker" from "the gate matches the string `pier`". The rule that follows: when the broker is
 renamed, the OLD name stays in `BROKER_RE` (a stale dependency is still a violation) and the new
 one is added, and a self-test control must plant the broker under its current name. Those are the
 `rs_dep_current_name` / `rs_default_current_name` controls; blank the current name out of
@@ -395,7 +396,7 @@ gate. Match the shapes the broker actually takes (`pier-`, `vul-os/pier`) instea
   new normative area in the waist ([`README § 1`](README.md)). Adopting the shared engine buys byte-identical
   behaviour across surfaces; it does not buy maturity that does not exist yet, and the frozen vectors bound
   what has been pinned down, not what has been proven safe.
-- **Status claims about another repository are the weakest sentence here.** "Ephor is not ready" is a
+- **Status claims about another repository are the weakest sentence here.** "Pier is not ready" is a
   2026-07-30 owner statement recorded by this document, not a property this document can verify on every
   read — hence R-SOV-1b's dating requirement, which is a mitigation and not a fix.
 

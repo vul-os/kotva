@@ -1,8 +1,8 @@
-<!-- no-broker-dep:allow-file: this master-index spec names Ephor as the reference
+<!-- no-broker-dep:allow-file: this master-index spec names Pier as the reference
      operator/gateway when describing the seams model — expository prose in a spec document, not
-     a build or startup path. NOTE, separate from this gate: lines 89-90 describe Ephor running
-     reference seams in the PRESENT TENSE ("the reference operator Ephor runs..."), which
-     substrate/SOVEREIGNTY.md's own ruling elsewhere states is not yet true ("Ephor is not
+     a build or startup path. NOTE, separate from this gate: lines 89-90 describe Pier running
+     reference seams in the PRESENT TENSE ("the reference operator Pier runs..."), which
+     substrate/SOVEREIGNTY.md's own ruling elsewhere states is not yet true ("Pier is not
      ready"). That wording is a known, separately-flagged inconsistency and is deliberately left
      untouched by this marker — this comment exists only to make the gate check pass honestly,
      not to paper over the tense mismatch. -->
@@ -95,8 +95,8 @@ Four strata, plus the seams that plug in from the side. The colours are the **ra
    ([`coordinator/CONTRACT § 5`](coordinator/CONTRACT.md)) and bindings
    ([`bindings/README.md`](bindings/README.md)) plug in **laterally**: a marketplace *reaches sideways*
    to an `oracle`; you don't bake the oracle into the app. They obey the contract — **accountable ·
-   swappable · never load-bearing** — and the reference operator **Ephor** runs *reference* seams
-   (gateway · relay · reachability) **without them ever being canonical** (replace Ephor's with a DNS
+   swappable · never load-bearing** — and the reference operator **Pier** runs *reference* seams
+   (gateway · relay · reachability) **without them ever being canonical** (replace Pier's with a DNS
    change). *Honest limits:* **swappable-in-provider ≠ dispensable** — you can change *which* gateway,
    not do legacy email *without* one; and a reference seam everyone uses becomes the **de-facto**
    default (the default-gravity residual, [`DIRECTION § 8`](DIRECTION.md) — mitigated by

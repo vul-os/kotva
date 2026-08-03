@@ -5,7 +5,7 @@ edition = "2021"
 rust-version = "1.75"
 license = "MIT"
 # KOTVA-Mail (a.k.a. DMTAP) server layer. Carved from envoir's `dmtap-mail`; shared by the envoir
-# node and the Ephor mail gateway (the mail-adapter coordinator kind). Pinned by tag.
+# node and the Pier mail gateway (the mail-adapter coordinator kind). Pinned by tag.
 description = "KOTVA-Mail (DMTAP) server layer — IMAP4rev2/rev1, SMTP submission, POP3, JMAP, and autodiscovery servers projecting the MOTE store for legacy and modern mail clients"
 repository = "https://github.com/vul-os/kotva"
 homepage = "https://github.com/vul-os/kotva"
@@ -17,7 +17,7 @@ categories = ["email", "network-programming"]
 # testable offline. Real TCP listeners live behind the optional `net` feature (std threads only —
 # no async runtime is required). See README.md for the capability/extension matrix.
 #
-# no-broker-dep:allow-file: line 8 names the Ephor mail gateway only as an example downstream
+# no-broker-dep:allow-file: line 8 names the Pier mail gateway only as an example downstream
 # consumer of this tag-pinned crate (kotva-mail has no dependency on it — this manifest is what
 # gets depended ON). This is a workspace member; the root workspace's default-feature `cargo
 # tree` closure (which resolves this crate too) contains no broker crate.
