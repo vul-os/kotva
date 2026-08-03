@@ -1,0 +1,45 @@
+{
+  "name": "kotva-client",
+  "version": "0.1.0",
+  "description": "Browser/JS implementation of the KOTVA substrate protocols: DMTAP-PUB chunk-tree range proofs (substrate/FEEDS.md §5.3), the relay-box AEAD wire format, X3DH forward-secret content keys, authenticated signaling, and the key-addressed rendezvous client.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./chunkProof": "./src/chunkProof.js",
+    "./relayBox": "./src/relayBox.js",
+    "./prekeys": "./src/prekeys.js",
+    "./signaling": "./src/signaling.js",
+    "./rendezvous": "./src/rendezvous.js",
+    "./rendezvousSignaling": "./src/rendezvousSignaling.js",
+    "./secureTransport": "./src/secureTransport.js",
+    "./errors": "./src/errors.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE-MIT"
+  ],
+  "scripts": {
+    "test": "vitest run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vul-os/kotva.git",
+    "directory": "bindings/js"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "dependencies": {
+    "@noble/ciphers": "^2.2.0",
+    "@noble/curves": "^2.2.0",
+    "@noble/hashes": "^2.2.0"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.7"
+  }
+}
