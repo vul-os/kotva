@@ -1528,3 +1528,36 @@ CDDL of §24.18. The `VIDEO` cases (§24) are likewise `construction-todo` recip
 `DMTAP-VIDEO-03`/`-05` (the rendition-derivation statement, §24.4.4) *do* have a signable preimage
 (DS-tag `"DMTAP-VID-v0/derivation"`) and become byte-backed KATs once a fixed-input derivation vector
 is generated, re-derivable with `blake3` + `ed25519` and no reference implementation.
+
+## Second-implementation decoder — `conformance/decoders/python/`
+
+[`conformance/decoders/python/`](decoders/python/) holds a **dependency-free Python decoder** for
+the §18.8a coordinator objects (`CoordinatorDescriptor`, `Visibility`, `Tariff`, `UsageReceipt`)
+and the five DEPOT schemas ([`profiles/cloud.md`](../profiles/cloud.md) §3.3, §3.6, §3.7, §4.1,
+§7), written **from the specification text** rather than from the Rust. It carries its own
+canonical-CBOR decoder — shortest-form arguments, no indefinite-length items, map keys ordered by
+their **encoded** bytes, no duplicate keys, no trailing bytes, no floats/tags/`null`/`undefined` —
+because a decoder built on a third-party CBOR library would inherit that library's idea of
+"canonical", which is the property under test. Run it with
+`python3 -m unittest discover -s conformance/decoders/python -v` (no `pip`, no Rust toolchain).
+
+`test_vectors.py` **reads the hex out of** `crates/kotva-depot/tests/vectors.rs` and
+`crates/kotva-coordinator/tests/vectors.rs` at run time instead of copying it, so the two corpora
+cannot drift apart silently, and asserts every field, every corruption control, and a
+false-positive control beside each rejection.
+
+**What it proves.** That the frozen corpora are decodable from the spec alone by code that never
+saw the encoder — §18's own requirement ("from this text alone"). It is mutation-verified in the
+one direction that matters: moving `DepotImage.bytes` from key 4 to key 8 in the Rust encoder,
+the Rust decoder **and** the frozen vector together leaves all 138 Rust tests green — the whole
+Rust side moves as one — and turns the Python suite red (`DepotImage: unrecognised key(s) [8]`).
+A Rust-only corpus cannot catch a Rust-wide drift; this can.
+
+**What it does not prove.** It is a second *language*, not a second *team*: same author, same
+session, same reading of the same document, so a misreading of the spec is still shared. It
+decodes and re-encodes; it verifies no signature (the corpus carries filler `sig-val`s of the
+correct §18.2 length, not real signatures). Two disagreements between the spec and the corpus that
+it records rather than resolves: the DEPOT vectors carry **3-byte** values in `hash`-typed fields
+where §18.1.5 and §18.1.7's prelude both fix 33 B, and `DepotFormula.Part.provider` is typed
+`ik-pub` while `DepotFormula` carries no `suite` hook (§18.1.4) for §18.2 to select a length row
+with — so that length is unenforceable as specified.
