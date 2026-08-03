@@ -166,7 +166,13 @@ Only **`bucket`** and **`volume`** can keep a payload cryptographically out of t
 **and only for what the client actually encrypted**. Both accept arbitrary bytes, so their blindness
 is the *client's* property, not the operator's architecture: hand either one plaintext and it is
 readable while the operator's declaration remains truthful (CONTRACT §3.3). A deployment wanting
-unconditional blindness MUST make client-side encryption non-optional on ingest. **`edge-fn`, `box`,
+unconditional blindness MUST make client-side encryption non-optional on ingest. **And *payload* is
+the exact word.** An encrypted `bucket` still leaves the operator holding object **keys**, sizes,
+request times and access patterns — and object keys are ordinarily plaintext paths chosen to be
+legible to humans (`/users/42/tax-2025.pdf`), which is why the `volume` row states its metadata
+residual outright and this one must too. Encrypting *contents* is not encrypting *names*: a
+deployment that needs the names hidden has to encrypt or randomise them itself, and DEPOT neither
+does that nor detects that it was skipped. **`edge-fn`, `box`,
 and an unencrypted `volume` are `terminating`** — the operator sees the data or the computation. This
 is normal and honest (Fastmail-tier trust); it is **not** cryptographic blindness, and DEPOT-2
 forbids pretending otherwise.
@@ -662,6 +668,14 @@ operator*; they are not this. This is your own box's logs.
   by a log-shipping bearer token, a signed URL, or an unauthenticated collector endpoint. OTLP is
   adopted for its *wire format*, not for its default transport posture: an operator MUST NOT expose a
   plaintext or anonymous OTLP receiver for a user's telemetry.
+- **It is an operability right, not an audit trail.** The stream is produced by the operator's own
+  platform, on the operator's own host, signed by nobody — so an operator with root can drop, delay
+  or fabricate a record in it, exactly as §5.2 concedes for a human with `console`. DEPOT-14 lets
+  you **run** your system: see the crash, the latency, the OOM, and compare operators on what they
+  each report. It MUST NOT be read as evidence **about** the operator in a dispute; that path is
+  §7's third-party measurements and the receipt trail (§8), which are signed by parties with an
+  identity at stake. "Append-only" above describes the delivery shape a consumer sees, never a
+  tamper-evident log.
 - **Honest visibility.** Telemetry from a `terminating` `box` is already visible to the operator, so
   this seam adds no exposure there. It **does** add exposure when telemetry is shipped *elsewhere*: a
   third-party observability provider is its own `infra-service` with its own declaration, and logs
@@ -737,7 +751,17 @@ Three rules make this vocabulary load-bearing rather than decorative:
 - **`console` is the privilege cliff, and MUST be separately delegable.** Interactive access to a
   `box` subsumes nearly every other ability — it can read secrets, alter state, and forge the
   evidence of having done so. A token granting `console` MUST NOT be issued as an implicit
-  consequence of granting `provision` or `reconfigure`.
+  consequence of granting `provision` or `reconfigure`. **The cliff is narrower than the word
+  suggests, and the rest of the registry is not thereby low-privilege.** `provision` names a
+  client-supplied `DepotImage` (§4.2) and `reconfigure` mutates a box's declared configuration,
+  cloud-init among it — so either is **arbitrary code on a machine**, reached without `console` and
+  without touching this rule; `deploy` is the same for `edge-fn`. And `snapshot` on a `box` or
+  `volume` produces a byte-level copy of that instance's storage, which makes it an **exfiltration
+  ability of the same class as `export`** while sitting unremarked in the per-elemental table above.
+  What separating `console` genuinely buys is that interactive access to an **already-running**
+  instance — its live memory, its mounted secrets, its open sessions — is not smuggled in with
+  lifecycle management. A grant that stops short of `console` is a *bounded* credential, never a
+  harmless one, and an issuer MUST NOT treat the absence of `console` as the absence of reach.
 - **An operator MUST NOT offer `destroy` while withholding `export`.** This binds the operator's
   *product*, not any individual grant: a service where the holder of the account can delete an
   instance but can never extract it has made the exit weaker than the loss (DEPOT-4). It is
@@ -969,6 +993,14 @@ Three rules make this vocabulary load-bearing rather than decorative:
   non-droppable because every link's caveats are checked and an unrecognised one fails closed. A
   capability that can act on the user's **mail or identity** MUST be scoped separately from one that
   acts on infrastructure.
+  **"Never wider" is the invariant; "strictly narrower" is not, and the difference is a deployment
+  fact.** §18.7.3 requires each link to be **≤** its parent, so a child repeating its parent's `caps`
+  verbatim under a different `aud` is fully conformant: delegation **fans out at unchanged privilege
+  by default**, and DEPOT requires no non-delegation caveat to stop it. The bounds that do exist are
+  the mandatory `exp` (no eternal capability) and revoking an ancestor, which kills every descendant
+  at once. The bound that does not exist is any limit on how many keys come to hold the parent's
+  full authority — so an issuer who wants narrowing MUST narrow it, by `resource`, by `ability`, or
+  by an added caveat; the chain will not do it on their behalf.
 - **DEPOT-12 — secrets are sealed to the box, never held in operator plaintext.** Configuration
   secrets an `infra-service` stores on a user's behalf (environment values, credentials, connection
   strings, and the DEPOT-7 backing credential) MUST be **encrypted to the box's device key by the
