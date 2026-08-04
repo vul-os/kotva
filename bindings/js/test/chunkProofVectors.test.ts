@@ -57,10 +57,51 @@ const CORPUS_PATH = fileURLToPath(
   new URL('../../../conformance/vectors/chunkproof_vectors.json', import.meta.url),
 )
 
-const toHex = (b) => Array.from(b).map((x) => x.toString(16).padStart(2, '0')).join('')
-const fromHex = (h) => Uint8Array.from(h.match(/../g) || [], (x) => parseInt(x, 16))
+// ── the corpus schema, as produced by gen_chunkproof_vectors.py ──────────────
+// This is untrusted-until-hash-pinned external JSON, not a TS-authored wire
+// format, so the shape below only needs to cover the fields this suite reads.
 
-function loadCorpus() {
+interface ChunkProofVectorProof {
+  index: number
+  path_hex: string[]
+  proof_body_hex: string
+}
+
+interface ChunkProofVector {
+  name: string
+  n: number
+  chunks_hex: string[]
+  chunk_addrs_hex: string[]
+  proofs: ChunkProofVectorProof[]
+  root_hex: string
+  root_b64url: string
+}
+
+interface ChunkProofCorruptionControl {
+  name: string
+  expect: string
+  surface: 'verify' | 'decode'
+  defect: string
+  base_vector: string
+  index: number
+  n_chunks: number
+  root_hex: string
+  chunk_hex: string
+  path_hex: string[]
+  proof_body_hex: string
+}
+
+interface ChunkProofCorpus {
+  format: string
+  vectors: ChunkProofVector[]
+  corruption_controls: ChunkProofCorruptionControl[]
+  counts: { vectors: number, proofs: number, corruption_controls: number }
+}
+
+const toHex = (b: Uint8Array) => Array.from(b).map((x) => x.toString(16).padStart(2, '0')).join('')
+const fromHex = (h: string) => Uint8Array.from(h.match(/../g) || [], (x) => parseInt(x, 16))
+
+function loadCorpus(): ChunkProofCorpus {
   // An absent corpus is a FAILURE, not a skip: readFileSync throwing here fails
   // the file, which is the point.
   const raw = readFileSync(CORPUS_PATH)
@@ -69,11 +110,11 @@ function loadCorpus() {
     throw new Error(
       `corpus sha256 = ${digest}, pinned ${CHUNKPROOF_VECTORS_SHA256}. This copy and pier's ` +
         'have diverged, or this one was edited. Fix the IMPLEMENTATION, or regenerate the ' +
-        'corpus and update the pin in BOTH bindings/js/test/chunkProofVectors.test.js and ' +
+        'corpus and update the pin in BOTH bindings/js/test/chunkProofVectors.test.ts and ' +
         'pier tunnel/pubcache/vectors_test.go.',
     )
   }
-  const c = JSON.parse(raw.toString('utf8'))
+  const c = JSON.parse(raw.toString('utf8')) as ChunkProofCorpus
   if (c.format !== 'kotva-conformance-vectors/1') {
     throw new Error(`corpus format ${c.format}, want kotva-conformance-vectors/1`)
   }
@@ -116,7 +157,7 @@ describe('shared § 5.3 corpus — the cross-language lock', () => {
       const data = v.chunks_hex.map(fromHex)
       const chunks = data.map((d) => hashBytes(d))
       for (let i = 0; i < v.n; i++) {
-        expect(toHex(chunks[i]), `${v.name} chunk ${i}: address`).toBe(v.chunk_addrs_hex[i])
+        expect(toHex(chunks[i]!), `${v.name} chunk ${i}: address`).toBe(v.chunk_addrs_hex[i])
         addrsChecked++
       }
 
@@ -146,7 +187,7 @@ describe('shared § 5.3 corpus — the cross-language lock', () => {
             root: fromHex(v.root_hex),
             nChunks: v.n,
             index: p.index,
-            chunk: data[p.index],
+            chunk: data[p.index]!,
             path: decoded.path,
           }),
         ).not.toThrow()
@@ -214,21 +255,23 @@ describe('shared § 5.3 corpus — the cross-language lock', () => {
   // entries with the defect ABSENT are ACCEPTED, so "rejects the controls" means
   // something.
   it('accepts the undefected form of the controls it rejects', () => {
-    const byName = Object.fromEntries(corpus.vectors.map((v) => [v.name, v]))
+    const byName: Record<string, ChunkProofVector> = Object.fromEntries(
+      corpus.vectors.map((v): [string, ChunkProofVector] => [v.name, v]),
+    )
     let repaired = 0
 
     for (const c of corpus.corruption_controls) {
       if (c.surface !== 'verify') continue
       const v = byName[c.base_vector]
       expect(v, `${c.name}: base vector ${c.base_vector} missing`).toBeTruthy()
-      const p = v.proofs[c.index]
+      const p = v!.proofs[c.index]
       if (!p) continue
       expect(
         isChunkProofValid({
-          root: fromHex(v.root_hex),
-          nChunks: v.n,
+          root: fromHex(v!.root_hex),
+          nChunks: v!.n,
           index: c.index,
-          chunk: fromHex(v.chunks_hex[c.index]),
+          chunk: fromHex(v!.chunks_hex[c.index]!),
           path: p.path_hex.map(fromHex),
         }),
         `${c.name}: the undefected proof for chunk ${c.index} must VERIFY, or the control ` +
@@ -242,8 +285,8 @@ describe('shared § 5.3 corpus — the cross-language lock', () => {
     )
     // Every decode control is likewise built over a valid body; assert one such
     // body still decodes, so "throws" is not the decoder's only behaviour.
-    const pinned = byName['chunkproof_n5_abcde']
-    expect(decodeChunkProof(fromHex(pinned.proofs[4].proof_body_hex)).index).toBe(4)
+    const pinned = byName['chunkproof_n5_abcde']!
+    expect(decodeChunkProof(fromHex(pinned.proofs[4]!.proof_body_hex)).index).toBe(4)
   })
 
   // The corpus must SUPERSEDE the hand-copied constants, not sit beside them:
@@ -263,8 +306,8 @@ describe('shared § 5.3 corpus — the cross-language lock', () => {
 
     const v = corpus.vectors.find((x) => x.name === 'chunkproof_n5_abcde')
     expect(v, 'the fielded n=5 vector must be IN the corpus').toBeTruthy()
-    expect(v.root_b64url).toBe(INTEROP_ROOT_B64)
-    expect(v.chunks_hex).toEqual(['61', '62', '63', '64', '65'])
-    expect(v.proofs.map((p) => p.proof_body_hex)).toEqual(INTEROP_PROOF_HEX)
+    expect(v!.root_b64url).toBe(INTEROP_ROOT_B64)
+    expect(v!.chunks_hex).toEqual(['61', '62', '63', '64', '65'])
+    expect(v!.proofs.map((p) => p.proof_body_hex)).toEqual(INTEROP_PROOF_HEX)
   })
 })

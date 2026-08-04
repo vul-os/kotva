@@ -28,8 +28,8 @@ import {
 //     all, and this one runs in a browser against an untrusted PUB server, so
 //     most of what follows is an attack.
 
-const toHex = (b) => Array.from(b).map((x) => x.toString(16).padStart(2, '0')).join('')
-const utf8 = (s) => new TextEncoder().encode(s)
+const toHex = (b: Uint8Array) => Array.from(b).map((x) => x.toString(16).padStart(2, '0')).join('')
+const utf8 = (s: string) => new TextEncoder().encode(s)
 
 // ── the interop vector, copied verbatim from tunnel/pubcache/proof_test.go ────
 //
@@ -55,7 +55,7 @@ const VECTOR_DATA = ['a', 'b', 'c', 'd', 'e'].map(utf8)
 const VECTOR_N = VECTOR_DATA.length
 const vectorChunks = () => VECTOR_DATA.map(hashBytes)
 
-const fromHex = (h) => Uint8Array.from(h.match(/../g).map((x) => parseInt(x, 16)))
+const fromHex = (h: string) => Uint8Array.from((h.match(/../g) ?? []).map((x) => parseInt(x, 16)))
 
 // ── the primitive ────────────────────────────────────────────────────────────
 
@@ -82,7 +82,7 @@ describe('chunk-tree interop vector (cross-language)', () => {
   it('computes every audit path byte-for-byte', () => {
     const chunks = vectorChunks()
     for (let i = 0; i < VECTOR_N; i++) {
-      expect(toHex(encodeChunkProof(i, chunkProof(chunks, i)))).toBe(INTEROP_PROOF_HEX[i])
+      expect(toHex(encodeChunkProof(i, chunkProof(chunks, i)))).toBe(INTEROP_PROOF_HEX[i]!)
     }
   })
 
@@ -90,10 +90,10 @@ describe('chunk-tree interop vector (cross-language)', () => {
     // The load-bearing direction: bytes produced by the GO encoder, decoded and
     // folded by the JS verifier, against the trusted root.
     for (let i = 0; i < VECTOR_N; i++) {
-      const { index, path } = decodeChunkProof(fromHex(INTEROP_PROOF_HEX[i]))
+      const { index, path } = decodeChunkProof(fromHex(INTEROP_PROOF_HEX[i]!))
       expect(index).toBe(i)
       expect(() =>
-        verifyChunkProof({ root: INTEROP_ROOT_B64, nChunks: VECTOR_N, index: i, chunk: VECTOR_DATA[i], path }),
+        verifyChunkProof({ root: INTEROP_ROOT_B64, nChunks: VECTOR_N, index: i, chunk: VECTOR_DATA[i]!, path }),
       ).not.toThrow()
     }
   })
@@ -114,7 +114,7 @@ describe('chunk-tree interop vector (cross-language)', () => {
 // ── tree shape across every size ─────────────────────────────────────────────
 
 describe('tree shape', () => {
-  const data = (n) => Array.from({ length: n }, (_, i) => utf8(`chunk-${i}`))
+  const data = (n: number) => Array.from({ length: n }, (_, i) => utf8(`chunk-${i}`))
 
   it('proves every chunk of every tree size up to 64', () => {
     // Walks every index of every shape in the range where promotion patterns
@@ -126,7 +126,7 @@ describe('tree shape', () => {
       const root = manifestRoot(chunks)
       for (let i = 0; i < n; i++) {
         const path = chunkProof(chunks, i)
-        expect(isChunkProofValid({ root, nChunks: n, index: i, chunk: d[i], path })).toBe(true)
+        expect(isChunkProofValid({ root, nChunks: n, index: i, chunk: d[i]!, path })).toBe(true)
       }
     }
   })
@@ -143,21 +143,21 @@ describe('tree shape', () => {
 describe('adversarial — a lying PUB server', () => {
   const chunks = () => vectorChunks()
   const root = INTEROP_ROOT_B64
-  const good = (i) => ({ root, nChunks: VECTOR_N, index: i, chunk: VECTOR_DATA[i], path: chunkProof(chunks(), i) })
+  const good = (i: number) => ({ root, nChunks: VECTOR_N, index: i, chunk: VECTOR_DATA[i]!, path: chunkProof(chunks(), i) })
 
   it('rejects a wrong index (valid proof, wrong leaf)', () => {
     // The proof for chunk 0 presented as chunk 1. Both are real proofs of the
     // same tree; only the pairing order and level differ, so this is the attack
     // a naive verifier passes.
     const path = chunkProof(chunks(), 0)
-    expect(isChunkProofValid({ root, nChunks: VECTOR_N, index: 1, chunk: VECTOR_DATA[0], path })).toBe(false)
-    expect(isChunkProofValid({ root, nChunks: VECTOR_N, index: 1, chunk: VECTOR_DATA[1], path })).toBe(false)
+    expect(isChunkProofValid({ root, nChunks: VECTOR_N, index: 1, chunk: VECTOR_DATA[0]!, path })).toBe(false)
+    expect(isChunkProofValid({ root, nChunks: VECTOR_N, index: 1, chunk: VECTOR_DATA[1]!, path })).toBe(false)
   })
 
   it('rejects tampered chunk bytes, including a single flipped bit', () => {
     for (let i = 0; i < VECTOR_N; i++) {
-      const tampered = Uint8Array.from(VECTOR_DATA[i])
-      tampered[0] ^= 0x01
+      const tampered = Uint8Array.from(VECTOR_DATA[i]!)
+      tampered[0] = tampered[0]! ^ 0x01
       expect(isChunkProofValid({ ...good(i), chunk: tampered })).toBe(false)
     }
     // Appending is a tamper too — the leaf is over the chunk's address, so any
@@ -173,8 +173,8 @@ describe('adversarial — a lying PUB server', () => {
       const base = chunkProof(chunks(), i)
       for (let e = 0; e < base.length; e++) {
         const path = base.map((h) => Uint8Array.from(h))
-        path[e][0] ^= 0x01
-        expect(isChunkProofValid({ root, nChunks: VECTOR_N, index: i, chunk: VECTOR_DATA[i], path })).toBe(false)
+        path[e]![0] = path[e]![0]! ^ 0x01
+        expect(isChunkProofValid({ root, nChunks: VECTOR_N, index: i, chunk: VECTOR_DATA[i]!, path })).toBe(false)
       }
     }
   })
@@ -184,14 +184,14 @@ describe('adversarial — a lying PUB server', () => {
     // different node even though every element is authentic.
     const path = chunkProof(chunks(), 0)
     expect(path.length).toBe(3)
-    expect(isChunkProofValid({ root, nChunks: VECTOR_N, index: 0, chunk: VECTOR_DATA[0], path: [path[1], path[0], path[2]] })).toBe(false)
-    expect(isChunkProofValid({ root, nChunks: VECTOR_N, index: 0, chunk: VECTOR_DATA[0], path: [...path].reverse() })).toBe(false)
+    expect(isChunkProofValid({ root, nChunks: VECTOR_N, index: 0, chunk: VECTOR_DATA[0]!, path: [path[1]!, path[0]!, path[2]!] })).toBe(false)
+    expect(isChunkProofValid({ root, nChunks: VECTOR_N, index: 0, chunk: VECTOR_DATA[0]!, path: [...path].reverse() })).toBe(false)
   })
 
   it('rejects a truncated path', () => {
     const path = chunkProof(chunks(), 0)
     for (let k = 0; k < path.length; k++) {
-      expect(isChunkProofValid({ root, nChunks: VECTOR_N, index: 0, chunk: VECTOR_DATA[0], path: path.slice(0, k) })).toBe(false)
+      expect(isChunkProofValid({ root, nChunks: VECTOR_N, index: 0, chunk: VECTOR_DATA[0]!, path: path.slice(0, k) })).toBe(false)
     }
   })
 
@@ -199,12 +199,12 @@ describe('adversarial — a lying PUB server', () => {
     // Trailing unconsumed material is refused explicitly rather than ignored;
     // ignoring it would let a server attach unverified bytes to a valid proof.
     const path = chunkProof(chunks(), 0)
-    expect(isChunkProofValid({ root, nChunks: VECTOR_N, index: 0, chunk: VECTOR_DATA[0], path: [...path, new Uint8Array(32)] })).toBe(false)
+    expect(isChunkProofValid({ root, nChunks: VECTOR_N, index: 0, chunk: VECTOR_DATA[0]!, path: [...path, new Uint8Array(32)] })).toBe(false)
     // Chunk 4 is the promoted node with a 1-element path; padding it to 3 is the
     // natural "my verifier ignores promotion" forgery.
     const p4 = chunkProof(chunks(), 4)
     expect(p4.length).toBe(1)
-    expect(isChunkProofValid({ root, nChunks: VECTOR_N, index: 4, chunk: VECTOR_DATA[4], path: [...p4, new Uint8Array(32), new Uint8Array(32)] })).toBe(false)
+    expect(isChunkProofValid({ root, nChunks: VECTOR_N, index: 4, chunk: VECTOR_DATA[4]!, path: [...p4, new Uint8Array(32), new Uint8Array(32)] })).toBe(false)
   })
 
   it('rejects a wrong root', () => {
@@ -212,7 +212,7 @@ describe('adversarial — a lying PUB server', () => {
     expect(isChunkProofValid({ ...good(0), root: otherRoot })).toBe(false)
     // A root differing in exactly one bit must fail too.
     const near = parseAddr(root)
-    near[near.length - 1] ^= 0x01
+    near[near.length - 1] = near[near.length - 1]! ^ 0x01
     expect(isChunkProofValid({ ...good(0), root: near })).toBe(false)
   })
 
@@ -230,8 +230,8 @@ describe('adversarial — a lying PUB server', () => {
     // so a wrong nChunks cannot smuggle a bad chunk past a correct root. It is
     // the reason the API documents that nChunks must come from the manifest
     // header the caller already trusts, and never from the proof response.
-    const accepted = (i) => {
-      const out = []
+    const accepted = (i: number) => {
+      const out: number[] = []
       for (let n = 1; n <= 40; n++) if (isChunkProofValid({ ...good(i), nChunks: n })) out.push(n)
       return out
     }
@@ -257,26 +257,28 @@ describe('adversarial — a lying PUB server', () => {
   it('rejects a path whose elements are the wrong width', () => {
     expect(isChunkProofValid({ ...good(0), path: [new Uint8Array(31), new Uint8Array(32), new Uint8Array(32)] })).toBe(false)
     expect(isChunkProofValid({ ...good(0), path: [new Uint8Array(33), new Uint8Array(32), new Uint8Array(32)] })).toBe(false)
-    expect(isChunkProofValid({ ...good(0), path: 'not-an-array' })).toBe(false)
+    // Deliberately the wrong runtime type, to exercise the `Array.isArray`
+    // guard inside verifyChunkProof — not a value any caller's types permit.
+    expect(isChunkProofValid({ ...good(0), path: 'not-an-array' as unknown as Uint8Array[] })).toBe(false)
   })
 
   it('throws ChunkProofError with a diagnostic code, never a bare Error', () => {
     // Callers must be able to tell a refusal from a crash.
-    let err
+    let err: unknown
     try {
       verifyChunkProof({ ...good(0), chunk: utf8('tampered') })
     } catch (e) {
       err = e
     }
     expect(err).toBeInstanceOf(ChunkProofError)
-    expect(err.code).toBe('PROOF_INVALID')
+    expect((err as ChunkProofError).code).toBe('PROOF_INVALID')
   })
 })
 
 // ── adversarial: the wire decoder ────────────────────────────────────────────
 
 describe('adversarial — the § 5.3 proof body decoder', () => {
-  const validBody = () => fromHex(INTEROP_PROOF_HEX[0])
+  const validBody = () => fromHex(INTEROP_PROOF_HEX[0]!)
 
   it('rejects trailing bytes', () => {
     const b = validBody()
@@ -294,7 +296,7 @@ describe('adversarial — the § 5.3 proof body decoder', () => {
     // index 0 encoded as 0x18 0x00 (one-byte head) rather than 0x00. Two byte
     // strings that mean one proof is exactly what a strict decoder forbids.
     const b = validBody()
-    const bad = Uint8Array.from([b[0], 0x18, 0x00, ...b.slice(2)])
+    const bad = Uint8Array.from([b[0]!, 0x18, 0x00, ...b.slice(2)])
     expect(() => decodeChunkProof(bad)).toThrow(ChunkProofError)
   })
 
@@ -330,10 +332,10 @@ describe('verifyChunkResponse', () => {
       root: INTEROP_ROOT_B64,
       nChunks: VECTOR_N,
       index: 2,
-      chunk: VECTOR_DATA[2],
-      proof: fromHex(INTEROP_PROOF_HEX[2]),
+      chunk: VECTOR_DATA[2]!,
+      proof: fromHex(INTEROP_PROOF_HEX[2]!),
     })
-    expect(Array.from(out)).toEqual(Array.from(VECTOR_DATA[2]))
+    expect(Array.from(out)).toEqual(Array.from(VECTOR_DATA[2]!))
   })
 
   it('rejects a valid proof for a DIFFERENT chunk than the one requested', () => {
@@ -346,8 +348,8 @@ describe('verifyChunkResponse', () => {
         root: INTEROP_ROOT_B64,
         nChunks: VECTOR_N,
         index: 3,
-        chunk: VECTOR_DATA[1],
-        proof: fromHex(INTEROP_PROOF_HEX[1]),
+        chunk: VECTOR_DATA[1]!,
+        proof: fromHex(INTEROP_PROOF_HEX[1]!),
       }),
     ).toThrow(ChunkProofError)
   })
@@ -359,7 +361,7 @@ describe('verifyChunkResponse', () => {
         nChunks: VECTOR_N,
         index: 0,
         chunk: utf8('A'),
-        proof: fromHex(INTEROP_PROOF_HEX[0]),
+        proof: fromHex(INTEROP_PROOF_HEX[0]!),
       }),
     ).toThrow(ChunkProofError)
   })

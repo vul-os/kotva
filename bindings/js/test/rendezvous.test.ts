@@ -7,6 +7,7 @@ import {
   b64urlEncode,
   b64urlDecode,
   RENDEZVOUS_DOMAINS,
+  type RendezvousFetchResponse,
 } from '../src/rendezvous.js'
 
 // The SAME canonical vector asserted by the Go node (tunnel/rendezvous/
@@ -17,7 +18,7 @@ const CANONICAL_VECTOR_HEX =
   '6e6f6e6365313233000000066d6574612d78000000077773733a2f2f6100000009' +
   '68747470733a2f2f62'
 
-function toHex(bytes) {
+function toHex(bytes: Uint8Array) {
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
@@ -58,17 +59,24 @@ describe('RendezvousIdentity', () => {
   })
 })
 
-function mockFetchCapture(responder) {
-  const calls = []
-  const fetchImpl = vi.fn(async (url, opts) => {
-    const body = opts && opts.body ? JSON.parse(opts.body) : null
+interface CapturedCall {
+  url: string
+  method: string
+  body: any
+  headers?: HeadersInit
+}
+
+function mockFetchCapture(responder: (args: { url: string, opts?: RequestInit, body: any }) => RendezvousFetchResponse | undefined) {
+  const calls: CapturedCall[] = []
+  const fetchImpl = vi.fn(async (url: string, opts?: RequestInit): Promise<RendezvousFetchResponse> => {
+    const body = opts && opts.body ? JSON.parse(opts.body as string) : null
     calls.push({ url, method: opts?.method || 'GET', body, headers: opts?.headers })
     return responder({ url, opts, body }) || jsonResponse(200, { ok: true })
   })
   return { fetchImpl, calls }
 }
 
-function jsonResponse(status, obj) {
+function jsonResponse(status: number, obj: any): RendezvousFetchResponse {
   return {
     ok: status >= 200 && status < 300,
     status,
@@ -87,7 +95,7 @@ describe('RendezvousClient.announce', () => {
     await rdv.announce({ endpoints: ['wss://box/tunnel'], meta: 'caps=x', ttl: 300 })
 
     expect(calls).toHaveLength(1)
-    const c = calls[0]
+    const c = calls[0]!
     expect(c.url).toBe('https://relay.test/rendezvous/announce')
     expect(c.method).toBe('POST')
     expect(c.body.key).toBe(id.key)
@@ -112,7 +120,7 @@ describe('RendezvousClient.resolve', () => {
     const res = await rdv.resolve(peer)
     expect(res.online).toBe(true)
     expect(res.endpoints).toEqual(['wss://p'])
-    expect(calls[0].url).toContain('/rendezvous/resolve/')
+    expect(calls[0]!.url).toContain('/rendezvous/resolve/')
   })
 
   it('returns online:false on 404', async () => {
@@ -134,7 +142,7 @@ describe('RendezvousClient signal deposit/poll/ack', () => {
     const payload = new Uint8Array([9, 8, 7])
     const res = await rdv.signalDeposit(peer, payload)
     expect(res.id).toBe('blob1')
-    const c = calls[0]
+    const c = calls[0]!
     expect(c.url).toBe('https://relay.test/rendezvous/signal/' + encodeURIComponent(peer))
     expect(c.body.from).toBe(id.key)
     expect(c.body.to).toBe(peer)
@@ -155,8 +163,8 @@ describe('RendezvousClient signal deposit/poll/ack', () => {
     const rdv = new RendezvousClient({ baseUrl: 'https://relay.test', identity: id, fetch: fetchImpl })
     const blobs = await rdv.signalPoll({ wait: 5 })
     expect(blobs).toHaveLength(1)
-    expect(Array.from(blobs[0].payload)).toEqual([1, 2, 3])
-    const c = calls[0]
+    expect(Array.from(blobs[0]!.payload)).toEqual([1, 2, 3])
+    const c = calls[0]!
     expect(c.url).toBe('https://relay.test/rendezvous/signal/' + encodeURIComponent(id.key) + '/poll')
     expect(c.body.wait).toBe(5)
     const msg = canonicalMessage(RENDEZVOUS_DOMAINS.signalPoll, [c.body.key, String(c.body.ts), c.body.nonce])
@@ -169,7 +177,7 @@ describe('RendezvousClient signal deposit/poll/ack', () => {
     const rdv = new RendezvousClient({ baseUrl: 'https://relay.test', identity: id, fetch: fetchImpl })
     const res = await rdv.signalAck(['a', 'b'])
     expect(res.deleted).toBe(2)
-    const c = calls[0]
+    const c = calls[0]!
     expect(c.body.ids).toEqual(['a', 'b'])
     const msg = canonicalMessage(RENDEZVOUS_DOMAINS.signalAck, [c.body.key, String(c.body.ts), c.body.nonce, 'a', 'b'])
     expect(ed25519.verify(b64urlDecode(c.body.sig), msg, id.publicKey)).toBe(true)
@@ -183,7 +191,7 @@ describe('RendezvousClient.ice', () => {
     const rdv = new RendezvousClient({ baseUrl: 'https://relay.test', identity: id, fetch: fetchImpl })
     const servers = await rdv.ice()
     expect(servers).toEqual([{ urls: ['stun:x'] }])
-    expect(calls[0].url).toContain('/rendezvous/ice?key=')
+    expect(calls[0]!.url).toContain('/rendezvous/ice?key=')
   })
 })
 

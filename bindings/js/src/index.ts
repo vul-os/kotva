@@ -1,5 +1,5 @@
 /**
- * src/index.js — kotva-client root barrel.
+ * src/index.ts — kotva-client root barrel.
  *
  * Every module is also reachable as its own subpath (see `exports` in
  * package.json) so a consumer that only wants the chunk-proof verifier does not

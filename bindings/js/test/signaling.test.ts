@@ -1,5 +1,5 @@
 /**
- * signaling.test.js — SignalingClient smoke test.
+ * signaling.test.ts — SignalingClient smoke test.
  *
  * No suite existed in any of the three pre-existing consumers (the signaling
  * + fabric layers shipped without unit tests in office, mail, or OS). New
@@ -17,11 +17,23 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { SignalingClient } from '../src/signaling.js'
 
+type FakeListener = (payload: any) => void
+
 class FakeWebSocket {
   static OPEN = 1
   static CLOSED = 3
   static CONNECTING = 0
-  constructor(url, protocols) {
+  static instances: FakeWebSocket[] = []
+  static lastUrl: string | null = null
+  static lastProtocols: string[] | undefined = undefined
+
+  url: string
+  protocols: string[] | undefined
+  readyState: number
+  sent: string[]
+  _listeners: Record<string, FakeListener[]>
+
+  constructor(url: string, protocols?: string[]) {
     FakeWebSocket.lastUrl = url
     FakeWebSocket.lastProtocols = protocols
     FakeWebSocket.instances.push(this)
@@ -31,25 +43,25 @@ class FakeWebSocket {
     this.sent = []
     this._listeners = {}
   }
-  addEventListener(evt, fn) {
+  addEventListener(evt: string, fn: FakeListener) {
     if (!this._listeners[evt]) this._listeners[evt] = []
-    this._listeners[evt].push(fn)
+    this._listeners[evt]!.push(fn)
   }
-  send(data) {
+  send(data: string) {
     this.sent.push(data)
   }
   close() {
     this.readyState = FakeWebSocket.CLOSED
     this._fire('close', {})
   }
-  _fire(evt, payload) {
+  _fire(evt: string, payload: any) {
     for (const fn of (this._listeners[evt] || [])) fn(payload)
   }
   _open() {
     this.readyState = FakeWebSocket.OPEN
     this._fire('open', {})
   }
-  _message(frame) {
+  _message(frame: unknown) {
     this._fire('message', { data: JSON.stringify(frame) })
   }
 }
@@ -117,10 +129,10 @@ describe('SignalingClient', () => {
       peerId: 'alice',
     })
     c.connect()
-    const ws = FakeWebSocket.instances[0]
+    const ws = FakeWebSocket.instances[0]!
     ws._open()
     expect(ws.sent.length).toBe(1)
-    const frame = JSON.parse(ws.sent[0])
+    const frame = JSON.parse(ws.sent[0]!)
     expect(frame.channel).toBe('signal')
     expect(frame.payload.type).toBe('join')
     expect(frame.payload.session).toBe('doc-1')
@@ -136,9 +148,9 @@ describe('SignalingClient', () => {
       getDepositPubKey: () => 'BASE64_PUBKEY',
     })
     c.connect()
-    const ws = FakeWebSocket.instances[0]
+    const ws = FakeWebSocket.instances[0]!
     ws._open()
-    const frame = JSON.parse(ws.sent[0])
+    const frame = JSON.parse(ws.sent[0]!)
     expect(frame.payload.type).toBe('join')
     expect(frame.payload.depositPubKey).toBe('BASE64_PUBKEY')
   })
@@ -151,9 +163,9 @@ describe('SignalingClient', () => {
       getDepositPubKey: () => null,
     })
     c.connect()
-    const ws = FakeWebSocket.instances[0]
+    const ws = FakeWebSocket.instances[0]!
     ws._open()
-    const frame = JSON.parse(ws.sent[0])
+    const frame = JSON.parse(ws.sent[0]!)
     expect(frame.payload.depositPubKey).toBeUndefined()
   })
 
@@ -164,11 +176,11 @@ describe('SignalingClient', () => {
       peerId: 'alice',
     })
     c.connect()
-    const ws = FakeWebSocket.instances[0]
+    const ws = FakeWebSocket.instances[0]!
     ws._open()
 
-    const received = []
-    c.addEventListener('signal', (ev) => received.push(ev.detail))
+    const received: any[] = []
+    c.addEventListener('signal', (ev) => received.push((ev as CustomEvent).detail))
 
     ws._message({
       channel: 'signal',
@@ -187,11 +199,11 @@ describe('SignalingClient', () => {
       peerId: 'alice',
     })
     c.connect()
-    const ws = FakeWebSocket.instances[0]
+    const ws = FakeWebSocket.instances[0]!
     ws._open()
 
-    const received = []
-    c.addEventListener('signal', (ev) => received.push(ev.detail))
+    const received: any[] = []
+    c.addEventListener('signal', (ev) => received.push((ev as CustomEvent).detail))
 
     // Wrong channel → dropped.
     ws._message({ channel: 'presence', from: 'bob', payload: { type: 'offer' } })
@@ -218,14 +230,14 @@ describe('SignalingClient', () => {
       peerId: 'alice',
     })
     c.connect()
-    const ws = FakeWebSocket.instances[0]
+    const ws = FakeWebSocket.instances[0]!
     ws._open()
     // Clear the join frame.
     ws.sent.length = 0
 
     c.close()
     expect(ws.sent.length).toBe(1)
-    const frame = JSON.parse(ws.sent[0])
+    const frame = JSON.parse(ws.sent[0]!)
     expect(frame.channel).toBe('signal')
     expect(frame.payload.type).toBe('leave')
   })
@@ -256,13 +268,13 @@ describe('SignalingClient reconnect budget', () => {
 
     // Trigger 3 close events (each schedules a reconnect, then we close again).
     for (let i = 0; i < 3; i++) {
-      const ws = FakeWebSocket.instances[FakeWebSocket.instances.length - 1]
+      const ws = FakeWebSocket.instances[FakeWebSocket.instances.length - 1]!
       ws._fire('close', {})
       await vi.runAllTimersAsync()
     }
 
     expect(offlineCb).toHaveBeenCalledTimes(1)
-    const { detail } = offlineCb.mock.calls[0][0]
+    const { detail } = offlineCb.mock.calls[0]![0]
     expect(detail.attempts).toBeGreaterThanOrEqual(3)
     c.close()
   })
@@ -279,12 +291,12 @@ describe('SignalingClient reconnect budget', () => {
     c.connect()
 
     // One failure.
-    const ws0 = FakeWebSocket.instances[0]
+    const ws0 = FakeWebSocket.instances[0]!
     ws0._fire('close', {})
     await vi.runAllTimersAsync()
 
     // Successful open on the new connection (counter resets).
-    const ws1 = FakeWebSocket.instances[FakeWebSocket.instances.length - 1]
+    const ws1 = FakeWebSocket.instances[FakeWebSocket.instances.length - 1]!
     ws1._open()
 
     // One more failure after reset — budget should not be exhausted yet.
@@ -307,7 +319,7 @@ describe('SignalingClient reconnect budget', () => {
     c.connect()
 
     for (let i = 0; i < 8; i++) {
-      const ws = FakeWebSocket.instances[FakeWebSocket.instances.length - 1]
+      const ws = FakeWebSocket.instances[FakeWebSocket.instances.length - 1]!
       ws._fire('close', {})
       await vi.runAllTimersAsync()
     }

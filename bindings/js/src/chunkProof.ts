@@ -1,4 +1,4 @@
-// chunkProof.js — the BROWSER half of the DMTAP-PUB § 5.3 chunk-tree range proof.
+// chunkProof.ts — the BROWSER half of the DMTAP-PUB § 5.3 chunk-tree range proof.
 //
 // This is the module that makes verified partial fetch mean anything on the web.
 // The Go side (tunnel/pubcache/proof.go) can already serve an audit path and
@@ -67,6 +67,12 @@ const CBOR_MAJOR_UINT = 0
 const CBOR_MAJOR_BYTESTR = 2
 const CBOR_MAJOR_ARRAY = 4
 
+/** A 33-byte content address: `0x1e ‖ BLAKE3-256(bytes)`. */
+export type Address = Uint8Array
+
+/** A content address as accepted at API boundaries: raw 33 bytes, or its base64url string form. */
+export type AddressLike = Uint8Array | ArrayBufferLike | number[] | string
+
 // ── errors ───────────────────────────────────────────────────────────────────
 
 /**
@@ -82,28 +88,25 @@ const CBOR_MAJOR_ARRAY = 4
  * `code` is for diagnostics: MALFORMED_PROOF | PROOF_RANGE | PROOF_INVALID.
  */
 export class ChunkProofError extends Error {
-  /**
-   * @param {string} message
-   * @param {{ code?: string }} [detail]
-   */
-  constructor(message, detail = {}) {
+  code: string
+
+  constructor(message: string, detail: { code?: string } = {}) {
     super(message)
     this.name = 'ChunkProofError'
-    /** @type {string} */
     this.code = detail.code || 'PROOF_INVALID'
   }
 }
 
-const malformed = (m) => new ChunkProofError(`chunkProof: ${m}`, { code: 'MALFORMED_PROOF' })
-const rangeErr = (m) => new ChunkProofError(`chunkProof: ${m}`, { code: 'PROOF_RANGE' })
-const invalid = (m) => new ChunkProofError(`chunkProof: ${m}`, { code: 'PROOF_INVALID' })
+const malformed = (m: string) => new ChunkProofError(`chunkProof: ${m}`, { code: 'MALFORMED_PROOF' })
+const rangeErr = (m: string) => new ChunkProofError(`chunkProof: ${m}`, { code: 'PROOF_RANGE' })
+const invalid = (m: string) => new ChunkProofError(`chunkProof: ${m}`, { code: 'PROOF_INVALID' })
 
 // ── addressing ───────────────────────────────────────────────────────────────
 
 /** Encode bytes to unpadded base64url — the § 22.5.1 path form for an address. */
-export function encodeAddr(bytes) {
+export function encodeAddr(bytes: Uint8Array): string {
   let bin = ''
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]!)
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
@@ -115,14 +118,13 @@ export function encodeAddr(bytes) {
  * 33 bytes, prefix 0x1e only, and re-encoding must reproduce the input — a
  * lenient parser would let two spellings of one address both verify.
  *
- * @param {string} s
- * @returns {Uint8Array} the 33-byte address
+ * @returns the 33-byte address
  */
-export function parseAddr(s) {
+export function parseAddr(s: string): Address {
   if (typeof s !== 'string' || s === '' || s.length > 64) throw malformed('malformed content address')
   if (!/^[A-Za-z0-9_-]+$/.test(s)) throw malformed('malformed content address: not base64url')
   const pad = s.length % 4 === 0 ? '' : '='.repeat(4 - (s.length % 4))
-  let bin
+  let bin: string
   try {
     bin = atob(s.replace(/-/g, '+').replace(/_/g, '/') + pad)
   } catch {
@@ -132,19 +134,27 @@ export function parseAddr(s) {
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
   if (out.length !== ADDR_LEN) throw malformed(`malformed content address: got ${out.length} bytes, want ${ADDR_LEN}`)
   if (out[0] !== HASH_PREFIX_BLAKE3_256) {
-    throw malformed(`malformed content address: unsupported hash prefix 0x${out[0].toString(16)}`)
+    throw malformed(`malformed content address: unsupported hash prefix 0x${out[0]!.toString(16)}`)
   }
   if (encodeAddr(out) !== s) throw malformed('malformed content address: non-canonical encoding')
   return out
 }
 
 /** Coerce an address given as base64url or raw 33 bytes into raw 33 bytes. */
-function toAddr(a) {
+function toAddr(a: AddressLike): Address {
   if (typeof a === 'string') return parseAddr(a)
-  const b = a instanceof Uint8Array ? a : new Uint8Array(a || [])
+  // Two non-Uint8Array shapes remain: a plain number[] (ArrayLike overload) and
+  // an ArrayBufferLike (buffer-view overload) — TS cannot pick an overload for
+  // their union directly, so the two constructor calls are split explicitly.
+  // `a || []` preserves the original's fallback for a falsy (null/undefined) a.
+  const b = a instanceof Uint8Array
+    ? a
+    : Array.isArray(a)
+      ? new Uint8Array(a)
+      : new Uint8Array(a || new ArrayBuffer(0))
   if (b.length !== ADDR_LEN) throw malformed(`address must be ${ADDR_LEN} bytes, got ${b.length}`)
   if (b[0] !== HASH_PREFIX_BLAKE3_256) {
-    throw malformed(`address has unsupported hash prefix 0x${b[0].toString(16)}`)
+    throw malformed(`address has unsupported hash prefix 0x${b[0]!.toString(16)}`)
   }
   return b
 }
@@ -153,10 +163,9 @@ function toAddr(a) {
  * The v0 content address of a byte string: `0x1e ‖ BLAKE3-256(b)` (§ 18.9.4
  * generic anchor rule — what addresses a plaintext chunk, § 22.2.2 step 1).
  *
- * @param {Uint8Array} b
- * @returns {Uint8Array} 33-byte address
+ * @returns 33-byte address
  */
-export function hashBytes(b) {
+export function hashBytes(b: Uint8Array | ArrayBufferLike): Address {
   const out = new Uint8Array(ADDR_LEN)
   out[0] = HASH_PREFIX_BLAKE3_256
   out.set(blake3(b instanceof Uint8Array ? b : new Uint8Array(b)), 1)
@@ -166,7 +175,7 @@ export function hashBytes(b) {
 // ── the tree (§ 3.2 / § 22.2.2) ──────────────────────────────────────────────
 
 /** merkleLeaf = BLAKE3-256( DS ‖ 0x00 ‖ h_i ), over the FULL 33-byte address. */
-function merkleLeaf(addr) {
+function merkleLeaf(addr: Address): Uint8Array {
   const buf = new Uint8Array(DS_MANIFEST.length + 1 + ADDR_LEN)
   buf.set(DS_MANIFEST, 0)
   buf[DS_MANIFEST.length] = 0x00
@@ -175,7 +184,7 @@ function merkleLeaf(addr) {
 }
 
 /** merkleNode = BLAKE3-256( DS ‖ 0x01 ‖ left ‖ right ). */
-function merkleNode(left, right) {
+function merkleNode(left: Uint8Array, right: Uint8Array): Uint8Array {
   const buf = new Uint8Array(DS_MANIFEST.length + 1 + DIGEST_LEN * 2)
   buf.set(DS_MANIFEST, 0)
   buf[DS_MANIFEST.length] = 0x01
@@ -188,11 +197,11 @@ function merkleNode(left, right) {
  * Combine one level of the chunk tree into the next: pair nodes left to right,
  * and promote a level's unpaired final node UNCHANGED (not re-hashed).
  */
-function reduceLevel(level) {
-  const next = []
+function reduceLevel(level: Uint8Array[]): Uint8Array[] {
+  const next: Uint8Array[] = []
   let i = 0
-  for (; i + 1 < level.length; i += 2) next.push(merkleNode(level[i], level[i + 1]))
-  if (i < level.length) next.push(level[i]) // promoted, not re-hashed
+  for (; i + 1 < level.length; i += 2) next.push(merkleNode(level[i]!, level[i + 1]!))
+  if (i < level.length) next.push(level[i]!) // promoted, not re-hashed
   return next
 }
 
@@ -205,16 +214,16 @@ function reduceLevel(level) {
  * announce — but it is what lets a caller (or a test) confirm a chunk list it
  * already holds roots where it claims to.
  *
- * @param {Array<Uint8Array|string>} chunks ordered 33-byte chunk addresses
- * @returns {Uint8Array} the 33-byte manifest root address
+ * @param chunks ordered 33-byte chunk addresses
+ * @returns the 33-byte manifest root address
  */
-export function manifestRoot(chunks) {
+export function manifestRoot(chunks: AddressLike[]): Address {
   if (!Array.isArray(chunks) || chunks.length === 0) throw malformed('empty chunk list')
-  let level = chunks.map((c) => merkleLeaf(toAddr(c)))
+  let level: Uint8Array[] = chunks.map((c) => merkleLeaf(toAddr(c)))
   while (level.length > 1) level = reduceLevel(level)
   const out = new Uint8Array(ADDR_LEN)
   out[0] = HASH_PREFIX_BLAKE3_256
-  out.set(level[0], 1)
+  out.set(level[0]!, 1)
   return out
 }
 
@@ -227,21 +236,19 @@ export function manifestRoot(chunks) {
  * symmetry and for tests — but it is also what lets a client that DOES hold a
  * chunk list hand a compact proof to a peer over the fabric.
  *
- * @param {Array<Uint8Array|string>} chunks
- * @param {number} index
- * @returns {Uint8Array[]} sibling hashes, bottom-up
+ * @returns sibling hashes, bottom-up
  */
-export function chunkProof(chunks, index) {
+export function chunkProof(chunks: AddressLike[], index: number): Uint8Array[] {
   if (!Array.isArray(chunks) || chunks.length === 0) throw rangeErr('empty chunk list')
   if (!Number.isInteger(index) || index < 0 || index >= chunks.length) {
     throw rangeErr(`chunk ${index} of ${chunks.length}`)
   }
-  let level = chunks.map((c) => merkleLeaf(toAddr(c)))
-  const path = []
+  let level: Uint8Array[] = chunks.map((c) => merkleLeaf(toAddr(c)))
+  const path: Uint8Array[] = []
   let cur = index
   while (level.length > 1) {
     const sib = cur ^ 1
-    if (sib < level.length) path.push(level[sib])
+    if (sib < level.length) path.push(level[sib]!)
     cur = Math.floor(cur / 2)
     level = reduceLevel(level)
   }
@@ -250,6 +257,9 @@ export function chunkProof(chunks, index) {
 
 // ── the § 5.3 wire encoding ──────────────────────────────────────────────────
 
+/** One decoded CBOR head: [major type, argument value, bytes consumed]. */
+type CborHead = [major: number, arg: number, bytesConsumed: number]
+
 /**
  * Decode one CBOR head, returning [major, arg, bytesConsumed].
  *
@@ -257,38 +267,44 @@ export function chunkProof(chunks, index) {
  * additional-information values, and indefinite lengths are all REJECTED — a
  * proof that two byte strings could both mean is not a proof.
  */
-function readHead(b, off) {
+function readHead(b: Uint8Array, off: number): CborHead {
   if (off >= b.length) throw malformed('truncated cbor')
-  const major = b[off] >> 5
-  const ai = b[off] & 0x1f
+  const major = b[off]! >> 5
+  const ai = b[off]! & 0x1f
   if (ai < 24) return [major, ai, 1]
   if (ai === 24) {
     if (off + 2 > b.length) throw malformed('truncated cbor head')
-    if (b[off + 1] < 24) throw malformed('non-minimal cbor integer')
-    return [major, b[off + 1], 2]
+    if (b[off + 1]! < 24) throw malformed('non-minimal cbor integer')
+    return [major, b[off + 1]!, 2]
   }
   if (ai === 25) {
     if (off + 3 > b.length) throw malformed('truncated cbor head')
-    const v = (b[off + 1] << 8) | b[off + 2]
+    const v = (b[off + 1]! << 8) | b[off + 2]!
     if (v <= 0xff) throw malformed('non-minimal cbor integer')
     return [major, v, 3]
   }
   if (ai === 26) {
     if (off + 5 > b.length) throw malformed('truncated cbor head')
-    const v = ((b[off + 1] << 24) >>> 0) + (b[off + 2] << 16) + (b[off + 3] << 8) + b[off + 4]
+    const v = ((b[off + 1]! << 24) >>> 0) + (b[off + 2]! << 16) + (b[off + 3]! << 8) + b[off + 4]!
     if (v <= 0xffff) throw malformed('non-minimal cbor integer')
     return [major, v, 5]
   }
   if (ai === 27) {
     if (off + 9 > b.length) throw malformed('truncated cbor head')
     let v = 0n
-    for (let i = 1; i <= 8; i++) v = (v << 8n) | BigInt(b[off + i])
+    for (let i = 1; i <= 8; i++) v = (v << 8n) | BigInt(b[off + i]!)
     if (v <= 0xffffffffn) throw malformed('non-minimal cbor integer')
     // Anything needing 64 bits is far beyond every bound this module enforces;
     // return it as a Number so the callers' range checks reject it uniformly.
     return [major, Number(v), 9]
   }
   throw malformed('reserved or indefinite-length cbor item')
+}
+
+/** A decoded § 5.3 chunk-proof response body. */
+export interface DecodedChunkProof {
+  index: number
+  path: Uint8Array[]
 }
 
 /**
@@ -298,23 +314,20 @@ function readHead(b, off) {
  * The strict counterpart of the Go encoder: non-minimal integers, indefinite
  * lengths, wrong-width hashes, over-long paths, and trailing bytes are all
  * rejected. Mirrors DecodeChunkProof in Go.
- *
- * @param {Uint8Array|ArrayBuffer} body
- * @returns {{ index: number, path: Uint8Array[] }}
  */
-export function decodeChunkProof(body) {
+export function decodeChunkProof(body: Uint8Array | ArrayBufferLike): DecodedChunkProof {
   const b = body instanceof Uint8Array ? body : new Uint8Array(body)
   let [major, arg, n] = readHead(b, 0)
   if (major !== CBOR_MAJOR_ARRAY || arg !== 2) throw malformed('proof is not a 2-element cbor array')
   let off = n
 
-  let idx
+  let idx: number
   ;[major, idx, n] = readHead(b, off)
   if (major !== CBOR_MAJOR_UINT) throw malformed('proof index is not an unsigned integer')
   if (idx > 1 << 20) throw malformed('proof index out of bounds')
   off += n
 
-  let count
+  let count: number
   ;[major, count, n] = readHead(b, off)
   if (major !== CBOR_MAJOR_ARRAY) throw malformed('proof path is not a cbor array')
   if (count > MAX_PROOF_PATH) {
@@ -322,9 +335,9 @@ export function decodeChunkProof(body) {
   }
   off += n
 
-  const path = []
+  const path: Uint8Array[] = []
   for (let i = 0; i < count; i++) {
-    let eLen
+    let eLen: number
     ;[major, eLen, n] = readHead(b, off)
     if (major !== CBOR_MAJOR_BYTESTR || eLen !== DIGEST_LEN) {
       throw malformed(`proof element is not a ${DIGEST_LEN}-byte hash`)
@@ -344,25 +357,21 @@ export function decodeChunkProof(body) {
  *
  * Deterministic per § 18.1.2 — minimal-length heads, definite lengths, no tags —
  * so the body is a pure function of (id, i).
- *
- * @param {number} index
- * @param {Uint8Array[]} path
- * @returns {Uint8Array}
  */
-export function encodeChunkProof(index, path) {
-  const out = []
+export function encodeChunkProof(index: number, path: Uint8Array[]): Uint8Array {
+  const out: number[] = []
   out.push(0x82) // array(2)
   pushHead(out, CBOR_MAJOR_UINT, index)
   pushHead(out, CBOR_MAJOR_ARRAY, path.length)
   for (const h of path) {
     pushHead(out, CBOR_MAJOR_BYTESTR, h.length)
-    for (let i = 0; i < h.length; i++) out.push(h[i])
+    for (let i = 0; i < h.length; i++) out.push(h[i]!)
   }
   return Uint8Array.from(out)
 }
 
 /** Append a minimal-length CBOR head for the given major type. */
-function pushHead(out, major, v) {
+function pushHead(out: number[], major: number, v: number): void {
   const m = major << 5
   if (v < 24) out.push(m | v)
   else if (v <= 0xff) out.push(m | 24, v)
@@ -371,6 +380,20 @@ function pushHead(out, major, v) {
 }
 
 // ── the verifier ─────────────────────────────────────────────────────────────
+
+/** Arguments to {@link verifyChunkProof} / {@link isChunkProofValid}. */
+export interface VerifyChunkProofArgs {
+  /** trusted 33-byte manifest root (or base64url) */
+  root: AddressLike
+  /** trusted chunk count from the manifest header */
+  nChunks: number
+  /** which chunk `chunk` claims to be */
+  index: number
+  /** the chunk's plaintext bytes as served */
+  chunk: Uint8Array
+  /** sibling hashes, bottom-up (from decodeChunkProof) */
+  path: Uint8Array[]
+}
 
 /**
  * Prove that `chunk` really is chunk `index` of the blob whose manifest root is
@@ -394,16 +417,8 @@ function pushHead(out, major, v) {
  * index, tampered bytes, tampered / reordered / truncated / over-long path,
  * wrong root — throws ChunkProofError, and the chunk MUST be discarded (rotate
  * to another holder).
- *
- * @param {object} args
- * @param {Uint8Array|string} args.root trusted 33-byte manifest root (or base64url)
- * @param {number} args.nChunks trusted chunk count from the manifest header
- * @param {number} args.index which chunk `chunk` claims to be
- * @param {Uint8Array} args.chunk the chunk's plaintext bytes as served
- * @param {Uint8Array[]} args.path sibling hashes, bottom-up (from decodeChunkProof)
- * @returns {void}
  */
-export function verifyChunkProof({ root, nChunks, index, chunk, path }) {
+export function verifyChunkProof({ root, nChunks, index, chunk, path }: VerifyChunkProofArgs): void {
   const rootAddr = toAddr(root)
   if (!Number.isInteger(nChunks) || nChunks <= 0) throw rangeErr('empty tree')
   if (!Number.isInteger(index) || index < 0 || index >= nChunks) {
@@ -431,7 +446,7 @@ export function verifyChunkProof({ root, nChunks, index, chunk, path }) {
     const sib = cur ^ 1
     if (sib < levelLen) {
       if (used >= path.length) throw invalid(`path too short at level ${used}`)
-      const s = path[used]
+      const s = path[used]!
       used++
       // Order is fixed by the node's own index parity, never by anything the
       // server says — a swapped pair is a different node.
@@ -458,17 +473,28 @@ export function verifyChunkProof({ root, nChunks, index, chunk, path }) {
  * Boolean convenience over verifyChunkProof, for call sites that branch rather
  * than catch. It swallows the REASON, never the verdict — false always means
  * "discard this chunk".
- *
- * @param {Parameters<typeof verifyChunkProof>[0]} args
- * @returns {boolean}
  */
-export function isChunkProofValid(args) {
+export function isChunkProofValid(args: VerifyChunkProofArgs): boolean {
   try {
     verifyChunkProof(args)
     return true
   } catch {
     return false
   }
+}
+
+/** Arguments to {@link verifyChunkResponse}. */
+export interface VerifyChunkResponseArgs {
+  /** trusted manifest root */
+  root: AddressLike
+  /** trusted chunk count */
+  nChunks: number
+  /** the chunk index that was requested */
+  index: number
+  /** chunk bytes as served */
+  chunk: Uint8Array
+  /** § 5.3 CBOR proof body as served */
+  proof: Uint8Array | ArrayBufferLike
 }
 
 /**
@@ -482,15 +508,9 @@ export function isChunkProofValid(args) {
  * mistaken for success. That is the mistake a seeking video player would
  * otherwise make silently.
  *
- * @param {object} args
- * @param {Uint8Array|string} args.root trusted manifest root
- * @param {number} args.nChunks trusted chunk count
- * @param {number} args.index the chunk index that was requested
- * @param {Uint8Array} args.chunk chunk bytes as served
- * @param {Uint8Array|ArrayBuffer} args.proof § 5.3 CBOR proof body as served
- * @returns {Uint8Array} the verified chunk bytes
+ * @returns the verified chunk bytes
  */
-export function verifyChunkResponse({ root, nChunks, index, chunk, proof }) {
+export function verifyChunkResponse({ root, nChunks, index, chunk, proof }: VerifyChunkResponseArgs): Uint8Array {
   const { index: proofIndex, path } = decodeChunkProof(proof)
   if (proofIndex !== index) {
     throw invalid(`proof is for chunk ${proofIndex}, requested chunk ${index}`)

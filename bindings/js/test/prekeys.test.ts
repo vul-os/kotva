@@ -24,12 +24,12 @@ import {
   relayBlobVersion, bytesToB64, b64ToBytes,
 } from '../src/relayBox.js'
 
-const hex = (u8) => Array.from(u8).map(b => b.toString(16).padStart(2, '0')).join('')
-const dec = (b) => new TextDecoder().decode(b)
-const enc = (s) => new TextEncoder().encode(s)
+const hex = (u8: Uint8Array) => Array.from(u8).map(b => b.toString(16).padStart(2, '0')).join('')
+const dec = (b: Uint8Array) => new TextDecoder().decode(b)
+const enc = (s: string) => new TextEncoder().encode(s)
 
-function fill(n, b) { const u = new Uint8Array(n); u.fill(b); return u }
-function cat(arrs) {
+function fill(n: number, b: number): Uint8Array { const u = new Uint8Array(n); u.fill(b); return u }
+function cat(arrs: Uint8Array[]): Uint8Array {
   let n = 0; for (const a of arrs) n += a.length
   const out = new Uint8Array(n); let o = 0
   for (const a of arrs) { out.set(a, o); o += a.length }
@@ -41,12 +41,12 @@ async function makeIdentity() {
   const kp = await crypto.subtle.generateKey(
     { name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'],
   )
-  const signRaw = async (bytes) => {
-    const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, kp.privateKey, bytes)
+  const signRaw = async (bytes: Uint8Array): Promise<string> => {
+    const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, kp.privateKey, bytes as BufferSource)
     return bytesToB64(new Uint8Array(sig))
   }
-  const verifyRaw = async (bytes, sigB64) =>
-    crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, kp.publicKey, b64ToBytes(sigB64), bytes)
+  const verifyRaw = async (bytes: Uint8Array, sigB64: string): Promise<boolean> =>
+    crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, kp.publicKey, b64ToBytes(sigB64) as BufferSource, bytes as BufferSource)
   return { signRaw, verifyRaw }
 }
 
@@ -177,7 +177,7 @@ describe('prekeys — v2 wire blob round-trip + tamper/replay', () => {
     const recip = generateBoxKeyPair()
     const store = await PreKeyStore.create(signRaw, 4)     // recipient prekey store
     const bundle = store.publicBundle('bob')
-    const opkPub = bundle.one_time_prekeys[0]
+    const opkPub = bundle.one_time_prekeys[0]!
     return { sender, recip, store, bundle, opkPub }
   }
 
@@ -241,7 +241,7 @@ describe('prekeys — v2 wire blob round-trip + tamper/replay', () => {
     })
     // Flip a byte inside the header region (the ek) and re-encode.
     const raw = b64ToBytes(blob)
-    raw[6] ^= 0xff   // somewhere inside headerJSON
+    raw[6] = raw[6]! ^ 0xff   // somewhere inside headerJSON
     const tampered = bytesToB64(raw)
     expect(() => {
       const parsed = parseRelayBlobV2(tampered)
