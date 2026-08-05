@@ -218,6 +218,13 @@ jobs:
           npx eslint .
           npm run check:lint-config
 
+      # `tsc --noEmit` had no CI step at all — the type-aware ESLint probe above
+      # proves the lint config resolves type information, but nothing asserted
+      # the project itself still typechecks clean. BLOCKING (no continue-on-error).
+      - name: Typecheck (tsc --noEmit)
+        working-directory: bindings/js
+        run: npm run typecheck
+
   conformance:
     runs-on: ubuntu-latest
     timeout-minutes: 10
