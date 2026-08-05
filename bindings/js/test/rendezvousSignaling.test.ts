@@ -29,7 +29,7 @@ import type { SignalPayload } from '../src/signaling.js'
 
 // ── In-memory relay modelling the rendezvous wire (peek-on-poll, delete-on-ack) ─
 
-function jsonResponse(status: number, obj: any): RendezvousFetchResponse {
+function jsonResponse(status: number, obj: unknown): RendezvousFetchResponse {
   return { ok: status >= 200 && status < 300, status, statusText: '', json: () => Promise.resolve(obj) }
 }
 
@@ -47,11 +47,26 @@ interface RelayPresence {
   expires_at: number
 }
 
+/** The union of fields any signed rendezvous request body sent through this mock relay may carry. */
+interface RelayRequestBody {
+  key?: string
+  ts?: number
+  ttl?: number
+  nonce?: string
+  meta?: string
+  endpoints?: string[]
+  from?: string
+  to?: string
+  payload?: string
+  sig?: string
+  ids?: string[]
+}
+
 interface RelayCall {
   url: string
   path: string
   method: string
-  body: any
+  body: RelayRequestBody
 }
 
 function makeMockRelay() {
@@ -73,14 +88,14 @@ function makeMockRelay() {
     const u = new URL(url)
     const path = u.pathname
     const method = opts.method || 'GET'
-    const body = opts.body ? JSON.parse(opts.body as string) : null
+    const body = (opts.body ? JSON.parse(opts.body as string) : null) as RelayRequestBody
     calls.push({ url, path, method, body })
 
     if (path.endsWith('/announce')) {
-      presence.set(body.key, { endpoints: body.endpoints || [], meta: body.meta || '', expires_at: 9 })
+      presence.set(body.key!, { endpoints: body.endpoints || [], meta: body.meta || '', expires_at: 9 })
       return jsonResponse(200, { ok: true, key: body.key, ttl: 300, expires_at: 9 })
     }
-    if (path.endsWith('/withdraw')) { presence.delete(body.key); return jsonResponse(200, { ok: true }) }
+    if (path.endsWith('/withdraw')) { presence.delete(body.key!); return jsonResponse(200, { ok: true }) }
     if (path.endsWith('/ice')) return jsonResponse(200, { ice_servers: [] })
 
     const seg = path.replace(/^.*\/rendezvous\//, '').split('/')
@@ -93,7 +108,7 @@ function makeMockRelay() {
     if (store) {
       if (seg.length === 2) {
         const to = decodeURIComponent(seg[1]!)
-        const id = push(store, to, body.from, body.payload)
+        const id = push(store, to, body.from!, body.payload!)
         return jsonResponse(201, { ok: true, id, expires_at: 9 })
       }
       const k = decodeURIComponent(seg[1]!)
@@ -101,7 +116,7 @@ function makeMockRelay() {
       if (seg[2] === 'ack') {
         const del = new Set<string>(body.ids)
         store.set(k, (store.get(k) || []).filter((b) => !del.has(b.id)))
-        return jsonResponse(200, { deleted: body.ids.length })
+        return jsonResponse(200, { deleted: body.ids!.length })
       }
     }
     return jsonResponse(404, { error: 'not found' })
@@ -148,14 +163,21 @@ function makeSignaling({ peerId, sessionId, fetchImpl, ecdsa, extra = {} }: {
   })
 }
 
-function collect<T = any>(target: EventTarget, type: string): T[] {
+function collect<T = unknown>(target: EventTarget, type: string): T[] {
   const out: T[] = []
-  target.addEventListener(type, (e) => out.push((e as CustomEvent).detail))
+  target.addEventListener(type, (e) => out.push((e as CustomEvent<T>).detail))
   return out
 }
 
 /** The shape of a dispatched 'signal' event's CustomEvent detail. */
 type SignalDetail = { from: string, payload: SignalPayload }
+
+/** The shape of an unwrapped rendezvous-signal envelope (see rendezvousSignaling.ts's WrappedEnvelope). */
+interface WireEnvelope {
+  from: string
+  rdvKey: string
+  payload: SignalPayload
+}
 
 // ── deriveRoomIdentity ─────────────────────────────────────────────────────────
 
@@ -211,7 +233,7 @@ describe('RendezvousSignalingClient — signaling lifecycle over rendezvous', ()
     expect(deposit!.body.from).toBe(A.key)
     expect(typeof deposit!.body.sig).toBe('string')
     // Inner opaque payload: routing identity + the WS-identical signed join.
-    const wrapper = JSON.parse(new TextDecoder().decode(b64urlDecode(deposit!.body.payload)))
+    const wrapper = JSON.parse(new TextDecoder().decode(b64urlDecode(deposit!.body.payload!))) as WireEnvelope
     expect(wrapper.from).toBe('peerA')
     expect(wrapper.rdvKey).toBe(A.key)
     expect(wrapper.payload.type).toBe('join')
