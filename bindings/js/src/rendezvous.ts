@@ -35,11 +35,21 @@ const DOMAIN = {
 
 // ── base64url (unpadded) — the single binary encoding on the wire ─────────────
 
-/** Encode bytes to unpadded base64url. */
-export function b64urlEncode(bytes: Uint8Array | ArrayBufferLike): string {
+/**
+ * Encode bytes to unpadded base64url. Accepts any ArrayBufferView — Uint8Array,
+ * any other TypedArray (Int8Array, Uint16Array, Float32Array, ...), a DataView,
+ * or a subarray view with a non-zero byteOffset — as well as a raw
+ * ArrayBuffer/SharedArrayBuffer. Every view is normalised through its own
+ * `.buffer`/`.byteOffset`/`.byteLength` so the exact underlying bytes are
+ * encoded regardless of the view's element type or offset; this function must
+ * never silently encode the wrong bytes for a differently-typed or offset view.
+ */
+export function b64urlEncode(bytes: ArrayBufferView | ArrayBufferLike): string {
+  const arr = ArrayBuffer.isView(bytes)
+    ? new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+    : new Uint8Array(bytes)
   let bin = ''
-  const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
-  for (let i = 0; i < arr.length; i++) bin += String.fromCharCode(arr[i]!)
+  for (const byte of arr) bin += String.fromCharCode(byte)
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
@@ -330,7 +340,7 @@ export class RendezvousClient {
   // ── SIGNAL (short-TTL WebRTC offer/answer/ice) ───────────────────────────────
 
   /** Deposit an opaque WebRTC signal blob addressed to recipientKey. */
-  signalDeposit(recipientKey: string, payload: Uint8Array | string, ttl = 0): Promise<DepositResult> {
+  signalDeposit(recipientKey: string, payload: ArrayBufferView | string, ttl = 0): Promise<DepositResult> {
     return this._deposit(DOMAIN.signalDeposit, '/signal/', recipientKey, payload, ttl)
   }
 
@@ -347,7 +357,7 @@ export class RendezvousClient {
   // ── MAILBOX (longer-TTL opaque encrypted blobs) ──────────────────────────────
 
   /** Deposit an opaque encrypted blob into recipientKey's mailbox. */
-  mailboxDeposit(recipientKey: string, payload: Uint8Array | string, ttl = 0): Promise<DepositResult> {
+  mailboxDeposit(recipientKey: string, payload: ArrayBufferView | string, ttl = 0): Promise<DepositResult> {
     return this._deposit(DOMAIN.mailboxDeposit, '/mailbox/', recipientKey, payload, ttl)
   }
 
@@ -388,7 +398,7 @@ export class RendezvousClient {
     domain: string,
     pathBase: string,
     recipientKey: string,
-    payload: Uint8Array | string,
+    payload: ArrayBufferView | string,
     ttl: number,
   ): Promise<DepositResult> {
     // ArrayBuffer.isView() is realm-agnostic (unlike `instanceof Uint8Array`,
