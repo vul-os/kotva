@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { SignalingClient, type SignalEventDetail, type OfflineEventDetail } from '../src/signaling.js'
+import { SignalingClient, type SignalEventDetail, type OfflineEventDetail, type ErrorEventDetail } from '../src/signaling.js'
 
 type FakeListener = (payload: { data?: string }) => void
 
@@ -249,6 +249,64 @@ describe('SignalingClient', () => {
     const frame = parseSentFrame(ws.sent[0]!)
     expect(frame.channel).toBe('signal')
     expect(frame.payload.type).toBe('leave')
+  })
+
+  it('routes a signFrame rejection on the join to an "error" event instead of silently dropping the join', async () => {
+    // Before the fix, `_buildJoinPayload().then(...)` had no rejection handler:
+    // a signing failure (locked/revoked key, WebCrypto error, ...) vanished as
+    // an unhandled promise rejection, no join frame was ever sent, and this
+    // peer never became visible to the rest of the session — with nothing
+    // telling the caller why.
+    const signError = new Error('signing key locked')
+    const c = new SignalingClient({
+      signalingUrl: 'ws://x/y',
+      sessionId: 'doc-1',
+      peerId: 'alice',
+      signFrame: () => Promise.reject(signError),
+    })
+    const errorCb = vi.fn()
+    c.addEventListener('error', errorCb)
+    c.connect()
+    const ws = FakeWebSocket.instances[0]!
+    ws._open()
+
+    await vi.waitFor(() => expect(errorCb).toHaveBeenCalledTimes(1))
+
+    // No join frame reached the wire — the failure is real, not papered over.
+    expect(ws.sent).toHaveLength(0)
+    const { detail } = errorCb.mock.calls[0]![0] as CustomEvent<ErrorEventDetail>
+    expect(detail.context).toBe('join-sign-failed')
+    expect(detail.error).toBe(signError)
+  })
+
+  it('routes a _processSignal rejection to an "error" event instead of an unhandled rejection', async () => {
+    // _processSignal is defensive (every risky step has its own try/catch) so
+    // it does not reject in normal operation. This proves the WEBSOCKET
+    // message listener's own wiring: a non-async listener that invokes the
+    // async work and routes a rejection to 'error', rather than an async
+    // listener whose throw becomes an unhandled rejection the WebSocket has
+    // no way to surface.
+    const c = new SignalingClient({
+      signalingUrl: 'ws://x/y',
+      sessionId: 'doc-1',
+      peerId: 'alice',
+    })
+    const processError = new Error('boom')
+    c._processSignal = (): Promise<void> => Promise.reject(processError)
+
+    const errorCb = vi.fn()
+    c.addEventListener('error', errorCb)
+    c.connect()
+    const ws = FakeWebSocket.instances[0]!
+    ws._open()
+    ws.sent.length = 0 // clear the join frame; irrelevant here
+
+    ws._message({ channel: 'signal', from: 'bob', payload: { type: 'offer', session: 'doc-1', to: 'alice' } })
+
+    await vi.waitFor(() => expect(errorCb).toHaveBeenCalledTimes(1))
+    const { detail } = errorCb.mock.calls[0]![0] as CustomEvent<ErrorEventDetail>
+    expect(detail.context).toBe('process-signal-failed')
+    expect(detail.error).toBe(processError)
   })
 })
 

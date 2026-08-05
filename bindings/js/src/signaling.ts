@@ -160,6 +160,18 @@ export interface OfflineEventDetail {
   attempts: number
 }
 
+/**
+ * The `detail` shape of the CustomEvent dispatched as `error`. Both failure
+ * modes below previously vanished as unhandled promise rejections; they now
+ * surface here so a consumer can decide what to do (surface a banner, retry,
+ * log to telemetry) instead of the join / signal silently never completing.
+ */
+export interface ErrorEventDetail {
+  /** which internal step failed */
+  context: 'join-sign-failed' | 'process-signal-failed'
+  error: unknown
+}
+
 /** The data a caller supplies to {@link SignalingClient.signal} / `_buildSignalPayload`. */
 export interface SignalData {
   sdp?: string
@@ -461,19 +473,42 @@ export class SignalingClient extends EventTarget {
       // signFrame is null the join is sent SYNCHRONOUSLY (no await reached), so a
       // consumer that inspects the socket right after 'open' sees it immediately.
       if (this._signFrame) {
-        this._buildJoinPayload().then((join) => this._send(join))
+        // A signing failure here (signFrame throws/rejects — e.g. the caller's
+        // key is locked, revoked, or the WebCrypto call fails) previously
+        // vanished as an unhandled rejection: no join frame is ever sent, so
+        // this peer never appears to the rest of the session, and nothing told
+        // the caller why. Route it to an 'error' event instead so the consumer
+        // (FabricClient / app) can react — retry, surface a banner, close the
+        // session — rather than the join silently never happening.
+        this._buildJoinPayload()
+          .then((join) => this._send(join))
+          .catch((err: unknown) => {
+            this.dispatchEvent(new CustomEvent<ErrorEventDetail>('error', {
+              detail: { context: 'join-sign-failed', error: err },
+            }))
+          })
       } else {
         this._send(this._buildJoinBase().join)
       }
     })
 
-    ws.addEventListener('message', async (ev: MessageEvent<string>) => {
+    ws.addEventListener('message', (ev: MessageEvent<string>) => {
       let frame: { channel?: string, from?: string, payload?: SignalPayload }
       try { frame = JSON.parse(ev.data) as typeof frame } catch { return }
       if (frame.channel !== SIGNAL_CHANNEL) return
       // Delegate to the transport-agnostic processor: the server stamps `from`,
-      // so `frame.from` is the sender peerId.
-      await this._processSignal(frame.from as string, frame.payload as SignalPayload)
+      // so `frame.from` is the sender peerId. _processSignal is defensive
+      // (every risky step below has its own try/catch) so this is a
+      // defense-in-depth backstop, not the primary error path — but the
+      // listener itself must stay non-async (a thrown/rejected async listener
+      // becomes an unhandled rejection the WebSocket has no way to surface),
+      // so the async work is invoked and its rejection routed to 'error' here.
+      this._processSignal(frame.from as string, frame.payload as SignalPayload)
+        .catch((err: unknown) => {
+          this.dispatchEvent(new CustomEvent<ErrorEventDetail>('error', {
+            detail: { context: 'process-signal-failed', error: err },
+          }))
+        })
     })
 
     ws.addEventListener('close', () => {
