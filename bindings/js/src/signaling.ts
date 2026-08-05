@@ -149,6 +149,12 @@ export interface SignalPayload {
   supportsV2?: boolean
 }
 
+/** The `detail` shape of the CustomEvent dispatched as `signal` (see `_processSignal`). */
+export interface SignalEventDetail {
+  from: string
+  payload: SignalPayload
+}
+
 /** The data a caller supplies to {@link SignalingClient.signal} / `_buildSignalPayload`. */
 export interface SignalData {
   sdp?: string
@@ -669,7 +675,7 @@ export class SignalingClient extends EventTarget {
         // compatibility (fabricSignaling.js / BroadcastChannel paths).
       }
 
-    this.dispatchEvent(new CustomEvent('signal', { detail: { from: senderPeerId, payload: p } }))
+    this.dispatchEvent(new CustomEvent<SignalEventDetail>('signal', { detail: { from: senderPeerId, payload: p } }))
   }
 
   /**

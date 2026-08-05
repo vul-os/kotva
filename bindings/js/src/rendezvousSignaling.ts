@@ -56,8 +56,8 @@
 // ECDSA key; the peerId↔rendezvous-key mapping is a routing hint the handshake
 // does not trust. Use unguessable session ids for private rooms.
 
-import { SignalingClient, type SignFrameFn, type SignedPreKeyClaim, type SignalPayload } from './signaling.js'
-import { RendezvousClient, RendezvousIdentity, b64urlEncode } from './rendezvous.js'
+import { SignalingClient, type SignFrameFn, type SignedPreKeyClaim, type SignalPayload, type SignalEventDetail } from './signaling.js'
+import { RendezvousClient, RendezvousIdentity } from './rendezvous.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 
 // Domain-separated seed for the deterministic per-session room identity. Bump the
@@ -194,7 +194,7 @@ export class RendezvousSignalingClient extends EventTarget {
     })
     // Surface the core's verified `signal` events to FabricClient unchanged.
     this._core.addEventListener('signal', (ev) => {
-      this.dispatchEvent(new CustomEvent('signal', { detail: (ev as CustomEvent).detail }))
+      this.dispatchEvent(new CustomEvent<SignalEventDetail>('signal', { detail: (ev as CustomEvent<SignalEventDetail>).detail }))
     })
 
     this._peerRdvKey = new Map()
@@ -310,9 +310,11 @@ export class RendezvousSignalingClient extends EventTarget {
   /** Parse a deposited blob's opaque bytes back into { from, rdvKey, payload }. */
   private _unwrap(bytes: Uint8Array): WrappedEnvelope | null {
     try {
-      const obj = JSON.parse(utf8dec.decode(bytes))
-      if (!obj || typeof obj !== 'object' || !obj.from || !obj.payload) return null
-      return obj
+      const obj = JSON.parse(utf8dec.decode(bytes)) as unknown
+      if (!obj || typeof obj !== 'object') return null
+      const env = obj as WrappedEnvelope
+      if (!env.from || !env.payload) return null
+      return env
     } catch { return null }
   }
 
