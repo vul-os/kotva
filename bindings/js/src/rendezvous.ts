@@ -134,7 +134,7 @@ export interface RendezvousFetchResponse {
   ok: boolean
   status: number
   statusText?: string
-  json(): Promise<any>
+  json(): Promise<unknown>
 }
 
 /** An injectable fetch, matching the subset of `fetch` this client calls. */
@@ -331,7 +331,7 @@ export class RendezvousClient {
       headers: this._authToken ? { Authorization: `Bearer ${this._authToken}` } : {},
     })
     if (res.status === 404) {
-      const body = await res.json().catch(() => ({}))
+      const body = (await res.json().catch(() => ({}))) as Partial<ResolveResult>
       return { key, online: false, ...body }
     }
     return this._json(res, 'resolve')
@@ -451,19 +451,22 @@ export class RendezvousClient {
     return this._json(res, 'ack')
   }
 
-  private async _json<T = any>(res: RendezvousFetchResponse, op: string): Promise<T> {
+  private async _json<T = unknown>(res: RendezvousFetchResponse, op: string): Promise<T> {
     if (!res.ok) {
       let reason = res.statusText || 'error'
       try {
         const b = await res.json()
-        if (b && b.error) reason = b.error
+        if (b && typeof b === 'object' && 'error' in b) {
+          const err = (b as { error?: string }).error
+          if (err) reason = err
+        }
       } catch { /* non-JSON body */ }
       throw new RelayDepositError(`rendezvous ${op} failed: ${res.status} ${reason}`, {
         code: 'RENDEZVOUS_' + op.toUpperCase(),
         status: res.status,
       })
     }
-    return res.json()
+    return res.json() as Promise<T>
   }
 }
 

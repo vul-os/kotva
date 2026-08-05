@@ -237,7 +237,10 @@ describe('shared § 5.3 corpus — the cross-language lock', () => {
         ).toThrow()
         decodeControls++
       } else {
-        throw new Error(`${c.name}: unknown surface ${c.surface}`)
+        // Unreachable for a corpus honoring the 'verify' | 'decode' schema
+        // above (hence the never-typed cast) — kept as defense in depth
+        // against a corpus that no longer matches its pinned hash/schema.
+        throw new Error(`${c.name}: unknown surface ${c.surface as string}`)
       }
     }
 

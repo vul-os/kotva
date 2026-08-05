@@ -15,9 +15,18 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { SignalingClient } from '../src/signaling.js'
+import { SignalingClient, type SignalEventDetail, type OfflineEventDetail } from '../src/signaling.js'
 
-type FakeListener = (payload: any) => void
+type FakeListener = (payload: { data?: string }) => void
+
+/** The shape of a "join"/"leave" frame this client sends over the (fake) WebSocket. */
+interface SentFrame {
+  channel: string
+  payload: { type: string, session?: string, depositPubKey?: string }
+}
+function parseSentFrame(raw: string): SentFrame {
+  return JSON.parse(raw) as SentFrame
+}
 
 class FakeWebSocket {
   static OPEN = 1
@@ -54,7 +63,7 @@ class FakeWebSocket {
     this.readyState = FakeWebSocket.CLOSED
     this._fire('close', {})
   }
-  _fire(evt: string, payload: any) {
+  _fire(evt: string, payload: { data?: string }) {
     for (const fn of (this._listeners[evt] || [])) fn(payload)
   }
   _open() {
@@ -132,7 +141,7 @@ describe('SignalingClient', () => {
     const ws = FakeWebSocket.instances[0]!
     ws._open()
     expect(ws.sent.length).toBe(1)
-    const frame = JSON.parse(ws.sent[0]!)
+    const frame = parseSentFrame(ws.sent[0]!)
     expect(frame.channel).toBe('signal')
     expect(frame.payload.type).toBe('join')
     expect(frame.payload.session).toBe('doc-1')
@@ -150,7 +159,7 @@ describe('SignalingClient', () => {
     c.connect()
     const ws = FakeWebSocket.instances[0]!
     ws._open()
-    const frame = JSON.parse(ws.sent[0]!)
+    const frame = parseSentFrame(ws.sent[0]!)
     expect(frame.payload.type).toBe('join')
     expect(frame.payload.depositPubKey).toBe('BASE64_PUBKEY')
   })
@@ -165,7 +174,7 @@ describe('SignalingClient', () => {
     c.connect()
     const ws = FakeWebSocket.instances[0]!
     ws._open()
-    const frame = JSON.parse(ws.sent[0]!)
+    const frame = parseSentFrame(ws.sent[0]!)
     expect(frame.payload.depositPubKey).toBeUndefined()
   })
 
@@ -179,8 +188,8 @@ describe('SignalingClient', () => {
     const ws = FakeWebSocket.instances[0]!
     ws._open()
 
-    const received: any[] = []
-    c.addEventListener('signal', (ev) => received.push((ev as CustomEvent).detail))
+    const received: SignalEventDetail[] = []
+    c.addEventListener('signal', (ev) => received.push((ev as CustomEvent<SignalEventDetail>).detail))
 
     ws._message({
       channel: 'signal',
@@ -188,8 +197,8 @@ describe('SignalingClient', () => {
       payload: { type: 'offer', session: 'doc-1', to: 'alice', sdp: 'v=0...' },
     })
     expect(received).toHaveLength(1)
-    expect(received[0].from).toBe('bob')
-    expect(received[0].payload.type).toBe('offer')
+    expect(received[0]!.from).toBe('bob')
+    expect(received[0]!.payload.type).toBe('offer')
   })
 
   it('drops frames on the wrong channel and frames addressed to a different peer', () => {
@@ -202,8 +211,8 @@ describe('SignalingClient', () => {
     const ws = FakeWebSocket.instances[0]!
     ws._open()
 
-    const received: any[] = []
-    c.addEventListener('signal', (ev) => received.push((ev as CustomEvent).detail))
+    const received: SignalEventDetail[] = []
+    c.addEventListener('signal', (ev) => received.push((ev as CustomEvent<SignalEventDetail>).detail))
 
     // Wrong channel → dropped.
     ws._message({ channel: 'presence', from: 'bob', payload: { type: 'offer' } })
@@ -237,7 +246,7 @@ describe('SignalingClient', () => {
 
     c.close()
     expect(ws.sent.length).toBe(1)
-    const frame = JSON.parse(ws.sent[0]!)
+    const frame = parseSentFrame(ws.sent[0]!)
     expect(frame.channel).toBe('signal')
     expect(frame.payload.type).toBe('leave')
   })
@@ -274,7 +283,7 @@ describe('SignalingClient reconnect budget', () => {
     }
 
     expect(offlineCb).toHaveBeenCalledTimes(1)
-    const { detail } = offlineCb.mock.calls[0]![0]
+    const { detail } = offlineCb.mock.calls[0]![0] as CustomEvent<OfflineEventDetail>
     expect(detail.attempts).toBeGreaterThanOrEqual(3)
     c.close()
   })
