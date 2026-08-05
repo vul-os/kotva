@@ -317,18 +317,25 @@ export interface DecodedChunkProof {
  */
 export function decodeChunkProof(body: Uint8Array | ArrayBufferLike): DecodedChunkProof {
   const b = body instanceof Uint8Array ? body : new Uint8Array(body)
-  let [major, arg, n] = readHead(b, 0)
+  const head0 = readHead(b, 0)
+  let major = head0[0]
+  const arg = head0[1]
+  let n = head0[2]
   if (major !== CBOR_MAJOR_ARRAY || arg !== 2) throw malformed('proof is not a 2-element cbor array')
   let off = n
 
-  let idx: number
-  ;[major, idx, n] = readHead(b, off)
+  const head1 = readHead(b, off)
+  major = head1[0]
+  const idx = head1[1]
+  n = head1[2]
   if (major !== CBOR_MAJOR_UINT) throw malformed('proof index is not an unsigned integer')
   if (idx > 1 << 20) throw malformed('proof index out of bounds')
   off += n
 
-  let count: number
-  ;[major, count, n] = readHead(b, off)
+  const head2 = readHead(b, off)
+  major = head2[0]
+  const count = head2[1]
+  n = head2[2]
   if (major !== CBOR_MAJOR_ARRAY) throw malformed('proof path is not a cbor array')
   if (count > MAX_PROOF_PATH) {
     throw malformed(`proof path of ${count} exceeds the ${MAX_PROOF_PATH}-level bound`)
