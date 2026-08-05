@@ -13,7 +13,13 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { SignalingClient } from '../src/signaling.js'
+import { SignalingClient, type SignalEventDetail } from '../src/signaling.js'
+
+/** The shape of a signed offer/answer/ice frame this client sends over the (fake) WebSocket. */
+interface SentSignalFrame {
+  channel: string
+  payload: { type: string, ts: number }
+}
 
 interface CanonicalFields {
   type: string
@@ -53,7 +59,7 @@ async function signMsg(privateKey: CryptoKey, msg: string): Promise<string> {
   return btoa(String.fromCharCode(...new Uint8Array(buf)))
 }
 
-type FakeListener = (payload: any) => void
+type FakeListener = (payload: { data?: string }) => void
 
 class FakeWebSocket {
   static OPEN = 1
@@ -74,7 +80,7 @@ class FakeWebSocket {
   addEventListener(e: string, f: FakeListener) { (this._listeners[e] ??= []).push(f) }
   send(d: string) { this.sent.push(d) }
   close() { this.readyState = FakeWebSocket.CLOSED; this._fire('close', {}) }
-  _fire(e: string, p: any) { for (const f of (this._listeners[e] || [])) f(p) }
+  _fire(e: string, p: { data?: string }) { for (const f of (this._listeners[e] || [])) f(p) }
   _open() { this.readyState = FakeWebSocket.OPEN; this._fire('open', {}) }
   _message(frame: unknown) { this._fire('message', { data: typeof frame === 'string' ? frame : JSON.stringify(frame) }) }
 }
@@ -96,9 +102,9 @@ async function makeKeyedClient() {
     peerId: 'bob',
     requirePeerAuth: false,
   })
-  const offers: any[] = []
+  const offers: SignalEventDetail[] = []
   sc.addEventListener('signal', (ev: Event) => {
-    const { detail } = ev as CustomEvent
+    const { detail } = ev as CustomEvent<SignalEventDetail>
     if (detail.payload.type === 'offer') offers.push(detail)
   })
   sc.connect()
@@ -225,7 +231,7 @@ describe('Signaling replay protection — signed timestamp', () => {
     ws.sent.length = 0
 
     await sc.signal('offer', 'remote', { sdp: 'v=0 out' })
-    const frame = JSON.parse(ws.sent[ws.sent.length - 1]!)
+    const frame = JSON.parse(ws.sent[ws.sent.length - 1]!) as SentSignalFrame
     expect(typeof frame.payload.ts).toBe('number')
     expect(frame.payload.ts).toBeGreaterThan(0)
     sc.close()
