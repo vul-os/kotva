@@ -183,13 +183,13 @@ describe('shared § 5.3 corpus — the cross-language lock', () => {
         const decoded = decodeChunkProof(fromHex(p.proof_body_hex))
         expect(decoded.index, `${v.name} chunk ${p.index}: decoded index`).toBe(p.index)
         expect(() =>
-          verifyChunkProof({
+          { verifyChunkProof({
             root: fromHex(v.root_hex),
             nChunks: v.n,
             index: p.index,
             chunk: data[p.index]!,
             path: decoded.path,
-          }),
+          }); },
         ).not.toThrow()
         proofsChecked++
       }
@@ -228,7 +228,7 @@ describe('shared § 5.3 corpus — the cross-language lock', () => {
           isChunkProofValid(args),
           `CONTROL ${c.name} (${c.defect}) VERIFIED — a chunk that must be discarded was accepted`,
         ).toBe(false)
-        expect(() => verifyChunkProof(args)).toThrow()
+        expect(() => { verifyChunkProof(args); }).toThrow()
         verifyControls++
       } else if (c.surface === 'decode') {
         expect(

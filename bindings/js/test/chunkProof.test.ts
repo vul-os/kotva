@@ -93,7 +93,7 @@ describe('chunk-tree interop vector (cross-language)', () => {
       const { index, path } = decodeChunkProof(fromHex(INTEROP_PROOF_HEX[i]!))
       expect(index).toBe(i)
       expect(() =>
-        verifyChunkProof({ root: INTEROP_ROOT_B64, nChunks: VECTOR_N, index: i, chunk: VECTOR_DATA[i]!, path }),
+        { verifyChunkProof({ root: INTEROP_ROOT_B64, nChunks: VECTOR_N, index: i, chunk: VECTOR_DATA[i]!, path }); },
       ).not.toThrow()
     }
   })

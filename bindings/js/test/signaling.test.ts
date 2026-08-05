@@ -45,7 +45,7 @@ class FakeWebSocket {
   }
   addEventListener(evt: string, fn: FakeListener) {
     if (!this._listeners[evt]) this._listeners[evt] = []
-    this._listeners[evt]!.push(fn)
+    this._listeners[evt].push(fn)
   }
   send(data: string) {
     this.sent.push(data)

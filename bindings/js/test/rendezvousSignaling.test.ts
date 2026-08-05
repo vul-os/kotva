@@ -30,7 +30,7 @@ import type { SignalPayload } from '../src/signaling.js'
 // ── In-memory relay modelling the rendezvous wire (peek-on-poll, delete-on-ack) ─
 
 function jsonResponse(status: number, obj: any): RendezvousFetchResponse {
-  return { ok: status >= 200 && status < 300, status, statusText: '', json: async () => obj }
+  return { ok: status >= 200 && status < 300, status, statusText: '', json: () => Promise.resolve(obj) }
 }
 
 interface RelayBlob {
@@ -69,7 +69,7 @@ function makeMockRelay() {
     return id
   }
 
-  const fetchImpl: RendezvousFetch = vi.fn(async (url: string, opts: RequestInit = {}): Promise<RendezvousFetchResponse> => {
+  const resolveRequest = (url: string, opts: RequestInit = {}): RendezvousFetchResponse => {
     const u = new URL(url)
     const path = u.pathname
     const method = opts.method || 'GET'
@@ -105,7 +105,9 @@ function makeMockRelay() {
       }
     }
     return jsonResponse(404, { error: 'not found' })
-  })
+  }
+
+  const fetchImpl: RendezvousFetch = vi.fn((url: string, opts: RequestInit = {}) => Promise.resolve(resolveRequest(url, opts)))
 
   return { fetchImpl, calls, presence, signal, mailbox }
 }

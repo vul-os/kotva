@@ -68,10 +68,10 @@ interface CapturedCall {
 
 function mockFetchCapture(responder: (args: { url: string, opts?: RequestInit, body: any }) => RendezvousFetchResponse | undefined) {
   const calls: CapturedCall[] = []
-  const fetchImpl = vi.fn(async (url: string, opts?: RequestInit): Promise<RendezvousFetchResponse> => {
+  const fetchImpl = vi.fn((url: string, opts?: RequestInit): Promise<RendezvousFetchResponse> => {
     const body = opts && opts.body ? JSON.parse(opts.body as string) : null
     calls.push({ url, method: opts?.method || 'GET', body, headers: opts?.headers })
-    return responder({ url, opts, body }) || jsonResponse(200, { ok: true })
+    return Promise.resolve(responder({ url, opts, body }) || jsonResponse(200, { ok: true }))
   })
   return { fetchImpl, calls }
 }
@@ -81,7 +81,7 @@ function jsonResponse(status: number, obj: any): RendezvousFetchResponse {
     ok: status >= 200 && status < 300,
     status,
     statusText: '',
-    json: async () => obj,
+    json: () => Promise.resolve(obj),
   }
 }
 
