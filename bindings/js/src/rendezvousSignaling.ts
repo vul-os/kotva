@@ -231,8 +231,22 @@ export class RendezvousSignalingClient extends EventTarget {
       await this._announceAndJoin()
       this._markOpen()
       if (this._pollLoop) {
-        this._loopBoard()
-        this._loopInbox()
+        // _loopBoard/_loopInbox catch every error internally and run until
+        // _stopped — they do not reject in normal operation (that is the whole
+        // point of the loop: self-heal via _scheduleReconnect, see below). This
+        // is a defense-in-depth backstop only: if a future change lets one of
+        // them throw synchronously or reject unexpectedly, log it instead of
+        // leaking an unhandled rejection that would otherwise vanish silently.
+        this._loopBoard().catch((err: unknown) => {
+          if (typeof console !== 'undefined') {
+            console.error('[rendezvous-signal] board poll loop failed unexpectedly:', err instanceof Error ? err.message : err)
+          }
+        })
+        this._loopInbox().catch((err: unknown) => {
+          if (typeof console !== 'undefined') {
+            console.error('[rendezvous-signal] inbox poll loop failed unexpectedly:', err instanceof Error ? err.message : err)
+          }
+        })
         this._heartbeatTimer = setInterval(() => {
           this._announceAndJoin().catch(() => { /* retried next tick */ })
         }, HEARTBEAT_MS)
@@ -343,7 +357,19 @@ export class RendezvousSignalingClient extends EventTarget {
       this.dispatchEvent(new CustomEvent('offline', { detail: { attempts: this._reconnectAttempts } }))
     }
     const delay = Math.min(RECONNECT_BASE_MS * 2 ** (this._reconnectAttempts - 1), RECONNECT_MAX_MS)
-    setTimeout(() => { if (!this._stopped) this.connect() }, delay)
+    setTimeout(() => {
+      if (!this._stopped) {
+        // connect() already catches its own body and routes failures back into
+        // _scheduleReconnect — this .catch is a defense-in-depth backstop for an
+        // unexpected throw outside that path, so it logs rather than leaking an
+        // unhandled rejection.
+        this.connect().catch((err: unknown) => {
+          if (typeof console !== 'undefined') {
+            console.error('[rendezvous-signal] reconnect attempt failed unexpectedly:', err instanceof Error ? err.message : err)
+          }
+        })
+      }
+    }, delay)
   }
 
   /** One board poll → discover joins/leaves. Returns the number of blobs seen. */
