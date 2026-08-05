@@ -456,9 +456,9 @@ export class SignalingClient extends EventTarget {
       }
     })
 
-    ws.addEventListener('message', async (ev: MessageEvent) => {
+    ws.addEventListener('message', async (ev: MessageEvent<string>) => {
       let frame: { channel?: string, from?: string, payload?: SignalPayload }
-      try { frame = JSON.parse(ev.data) } catch { return }
+      try { frame = JSON.parse(ev.data) as typeof frame } catch { return }
       if (frame.channel !== SIGNAL_CHANNEL) return
       // Delegate to the transport-agnostic processor: the server stamps `from`,
       // so `frame.from` is the sender peerId.
@@ -568,7 +568,7 @@ export class SignalingClient extends EventTarget {
             nonce: p.nonce,
             ts: p.ts,
           })
-          let valid = false
+          let valid: boolean
           try { valid = await this._verifyFrame(ecdsaKey, canonical, p.sig) } catch { valid = false }
           // Freshness: bound the validity of a captured join so a stale signed
           // join cannot be replayed indefinitely (mirrors offer/answer/ice).
@@ -959,7 +959,7 @@ export class SignalingClient extends EventTarget {
       return await crypto.subtle.verify(
         { name: 'ECDSA', hash: 'SHA-256' },
         pubKey,
-        sigBuf as BufferSource,
+        sigBuf,
         msgBytes as BufferSource,
       )
     } catch {
