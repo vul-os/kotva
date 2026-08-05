@@ -40,6 +40,37 @@ describe('base64url', () => {
     expect(enc).not.toMatch(/[+/=]/)
     expect(Array.from(b64urlDecode(enc))).toEqual(Array.from(bytes))
   })
+
+  it('encodes a Uint8Array subarray view using only its own byteOffset..byteLength window', () => {
+    const backing = new Uint8Array([9, 9, 4, 5, 6, 7, 8, 9])
+    const view = backing.subarray(3) // byteOffset 3, i.e. bytes [5, 6, 7, 8, 9]
+    expect(Array.from(b64urlDecode(b64urlEncode(view)))).toEqual([5, 6, 7, 8, 9])
+  })
+
+  it('encodes any ArrayBufferView by its true underlying bytes, not by element-wise reinterpretation', () => {
+    // A naive `new Uint8Array(view)` fallback for a non-Uint8Array typed array
+    // does an ELEMENT-WISE numeric conversion (wrong length, wrong values),
+    // not a byte-for-byte reinterpretation. Compare against the bytes read
+    // directly off the view's own buffer/byteOffset/byteLength, which is the
+    // ground truth for what must go on the wire.
+    const i16 = new Int16Array([1, 2, -1, 300]) // 4 elements, 8 bytes, little-endian
+    const expected = Array.from(new Uint8Array(i16.buffer, i16.byteOffset, i16.byteLength))
+    const got = Array.from(b64urlDecode(b64urlEncode(i16)))
+    expect(got).toEqual(expected)
+    expect(got).toHaveLength(8) // NOT 4 — the element-wise fallback truncated to 4 bytes
+
+    const f32 = new Float32Array([1.5, -2.25])
+    const expectedF32 = Array.from(new Uint8Array(f32.buffer, f32.byteOffset, f32.byteLength))
+    expect(Array.from(b64urlDecode(b64urlEncode(f32)))).toEqual(expectedF32)
+  })
+
+  it('encodes a DataView by its underlying bytes rather than silently producing zero bytes', () => {
+    const buf = new ArrayBuffer(4)
+    new DataView(buf).setUint32(0, 0xdeadbeef)
+    // A naive `new Uint8Array(dataView)` fallback reads no numeric length off a
+    // DataView and silently produces ZERO bytes — total, silent data loss.
+    expect(Array.from(b64urlDecode(b64urlEncode(new DataView(buf))))).toEqual([0xde, 0xad, 0xbe, 0xef])
+  })
 })
 
 describe('RendezvousIdentity', () => {
