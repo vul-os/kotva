@@ -90,24 +90,46 @@ describe('RendezvousIdentity', () => {
   })
 })
 
+/**
+ * The union of every request-body shape sent by the RendezvousClient calls
+ * exercised in this file (announce/withdraw/deposit/poll/ack all share the
+ * signed-envelope pattern). Fields are optional because which ones are
+ * present depends on which endpoint sent this particular body — each test
+ * knows, for its own endpoint, which fields are actually there.
+ */
+interface CapturedBody {
+  key?: string
+  ts?: number
+  ttl?: number
+  nonce?: string
+  meta?: string
+  endpoints?: string[]
+  from?: string
+  to?: string
+  payload?: string
+  sig?: string
+  wait?: number
+  ids?: string[]
+}
+
 interface CapturedCall {
   url: string
   method: string
-  body: any
+  body: CapturedBody
   headers?: HeadersInit
 }
 
-function mockFetchCapture(responder: (args: { url: string, opts?: RequestInit, body: any }) => RendezvousFetchResponse | undefined) {
+function mockFetchCapture(responder: (args: { url: string, opts?: RequestInit, body: CapturedBody }) => RendezvousFetchResponse | undefined) {
   const calls: CapturedCall[] = []
   const fetchImpl = vi.fn((url: string, opts?: RequestInit): Promise<RendezvousFetchResponse> => {
-    const body = opts && opts.body ? JSON.parse(opts.body as string) : null
+    const body = (opts && opts.body ? JSON.parse(opts.body as string) : null) as CapturedBody
     calls.push({ url, method: opts?.method || 'GET', body, headers: opts?.headers })
     return Promise.resolve(responder({ url, opts, body }) || jsonResponse(200, { ok: true }))
   })
   return { fetchImpl, calls }
 }
 
-function jsonResponse(status: number, obj: any): RendezvousFetchResponse {
+function jsonResponse(status: number, obj: unknown): RendezvousFetchResponse {
   return {
     ok: status >= 200 && status < 300,
     status,
@@ -132,9 +154,9 @@ describe('RendezvousClient.announce', () => {
     expect(c.body.key).toBe(id.key)
 
     // The captured request signature verifies over the reconstructed canonical.
-    const fields = [c.body.key, String(c.body.ts), String(c.body.ttl), c.body.nonce, c.body.meta, ...c.body.endpoints]
+    const fields = [c.body.key!, String(c.body.ts), String(c.body.ttl), c.body.nonce!, c.body.meta!, ...c.body.endpoints!]
     const msg = canonicalMessage(RENDEZVOUS_DOMAINS.announce, fields)
-    expect(ed25519.verify(b64urlDecode(c.body.sig), msg, id.publicKey)).toBe(true)
+    expect(ed25519.verify(b64urlDecode(c.body.sig!), msg, id.publicKey)).toBe(true)
   })
 })
 
@@ -177,12 +199,12 @@ describe('RendezvousClient signal deposit/poll/ack', () => {
     expect(c.url).toBe('https://relay.test/rendezvous/signal/' + encodeURIComponent(peer))
     expect(c.body.from).toBe(id.key)
     expect(c.body.to).toBe(peer)
-    expect(b64urlDecode(c.body.payload)).toEqual(payload)
+    expect(b64urlDecode(c.body.payload!)).toEqual(payload)
     // Signature verifies over the deposit canonical.
     const msg = canonicalMessage(RENDEZVOUS_DOMAINS.signalDeposit, [
-      c.body.from, c.body.to, String(c.body.ts), String(c.body.ttl), c.body.nonce, c.body.payload,
+      c.body.from!, c.body.to!, String(c.body.ts), String(c.body.ttl), c.body.nonce!, c.body.payload!,
     ])
-    expect(ed25519.verify(b64urlDecode(c.body.sig), msg, id.publicKey)).toBe(true)
+    expect(ed25519.verify(b64urlDecode(c.body.sig!), msg, id.publicKey)).toBe(true)
   })
 
   it('polls own inbox (recipient-signed) and decodes payloads', async () => {
@@ -198,8 +220,8 @@ describe('RendezvousClient signal deposit/poll/ack', () => {
     const c = calls[0]!
     expect(c.url).toBe('https://relay.test/rendezvous/signal/' + encodeURIComponent(id.key) + '/poll')
     expect(c.body.wait).toBe(5)
-    const msg = canonicalMessage(RENDEZVOUS_DOMAINS.signalPoll, [c.body.key, String(c.body.ts), c.body.nonce])
-    expect(ed25519.verify(b64urlDecode(c.body.sig), msg, id.publicKey)).toBe(true)
+    const msg = canonicalMessage(RENDEZVOUS_DOMAINS.signalPoll, [c.body.key!, String(c.body.ts), c.body.nonce!])
+    expect(ed25519.verify(b64urlDecode(c.body.sig!), msg, id.publicKey)).toBe(true)
   })
 
   it('acks consumed blob ids', async () => {
@@ -210,8 +232,8 @@ describe('RendezvousClient signal deposit/poll/ack', () => {
     expect(res.deleted).toBe(2)
     const c = calls[0]!
     expect(c.body.ids).toEqual(['a', 'b'])
-    const msg = canonicalMessage(RENDEZVOUS_DOMAINS.signalAck, [c.body.key, String(c.body.ts), c.body.nonce, 'a', 'b'])
-    expect(ed25519.verify(b64urlDecode(c.body.sig), msg, id.publicKey)).toBe(true)
+    const msg = canonicalMessage(RENDEZVOUS_DOMAINS.signalAck, [c.body.key!, String(c.body.ts), c.body.nonce!, 'a', 'b'])
+    expect(ed25519.verify(b64urlDecode(c.body.sig!), msg, id.publicKey)).toBe(true)
   })
 })
 
