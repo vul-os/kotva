@@ -155,6 +155,11 @@ export interface SignalEventDetail {
   payload: SignalPayload
 }
 
+/** The `detail` shape of the CustomEvent dispatched as `offline` (see `_scheduleReconnect`). */
+export interface OfflineEventDetail {
+  attempts: number
+}
+
 /** The data a caller supplies to {@link SignalingClient.signal} / `_buildSignalPayload`. */
 export interface SignalData {
   sdp?: string
@@ -909,7 +914,7 @@ export class SignalingClient extends EventTarget {
     if (this._reconnectAttempts >= this._maxAttempts) {
       if (!this._degraded) {
         this._degraded = true
-        this.dispatchEvent(new CustomEvent('offline', {
+        this.dispatchEvent(new CustomEvent<OfflineEventDetail>('offline', {
           detail: { attempts: this._reconnectAttempts },
         }))
       }
