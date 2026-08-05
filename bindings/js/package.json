@@ -24,7 +24,9 @@
   ],
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "check:lint-config": "node scripts/check-lint-config.mjs"
   },
   "repository": {
     "type": "git",

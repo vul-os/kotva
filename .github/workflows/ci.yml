@@ -206,6 +206,18 @@ jobs:
             exit 1
           fi
 
+      # `npx eslint .` exiting 0 is not evidence the type-aware rules ran at
+      # all — that is exactly how 12 of 13 sibling repos briefly enforced
+      # nothing while reporting full coverage. This gate runs the tools
+      # against a fixture with a genuine floating promise and asserts the
+      # type-aware rule actually fires, checks typescript is pinned exactly,
+      # and asserts a real file-coverage floor.
+      - name: Lint config gate (type-awareness, TS pin, coverage floor)
+        working-directory: bindings/js
+        run: |
+          npx eslint .
+          npm run check:lint-config
+
   conformance:
     runs-on: ubuntu-latest
     timeout-minutes: 10
