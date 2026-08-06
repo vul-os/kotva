@@ -25,6 +25,7 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "typecheck:scripts": "tsc -p scripts/tsconfig.json --noEmit",
     "lint": "eslint .",
     "check:lint-config": "node scripts/check-lint-config.mjs"
   },
