@@ -56,7 +56,7 @@
 // ECDSA key; the peerId↔rendezvous-key mapping is a routing hint the handshake
 // does not trust. Use unguessable session ids for private rooms.
 
-import { SignalingClient, type SignFrameFn, type SignedPreKeyClaim, type SignalPayload, type SignalEventDetail } from './signaling.js'
+import { SignalingClient, type SignFrameFn, type SignedPreKeyClaim, type SignalPayload, type SignalEventDetail, type SignalKind, type SignalData } from './signaling.js'
 import { RendezvousClient, RendezvousIdentity } from './rendezvous.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 
@@ -286,13 +286,20 @@ export class RendezvousSignalingClient extends EventTarget {
   }
 
   /**
-   * Send a signal (offer/answer/ice) to a peer over its rendezvous inbox. Same
-   * signature as SignalingClient.signal(); the payload is built + ECDSA-signed by
-   * the shared core, then deposited as opaque bytes to the recipient's rendezvous
-   * key. Silently drops if we have not learned the recipient's rendezvous address
-   * yet (FabricClient only signals peers it discovered via the board).
+   * Send a signal (offer/answer/ice, or an app-defined kind — see
+   * {@link SignalKind}) to a peer over its rendezvous inbox. Same signature as
+   * SignalingClient.signal() for interface parity (FabricClient holds either
+   * transport behind one `SignalingTransport` type), but `toId: null`
+   * (broadcast) is a no-op here: rendezvous is point-to-point only — there is
+   * no per-recipient inbox to broadcast into, only the shared room board that
+   * `_announceAndJoin` already deposits onto. The payload is built +
+   * ECDSA-signed by the shared core, then deposited as opaque bytes to the
+   * recipient's rendezvous key. Silently drops if we have not learned the
+   * recipient's rendezvous address yet (FabricClient only signals peers it
+   * discovered via the board).
    */
-  async signal(type: 'offer' | 'answer' | 'ice', toId: string, data: Record<string, unknown> = {}): Promise<void> {
+  async signal(type: SignalKind, toId: string | null, data: SignalData = {}): Promise<void> {
+    if (toId === null) return // point-to-point transport; no broadcast primitive (see docstring above)
     const rdvKey = this._peerRdvKey.get(toId)
     if (!rdvKey) return
     const payload = await this._core._buildSignalPayload(type, toId, data)
