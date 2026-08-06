@@ -118,15 +118,54 @@ export interface SignedPreKeyClaim {
 export type SignalFrameType = 'offer' | 'answer' | 'ice' | 'join' | 'leave'
 
 /**
+ * The signal `type`/kind carried on the wire. `SignalFrameType`'s five
+ * literals are the ones {@link SignalingClient._processSignal}'s security
+ * pipeline understands and special-cases (TOFU key/box/prekey import,
+ * anti-downgrade join pinning, offer/answer/ice signature + freshness +
+ * replay checks). Consumers layered on top of this envelope (e.g. a call
+ * UI multiplexing 'sdp' / 'screen-share' / other app-level kinds over the
+ * same "signal" channel) need to carry their own kinds through the same
+ * `type` field without fighting the compiler.
+ *
+ * `SignalFrameType | (string & {})` is deliberate over a bare `string`: it
+ * still autocompletes/typechecks the five known literals at call sites
+ * (`signal('offr', ...)` is still a compile error), while also accepting
+ * any other string. This is a TYPE-LEVEL widening only — see the security
+ * note below; it does not change what `_processSignal` does with a given
+ * `type` value at runtime.
+ */
+export type SignalKind = SignalFrameType | (string & {})
+
+/**
  * A SignalPayload as it appears on the wire. Every field beyond `type` is
  * optional because this shape also describes UNTRUSTED input freshly parsed
  * from a WebSocket message or a rendezvous envelope — nothing about it is
  * guaranteed until the checks in {@link SignalingClient._processSignal} pass.
+ *
+ * ── Security note on `type: SignalKind` (widened from a closed union) ──────
+ * This widening is TYPE-LEVEL ONLY. `_processSignal` already treated `p.type`
+ * as an unchecked runtime string before this change — incoming frames are
+ * `JSON.parse`d off the wire and cast (`as SignalPayload`), so a malicious
+ * peer/server could already send any `type` value regardless of what this
+ * interface declared; the closed union only ever constrained code in *this*
+ * module constructing outgoing frames via the typed `signal()` API. There
+ * was never a runtime switch that rejected an unrecognised `type` — unknown
+ * kinds already fell through to the same `dispatchEvent('signal', ...)` at
+ * the bottom of `_processSignal`, same as after this change. The five
+ * type-specific branches (TOFU import, anti-downgrade pinning, sig/nonce/ts
+ * verification) are still keyed on exact `===` comparisons against the five
+ * literal strings and are UNCHANGED by this widening — an app-level kind
+ * like `'sdp'` or `'screen-share'` still cannot enter the offer/answer/ice
+ * signature-verification branch (it isn't `'offer' | 'answer' | 'ice'`), and
+ * still cannot enter the join TOFU/anti-downgrade branches (it isn't
+ * `'join'`). See the mutation test in signaling.test.ts that plants an
+ * invalid signature and a stale/replayed nonce/timestamp and asserts they
+ * are still rejected after this widening.
  */
 export interface SignalPayload {
-  type: SignalFrameType
+  type: SignalKind
   session?: string
-  /** targeted delivery (optional; omit = broadcast) */
+  /** targeted delivery (optional; omit/null = broadcast) */
   to?: string | null
   /** offer / answer SDP */
   sdp?: string
@@ -147,6 +186,23 @@ export interface SignalPayload {
   signedPreKey?: SignedPreKeyClaim | null
   /** published on 'join': signed forward-secrecy capability commitment */
   supportsV2?: boolean
+  /**
+   * app-level extension point: an opaque payload body a consumer layered on
+   * top of this envelope (e.g. a call UI) threads through unchanged for its
+   * own kinds ('sdp', 'ice' data, 'screen-share', ...). Deliberately OUTSIDE
+   * `_canonical`'s signed field set (see `_canonical` below) — a consumer
+   * that needs a `data` sub-field authenticated must mirror the relevant
+   * piece onto a top-level signed field (as `sdp`/`candidate`/`pubKey`
+   * already are), same as before this field existed.
+   */
+  data?: unknown
+  /**
+   * app-level extension point: opaque caller identity a consumer threads
+   * alongside its own signal kinds (typically 'join'). Like `data`, this is
+   * NOT part of `_canonical`'s signed message — it carries no security
+   * weight and is not verified by `_processSignal`.
+   */
+  identity?: unknown
 }
 
 /** The `detail` shape of the CustomEvent dispatched as `signal` (see `_processSignal`). */
@@ -177,6 +233,10 @@ export interface SignalData {
   sdp?: string
   candidate?: RTCIceCandidateInit
   pubKey?: string
+  /** see {@link SignalPayload.data} — passed through unchanged, not signed */
+  data?: unknown
+  /** see {@link SignalPayload.identity} — passed through unchanged, not signed */
+  identity?: unknown
 }
 
 /** Signs a canonical string with this client's ECDSA identity, returning a base64 signature. */
@@ -194,7 +254,7 @@ export type SignFrameFn = (msg: string) => Promise<string>
 //
 // @internal — exported only for tests via peer-auth.test.js which re-implements it.
 function _canonical({ type, session, to, from, nonce, ts, sdp, candidate, pubKey }: {
-  type: SignalFrameType
+  type: SignalKind
   session?: string
   to?: string | null
   from: string
@@ -205,7 +265,7 @@ function _canonical({ type, session, to, from, nonce, ts, sdp, candidate, pubKey
   pubKey?: string
 }): string {
   const msg: {
-    type: SignalFrameType, session?: string, to: string | null, from: string, nonce?: string, ts?: number,
+    type: SignalKind, session?: string, to: string | null, from: string, nonce?: string, ts?: number,
     sdp?: string, candidate?: RTCIceCandidateInit, pubKey?: string
   } = { type, session, to: to ?? null, from, nonce, ts }
   if (sdp !== undefined) msg.sdp = sdp
@@ -719,13 +779,23 @@ export class SignalingClient extends EventTarget {
   }
 
   /**
-   * Send a signal payload to a specific peer (or broadcast to session).
+   * Send a signal payload to a specific peer, or broadcast to the session
+   * when `toId` is `null`.
+   *
+   * `type` accepts the five core protocol kinds ('offer'/'answer'/'ice' — the
+   * ones with dedicated verification in `_processSignal` — plus 'join'/
+   * 'leave') or any app-level kind a consumer layered on this envelope wants
+   * to multiplex over the same channel (see {@link SignalKind}). Sending an
+   * app-level kind through here does NOT get the offer/answer/ice signature
+   * pipeline or the join anti-downgrade pipeline — those remain keyed on the
+   * exact literal `type` values in `_processSignal`, unchanged by this being
+   * a wider parameter type.
    *
    * When `signFrame` is configured, the payload is signed with a per-frame
    * nonce using ECDSA P-256.  The nonce is included in both the canonical
    * signing message and the sent payload so recipients can verify.
    */
-  async signal(type: 'offer' | 'answer' | 'ice', toId: string, data: SignalData = {}): Promise<void> {
+  async signal(type: SignalKind, toId: string | null, data: SignalData = {}): Promise<void> {
     this._send(await this._buildSignalPayload(type, toId, data))
   }
 
@@ -736,12 +806,12 @@ export class SignalingClient extends EventTarget {
    * the returned payload as an opaque blob rather than a WS frame. The canonical
    * signed bytes are identical on both paths, so peer authentication is unchanged.
    *
-   * @param type - offer | answer | ice
-   * @param toId - recipient peerId
-   * @param data - { sdp?, candidate?, pubKey? }
+   * @param type - one of the five core protocol kinds, or an app-defined kind
+   * @param toId - recipient peerId, or `null` to broadcast
+   * @param data - { sdp?, candidate?, pubKey?, data?, identity? }
    * @returns the (possibly signed) SignalPayload
    */
-  async _buildSignalPayload(type: 'offer' | 'answer' | 'ice', toId: string, data: SignalData = {}): Promise<SignalPayload> {
+  async _buildSignalPayload(type: SignalKind, toId: string | null, data: SignalData = {}): Promise<SignalPayload> {
     const payload: SignalPayload = { type, session: this._session, to: toId, ...data }
 
     if (this._signFrame) {
