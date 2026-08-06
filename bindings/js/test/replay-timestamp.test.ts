@@ -217,6 +217,55 @@ describe('Signaling replay protection — signed timestamp', () => {
     expect(offers).toHaveLength(0)
   })
 
+  it('rejects a frame with a tampered signature (fresh nonce+ts, otherwise valid)', async () => {
+    // Security-posture mutation check for the SignalPayload.type widening
+    // (SignalFrameType -> SignalKind = SignalFrameType | (string & {})):
+    // that widening is TYPE-LEVEL only (see the doc comment on SignalPayload
+    // in signaling.ts). This proves the RUNTIME signature check in
+    // _processSignal is unaffected — a validly-shaped but wrongly-signed
+    // offer/answer/ice frame is still dropped exactly as before.
+    const { ws, aliceKP, alicePubB64, offers } = await makeKeyedClient()
+
+    const nonce = crypto.randomUUID()
+    const ts = Date.now()
+    const sdp = 'v=0 tampered'
+    // Sign honestly, then tamper the OUTGOING sdp after signing — the
+    // signature no longer matches the canonical reconstruction of what was
+    // actually sent (a MITM SDP/candidate swap, or straightforward bit-flip).
+    const sig = await signMsg(aliceKP.privateKey, canonical({
+      type: 'offer', session: 'sess-1', to: 'bob', from: 'alice', nonce, ts, sdp, pubKey: alicePubB64,
+    }))
+    ws._message(signedOfferFrame({ nonce, ts, sdp: sdp + '-tampered', sig, pubKey: alicePubB64 }))
+    await sleep(80)
+    expect(offers).toHaveLength(0)
+  })
+
+  it('rejects an exact replay: the same validly-signed frame delivered twice', async () => {
+    // Security-posture mutation check (see comment above): a fresh, validly
+    // signed frame is accepted once; redelivering the IDENTICAL frame (same
+    // nonce) must still be rejected by the nonce-replay cache after the
+    // SignalPayload.type widening, exactly as before.
+    const { ws, aliceKP, alicePubB64, offers } = await makeKeyedClient()
+
+    const nonce = crypto.randomUUID()
+    const ts = Date.now()
+    const sdp = 'v=0 replay-me'
+    const sig = await signMsg(aliceKP.privateKey, canonical({
+      type: 'offer', session: 'sess-1', to: 'bob', from: 'alice', nonce, ts, sdp, pubKey: alicePubB64,
+    }))
+    const frame = signedOfferFrame({ nonce, ts, sdp, sig, pubKey: alicePubB64 })
+
+    ws._message(frame)
+    await waitFor(() => offers.length === 1)
+    expect(offers).toHaveLength(1)
+
+    // Redeliver the exact same frame — valid signature, fresh ts, but a
+    // nonce we have already processed.
+    ws._message(frame)
+    await sleep(80)
+    expect(offers).toHaveLength(1) // still 1 — the replay was dropped, not delivered again
+  })
+
   it('outgoing signed frames carry a numeric ts in the canonical and payload', async () => {
     const localKP = await generatePeerKey()
     const sc = new SignalingClient({
