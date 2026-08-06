@@ -193,14 +193,21 @@ jobs:
           set -o pipefail
           npm ci
           npx vitest run --reporter=verbose 2>&1 | tee /tmp/js-test.log | tail -30
-          ran=$(grep -cE '^\s*[+-]?\s*✓' /tmp/js-test.log || true)
+          # vitest colors its ✓ marks (via tinyrainbow) whenever it does not detect an AI-agent
+          # shell (std-env's `isAgent`, tripped by e.g. CLAUDECODE/AI_AGENT) - a GitHub Actions
+          # runner never trips that, so this step's output IS colored in CI even though the same
+          # command is always plain text when run locally under Claude Code. A raw `✓` grep
+          # against `\x1b[32m✓\x1b[39m` matches the start of no line, so it silently counted 0 -
+          # a real 104-pass run reported as a failure. Strip ANSI SGR codes before counting.
+          sed -E 's/\x1b\[[0-9;]*m//g' /tmp/js-test.log > /tmp/js-test.clean.log
+          ran=$(grep -cE '^\s*[+-]?\s*✓' /tmp/js-test.clean.log || true)
           echo "vitest: $ran assertions passed (97 at 2026-08-03)"
           if [ "$ran" -lt 97 ]; then
             echo "::error::only $ran JS tests ran (expected >= 97). NOT VERIFIED: that the browser" \
                  "half reproduces the §5.3 proof algebra the Go and Rust halves implement."
             exit 1
           fi
-          if grep -qE '↓|skipped' /tmp/js-test.log; then
+          if grep -qE '↓|skipped' /tmp/js-test.clean.log; then
             echo "::error::JS tests were SKIPPED. The vectors and the sources are both in-tree" \
                  "here, so there is no legitimate skip — a skip means a guard stopped guarding."
             exit 1
