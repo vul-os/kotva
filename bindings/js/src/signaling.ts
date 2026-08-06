@@ -158,9 +158,10 @@ export type SignalKind = SignalFrameType | (string & {})
  * like `'sdp'` or `'screen-share'` still cannot enter the offer/answer/ice
  * signature-verification branch (it isn't `'offer' | 'answer' | 'ice'`), and
  * still cannot enter the join TOFU/anti-downgrade branches (it isn't
- * `'join'`). See the mutation test in signaling.test.ts that plants an
- * invalid signature and a stale/replayed nonce/timestamp and asserts they
- * are still rejected after this widening.
+ * `'join'`). See the mutation tests in replay-timestamp.test.ts ("rejects a
+ * frame with a tampered signature" / "rejects an exact replay") that plant
+ * an invalid signature and a replayed nonce and assert they are still
+ * rejected after this widening.
  */
 export interface SignalPayload {
   type: SignalKind
