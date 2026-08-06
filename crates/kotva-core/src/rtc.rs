@@ -1023,26 +1023,27 @@ impl MediaCapacity {
         let own_tracks = per_peer.tracks;
 
         // Peers admitted by decode/encode slots: own tracks are encoded once, each peer's tracks
-        // are decoded once.
-        let by_tracks = if per_peer.tracks == 0 {
-            u32::MAX
-        } else {
-            self.max_tracks.saturating_sub(own_tracks) / per_peer.tracks
-        };
+        // are decoded once. `checked_div` returns `None` for the zero-tracks-per-peer case, which
+        // reads as "unbounded by this axis" — the same meaning the old `== 0` guard gave it.
+        let by_tracks = self
+            .max_tracks
+            .saturating_sub(own_tracks)
+            .checked_div(per_peer.tracks)
+            .unwrap_or(u32::MAX);
 
         // Peers admitted by uplink: this node's own tracks go out once per peer.
-        let by_send = if per_peer.bitrate_bps == 0 {
-            u32::MAX
-        } else {
-            clamp_u32(self.max_send_bitrate_bps / per_peer.bitrate_bps)
-        };
+        let by_send = self
+            .max_send_bitrate_bps
+            .checked_div(per_peer.bitrate_bps)
+            .map(clamp_u32)
+            .unwrap_or(u32::MAX);
 
         // Peers admitted by downlink: one peer's worth of tracks arrives per peer.
-        let by_recv = if per_peer.bitrate_bps == 0 {
-            u32::MAX
-        } else {
-            clamp_u32(self.max_recv_bitrate_bps / per_peer.bitrate_bps)
-        };
+        let by_recv = self
+            .max_recv_bitrate_bps
+            .checked_div(per_peer.bitrate_bps)
+            .map(clamp_u32)
+            .unwrap_or(u32::MAX);
 
         by_tracks.min(by_send).min(by_recv).saturating_add(1)
     }
@@ -1132,15 +1133,17 @@ impl CapacityAdvert {
             CapacityAdvert::Mesh(c) => c.mesh_participant_ceiling(profile),
             CapacityAdvert::Gateway(cap) => {
                 let per_peer = profile.load();
-                let by_tracks_per_participant =
-                    if per_peer.tracks == 0 { u32::MAX } else { cap.max_tracks_per_participant / per_peer.tracks };
+                let by_tracks_per_participant = cap
+                    .max_tracks_per_participant
+                    .checked_div(per_peer.tracks)
+                    .unwrap_or(u32::MAX);
                 let by_aggregate_tracks =
-                    if per_peer.tracks == 0 { u32::MAX } else { cap.max_tracks / per_peer.tracks };
-                let by_aggregate_bps = if per_peer.bitrate_bps == 0 {
-                    u32::MAX
-                } else {
-                    clamp_u32(cap.max_aggregate_bps / per_peer.bitrate_bps)
-                };
+                    cap.max_tracks.checked_div(per_peer.tracks).unwrap_or(u32::MAX);
+                let by_aggregate_bps = cap
+                    .max_aggregate_bps
+                    .checked_div(per_peer.bitrate_bps)
+                    .map(clamp_u32)
+                    .unwrap_or(u32::MAX);
                 by_tracks_per_participant.min(by_aggregate_tracks).min(by_aggregate_bps)
             }
         }
