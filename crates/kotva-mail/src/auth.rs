@@ -75,7 +75,10 @@ impl Authenticator for StaticAuthenticator {
     }
 
     fn secret_for(&self, username: &str) -> Option<String> {
-        self.passwords.iter().find(|p| p.username == username).map(|p| p.secret.clone())
+        self.passwords
+            .iter()
+            .find(|p| p.username == username)
+            .map(|p| p.secret.clone())
     }
 }
 
@@ -142,7 +145,11 @@ pub fn decode_plain(b64: &str) -> Option<SaslCredential> {
         return None;
     }
     Some(SaslCredential {
-        authzid: if authzid.is_empty() { None } else { Some(authzid) },
+        authzid: if authzid.is_empty() {
+            None
+        } else {
+            Some(authzid)
+        },
         authcid,
         password: String::from_utf8(passwd.to_vec()).ok()?,
     })
@@ -186,14 +193,20 @@ mod tests {
 
     #[test]
     fn login_field_decodes() {
-        assert_eq!(decode_login_field(&base64_encode(b"alice")).as_deref(), Some("alice"));
+        assert_eq!(
+            decode_login_field(&base64_encode(b"alice")).as_deref(),
+            Some("alice")
+        );
     }
 
     #[test]
     fn static_authenticator_verifies_and_fails_closed() {
         let mut a = StaticAuthenticator::new();
         a.issue("alice@dmtap.local", "app-pw-1", vec![1, 2, 3], "iphone");
-        assert_eq!(a.verify("alice@dmtap.local", "app-pw-1"), Some(vec![1, 2, 3]));
+        assert_eq!(
+            a.verify("alice@dmtap.local", "app-pw-1"),
+            Some(vec![1, 2, 3])
+        );
         assert_eq!(a.verify("alice@dmtap.local", "wrong"), None);
         assert_eq!(a.verify("mallory", "app-pw-1"), None);
     }

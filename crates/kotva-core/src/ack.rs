@@ -36,15 +36,19 @@ pub enum AckError {
     /// the pinned recipient identity (`IK` or a non-revoked, `IK`-authorised device key). An
     /// unsigned/forged ack from an intermediary that merely read the unsealed `id` lands here.
     /// `ERR_ACK_SIG_INVALID` (`0x0317`).
-    #[error("ack signature invalid or signed by an unauthorised key \
-             (ERR_ACK_SIG_INVALID, 0x0317)")]
+    #[error(
+        "ack signature invalid or signed by an unauthorised key \
+             (ERR_ACK_SIG_INVALID, 0x0317)"
+    )]
     SigInvalid,
     /// A genuinely-signed ack whose `tier` does not equal the tier the acknowledged MOTE was sent
     /// at — a return-path tier downgrade (e.g. a `private`-tier send acked over `fast`) or an
     /// implementation bug. Treated identically to a signature failure. `ERR_ACK_TIER_MISMATCH`
     /// (`0x0318`).
-    #[error("ack tier does not match the tier the MOTE was sent at \
-             (ERR_ACK_TIER_MISMATCH, 0x0318)")]
+    #[error(
+        "ack tier does not match the tier the MOTE was sent at \
+             (ERR_ACK_TIER_MISMATCH, 0x0318)"
+    )]
     TierMismatch,
     /// The ack could not be decoded as canonical CBOR (§18.1.1) or its fields were malformed.
     #[error("ack is malformed: {0}")]
@@ -65,8 +69,8 @@ impl AckError {
 /// `tier` the ack MUST travel at (the tier the MOTE was sent at), and `ack_sig`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ack {
-    pub id: ContentId, // key 1 — the acknowledged Envelope.id (§18.3.1)
-    pub tier: Tier,    // key 2 — the tier the MOTE was sent at (§2.6); wire byte 1=private, 2=fast
+    pub id: ContentId,    // key 1 — the acknowledged Envelope.id (§18.3.1)
+    pub tier: Tier, // key 2 — the tier the MOTE was sent at (§2.6); wire byte 1=private, 2=fast
     pub ack_sig: Vec<u8>, // key 3 — §18.9.18, over det_cbor(Ack ∖ {3}) under an IK-authorised key
 }
 
@@ -110,7 +114,11 @@ impl Ack {
     /// Produce a signed ack for `id` at `tier` under the recipient's key `sk` (§18.9.18). `sk` is
     /// the recipient's `IK` or an `IK`-authorised device key.
     pub fn sign(id: ContentId, tier: Tier, sk: &IdentityKey) -> Ack {
-        let mut ack = Ack { id, tier, ack_sig: Vec::new() };
+        let mut ack = Ack {
+            id,
+            tier,
+            ack_sig: Vec::new(),
+        };
         ack.ack_sig = sk.sign_domain(ACK_DS, &ack.signing_body());
         ack
     }
@@ -219,7 +227,11 @@ mod tests {
         }
         for m in &mutants {
             if let Ok(obj) = Ack::from_det_cbor(m) {
-                assert_eq!(&obj.det_cbor(), m, "Ack decoder accepted a non-canonical encoding");
+                assert_eq!(
+                    &obj.det_cbor(),
+                    m,
+                    "Ack decoder accepted a non-canonical encoding"
+                );
             }
         }
     }
@@ -232,7 +244,10 @@ mod tests {
         // Round-trips through canonical CBOR byte-identically.
         let bytes = ack.det_cbor();
         assert_eq!(bytes[0] & 0xe0, 0xa0, "ack is a CBOR map");
-        assert_eq!(bytes[1], 0x01, "first key is integer 1 (id), not a text key");
+        assert_eq!(
+            bytes[1], 0x01,
+            "first key is integer 1 (id), not a text key"
+        );
         let back = Ack::from_det_cbor(&bytes).unwrap();
         assert_eq!(ack, back);
         assert_eq!(bytes, back.det_cbor());
@@ -293,8 +308,14 @@ mod tests {
         let ik = IdentityKey::generate();
         let foreign_ik = IdentityKey::generate();
         let device = IdentityKey::generate();
-        let foreign_cert =
-            DeviceCert::issue(&foreign_ik, device.public(), "phone", 1, None, vec![Cap::Recv]);
+        let foreign_cert = DeviceCert::issue(
+            &foreign_ik,
+            device.public(),
+            "phone",
+            1,
+            None,
+            vec![Cap::Recv],
+        );
         let recip = recipient_identity(&ik, vec![foreign_cert]);
         let ack = Ack::sign(ContentId::of(b"env"), Tier::Private, &device);
         assert_eq!(ack.verify(&recip, Tier::Private), Err(AckError::SigInvalid));

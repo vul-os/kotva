@@ -8,8 +8,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::crdt::{
-    validate_op, DeathClass, DeathReg, DeathState, LwwMap, OrSet, PnCounter,
-    RgaSeq, Tree,
+    validate_op, DeathClass, DeathReg, DeathState, LwwMap, OrSet, PnCounter, RgaSeq, Tree,
 };
 use crate::detcbor::{decode, DetCborError, SVal};
 use crate::error::SyncError;
@@ -33,7 +32,10 @@ impl VersionVector {
 
     /// Fold an HLC in, keeping the per-author maximum.
     pub fn observe(&mut self, hlc: &Hlc) {
-        let e = self.marks.entry(hlc.author.clone()).or_insert_with(|| hlc.clone());
+        let e = self
+            .marks
+            .entry(hlc.author.clone())
+            .or_insert_with(|| hlc.clone());
         if *hlc > *e {
             *e = hlc.clone();
         }
@@ -56,7 +58,10 @@ impl VersionVector {
     /// The `{ * ik-pub => Hlc }` canonical encoding (§5.1).
     pub fn to_sval(&self) -> SVal {
         SVal::BytesMap(
-            self.marks.iter().map(|(a, h)| (a.clone(), h.to_sval())).collect(),
+            self.marks
+                .iter()
+                .map(|(a, h)| (a.clone(), h.to_sval()))
+                .collect(),
         )
     }
 
@@ -142,7 +147,10 @@ impl SyncState {
         match op.kind {
             OP_SET_ADD => {
                 let element = op.value.as_ref().ok_or(SyncError::OpInvalid)?;
-                let tag = AddTag { author: op.hlc.author.clone(), hlc: op.hlc.clone() };
+                let tag = AddTag {
+                    author: op.hlc.author.clone(),
+                    hlc: op.hlc.clone(),
+                };
                 self.orset.add(&op.target, element, tag);
             }
             OP_SET_REMOVE => {
@@ -177,13 +185,8 @@ impl SyncState {
                 // the same rule stated as a predicate, for an ingest path that carries an
                 // explicitly-named entry author (a store-level import, a legacy bridge) where the
                 // structural guarantee does not hold.
-                self.counters.apply(
-                    &op.target,
-                    field,
-                    &op.hlc.author,
-                    op_id.as_bytes(),
-                    delta,
-                );
+                self.counters
+                    .apply(&op.target, field, &op.hlc.author, op_id.as_bytes(), delta);
             }
             OP_SEQ_INSERT => {
                 let value = op.value.clone().ok_or(SyncError::OpInvalid)?;
@@ -196,7 +199,10 @@ impl SyncState {
             OP_SEQ_REMOVE => {
                 let r = op.reference.as_ref().ok_or(SyncError::OpInvalid)?;
                 let id = r.hlc.clone().ok_or(SyncError::OpInvalid)?;
-                self.sequences.entry(op.target.clone()).or_default().remove(id);
+                self.sequences
+                    .entry(op.target.clone())
+                    .or_default()
+                    .remove(id);
             }
             OP_TREE_MOVE => {
                 let ord = op.field.as_deref().ok_or(SyncError::OpInvalid)?;
@@ -248,7 +254,9 @@ impl SyncState {
 /// caller's silence about a namespace it does not hold is never read as "empty" (§7,
 /// absence-is-not-authority).
 pub fn scope_to_subscription<'a>(ops: &'a [SyncOp], subscribed: &[String]) -> Vec<&'a SyncOp> {
-    ops.iter().filter(|op| subscribed.contains(&op.ns)).collect()
+    ops.iter()
+        .filter(|op| subscribed.contains(&op.ns))
+        .collect()
 }
 
 /// The §6.2 **stability cut**: the minimum, across every *live* subscribed replica, of that
@@ -272,7 +280,11 @@ mod tests {
     }
 
     fn h(counter: u32, author: u8) -> Hlc {
-        Hlc { wall: 1_700_000_100_000, counter, author: a(author) }
+        Hlc {
+            wall: 1_700_000_100_000,
+            counter,
+            author: a(author),
+        }
     }
 
     fn now() -> u64 {
@@ -310,7 +322,10 @@ mod tests {
         let mut s = SyncState::new();
         assert!(s.ingest(&counter_op(5, 0, 0xcc), now()).unwrap());
         assert!(s.ingest(&counter_op(-2, 0, 0xdd), now()).unwrap());
-        assert!(!s.ingest(&counter_op(5, 0, 0xcc), now()).unwrap(), "replay is a no-op");
+        assert!(
+            !s.ingest(&counter_op(5, 0, 0xcc), now()).unwrap(),
+            "replay is a no-op"
+        );
         assert_eq!(s.counters.total("stock1", "qty"), 3);
     }
 
@@ -328,7 +343,8 @@ mod tests {
             reference: None,
         };
         s.ingest(&death, now()).unwrap();
-        s.ingest(&add("rec1", "rec1-payload", 5, 0xdd), now()).unwrap();
+        s.ingest(&add("rec1", "rec1-payload", 5, 0xdd), now())
+            .unwrap();
         assert!(!s.is_present("rec1", &SVal::Text("rec1-payload".into())));
         assert!(s.present_members().is_empty());
     }
@@ -346,8 +362,15 @@ mod tests {
 
     #[test]
     fn stability_cut_is_fail_closed_on_incomplete_knowledge() {
-        assert_eq!(stability_cut(&[Some(h(10, 0xcc)), Some(h(15, 0xcc))]), Some(h(10, 0xcc)));
-        assert_eq!(stability_cut(&[Some(h(10, 0xcc)), None]), None, "no watermark ⇒ no cut");
+        assert_eq!(
+            stability_cut(&[Some(h(10, 0xcc)), Some(h(15, 0xcc))]),
+            Some(h(10, 0xcc))
+        );
+        assert_eq!(
+            stability_cut(&[Some(h(10, 0xcc)), None]),
+            None,
+            "no watermark ⇒ no cut"
+        );
         assert_eq!(stability_cut(&[]), None);
     }
 
@@ -357,7 +380,10 @@ mod tests {
         v.observe(&h(4, 0xcc));
         assert!(!v.lacks(&h(3, 0xcc)));
         assert!(v.lacks(&h(5, 0xcc)));
-        assert!(v.lacks(&h(0, 0xdd)), "an absent author means every one of its ops is missing");
+        assert!(
+            v.lacks(&h(0, 0xdd)),
+            "an absent author means every one of its ops is missing"
+        );
     }
 
     #[test]
@@ -377,7 +403,10 @@ mod tests {
         s.ingest(&ins, now()).unwrap();
         ins.hlc = h(3, 0xcc);
         ins.value = Some(SVal::Text("X".into()));
-        ins.reference = Some(OpRef { target: "line1".into(), hlc: Some(root.clone()) });
+        ins.reference = Some(OpRef {
+            target: "line1".into(),
+            hlc: Some(root.clone()),
+        });
         s.ingest(&ins, now()).unwrap();
         ins.hlc = h(4, 0xcc);
         ins.value = Some(SVal::Text("Y".into()));
@@ -385,7 +414,11 @@ mod tests {
         let seq = &s.sequences["line1"];
         assert_eq!(
             seq.values(),
-            vec![SVal::Text("atom0".into()), SVal::Text("Y".into()), SVal::Text("X".into())]
+            vec![
+                SVal::Text("atom0".into()),
+                SVal::Text("Y".into()),
+                SVal::Text("X".into())
+            ]
         );
     }
 }

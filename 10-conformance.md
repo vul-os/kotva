@@ -166,15 +166,14 @@ and the DMTAP-PUBSUB guards (`PUBSUB`, §25) — see `conformance/README.md`). T
 63 + 19 + 285 = 367. An implementation conforms at a level iff it passes every `MUST` case of that
 level and of every level it composes.
 
-**On the coverage figure.** `make coverage` reports that **84%** of `IMPL` MUSTs (those an
-implementation must satisfy) **sit in a section some case cites** — and, conversely, that **56
-IMPL sections (213 MUSTs) are not yet cited** (e.g. §18.8a.1, §27.4.1, §8.6a). It is a
+**On the coverage figure.** `make coverage` reports that **86% of IMPL MUSTs** (those an
+implementation must satisfy) **sit in a section some case cites** — and, conversely, that **53 IMPL sections (190 MUSTs) are not yet cited** (e.g. §18.8a.1, §27.4.1, §8.6a). It is a
 **section-level denominator**: a section counts as covered if *any* case cites it, not if every MUST in
 it is exercised; it counts cases that **exist**, not cases that **pass** (63 of 367 are byte-runnable
 today, and no implementation has yet been run against the suite); and it is measured against a
 **curated** denominator whose classification is a judgement, auditable in `conformance/scope.json` and
 re-checkable by `make lint`. The **raw** figure — every capitalised MUST in the specification,
-unclassified — is **76%** (403 MUST-bearing sections, 1755 MUSTs). Read the IMPL number as "most
+unclassified — is **77%** (403 MUST-bearing sections, 1755 MUSTs). Read the IMPL number as "most
 implementable surface has at least one case pointed at it, and the uncited gaps are enumerated by the
 tool", never as a pass mark or as complete coverage. `make coverage` is authoritative and these
 figures drift as the suite grows — but `make lint` (check C14) recomputes them and fails the build if

@@ -73,7 +73,14 @@ impl ObservableState {
             .filter(|(node, _)| node != TREE_ROOT)
             .map(|(node, (parent, ord))| (node, parent, ord))
             .collect();
-        ObservableState { orset, lww, pn, death, rga, tree }
+        ObservableState {
+            orset,
+            lww,
+            pn,
+            death,
+            rga,
+            tree,
+        }
     }
 
     /// The canonical six-element array (§6.1.1). Empty sections are the empty array `[]`, present
@@ -90,7 +97,11 @@ impl ObservableState {
             .lww
             .iter()
             .map(|(t, f, v)| {
-                SVal::Array(vec![SVal::Text(t.clone()), SVal::Text(f.clone()), v.clone()])
+                SVal::Array(vec![
+                    SVal::Text(t.clone()),
+                    SVal::Text(f.clone()),
+                    v.clone(),
+                ])
             })
             .collect();
         sort_section(&mut lww);
@@ -333,14 +344,28 @@ impl Snapshot {
         let cv = crate::detcbor::decode(bytes).map_err(|_| SyncError::OpInvalid)?;
         let mut f = crate::detcbor::Fields::new(cv).map_err(|_| SyncError::OpInvalid)?;
         let bad = |_| SyncError::OpInvalid;
-        let SVal::Uint(v) = f.req(1).map_err(bad)? else { return Err(SyncError::OpInvalid) };
-        let SVal::Uint(suite) = f.req(2).map_err(bad)? else { return Err(SyncError::OpInvalid) };
-        let SVal::Text(ns) = f.req(3).map_err(bad)? else { return Err(SyncError::OpInvalid) };
+        let SVal::Uint(v) = f.req(1).map_err(bad)? else {
+            return Err(SyncError::OpInvalid);
+        };
+        let SVal::Uint(suite) = f.req(2).map_err(bad)? else {
+            return Err(SyncError::OpInvalid);
+        };
+        let SVal::Text(ns) = f.req(3).map_err(bad)? else {
+            return Err(SyncError::OpInvalid);
+        };
         let covers = VersionVector::from_sval(f.req(4).map_err(bad)?).map_err(bad)?;
-        let SVal::Bytes(root) = f.req(5).map_err(bad)? else { return Err(SyncError::OpInvalid) };
-        let SVal::Uint(ts) = f.req(6).map_err(bad)? else { return Err(SyncError::OpInvalid) };
-        let SVal::Bytes(signer) = f.req(7).map_err(bad)? else { return Err(SyncError::OpInvalid) };
-        let SVal::Bytes(sig) = f.req(8).map_err(bad)? else { return Err(SyncError::OpInvalid) };
+        let SVal::Bytes(root) = f.req(5).map_err(bad)? else {
+            return Err(SyncError::OpInvalid);
+        };
+        let SVal::Uint(ts) = f.req(6).map_err(bad)? else {
+            return Err(SyncError::OpInvalid);
+        };
+        let SVal::Bytes(signer) = f.req(7).map_err(bad)? else {
+            return Err(SyncError::OpInvalid);
+        };
+        let SVal::Bytes(sig) = f.req(8).map_err(bad)? else {
+            return Err(SyncError::OpInvalid);
+        };
         f.deny_unknown().map_err(bad)?;
         Ok(Snapshot {
             v: u8::try_from(v).map_err(|_| SyncError::UnsupportedVersion)?,
@@ -414,7 +439,10 @@ impl FastJoin {
     /// The canonical wire encoding.
     pub fn det_cbor(&self) -> Vec<u8> {
         let mut fields = vec![
-            (1, crate::detcbor::decode(&self.snapshot.det_cbor()).expect("own snapshot encoding")),
+            (
+                1,
+                crate::detcbor::decode(&self.snapshot.det_cbor()).expect("own snapshot encoding"),
+            ),
             (2, self.floor.to_sval()),
         ];
         if let Some(state) = &self.state {
@@ -437,7 +465,11 @@ impl FastJoin {
             None => None,
         };
         f.deny_unknown().map_err(bad)?;
-        Ok(FastJoin { snapshot, floor, state })
+        Ok(FastJoin {
+            snapshot,
+            floor,
+            state,
+        })
     }
 
     /// The §5.2.1 caller-side sequence, steps 1–3, fail-closed at every step.
@@ -580,7 +612,10 @@ pub fn caller_is_below_floor(snapshot: &Snapshot, caller: &VersionVector) -> boo
 /// never name `A` at all. Inferring a conformance failure from this predicate rejects conformant
 /// peers — the same class of error as the deleted floor-vs-`covers` rule (§14 C-07).
 pub fn covers_carries_mark_for_floor_author(snapshot: &Snapshot, floor: &Hlc) -> bool {
-    snapshot.covers.marks().any(|(author, _)| author.as_slice() == floor.author.as_slice())
+    snapshot
+        .covers
+        .marks()
+        .any(|(author, _)| author.as_slice() == floor.author.as_slice())
 }
 
 /// The caller-side checks of §5.2.1 step 2, as restated by **§5.2.2**.
@@ -645,7 +680,11 @@ mod tests {
     }
 
     fn h(counter: u32, author: u8) -> WHlc {
-        WHlc { wall: 1_700_000_100_000, counter, author: a(author) }
+        WHlc {
+            wall: 1_700_000_100_000,
+            counter,
+            author: a(author),
+        }
     }
 
     fn lww(target: &str, field: &str, value: &str, counter: u32, author: u8) -> SyncOp {
@@ -671,7 +710,10 @@ mod tests {
     fn fast_join_equals_full_replay() {
         let now = 1_700_000_200_000;
         // Full replay: every op, oldest first.
-        let ops = vec![lww("doc1", "title", "m", 1, 0xcc), lww("doc1", "title", "p", 20, 0xdd)];
+        let ops = vec![
+            lww("doc1", "title", "m", 1, 0xcc),
+            lww("doc1", "title", "p", 20, 0xdd),
+        ];
         let mut full = SyncState::new();
         for op in &ops {
             full.ingest(op, now).unwrap();
@@ -684,9 +726,15 @@ mod tests {
         // Adoption of the projected state is modelled by replaying the (single) surviving cell —
         // the point of the test is that the OBSERVABLE bytes match, not the internal bookkeeping.
         joined.ingest(&ops[0], now).unwrap();
-        assert_eq!(ObservableState::of(&joined).det_cbor(), snap_state.det_cbor());
+        assert_eq!(
+            ObservableState::of(&joined).det_cbor(),
+            snap_state.det_cbor()
+        );
         joined.ingest(&ops[1], now).unwrap();
-        assert_eq!(ObservableState::of(&joined).det_cbor(), ObservableState::of(&full).det_cbor());
+        assert_eq!(
+            ObservableState::of(&joined).det_cbor(),
+            ObservableState::of(&full).det_cbor()
+        );
         assert_eq!(state_root(&joined).as_bytes(), state_root(&full).as_bytes());
     }
 
@@ -694,7 +742,9 @@ mod tests {
     fn snapshot_signature_round_trips_and_fails_closed_on_tamper() {
         let sk = IdentityKey::from_seed(&[0xcc; 32]);
         let mut state = SyncState::new();
-        state.ingest(&lww("doc1", "title", "m", 1, 0xcc), 1_700_000_200_000).unwrap();
+        state
+            .ingest(&lww("doc1", "title", "m", 1, 0xcc), 1_700_000_200_000)
+            .unwrap();
         let mut snap = Snapshot::create(&sk, 0x01, "", &state, 1_700_000_100_000);
         assert!(snap.verify_sig().is_ok());
         snap.ns = "other".into();
@@ -708,16 +758,28 @@ mod tests {
     fn fj01_shaped() -> (FastJoin, VersionVector) {
         let sk = IdentityKey::from_seed(&[0xcc; 32]);
         let mut state = SyncState::new();
-        state.ingest(&lww("doc1", "title", "m", 4, 0xcc), 1_700_000_200_000).unwrap();
+        state
+            .ingest(&lww("doc1", "title", "m", 4, 0xcc), 1_700_000_200_000)
+            .unwrap();
         let mut snap = Snapshot::create(&sk, 0x01, "", &state, 1_700_000_100_000);
         // covers = {A@(W,4), B@(W,7)} — A below the floor, B above it.
         snap.covers = VersionVector::default();
         snap.covers.observe(&h(4, 0xcc));
         snap.covers.observe(&h(7, 0xdd));
-        let snap = Snapshot { sig: snap.sig.clone(), ..snap };
+        let snap = Snapshot {
+            sig: snap.sig.clone(),
+            ..snap
+        };
         let mut caller = VersionVector::default();
         caller.observe(&h(2, 0xcc)); // behind B@(W,7) ⇒ genuinely below the floor
-        (FastJoin { snapshot: snap, floor: h(5, 0xcc), state: None }, caller)
+        (
+            FastJoin {
+                snapshot: snap,
+                floor: h(5, 0xcc),
+                state: None,
+            },
+            caller,
+        )
     }
 
     /// The regression this crate's first pass got wrong: `covers.lacks(floor)` is TRUE here, and a
@@ -727,23 +789,38 @@ mod tests {
     fn floor_above_covers_for_an_author_is_conformant_not_an_error() {
         let (fj, caller) = fj01_shaped();
         // The naive predicate the specification explicitly rejects would fire here...
-        assert!(fj.snapshot.covers.lacks(&fj.floor), "the vector's own counterexample shape");
+        assert!(
+            fj.snapshot.covers.lacks(&fj.floor),
+            "the vector's own counterexample shape"
+        );
         // ...but step 2 must NOT reject it.
-        assert_eq!(check_covers_closes_gap(&fj.snapshot, &fj.floor, &caller), Ok(()));
+        assert_eq!(
+            check_covers_closes_gap(&fj.snapshot, &fj.floor, &caller),
+            Ok(())
+        );
     }
 
     /// `covers` carrying a mark for `floor.author` is MAY-grade — true here, but never enforced.
     #[test]
     fn covers_mark_for_floor_author_is_advisory_only() {
         let (mut fj, caller) = fj01_shaped();
-        assert!(covers_carries_mark_for_floor_author(&fj.snapshot, &fj.floor));
+        assert!(covers_carries_mark_for_floor_author(
+            &fj.snapshot,
+            &fj.floor
+        ));
         // Drop A entirely: an author whose only op is AT the floor is retained, not truncated, so
         // `covers` need never name it. This MUST still pass step 2.
         let mut covers = VersionVector::default();
         covers.observe(&h(7, 0xdd));
         fj.snapshot.covers = covers;
-        assert!(!covers_carries_mark_for_floor_author(&fj.snapshot, &fj.floor));
-        assert_eq!(check_covers_closes_gap(&fj.snapshot, &fj.floor, &caller), Ok(()));
+        assert!(!covers_carries_mark_for_floor_author(
+            &fj.snapshot,
+            &fj.floor
+        ));
+        assert_eq!(
+            check_covers_closes_gap(&fj.snapshot, &fj.floor, &caller),
+            Ok(())
+        );
     }
 
     /// An empty `covers` accounts for nothing: malformed ⇒ `0x0A03`, not `0x0A09`.
@@ -782,7 +859,10 @@ mod tests {
         // The caller holds a LATER mark for A than `covers` does.
         caller.observe(&h(6, 0xcc));
         assert!(caller.lacks(&h(7, 0xdd)), "still below the floor via B");
-        assert_eq!(check_covers_closes_gap(&fj.snapshot, &fj.floor, &caller), Ok(()));
+        assert_eq!(
+            check_covers_closes_gap(&fj.snapshot, &fj.floor, &caller),
+            Ok(())
+        );
     }
 
     #[test]
@@ -792,7 +872,10 @@ mod tests {
         x.ingest(&lww("doc1", "title", "m", 1, 0xcc), now).unwrap();
         let mut y = SyncState::new();
         y.ingest(&lww("doc1", "title", "z", 1, 0xdd), now).unwrap();
-        assert_eq!(verify_root(&y, &state_root(&x)), Err(SyncError::SnapshotRootMismatch));
+        assert_eq!(
+            verify_root(&y, &state_root(&x)),
+            Err(SyncError::SnapshotRootMismatch)
+        );
         assert!(verify_root(&x, &state_root(&x)).is_ok());
     }
 
@@ -814,7 +897,10 @@ mod tests {
         s.ingest(&ins, now).unwrap();
         ins.hlc = h(3, 0xcc);
         ins.value = Some(SVal::Text("X".into()));
-        ins.reference = Some(OpRef { target: "line1".into(), hlc: Some(root.clone()) });
+        ins.reference = Some(OpRef {
+            target: "line1".into(),
+            hlc: Some(root.clone()),
+        });
         s.ingest(&ins, now).unwrap();
         ins.hlc = h(4, 0xcc);
         ins.value = Some(SVal::Text("Y".into()));
@@ -822,7 +908,11 @@ mod tests {
         let obs = ObservableState::of(&s);
         assert_eq!(
             obs.rga[0].1,
-            vec![SVal::Text("atom0".into()), SVal::Text("Y".into()), SVal::Text("X".into())],
+            vec![
+                SVal::Text("atom0".into()),
+                SVal::Text("Y".into()),
+                SVal::Text("X".into())
+            ],
             "newer-first sequence order survives into the snapshot; it is NOT re-sorted"
         );
     }

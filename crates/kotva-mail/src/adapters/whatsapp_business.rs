@@ -29,7 +29,10 @@
 use kotva_core::cbor::Cv;
 use kotva_core::mote::{Headers, Payload};
 
-use super::{LegacyAdapter, OutboundDisposition, RailMessage, RailProperties, RailSend, RailTransport, TransportError};
+use super::{
+    LegacyAdapter, OutboundDisposition, RailMessage, RailProperties, RailSend, RailTransport,
+    TransportError,
+};
 
 // ── Payload ext keys (§21.20 private-use `x-` namespace, carried opaquely) ──────────────────────
 
@@ -47,7 +50,8 @@ pub const PLAINTEXT_EXPOSURE_EXT_KEY: &str = "x-dmtap-mail-plaintext-exposure";
 /// The immovable plaintext-exposure fact for this rail (§26.5.1): Meta's servers relay every
 /// message in cleartext, in **every** deployment mode. Recorded on each inbound MOTE so the fact
 /// travels with the message rather than living only in a spec footnote.
-pub const META_PLAINTEXT_DISCLOSURE: &str = "Meta, always (WhatsApp relays plaintext in every mode)";
+pub const META_PLAINTEXT_DISCLOSURE: &str =
+    "Meta, always (WhatsApp relays plaintext in every mode)";
 
 /// The rail label this adapter answers to, matching §26.4 / [`super::WHATSAPP_BUSINESS`].
 const RAIL: &str = "whatsapp";
@@ -176,7 +180,10 @@ pub struct TemplateRef {
 impl TemplateRef {
     #[must_use]
     pub fn new(name: impl Into<String>, language: impl Into<String>) -> Self {
-        TemplateRef { name: name.into(), language: language.into() }
+        TemplateRef {
+            name: name.into(),
+            language: language.into(),
+        }
     }
 }
 
@@ -197,13 +204,19 @@ impl WhatsAppMessage {
     /// A free-form text message (in-window only).
     #[must_use]
     pub fn text(to: impl Into<String>, body: impl Into<String>) -> Self {
-        WhatsAppMessage::Text { to: to.into(), body: body.into() }
+        WhatsAppMessage::Text {
+            to: to.into(),
+            body: body.into(),
+        }
     }
 
     /// A pre-approved template message (the outbound-cold path).
     #[must_use]
     pub fn template(to: impl Into<String>, template: TemplateRef) -> Self {
-        WhatsAppMessage::Template { to: to.into(), template }
+        WhatsAppMessage::Template {
+            to: to.into(),
+            template,
+        }
     }
 
     /// The message `type` field value (`"text"` or `"template"`) — the load-bearing discriminator
@@ -306,7 +319,11 @@ pub struct WhatsAppTransport<H: HttpPost> {
 impl<H: HttpPost> WhatsAppTransport<H> {
     /// Construct with bring-your-own credentials (§26.8.1) and the default Graph base URL.
     #[must_use]
-    pub fn new(phone_number_id: impl Into<String>, access_token: impl Into<String>, http: H) -> Self {
+    pub fn new(
+        phone_number_id: impl Into<String>,
+        access_token: impl Into<String>,
+        http: H,
+    ) -> Self {
         WhatsAppTransport {
             adapter: WhatsAppBusinessAdapter,
             phone_number_id: phone_number_id.into(),
@@ -384,7 +401,8 @@ impl<H: HttpPost> RailTransport for WhatsAppTransport<H> {
     ///
     /// [`send_outbound`]: WhatsAppTransport::send_outbound
     fn send(&self, send: RailSend) -> Result<(), TransportError> {
-        self.send_message(&WhatsAppMessage::text(send.to, send.text)).map(|_| ())
+        self.send_message(&WhatsAppMessage::text(send.to, send.text))
+            .map(|_| ())
     }
 }
 
@@ -409,15 +427,21 @@ fn parse_send_response(body: &str) -> Result<SendReceipt, TransportError> {
         .and_then(|m| m.get("id"))
         .and_then(serde_json::Value::as_str)
     {
-        return Ok(SendReceipt { message_id: id.to_string() });
+        return Ok(SendReceipt {
+            message_id: id.to_string(),
+        });
     }
-    Err(TransportError::Rejected(format!("no message id in response: {body}")))
+    Err(TransportError::Rejected(format!(
+        "no message id in response: {body}"
+    )))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adapters::{DeploymentMode, InitiationClass, PriceShape, RailAuthenticity, Sanctioning};
+    use crate::adapters::{
+        DeploymentMode, InitiationClass, PriceShape, RailAuthenticity, Sanctioning,
+    };
     use std::cell::RefCell;
 
     /// A mock [`HttpPost`] that records the last posted (url, body) and returns a scripted response.
@@ -429,7 +453,10 @@ mod tests {
     impl MockHttp {
         fn ok() -> Self {
             MockHttp {
-                response: Ok(r#"{"messaging_product":"whatsapp","messages":[{"id":"wamid.TEST123"}]}"#.to_string()),
+                response: Ok(
+                    r#"{"messaging_product":"whatsapp","messages":[{"id":"wamid.TEST123"}]}"#
+                        .to_string(),
+                ),
                 last: RefCell::new(None),
             }
         }
@@ -457,7 +484,10 @@ mod tests {
         assert_eq!(p.outbound.initiation, InitiationClass::InboundTriggered);
         assert!(!p.can_initiate_outbound_cold());
         // Inbound transport is the Cloud API webhook.
-        assert_eq!(p.inbound_transport, super::super::InboundTransportClass::Webhook);
+        assert_eq!(
+            p.inbound_transport,
+            super::super::InboundTransportClass::Webhook
+        );
         // Platform-asserted, never cryptographically verifiable (§26.5).
         assert_eq!(p.authenticity, RailAuthenticity::PlatformAsserted);
         // A sanctioned, terms-compliant API — so gateway mode is permitted (§26, §26.8.1).
@@ -476,7 +506,10 @@ mod tests {
         let payload = WhatsAppBusinessAdapter.inbound_to_mote(&msg);
 
         // No cryptographic identity key is fabricated — this rail has none (§26.5).
-        assert!(payload.from.is_empty(), "must not fabricate a verifiable IK for a WhatsApp peer");
+        assert!(
+            payload.from.is_empty(),
+            "must not fabricate a verifiable IK for a WhatsApp peer"
+        );
         assert_eq!(payload.body, b"Hi from WhatsApp");
 
         // The origin is carried as a platform-asserted claim, honestly marked unverifiable.
@@ -484,10 +517,16 @@ mod tests {
             .expect("inbound MOTE must carry a platform-asserted origin");
         assert_eq!(origin.rail, "whatsapp");
         assert_eq!(origin.claim, "+27821234567");
-        assert!(!origin.verifiable, "a platform assertion is never cryptographically verifiable (§26.5)");
+        assert!(
+            !origin.verifiable,
+            "a platform assertion is never cryptographically verifiable (§26.5)"
+        );
 
         // And the fact that Meta saw the plaintext travels with the message (§26.5.1).
-        assert_eq!(plaintext_exposure(&payload.headers), Some(META_PLAINTEXT_DISCLOSURE));
+        assert_eq!(
+            plaintext_exposure(&payload.headers),
+            Some(META_PLAINTEXT_DISCLOSURE)
+        );
 
         // The platform-asserted entry is structurally DISTINCT from any email verdict key — a client
         // cannot mistake it for spf/dkim/dmarc/arc (§26.5.1).
@@ -540,8 +579,14 @@ mod tests {
         .expect("a template send is the one path out of the window");
         assert_eq!(forced.kind(), "template");
         let json = forced.to_json();
-        assert!(json.contains("\"type\":\"template\""), "forced send must be a template: {json}");
-        assert!(!json.contains("\"type\":\"text\""), "forced send must NOT be free text: {json}");
+        assert!(
+            json.contains("\"type\":\"template\""),
+            "forced send must be a template: {json}"
+        );
+        assert!(
+            !json.contains("\"type\":\"text\""),
+            "forced send must NOT be free text: {json}"
+        );
         assert!(json.contains("appointment_reminder"));
     }
 
@@ -562,10 +607,24 @@ mod tests {
             .expect("template send should succeed against the mock");
         assert_eq!(receipt.message_id, "wamid.TEST123");
 
-        let (url, body) = transport.http.last.borrow().clone().expect("a request was posted");
-        assert_eq!(url, "https://graph.facebook.com/v20.0/PHONE_NUM_ID/messages");
-        assert!(body.contains("\"type\":\"template\""), "the wire body must be a template: {body}");
-        assert!(!body.contains("\"type\":\"text\""), "the wire body must NOT be free text: {body}");
+        let (url, body) = transport
+            .http
+            .last
+            .borrow()
+            .clone()
+            .expect("a request was posted");
+        assert_eq!(
+            url,
+            "https://graph.facebook.com/v20.0/PHONE_NUM_ID/messages"
+        );
+        assert!(
+            body.contains("\"type\":\"template\""),
+            "the wire body must be a template: {body}"
+        );
+        assert!(
+            !body.contains("\"type\":\"text\""),
+            "the wire body must NOT be free text: {body}"
+        );
     }
 
     /// Outside the window with no template, `send_outbound` refuses at the wall — nothing is posted.
@@ -577,7 +636,10 @@ mod tests {
             .send_outbound("+27821234567", "hello", false, None)
             .expect_err("cold send with no template must hit the wall");
         assert_eq!(err, Ok(OutboundDisposition::RequiresTemplate));
-        assert!(transport.http.last.borrow().is_none(), "nothing must be posted at the wall");
+        assert!(
+            transport.http.last.borrow().is_none(),
+            "nothing must be posted at the wall"
+        );
     }
 
     /// The bare `RailTransport::send` in-window free-form leg posts a text message and parses it.
@@ -586,10 +648,16 @@ mod tests {
         let http = MockHttp::ok();
         let transport = WhatsAppTransport::new("PHONE_NUM_ID", "BYO_TOKEN", http);
         transport
-            .send(RailSend { to: "+27821234567".to_string(), text: "in-window reply".to_string() })
+            .send(RailSend {
+                to: "+27821234567".to_string(),
+                text: "in-window reply".to_string(),
+            })
             .expect("in-window free-form send should succeed");
         let (_, body) = transport.http.last.borrow().clone().unwrap();
-        assert!(body.contains("\"type\":\"text\""), "in-window send is free-form text: {body}");
+        assert!(
+            body.contains("\"type\":\"text\""),
+            "in-window send is free-form text: {body}"
+        );
         assert!(body.contains("in-window reply"));
     }
 
@@ -597,12 +665,18 @@ mod tests {
     #[test]
     fn platform_error_response_surfaces_as_rejected() {
         let http = MockHttp {
-            response: Ok(r#"{"error":{"message":"(#131047) Re-engagement message","code":131047}}"#.to_string()),
+            response: Ok(
+                r#"{"error":{"message":"(#131047) Re-engagement message","code":131047}}"#
+                    .to_string(),
+            ),
             last: RefCell::new(None),
         };
         let transport = WhatsAppTransport::new("PHONE_NUM_ID", "BYO_TOKEN", http);
         let err = transport
-            .send(RailSend { to: "+27821234567".to_string(), text: "x".to_string() })
+            .send(RailSend {
+                to: "+27821234567".to_string(),
+                text: "x".to_string(),
+            })
             .expect_err("an error response must not read as success");
         match err {
             TransportError::Rejected(m) => assert!(m.contains("Re-engagement")),
@@ -614,7 +688,10 @@ mod tests {
     #[test]
     fn permits_gateway_mode() {
         let p = WhatsAppBusinessAdapter.properties();
-        assert!(p.permits_mode(DeploymentMode::Gateway), "the sanctioned WhatsApp API may gateway");
+        assert!(
+            p.permits_mode(DeploymentMode::Gateway),
+            "the sanctioned WhatsApp API may gateway"
+        );
         assert!(p.permits_mode(DeploymentMode::Node));
     }
 }

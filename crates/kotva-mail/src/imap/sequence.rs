@@ -44,7 +44,10 @@ impl SequenceSet {
             return None;
         }
         if s == "$" {
-            return Some(SequenceSet { ranges: Vec::new(), saved: true });
+            return Some(SequenceSet {
+                ranges: Vec::new(),
+                saved: true,
+            });
         }
         // Cap the number of comma-separated ranges. A real client sends at most a handful, but a
         // `1:*,1:*,…` set of hundreds of thousands still fits in one MAX_LINE-sized command and would
@@ -57,7 +60,10 @@ impl SequenceSet {
         let mut ranges = Vec::new();
         for item in s.split(',') {
             let range = match item.split_once(':') {
-                Some((a, b)) => Range { lo: parse_point(a)?, hi: parse_point(b)? },
+                Some((a, b)) => Range {
+                    lo: parse_point(a)?,
+                    hi: parse_point(b)?,
+                },
                 None => {
                     let p = parse_point(item)?;
                     Range { lo: p, hi: p }
@@ -65,7 +71,10 @@ impl SequenceSet {
             };
             ranges.push(range);
         }
-        Some(SequenceSet { ranges, saved: false })
+        Some(SequenceSet {
+            ranges,
+            saved: false,
+        })
     }
 
     /// Whether this set is the SEARCHRES saved-result reference `$` (RFC 5182).
@@ -77,7 +86,13 @@ impl SequenceSet {
     /// reference from the session's saved UID/seq list).
     pub fn from_uids(nums: &[u32]) -> SequenceSet {
         SequenceSet {
-            ranges: nums.iter().map(|&n| Range { lo: Point::Num(n), hi: Point::Num(n) }).collect(),
+            ranges: nums
+                .iter()
+                .map(|&n| Range {
+                    lo: Point::Num(n),
+                    hi: Point::Num(n),
+                })
+                .collect(),
             saved: false,
         }
     }
@@ -197,7 +212,11 @@ mod tests {
         let set = SequenceSet::parse("5,1:3,10:8,2:*").unwrap();
         let m = set.membership(100);
         for uid in 0..=110u32 {
-            assert_eq!(m.contains(uid), set.contains(uid, 100), "divergence at uid {uid}");
+            assert_eq!(
+                m.contains(uid),
+                set.contains(uid, 100),
+                "divergence at uid {uid}"
+            );
         }
         // from_uids (the `$` materialization) with duplicate/unordered points coalesces correctly.
         let f = SequenceSet::from_uids(&[100, 3, 3, 4, 5, 50]);

@@ -39,18 +39,30 @@ pub const FRAGMENT_DATA_LEN: usize = DELTA_LEN - FRAGMENT_HEADER_LEN; // 2032
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum SphinxError {
     #[error("wrong length for {what}: expected {expected}, got {got}")]
-    WrongLength { what: &'static str, expected: usize, got: usize },
+    WrongLength {
+        what: &'static str,
+        expected: usize,
+        got: usize,
+    },
     #[error("unknown RoutingCommand.cmd {0:#04x} (§18.5.4; ERR_MIX_PACKET_MALFORMED 0x0307)")]
     UnknownCommand(u8),
     #[error("reserved bytes must be zero (§18.5.4; ERR_MIX_PACKET_MALFORMED 0x0307)")]
     ReservedNonZero,
 }
 
-fn fixed<'a>(bytes: &'a [u8], what: &'static str, expected: usize) -> Result<&'a [u8], SphinxError> {
+fn fixed<'a>(
+    bytes: &'a [u8],
+    what: &'static str,
+    expected: usize,
+) -> Result<&'a [u8], SphinxError> {
     if bytes.len() == expected {
         Ok(bytes)
     } else {
-        Err(SphinxError::WrongLength { what, expected, got: bytes.len() })
+        Err(SphinxError::WrongLength {
+            what,
+            expected,
+            got: bytes.len(),
+        })
     }
 }
 
@@ -105,7 +117,12 @@ impl RoutingCommand {
         if b[38..48].iter().any(|&x| x != 0) {
             return Err(SphinxError::ReservedNonZero);
         }
-        Ok(RoutingCommand { cmd, flags, delay_ms, next_hop })
+        Ok(RoutingCommand {
+            cmd,
+            flags,
+            delay_ms,
+            next_hop,
+        })
     }
 }
 
@@ -138,7 +155,11 @@ impl Surb {
         let header = b[32..32 + SURB_HEADER_LEN].to_vec();
         let mut key_seed = [0u8; 32];
         key_seed.copy_from_slice(&b[32 + SURB_HEADER_LEN..SURB_LEN]);
-        Ok(Surb { first_hop, header, key_seed })
+        Ok(Surb {
+            first_hop,
+            header,
+            key_seed,
+        })
     }
 }
 
@@ -217,7 +238,12 @@ impl SphinxCell {
         let mut gamma = [0u8; GAMMA_LEN];
         gamma.copy_from_slice(&b[ALPHA_LEN + BETA_LEN..ALPHA_LEN + BETA_LEN + GAMMA_LEN]);
         let delta = b[ALPHA_LEN + BETA_LEN + GAMMA_LEN..CELL_LEN].to_vec();
-        Ok(SphinxCell { alpha, beta, gamma, delta })
+        Ok(SphinxCell {
+            alpha,
+            beta,
+            gamma,
+            delta,
+        })
     }
 }
 
@@ -236,7 +262,12 @@ mod tests {
 
     #[test]
     fn routing_command_round_trips_and_validates() {
-        let rc = RoutingCommand { cmd: 0x00, flags: 0x01, delay_ms: 1234, next_hop: [0xab; 32] };
+        let rc = RoutingCommand {
+            cmd: 0x00,
+            flags: 0x01,
+            delay_ms: 1234,
+            next_hop: [0xab; 32],
+        };
         let bytes = rc.to_bytes();
         assert_eq!(bytes.len(), ROUTING_COMMAND_LEN);
         assert_eq!(RoutingCommand::from_bytes(&bytes).unwrap(), rc);
@@ -244,15 +275,42 @@ mod tests {
 
     #[test]
     fn routing_command_rejects_unknown_cmd_and_reserved() {
-        let mut bytes = RoutingCommand { cmd: 0x01, flags: 0, delay_ms: 0, next_hop: [0; 32] }.to_bytes();
+        let mut bytes = RoutingCommand {
+            cmd: 0x01,
+            flags: 0,
+            delay_ms: 0,
+            next_hop: [0; 32],
+        }
+        .to_bytes();
         bytes[0] = 0x03; // unknown command
-        assert_eq!(RoutingCommand::from_bytes(&bytes), Err(SphinxError::UnknownCommand(0x03)));
-        let mut bytes2 = RoutingCommand { cmd: 0x02, flags: 0, delay_ms: 0, next_hop: [0; 32] }.to_bytes();
+        assert_eq!(
+            RoutingCommand::from_bytes(&bytes),
+            Err(SphinxError::UnknownCommand(0x03))
+        );
+        let mut bytes2 = RoutingCommand {
+            cmd: 0x02,
+            flags: 0,
+            delay_ms: 0,
+            next_hop: [0; 32],
+        }
+        .to_bytes();
         bytes2[40] = 0xff; // reserved byte non-zero
-        assert_eq!(RoutingCommand::from_bytes(&bytes2), Err(SphinxError::ReservedNonZero));
-        let mut bytes3 = RoutingCommand { cmd: 0x00, flags: 0, delay_ms: 0, next_hop: [0; 32] }.to_bytes();
+        assert_eq!(
+            RoutingCommand::from_bytes(&bytes2),
+            Err(SphinxError::ReservedNonZero)
+        );
+        let mut bytes3 = RoutingCommand {
+            cmd: 0x00,
+            flags: 0,
+            delay_ms: 0,
+            next_hop: [0; 32],
+        }
+        .to_bytes();
         bytes3[1] = 0x02; // reserved flag bit set
-        assert_eq!(RoutingCommand::from_bytes(&bytes3), Err(SphinxError::ReservedNonZero));
+        assert_eq!(
+            RoutingCommand::from_bytes(&bytes3),
+            Err(SphinxError::ReservedNonZero)
+        );
     }
 
     #[test]
@@ -260,17 +318,35 @@ mod tests {
         // A `cmd = 0x01` (exit) command has no next node — a non-zero next_hop is a canonical
         // encoding gap and must be rejected fail-closed. Build a wire form directly (the
         // constructor path would honor whatever bytes we hand it), then flip a next_hop byte.
-        let mut bytes = RoutingCommand { cmd: 0x01, flags: 0x01, delay_ms: 0, next_hop: [0; 32] }.to_bytes();
+        let mut bytes = RoutingCommand {
+            cmd: 0x01,
+            flags: 0x01,
+            delay_ms: 0,
+            next_hop: [0; 32],
+        }
+        .to_bytes();
         bytes[6] = 0x01; // first next_hop byte non-zero
-        assert_eq!(RoutingCommand::from_bytes(&bytes), Err(SphinxError::ReservedNonZero));
+        assert_eq!(
+            RoutingCommand::from_bytes(&bytes),
+            Err(SphinxError::ReservedNonZero)
+        );
         // The all-zero next_hop exit command still round-trips.
-        let ok = RoutingCommand { cmd: 0x01, flags: 0x01, delay_ms: 0, next_hop: [0; 32] };
+        let ok = RoutingCommand {
+            cmd: 0x01,
+            flags: 0x01,
+            delay_ms: 0,
+            next_hop: [0; 32],
+        };
         assert_eq!(RoutingCommand::from_bytes(&ok.to_bytes()).unwrap(), ok);
     }
 
     #[test]
     fn surb_round_trips() {
-        let s = Surb { first_hop: [0x11; 32], header: vec![0x22; SURB_HEADER_LEN], key_seed: [0x33; 32] };
+        let s = Surb {
+            first_hop: [0x11; 32],
+            header: vec![0x22; SURB_HEADER_LEN],
+            key_seed: [0x33; 32],
+        };
         let bytes = s.to_bytes();
         assert_eq!(bytes.len(), SURB_LEN);
         assert_eq!(Surb::from_bytes(&bytes).unwrap(), s);
@@ -278,7 +354,12 @@ mod tests {
 
     #[test]
     fn fragment_header_round_trips() {
-        let h = SphinxFragmentHeader { msg_id: [1, 2, 3, 4, 5, 6, 7, 8], frag_index: 3, frag_count: 16, total_len: 40000 };
+        let h = SphinxFragmentHeader {
+            msg_id: [1, 2, 3, 4, 5, 6, 7, 8],
+            frag_index: 3,
+            frag_count: 16,
+            total_len: 40000,
+        };
         let bytes = h.to_bytes();
         assert_eq!(bytes.len(), FRAGMENT_HEADER_LEN);
         assert_eq!(SphinxFragmentHeader::from_bytes(&bytes).unwrap(), h);

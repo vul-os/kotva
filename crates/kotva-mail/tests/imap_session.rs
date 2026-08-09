@@ -14,7 +14,10 @@ fn setup() -> (MemoryStore, StaticAuthenticator) {
     let payload = Payload {
         from: sender.public(),
         sig: vec![],
-        headers: Headers { subject: Some("Project kickoff".into()), ..Default::default() },
+        headers: Headers {
+            subject: Some("Project kickoff".into()),
+            ..Default::default()
+        },
         body: b"Let's meet on Tuesday.".to_vec(),
         refs: vec![],
         attach: vec![],
@@ -24,7 +27,12 @@ fn setup() -> (MemoryStore, StaticAuthenticator) {
     store.deliver_mote(&payload, "INBOX", 1_752_000_000_000);
 
     let mut auth = StaticAuthenticator::new();
-    auth.issue("owner@dmtap.local", "app-password-xyz", owner.public(), "iphone");
+    auth.issue(
+        "owner@dmtap.local",
+        "app-password-xyz",
+        owner.public(),
+        "iphone",
+    );
     (store, auth)
 }
 
@@ -51,7 +59,10 @@ fn scripted_imap_session() {
     assert!(caps.contains("a0 OK"));
 
     // LOGIN.
-    let login = run(&mut session, "a1 LOGIN owner@dmtap.local app-password-xyz\r\n");
+    let login = run(
+        &mut session,
+        "a1 LOGIN owner@dmtap.local app-password-xyz\r\n",
+    );
     assert!(login.contains("a1 OK"), "login: {login}");
     assert_eq!(session.state(), State::Authenticated);
 
@@ -72,10 +83,16 @@ fn scripted_imap_session() {
     assert_eq!(session.state(), State::Selected);
 
     // FETCH: flags, envelope, size, and the header via a peeking body section.
-    let fetch = run(&mut session, "a3 FETCH 1 (UID FLAGS RFC822.SIZE ENVELOPE BODY.PEEK[HEADER.FIELDS (SUBJECT FROM)])\r\n");
+    let fetch = run(
+        &mut session,
+        "a3 FETCH 1 (UID FLAGS RFC822.SIZE ENVELOPE BODY.PEEK[HEADER.FIELDS (SUBJECT FROM)])\r\n",
+    );
     assert!(fetch.contains("* 1 FETCH ("), "fetch: {fetch}");
     assert!(fetch.contains("UID 1"));
-    assert!(fetch.contains("\"Project kickoff\""), "envelope subject missing: {fetch}");
+    assert!(
+        fetch.contains("\"Project kickoff\""),
+        "envelope subject missing: {fetch}"
+    );
     assert!(fetch.contains("BODY[HEADER.FIELDS (SUBJECT FROM)]"));
     assert!(fetch.contains("Subject: Project kickoff"));
     assert!(fetch.contains("a3 OK"));
@@ -85,7 +102,10 @@ fn scripted_imap_session() {
 
     // STORE: mark \Seen, expect an untagged FETCH echo.
     let store_resp = run(&mut session, "a4 STORE 1 +FLAGS (\\Seen)\r\n");
-    assert!(store_resp.contains("* 1 FETCH (FLAGS ("), "store: {store_resp}");
+    assert!(
+        store_resp.contains("* 1 FETCH (FLAGS ("),
+        "store: {store_resp}"
+    );
     assert!(store_resp.contains("\\Seen"));
     assert!(store_resp.contains("a4 OK"));
     assert!(session.store().mailbox("INBOX").unwrap().messages[0].has_flag(&Flag::Seen));
@@ -110,7 +130,10 @@ fn scripted_imap_session() {
 fn copy_move_and_expunge_uidplus() {
     let (store, auth) = setup();
     let mut session = Session::new(store, auth, true);
-    run(&mut session, "a1 LOGIN owner@dmtap.local app-password-xyz\r\n");
+    run(
+        &mut session,
+        "a1 LOGIN owner@dmtap.local app-password-xyz\r\n",
+    );
     run(&mut session, "a2 SELECT INBOX\r\n");
 
     // COPY to Archive → UIDPLUS COPYUID response.
@@ -133,16 +156,39 @@ fn examine_forbids_move_no_data_loss() {
     // opened INBOX read-only could still permanently delete from it.
     let (store, auth) = setup();
     let mut session = Session::new(store, auth, true);
-    run(&mut session, "a1 LOGIN owner@dmtap.local app-password-xyz\r\n");
+    run(
+        &mut session,
+        "a1 LOGIN owner@dmtap.local app-password-xyz\r\n",
+    );
     let ex = run(&mut session, "a2 EXAMINE INBOX\r\n");
-    assert!(ex.contains("[READ-ONLY]"), "examine should announce read-only: {ex}");
+    assert!(
+        ex.contains("[READ-ONLY]"),
+        "examine should announce read-only: {ex}"
+    );
 
     let mv = run(&mut session, "a3 MOVE 1 Trash\r\n");
-    assert!(mv.contains("a3 NO"), "MOVE on a read-only mailbox must be refused: {mv}");
-    assert!(mv.contains("read-only"), "refusal should name the read-only cause: {mv}");
+    assert!(
+        mv.contains("a3 NO"),
+        "MOVE on a read-only mailbox must be refused: {mv}"
+    );
+    assert!(
+        mv.contains("read-only"),
+        "refusal should name the read-only cause: {mv}"
+    );
     // The source is untouched and nothing was created in the destination.
-    assert_eq!(session.store().mailbox("INBOX").unwrap().exists(), 1, "source must be intact");
-    assert!(session.store().mailbox("Trash").map(|m| m.exists()).unwrap_or(0) == 0);
+    assert_eq!(
+        session.store().mailbox("INBOX").unwrap().exists(),
+        1,
+        "source must be intact"
+    );
+    assert!(
+        session
+            .store()
+            .mailbox("Trash")
+            .map(|m| m.exists())
+            .unwrap_or(0)
+            == 0
+    );
 }
 
 #[test]
@@ -153,11 +199,20 @@ fn enable_and_namespace_require_authentication() {
     let (store, auth) = setup();
     let mut session = Session::new(store, auth, true);
     let en = run(&mut session, "z1 ENABLE CONDSTORE\r\n");
-    assert!(en.contains("z1 NO") && en.contains("Not authenticated"), "pre-auth ENABLE: {en}");
+    assert!(
+        en.contains("z1 NO") && en.contains("Not authenticated"),
+        "pre-auth ENABLE: {en}"
+    );
     let ns = run(&mut session, "z2 NAMESPACE\r\n");
-    assert!(ns.contains("z2 NO") && ns.contains("Not authenticated"), "pre-auth NAMESPACE: {ns}");
+    assert!(
+        ns.contains("z2 NO") && ns.contains("Not authenticated"),
+        "pre-auth NAMESPACE: {ns}"
+    );
     // After login, both succeed.
-    run(&mut session, "z3 LOGIN owner@dmtap.local app-password-xyz\r\n");
+    run(
+        &mut session,
+        "z3 LOGIN owner@dmtap.local app-password-xyz\r\n",
+    );
     assert!(run(&mut session, "z4 ENABLE CONDSTORE\r\n").contains("z4 OK"));
     assert!(run(&mut session, "z5 NAMESPACE\r\n").contains("z5 OK"));
 }
@@ -169,20 +224,29 @@ fn setup_n(n: usize) -> (MemoryStore, StaticAuthenticator) {
     for i in 0..n {
         store.deliver_raw(
             "INBOX",
-            format!("Subject: Message {i}\r\nFrom: s{i}@example.com\r\n\r\nbody {i}\r\n").into_bytes(),
+            format!("Subject: Message {i}\r\nFrom: s{i}@example.com\r\n\r\nbody {i}\r\n")
+                .into_bytes(),
             vec![],
             1_752_000_000_000,
         );
     }
     let mut auth = StaticAuthenticator::new();
-    auth.issue("owner@dmtap.local", "app-password-xyz", owner.public(), "iphone");
+    auth.issue(
+        "owner@dmtap.local",
+        "app-password-xyz",
+        owner.public(),
+        "iphone",
+    );
     (store, auth)
 }
 
 fn logged_in_selected(n: usize) -> Session<MemoryStore, StaticAuthenticator> {
     let (store, auth) = setup_n(n);
     let mut session = Session::new(store, auth, true);
-    run(&mut session, "a1 LOGIN owner@dmtap.local app-password-xyz\r\n");
+    run(
+        &mut session,
+        "a1 LOGIN owner@dmtap.local app-password-xyz\r\n",
+    );
     run(&mut session, "a2 SELECT INBOX\r\n");
     session
 }
@@ -200,13 +264,28 @@ fn qresync_vanished_fast_resync() {
     run(&mut session, "b3 UID STORE 4 +FLAGS (\\Seen)\r\n");
 
     // Reconnect with QRESYNC, presenting the last-known UIDVALIDITY + HIGHESTMODSEQ + known UIDs.
-    let resync = run(&mut session, &format!("c1 SELECT INBOX (QRESYNC (1 {known_modseq} 1:4))\r\n"));
-    assert!(resync.contains("VANISHED (EARLIER) 2:3"), "expected vanished 2:3: {resync}");
+    let resync = run(
+        &mut session,
+        &format!("c1 SELECT INBOX (QRESYNC (1 {known_modseq} 1:4))\r\n"),
+    );
+    assert!(
+        resync.contains("VANISHED (EARLIER) 2:3"),
+        "expected vanished 2:3: {resync}"
+    );
     // uid 4 changed since the client's modseq → re-fetched with its new FLAGS/MODSEQ.
-    assert!(resync.contains("UID 4"), "changed uid 4 must be re-fetched: {resync}");
-    assert!(resync.contains("\\Seen"), "uid 4 flags must be reported: {resync}");
+    assert!(
+        resync.contains("UID 4"),
+        "changed uid 4 must be re-fetched: {resync}"
+    );
+    assert!(
+        resync.contains("\\Seen"),
+        "uid 4 flags must be reported: {resync}"
+    );
     // uid 1 was untouched → NOT re-fetched.
-    assert!(!resync.contains("UID 1"), "unchanged uid 1 must not be re-fetched: {resync}");
+    assert!(
+        !resync.contains("UID 1"),
+        "unchanged uid 1 must not be re-fetched: {resync}"
+    );
     assert!(resync.contains("c1 OK"), "{resync}");
 }
 
@@ -217,8 +296,14 @@ fn qresync_enabled_expunge_emits_vanished() {
     run(&mut session, "e1 ENABLE QRESYNC\r\n");
     run(&mut session, "e2 UID STORE 2 +FLAGS (\\Deleted)\r\n");
     let expunge = run(&mut session, "e3 EXPUNGE\r\n");
-    assert!(expunge.contains("* VANISHED 2"), "qresync expunge → VANISHED: {expunge}");
-    assert!(!expunge.contains("* 2 EXPUNGE"), "no classic EXPUNGE under QRESYNC: {expunge}");
+    assert!(
+        expunge.contains("* VANISHED 2"),
+        "qresync expunge → VANISHED: {expunge}"
+    );
+    assert!(
+        !expunge.contains("* 2 EXPUNGE"),
+        "no classic EXPUNGE under QRESYNC: {expunge}"
+    );
 }
 
 #[test]
@@ -228,8 +313,14 @@ fn fetch_vanished_modifier() {
     let base = session.store().mailbox("INBOX").unwrap().highest_modseq;
     run(&mut session, "f1 UID STORE 2:3 +FLAGS (\\Deleted)\r\n");
     run(&mut session, "f2 EXPUNGE\r\n");
-    let fetch = run(&mut session, &format!("f3 UID FETCH 1:* (FLAGS) (CHANGEDSINCE {base} VANISHED)\r\n"));
-    assert!(fetch.contains("VANISHED (EARLIER) 2:3"), "vanished modifier: {fetch}");
+    let fetch = run(
+        &mut session,
+        &format!("f3 UID FETCH 1:* (FLAGS) (CHANGEDSINCE {base} VANISHED)\r\n"),
+    );
+    assert!(
+        fetch.contains("VANISHED (EARLIER) 2:3"),
+        "vanished modifier: {fetch}"
+    );
 }
 
 #[test]
@@ -237,11 +328,18 @@ fn search_charset_handling() {
     let mut session = logged_in_selected(1);
     // UTF-8 and US-ASCII are accepted.
     assert!(run(&mut session, "g1 SEARCH CHARSET UTF-8 SUBJECT Message\r\n").contains("g1 OK"));
-    assert!(run(&mut session, "g2 SEARCH CHARSET US-ASCII SUBJECT Message\r\n").contains("g2 OK"));
+    assert!(run(
+        &mut session,
+        "g2 SEARCH CHARSET US-ASCII SUBJECT Message\r\n"
+    )
+    .contains("g2 OK"));
     // Any other charset is rejected cleanly with [BADCHARSET], never silently matched.
     let bad = run(&mut session, "g3 SEARCH CHARSET KOI8-R SUBJECT Message\r\n");
     assert!(bad.contains("g3 NO"), "{bad}");
-    assert!(bad.contains("[BADCHARSET"), "must list supported charsets: {bad}");
+    assert!(
+        bad.contains("[BADCHARSET"),
+        "must list supported charsets: {bad}"
+    );
 }
 
 #[test]
@@ -249,18 +347,18 @@ fn malformed_input_never_panics() {
     let mut session = logged_in_selected(2);
     // Each of these is hostile/truncated; every one must yield a BAD/NO, not a panic or hang.
     for cmd in [
-        "z1 FETCH\r\n",                     // missing args
-        "z2 FETCH abc (FLAGS)\r\n",         // bad sequence set
-        "z3 FETCH 1 (BOGUSITEM)\r\n",       // unknown fetch item
-        "z4 SEARCH LARGER notanumber\r\n",  // non-numeric
-        "z5 STORE 1 FLAGS\r\n",             // missing flag list is empty → still parses
-        "z6 UID\r\n",                       // truncated UID command
-        "z7 FROBNICATE stuff\r\n",          // unknown command
-        "z8 STORE 1 BOGUS (\\Seen)\r\n",    // bad STORE verb
-        "z9 FETCH 1:2:3 (FLAGS)\r\n",       // malformed range
-        "z10 SELECT\r\n",                   // missing mailbox
-        "\r\n",                             // empty line
-        "onlytag\r\n",                      // tag with no command
+        "z1 FETCH\r\n",                    // missing args
+        "z2 FETCH abc (FLAGS)\r\n",        // bad sequence set
+        "z3 FETCH 1 (BOGUSITEM)\r\n",      // unknown fetch item
+        "z4 SEARCH LARGER notanumber\r\n", // non-numeric
+        "z5 STORE 1 FLAGS\r\n",            // missing flag list is empty → still parses
+        "z6 UID\r\n",                      // truncated UID command
+        "z7 FROBNICATE stuff\r\n",         // unknown command
+        "z8 STORE 1 BOGUS (\\Seen)\r\n",   // bad STORE verb
+        "z9 FETCH 1:2:3 (FLAGS)\r\n",      // malformed range
+        "z10 SELECT\r\n",                  // missing mailbox
+        "\r\n",                            // empty line
+        "onlytag\r\n",                     // tag with no command
     ] {
         let resp = run(&mut session, cmd);
         assert!(
@@ -313,7 +411,10 @@ fn selected_mailbox_renamed_mid_session_never_panics() {
     assert!(run(&mut session, "c3 RENAME Old New\r\n").contains("c3 OK"));
 
     let resp = run(&mut session, "d1 SEARCH ALL\r\n");
-    assert!(resp.contains(" NO") || resp.contains(" BAD"), "must fail closed, not panic: {resp}");
+    assert!(
+        resp.contains(" NO") || resp.contains(" BAD"),
+        "must fail closed, not panic: {resp}"
+    );
     assert_eq!(session.state(), State::Authenticated);
     // The renamed mailbox is selectable under its new name.
     assert!(run(&mut session, "e1 SELECT New\r\n").contains("e1 OK"));
@@ -325,7 +426,10 @@ fn uid_fetch_edge_cases() {
     // Fetching a nonexistent UID returns just the tagged OK, no FETCH data.
     let miss = run(&mut session, "u1 UID FETCH 999 (FLAGS)\r\n");
     assert!(miss.contains("u1 OK"));
-    assert!(!miss.contains("* "), "no untagged data for a missing uid: {miss}");
+    assert!(
+        !miss.contains("* "),
+        "no untagged data for a missing uid: {miss}"
+    );
     // `*` resolves to the max UID.
     let star = run(&mut session, "u2 UID FETCH * (UID)\r\n");
     assert!(star.contains("UID 3"), "star → highest uid: {star}");
@@ -338,13 +442,36 @@ fn uid_fetch_edge_cases() {
 fn sort_orders_by_criteria() {
     // SORT (RFC 5256): three messages with distinct subjects/sizes → deterministic order.
     let mut store = MemoryStore::new();
-    store.deliver_raw("INBOX", b"Subject: Banana\r\nDate: Wed, 03 Jul 2024 10:00:00 +0000\r\n\r\nx".to_vec(), vec![], 300);
-    store.deliver_raw("INBOX", b"Subject: Apple\r\nDate: Mon, 01 Jul 2024 10:00:00 +0000\r\n\r\nlonger body here".to_vec(), vec![], 100);
-    store.deliver_raw("INBOX", b"Subject: Cherry\r\nDate: Tue, 02 Jul 2024 10:00:00 +0000\r\n\r\nyy".to_vec(), vec![], 200);
+    store.deliver_raw(
+        "INBOX",
+        b"Subject: Banana\r\nDate: Wed, 03 Jul 2024 10:00:00 +0000\r\n\r\nx".to_vec(),
+        vec![],
+        300,
+    );
+    store.deliver_raw(
+        "INBOX",
+        b"Subject: Apple\r\nDate: Mon, 01 Jul 2024 10:00:00 +0000\r\n\r\nlonger body here".to_vec(),
+        vec![],
+        100,
+    );
+    store.deliver_raw(
+        "INBOX",
+        b"Subject: Cherry\r\nDate: Tue, 02 Jul 2024 10:00:00 +0000\r\n\r\nyy".to_vec(),
+        vec![],
+        200,
+    );
     let mut auth = StaticAuthenticator::new();
-    auth.issue("owner@dmtap.local", "app-password-xyz", IdentityKey::generate().public(), "d");
+    auth.issue(
+        "owner@dmtap.local",
+        "app-password-xyz",
+        IdentityKey::generate().public(),
+        "d",
+    );
     let mut session = Session::new(store, auth, true);
-    run(&mut session, "a1 LOGIN owner@dmtap.local app-password-xyz\r\n");
+    run(
+        &mut session,
+        "a1 LOGIN owner@dmtap.local app-password-xyz\r\n",
+    );
     run(&mut session, "a2 SELECT INBOX\r\n");
 
     // SORT by SUBJECT alphabetical: Apple(2) Banana(1) Cherry(3).
@@ -355,7 +482,10 @@ fn sort_orders_by_criteria() {
     assert!(date.contains("* SORT 2 3 1"), "date sort: {date}");
     // REVERSE SIZE: largest first → Apple(2, longest) ... .
     let size = run(&mut session, "s3 SORT (REVERSE SIZE) UTF-8 ALL\r\n");
-    assert!(size.contains("* SORT 2"), "reverse size sort starts largest: {size}");
+    assert!(
+        size.contains("* SORT 2"),
+        "reverse size sort starts largest: {size}"
+    );
     // UID SORT returns UIDs.
     let usort = run(&mut session, "s4 UID SORT (SUBJECT) UTF-8 ALL\r\n");
     assert!(usort.contains("* SORT 2 1 3"), "uid sort: {usort}");
@@ -365,23 +495,46 @@ fn sort_orders_by_criteria() {
 fn thread_groups_by_references_and_subject() {
     let mut store = MemoryStore::new();
     // A root and a reply (via In-Reply-To) share a thread; a third is separate.
-    store.deliver_raw("INBOX", b"Subject: Plan\r\nMessage-ID: <root@x>\r\nDate: Mon, 01 Jul 2024 10:00:00 +0000\r\n\r\na".to_vec(), vec![], 100);
+    store.deliver_raw(
+        "INBOX",
+        b"Subject: Plan\r\nMessage-ID: <root@x>\r\nDate: Mon, 01 Jul 2024 10:00:00 +0000\r\n\r\na"
+            .to_vec(),
+        vec![],
+        100,
+    );
     store.deliver_raw("INBOX", b"Subject: Re: Plan\r\nMessage-ID: <reply@x>\r\nIn-Reply-To: <root@x>\r\nDate: Tue, 02 Jul 2024 10:00:00 +0000\r\n\r\nb".to_vec(), vec![], 200);
     store.deliver_raw("INBOX", b"Subject: Other\r\nMessage-ID: <other@x>\r\nDate: Wed, 03 Jul 2024 10:00:00 +0000\r\n\r\nc".to_vec(), vec![], 300);
     let mut auth = StaticAuthenticator::new();
-    auth.issue("owner@dmtap.local", "app-password-xyz", IdentityKey::generate().public(), "d");
+    auth.issue(
+        "owner@dmtap.local",
+        "app-password-xyz",
+        IdentityKey::generate().public(),
+        "d",
+    );
     let mut session = Session::new(store, auth, true);
-    run(&mut session, "a1 LOGIN owner@dmtap.local app-password-xyz\r\n");
+    run(
+        &mut session,
+        "a1 LOGIN owner@dmtap.local app-password-xyz\r\n",
+    );
     run(&mut session, "a2 SELECT INBOX\r\n");
 
     let refs = run(&mut session, "t1 THREAD REFERENCES UTF-8 ALL\r\n");
     assert!(refs.contains("* THREAD"), "thread response: {refs}");
-    assert!(refs.contains("(1 2)"), "root+reply must thread together: {refs}");
-    assert!(refs.contains("(3)"), "unrelated message is its own thread: {refs}");
+    assert!(
+        refs.contains("(1 2)"),
+        "root+reply must thread together: {refs}"
+    );
+    assert!(
+        refs.contains("(3)"),
+        "unrelated message is its own thread: {refs}"
+    );
 
     // ORDEREDSUBJECT: "Plan" and "Re: Plan" share a base subject.
     let os = run(&mut session, "t2 THREAD ORDEREDSUBJECT UTF-8 ALL\r\n");
-    assert!(os.contains("(1 2)"), "ordered-subject groups Re: with parent: {os}");
+    assert!(
+        os.contains("(1 2)"),
+        "ordered-subject groups Re: with parent: {os}"
+    );
 }
 
 #[test]
@@ -393,13 +546,24 @@ fn binary_fetch_decodes_cte() {
                 --B\r\nContent-Type: application/octet-stream\r\nContent-Transfer-Encoding: base64\r\n\r\naGVsbG8=\r\n--B--\r\n";
     store.deliver_raw("INBOX", raw.to_vec(), vec![], 0);
     let mut auth = StaticAuthenticator::new();
-    auth.issue("owner@dmtap.local", "app-password-xyz", IdentityKey::generate().public(), "d");
+    auth.issue(
+        "owner@dmtap.local",
+        "app-password-xyz",
+        IdentityKey::generate().public(),
+        "d",
+    );
     let mut session = Session::new(store, auth, true);
-    run(&mut session, "a1 LOGIN owner@dmtap.local app-password-xyz\r\n");
+    run(
+        &mut session,
+        "a1 LOGIN owner@dmtap.local app-password-xyz\r\n",
+    );
     run(&mut session, "a2 SELECT INBOX\r\n");
 
     let bin = run(&mut session, "b1 FETCH 1 (BINARY.PEEK[1])\r\n");
-    assert!(bin.contains("BINARY[1] ~{5}"), "literal8 with decoded size: {bin}");
+    assert!(
+        bin.contains("BINARY[1] ~{5}"),
+        "literal8 with decoded size: {bin}"
+    );
     assert!(bin.contains("hello"), "decoded content: {bin}");
     let size = run(&mut session, "b2 FETCH 1 (BINARY.SIZE[1])\r\n");
     assert!(size.contains("BINARY.SIZE[1] 5"), "decoded size: {size}");
@@ -414,18 +578,36 @@ fn list_extended_and_status_and_special_use() {
     assert!(run(&mut session, "c2 CREATE Parent\r\n").contains("c2 OK"));
     assert!(run(&mut session, "c3 CREATE Parent/Child\r\n").contains("c3 OK"));
     let list = run(&mut session, "l1 LIST \"\" \"*\"\r\n");
-    assert!(list.contains("\\HasChildren) \"/\" \"Parent\""), "parent has children: {list}");
-    assert!(list.contains("\\HasNoChildren"), "leaf has no children: {list}");
+    assert!(
+        list.contains("\\HasChildren) \"/\" \"Parent\""),
+        "parent has children: {list}"
+    );
+    assert!(
+        list.contains("\\HasNoChildren"),
+        "leaf has no children: {list}"
+    );
 
     // LIST RETURN (SUBSCRIBED) → \Subscribed attribute; LIST-STATUS piggybacks STATUS.
-    let ls = run(&mut session, "l2 LIST \"\" \"INBOX\" RETURN (STATUS (MESSAGES UNSEEN))\r\n");
+    let ls = run(
+        &mut session,
+        "l2 LIST \"\" \"INBOX\" RETURN (STATUS (MESSAGES UNSEEN))\r\n",
+    );
     assert!(ls.contains("* LIST"), "list line: {ls}");
-    assert!(ls.contains("* STATUS \"INBOX\" (MESSAGES 2"), "list-status piggyback: {ls}");
+    assert!(
+        ls.contains("* STATUS \"INBOX\" (MESSAGES 2"),
+        "list-status piggyback: {ls}"
+    );
 
     // Select-option SPECIAL-USE filters to special folders only.
     let su = run(&mut session, "l3 LIST (SPECIAL-USE) \"\" \"*\"\r\n");
-    assert!(su.contains("Newsletters") && su.contains("Sent"), "special-use only: {su}");
-    assert!(!su.contains("\"Parent\""), "non-special mailbox excluded: {su}");
+    assert!(
+        su.contains("Newsletters") && su.contains("Sent"),
+        "special-use only: {su}"
+    );
+    assert!(
+        !su.contains("\"Parent\""),
+        "non-special mailbox excluded: {su}"
+    );
 
     // STATUS DELETED item.
     run(&mut session, "d1 STORE 1 +FLAGS (\\Deleted)\r\n");
@@ -442,8 +624,14 @@ fn searchres_save_and_dollar() {
     assert!(saved.contains("x2 OK"), "save search: {saved}");
     // `$` now refers to the saved UIDs {2,4}; UID FETCH $ returns exactly those.
     let f = run(&mut session, "x3 UID FETCH $ (UID)\r\n");
-    assert!(f.contains("UID 2") && f.contains("UID 4"), "dollar fetch: {f}");
-    assert!(!f.contains("UID 1") && !f.contains("UID 3"), "only saved uids: {f}");
+    assert!(
+        f.contains("UID 2") && f.contains("UID 4"),
+        "dollar fetch: {f}"
+    );
+    assert!(
+        !f.contains("UID 1") && !f.contains("UID 3"),
+        "only saved uids: {f}"
+    );
     // COPY $ to Archive copies the saved set.
     let cp = run(&mut session, "x4 UID COPY $ Archive\r\n");
     assert!(cp.contains("[COPYUID"), "copy dollar: {cp}");
@@ -470,12 +658,21 @@ fn list_haschildren_correct_after_prefix_set_optimization() {
     // rescan-with-format!-alloc per name; verify it still classifies parent vs leaf correctly.
     let (store, auth) = setup();
     let mut session = Session::new(store, auth, true);
-    run(&mut session, "a1 LOGIN owner@dmtap.local app-password-xyz\r\n");
+    run(
+        &mut session,
+        "a1 LOGIN owner@dmtap.local app-password-xyz\r\n",
+    );
     run(&mut session, "a2 CREATE Parent\r\n");
     run(&mut session, "a3 CREATE Parent/Child\r\n");
     let resp = run(&mut session, "a4 LIST \"\" *\r\n");
-    assert!(resp.contains("\\HasChildren"), "Parent must be reported \\HasChildren: {resp}");
-    assert!(resp.contains("\\HasNoChildren"), "leaf mailboxes must be \\HasNoChildren");
+    assert!(
+        resp.contains("\\HasChildren"),
+        "Parent must be reported \\HasChildren: {resp}"
+    );
+    assert!(
+        resp.contains("\\HasNoChildren"),
+        "leaf mailboxes must be \\HasNoChildren"
+    );
     assert!(resp.contains("a4 OK"), "LIST completes");
 }
 
@@ -485,12 +682,21 @@ fn fetch_with_excessive_ranges_fails_closed_no_oom() {
     // resolve_targets into a ranges×messages allocation. The range cap rejects it fail-closed at
     // parse, and the marker-Vec bounds memory to the mailbox size regardless of range count.
     let mut session = logged_in_selected(50);
-    let many = std::iter::repeat("1:*").take(20_000).collect::<Vec<_>>().join(",");
+    let many = std::iter::repeat("1:*")
+        .take(20_000)
+        .collect::<Vec<_>>()
+        .join(",");
     let resp = run(&mut session, &format!("f1 FETCH {many} FLAGS\r\n"));
-    assert!(resp.contains("f1 BAD"), "an excessive-range FETCH must fail closed, not OOM");
+    assert!(
+        resp.contains("f1 BAD"),
+        "an excessive-range FETCH must fail closed, not OOM"
+    );
     // A normal ranged FETCH still works.
     let ok = run(&mut session, "f2 FETCH 1:5 FLAGS\r\n");
-    assert!(ok.contains("f2 OK") && ok.contains("FLAGS"), "normal FETCH still works: {ok}");
+    assert!(
+        ok.contains("f2 OK") && ok.contains("FLAGS"),
+        "normal FETCH still works: {ok}"
+    );
 }
 
 #[test]
@@ -501,16 +707,25 @@ fn list_wildcard_bounds_pattern_name_product_no_oom() {
     // while ordinary LIST is unaffected.
     let (store, auth) = setup();
     let mut session = Session::new(store, auth, true);
-    run(&mut session, "a1 LOGIN owner@dmtap.local app-password-xyz\r\n");
+    run(
+        &mut session,
+        "a1 LOGIN owner@dmtap.local app-password-xyz\r\n",
+    );
     // A mailbox with a ~100 KB name; a ~100 KB all-`*` pattern would otherwise allocate a ~10 GB DP.
     let big_name = "x".repeat(100_000);
     run(&mut session, &format!("a2 CREATE {big_name}\r\n"));
     let big_pattern = "*".repeat(100_000);
     let resp = run(&mut session, &format!("a3 LIST \"\" {big_pattern}\r\n"));
-    assert!(resp.contains("a3 OK"), "an over-cap LIST must complete, not OOM-abort");
+    assert!(
+        resp.contains("a3 OK"),
+        "an over-cap LIST must complete, not OOM-abort"
+    );
     // Ordinary LIST still enumerates the standard mailboxes.
     let normal = run(&mut session, "a4 LIST \"\" *\r\n");
-    assert!(normal.contains("INBOX") && normal.contains("a4 OK"), "normal LIST still works: {normal}");
+    assert!(
+        normal.contains("INBOX") && normal.contains("a4 OK"),
+        "normal LIST still works: {normal}"
+    );
 }
 
 #[test]
@@ -521,22 +736,59 @@ fn saved_search_result_is_reset_on_mailbox_change() {
     let owner = IdentityKey::generate();
     let mut store = MemoryStore::new();
     for i in 0..3 {
-        store.deliver_raw("INBOX", format!("Subject: A{i}\r\n\r\nx\r\n").into_bytes(), vec![], 0);
-        store.deliver_raw("Archive", format!("Subject: B{i}\r\n\r\ny\r\n").into_bytes(), vec![], 0);
+        store.deliver_raw(
+            "INBOX",
+            format!("Subject: A{i}\r\n\r\nx\r\n").into_bytes(),
+            vec![],
+            0,
+        );
+        store.deliver_raw(
+            "Archive",
+            format!("Subject: B{i}\r\n\r\ny\r\n").into_bytes(),
+            vec![],
+            0,
+        );
     }
     let mut auth = StaticAuthenticator::new();
-    auth.issue("owner@dmtap.local", "app-password-xyz", owner.public(), "iphone");
+    auth.issue(
+        "owner@dmtap.local",
+        "app-password-xyz",
+        owner.public(),
+        "iphone",
+    );
     let mut session = Session::new(store, auth, true);
-    run(&mut session, "a1 LOGIN owner@dmtap.local app-password-xyz\r\n");
+    run(
+        &mut session,
+        "a1 LOGIN owner@dmtap.local app-password-xyz\r\n",
+    );
     run(&mut session, "a2 SELECT INBOX\r\n");
     run(&mut session, "a3 SEARCH RETURN (SAVE) ALL\r\n"); // saves INBOX uids 1,2,3
     run(&mut session, "a4 SELECT Archive\r\n"); // must reset $ to empty
     let mv = run(&mut session, "a5 UID MOVE $ Trash\r\n");
     // Without the reset, Archive's uids 1,2,3 would be moved to Trash. With it, $ is empty.
-    assert!(!mv.contains("COPYUID"), "stale $ must move nothing (no COPYUID): {mv}");
-    assert_eq!(session.store().mailbox("Archive").unwrap().exists(), 3, "Archive must be untouched by a stale $");
-    assert_eq!(session.store().mailbox("INBOX").unwrap().exists(), 3, "INBOX must be untouched");
-    assert_eq!(session.store().mailbox("Trash").map(|m| m.exists()).unwrap_or(0), 0, "Trash must be empty");
+    assert!(
+        !mv.contains("COPYUID"),
+        "stale $ must move nothing (no COPYUID): {mv}"
+    );
+    assert_eq!(
+        session.store().mailbox("Archive").unwrap().exists(),
+        3,
+        "Archive must be untouched by a stale $"
+    );
+    assert_eq!(
+        session.store().mailbox("INBOX").unwrap().exists(),
+        3,
+        "INBOX must be untouched"
+    );
+    assert_eq!(
+        session
+            .store()
+            .mailbox("Trash")
+            .map(|m| m.exists())
+            .unwrap_or(0),
+        0,
+        "Trash must be empty"
+    );
 }
 
 #[test]
@@ -545,14 +797,24 @@ fn degenerate_and_deeply_nested_search_fail_closed_not_panic() {
     // parenthesised SEARCH must not stack-overflow (an unauth process-crash DoS, since SEARCH is
     // parsed before the auth/selected check). Both must fail closed to a BAD.
     let mut session = logged_in_selected(2);
-    for cmd in ["x1 SEARCH NOT\r\n", "x2 SEARCH OR\r\n", "x3 SEARCH OR ANSWERED\r\n"] {
+    for cmd in [
+        "x1 SEARCH NOT\r\n",
+        "x2 SEARCH OR\r\n",
+        "x3 SEARCH OR ANSWERED\r\n",
+    ] {
         let resp = run(&mut session, cmd);
-        assert!(resp.contains("BAD"), "degenerate SEARCH must fail closed (BAD), not panic: {resp}");
+        assert!(
+            resp.contains("BAD"),
+            "degenerate SEARCH must fail closed (BAD), not panic: {resp}"
+        );
     }
     // ~5000 nested parens: without MAX_SEARCH_DEPTH this stack-overflows and aborts the process.
     let deep = format!("x4 SEARCH {}ALL{}\r\n", "(".repeat(5000), ")".repeat(5000));
     let resp = run(&mut session, &deep);
-    assert!(resp.contains("BAD"), "deeply-nested SEARCH must fail closed with BAD: {resp}");
+    assert!(
+        resp.contains("BAD"),
+        "deeply-nested SEARCH must fail closed with BAD: {resp}"
+    );
 }
 
 #[test]
@@ -567,9 +829,18 @@ fn store_modified_reports_sequence_numbers_not_uids() {
     run(&mut session, "s2 STORE 1 +FLAGS (\\Deleted)\r\n");
     run(&mut session, "s3 EXPUNGE\r\n");
     // Plain STORE on seq 1 (= uid 2, modseq > 1) with UNCHANGEDSINCE 1 → fails: MODIFIED = seq "1".
-    let resp = run(&mut session, "s4 STORE 1 (UNCHANGEDSINCE 1) +FLAGS (\\Seen)\r\n");
-    assert!(resp.contains("[MODIFIED 1]"), "MODIFIED must carry the sequence number 1: {resp}");
-    assert!(!resp.contains("MODIFIED 2"), "must not report the UID (2): {resp}");
+    let resp = run(
+        &mut session,
+        "s4 STORE 1 (UNCHANGEDSINCE 1) +FLAGS (\\Seen)\r\n",
+    );
+    assert!(
+        resp.contains("[MODIFIED 1]"),
+        "MODIFIED must carry the sequence number 1: {resp}"
+    );
+    assert!(
+        !resp.contains("MODIFIED 2"),
+        "must not report the UID (2): {resp}"
+    );
 }
 
 #[test]
@@ -578,11 +849,23 @@ fn close_and_unselect_require_a_selected_mailbox() {
     // not accepted with OK and a forced Authenticated state.
     let (store, auth) = setup();
     let mut session = Session::new(store, auth, true);
-    run(&mut session, "a1 LOGIN owner@dmtap.local app-password-xyz\r\n");
-    assert!(run(&mut session, "a2 CLOSE\r\n").contains("a2 BAD"), "CLOSE without SELECT must be BAD");
-    assert!(run(&mut session, "a3 UNSELECT\r\n").contains("a3 BAD"), "UNSELECT without SELECT must be BAD");
+    run(
+        &mut session,
+        "a1 LOGIN owner@dmtap.local app-password-xyz\r\n",
+    );
+    assert!(
+        run(&mut session, "a2 CLOSE\r\n").contains("a2 BAD"),
+        "CLOSE without SELECT must be BAD"
+    );
+    assert!(
+        run(&mut session, "a3 UNSELECT\r\n").contains("a3 BAD"),
+        "UNSELECT without SELECT must be BAD"
+    );
     run(&mut session, "a4 SELECT INBOX\r\n");
-    assert!(run(&mut session, "a5 CLOSE\r\n").contains("a5 OK"), "CLOSE after SELECT succeeds");
+    assert!(
+        run(&mut session, "a5 CLOSE\r\n").contains("a5 OK"),
+        "CLOSE after SELECT succeeds"
+    );
 }
 
 #[test]
@@ -591,9 +874,15 @@ fn copy_and_move_of_empty_set_omit_copyuid() {
     // nothing (out of range) must NOT emit a malformed `[COPYUID v  ]` — the response code is omitted.
     let mut session = logged_in_selected(3);
     let copy = run(&mut session, "a3 COPY 999 Archive\r\n");
-    assert!(copy.contains("a3 OK") && !copy.contains("COPYUID"), "empty COPY must omit COPYUID: {copy}");
+    assert!(
+        copy.contains("a3 OK") && !copy.contains("COPYUID"),
+        "empty COPY must omit COPYUID: {copy}"
+    );
     let mv = run(&mut session, "a4 MOVE 999 Trash\r\n");
-    assert!(mv.contains("a4 OK") && !mv.contains("COPYUID"), "empty MOVE must omit COPYUID: {mv}");
+    assert!(
+        mv.contains("a4 OK") && !mv.contains("COPYUID"),
+        "empty MOVE must omit COPYUID: {mv}"
+    );
 }
 
 #[test]
@@ -606,7 +895,10 @@ fn append_with_out_of_range_date_does_not_panic() {
         &mut session,
         "z1 APPEND INBOX \"31-Dec-999999999999 00:00:00 +0000\" {5}\r\nhello\r\n",
     );
-    assert!(resp.contains("z1 "), "APPEND with an out-of-range date must return a tagged response: {resp}");
+    assert!(
+        resp.contains("z1 "),
+        "APPEND with an out-of-range date must return a tagged response: {resp}"
+    );
 }
 
 #[test]
@@ -617,22 +909,45 @@ fn catenate_append_is_bounded_against_amplification() {
     // drive the server toward OOM.
     let owner = IdentityKey::generate();
     let mut store = MemoryStore::new();
-    store.deliver_raw("INBOX", vec![b'x'; 10 * 1024 * 1024], vec![], 1_752_000_000_000);
+    store.deliver_raw(
+        "INBOX",
+        vec![b'x'; 10 * 1024 * 1024],
+        vec![],
+        1_752_000_000_000,
+    );
     let mut auth = StaticAuthenticator::new();
-    auth.issue("owner@dmtap.local", "app-password-xyz", owner.public(), "iphone");
+    auth.issue(
+        "owner@dmtap.local",
+        "app-password-xyz",
+        owner.public(),
+        "iphone",
+    );
     let mut session = Session::new(store, auth, true);
-    run(&mut session, "a1 LOGIN owner@dmtap.local app-password-xyz\r\n");
+    run(
+        &mut session,
+        "a1 LOGIN owner@dmtap.local app-password-xyz\r\n",
+    );
     run(&mut session, "a2 SELECT INBOX\r\n");
 
     let url = "URL \"imap://h/INBOX;UID=1\"";
     let parts = std::iter::repeat(url).take(7).collect::<Vec<_>>().join(" ");
-    let resp = run(&mut session, &format!("a3 APPEND Drafts CATENATE ({parts})\r\n"));
+    let resp = run(
+        &mut session,
+        &format!("a3 APPEND Drafts CATENATE ({parts})\r\n"),
+    );
     assert!(
         resp.contains("a3 NO") && resp.contains("[LIMIT]"),
         "an amplified CATENATE must be refused with [LIMIT]: {resp}"
     );
     // Nothing was written to the destination.
-    assert_eq!(session.store().mailbox("Drafts").map(|m| m.exists()).unwrap_or(0), 0);
+    assert_eq!(
+        session
+            .store()
+            .mailbox("Drafts")
+            .map(|m| m.exists())
+            .unwrap_or(0),
+        0
+    );
 }
 
 #[test]
@@ -657,14 +972,21 @@ fn large_mailbox_targeted_fetch_is_sublinear() {
     let t = Instant::now();
     let full = run(&mut session, "p0 FETCH 1:* (FLAGS)\r\n");
     let full_dur = t.elapsed();
-    assert_eq!(full.matches("* ").count(), N, "full fetch must return all rows");
+    assert_eq!(
+        full.matches("* ").count(),
+        N,
+        "full fetch must return all rows"
+    );
 
     // 200 targeted UID fetches spread across the mailbox.
     let t = Instant::now();
     for k in 0..200u32 {
         let uid = 1 + (k * (N as u32 / 200));
         let r = run(&mut session, &format!("p{k} UID FETCH {uid} (UID)\r\n"));
-        assert!(r.contains(&format!("UID {uid}")), "targeted fetch {uid} missing: {r}");
+        assert!(
+            r.contains(&format!("UID {uid}")),
+            "targeted fetch {uid} missing: {r}"
+        );
     }
     let targeted_dur = t.elapsed();
 
@@ -688,13 +1010,20 @@ fn uid_expunge_saved_set_is_not_quadratic() {
 
     // Save every UID as the SEARCHRES `$` set (an N-element saved list — the worst case).
     let saved = run(&mut session, "s1 SEARCH RETURN (SAVE) ALL\r\n");
-    assert!(saved.contains("OK"), "SEARCH RETURN (SAVE) ALL failed: {saved}");
+    assert!(
+        saved.contains("OK"),
+        "SEARCH RETURN (SAVE) ALL failed: {saved}"
+    );
 
     // Baseline: one full FLAGS fetch is inherently O(n) (it emits n rows).
     let t = Instant::now();
     let full = run(&mut session, "b1 FETCH 1:* (FLAGS)\r\n");
     let full_dur = t.elapsed();
-    assert_eq!(full.matches("* ").count(), N, "baseline full fetch must return all rows");
+    assert_eq!(
+        full.matches("* ").count(),
+        N,
+        "baseline full fetch must return all rows"
+    );
 
     // `UID EXPUNGE $` with nothing \Deleted: touches all N messages against the N-element saved set.
     let t = Instant::now();
@@ -704,7 +1033,10 @@ fn uid_expunge_saved_set_is_not_quadratic() {
     // No message is \Deleted, so nothing is removed (correctness of the new membership path). The
     // untagged report is `* <n> EXPUNGE\r\n`; the tagged `OK EXPUNGE completed` must not be mistaken
     // for one, so match the untagged form specifically.
-    assert!(!e.contains(" EXPUNGE\r\n"), "no \\Deleted message → nothing expunged: {e}");
+    assert!(
+        !e.contains(" EXPUNGE\r\n"),
+        "no \\Deleted message → nothing expunged: {e}"
+    );
 
     // An O(n²) scan over N=10k would be ~N× worse than one linear pass; the hardened path stays
     // within a small factor. Generous margin so it is not flaky under CI load.

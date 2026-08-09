@@ -228,7 +228,8 @@ impl<A: Authenticator> SmtpSession<A> {
             return "503 5.5.1 Already authenticated\r\n".into();
         }
         if !self.tls {
-            return "538 5.7.11 Encryption required for requested authentication mechanism\r\n".into();
+            return "538 5.7.11 Encryption required for requested authentication mechanism\r\n"
+                .into();
         }
         let mut it = rest.split_whitespace();
         let mech = it.next().unwrap_or("");
@@ -301,7 +302,10 @@ impl<A: Authenticator> SmtpSession<A> {
         // identity for *additional* addresses does so in its Authenticator / via a send-as capability
         // token, §18.8a.3; the reference binds one address per credential.)
         if self.require_auth && !addr.is_empty() {
-            let authorised = self.authed_user.as_deref().is_some_and(|u| addr.eq_ignore_ascii_case(u));
+            let authorised = self
+                .authed_user
+                .as_deref()
+                .is_some_and(|u| addr.eq_ignore_ascii_case(u));
             if !authorised {
                 return "550 5.7.1 Sender address not authorised for the authenticated identity\r\n"
                     .into();
@@ -450,13 +454,18 @@ pub fn build_mote_draft(data: &[u8], ts: TimestampMs) -> MoteDraft {
     let raw_headers = crate::mime::strip_trust_boundary_headers(&raw_headers);
     let mut ext = Vec::new();
     if !raw_headers.is_empty() {
-        ext.push((crate::mime::RAW_HEADERS_EXT_KEY.to_string(), Cv::Bytes(raw_headers)));
+        ext.push((
+            crate::mime::RAW_HEADERS_EXT_KEY.to_string(),
+            Cv::Bytes(raw_headers),
+        ));
     }
     draft.headers = Headers {
         thread: None,
         // MOTE headers are native UTF-8 (spec §2.4): lift the subject through RFC 2047 decode so a
         // `=?UTF-8?B?…?=` (or ISO-8859-1/Q) legacy subject becomes real text, not wire gibberish.
-        subject: parsed.header("Subject").map(crate::mime::decode_encoded_words),
+        subject: parsed
+            .header("Subject")
+            .map(crate::mime::decode_encoded_words),
         mime: parsed.header("Content-Type").map(str::to_string),
         cc: Vec::new(),
         ext,
@@ -567,20 +576,36 @@ impl DsnReport {
     /// ready to be filed into the sender's INBOX by the node.
     pub fn render(&self) -> Vec<u8> {
         // Deterministic boundary from the content (stable across renders → reproducible tests).
-        let boundary = format!("=_dsn_{}", crate::util::hex(&stable_tag(&self.original_message)));
+        let boundary = format!(
+            "=_dsn_{}",
+            crate::util::hex(&stable_tag(&self.original_message))
+        );
         let date = crate::mime::format_rfc5322_date(self.arrival);
-        let overall = if self.recipients.iter().all(|r| r.action == DsnAction::Delivered) {
+        let overall = if self
+            .recipients
+            .iter()
+            .all(|r| r.action == DsnAction::Delivered)
+        {
             "Delivered"
-        } else if self.recipients.iter().any(|r| r.action == DsnAction::Failed) {
+        } else if self
+            .recipients
+            .iter()
+            .any(|r| r.action == DsnAction::Failed)
+        {
             "Failure"
         } else {
             "Delayed"
         };
 
         let mut m = String::new();
-        m.push_str(&format!("From: Mail Delivery System <postmaster@{}>\r\n", self.reporting_mta));
+        m.push_str(&format!(
+            "From: Mail Delivery System <postmaster@{}>\r\n",
+            self.reporting_mta
+        ));
         m.push_str(&format!("To: <{}>\r\n", self.notify_to));
-        m.push_str(&format!("Subject: Delivery Status Notification ({overall})\r\n"));
+        m.push_str(&format!(
+            "Subject: Delivery Status Notification ({overall})\r\n"
+        ));
         m.push_str(&format!("Date: {date}\r\n"));
         m.push_str("MIME-Version: 1.0\r\n");
         m.push_str("Auto-Submitted: auto-replied\r\n");
@@ -693,8 +718,14 @@ mod tests {
             let _ = parse_path_param(rest, kw); // must not panic
         }
         // A well-formed path still extracts the address.
-        assert_eq!(parse_path_param("FROM:<a@b.example>", "FROM").as_deref(), Some("a@b.example"));
-        assert_eq!(parse_path_param("TO:<x@y.example> SIZE=10", "TO").as_deref(), Some("x@y.example"));
+        assert_eq!(
+            parse_path_param("FROM:<a@b.example>", "FROM").as_deref(),
+            Some("a@b.example")
+        );
+        assert_eq!(
+            parse_path_param("TO:<x@y.example> SIZE=10", "TO").as_deref(),
+            Some("x@y.example")
+        );
     }
 
     #[test]
@@ -716,18 +747,35 @@ mod tests {
         let mut s = authed_session();
         s.feed_line("EHLO c");
         assert!(s
-            .feed_line(&format!("AUTH PLAIN {}", base64_encode(b"\0alice@dmtap.local\0pw")))
+            .feed_line(&format!(
+                "AUTH PLAIN {}",
+                base64_encode(b"\0alice@dmtap.local\0pw")
+            ))
             .starts_with("235"));
         let spoof = s.feed_line("MAIL FROM:<victim@paypal.com>");
-        assert!(spoof.starts_with("550"), "spoofed sender must be refused: {spoof}");
-        assert!(spoof.to_ascii_lowercase().contains("not authorised"), "{spoof}");
+        assert!(
+            spoof.starts_with("550"),
+            "spoofed sender must be refused: {spoof}"
+        );
+        assert!(
+            spoof.to_ascii_lowercase().contains("not authorised"),
+            "{spoof}"
+        );
         // The authenticated address (case-insensitive) is accepted, and a spoof did not leave state.
-        assert!(s.feed_line("MAIL FROM:<Alice@DMTAP.local>").starts_with("250"));
+        assert!(s
+            .feed_line("MAIL FROM:<Alice@DMTAP.local>")
+            .starts_with("250"));
 
         let mut s2 = authed_session();
         s2.feed_line("EHLO c");
-        s2.feed_line(&format!("AUTH PLAIN {}", base64_encode(b"\0alice@dmtap.local\0pw")));
-        assert!(s2.feed_line("MAIL FROM:<>").starts_with("250"), "null return-path must be allowed");
+        s2.feed_line(&format!(
+            "AUTH PLAIN {}",
+            base64_encode(b"\0alice@dmtap.local\0pw")
+        ));
+        assert!(
+            s2.feed_line("MAIL FROM:<>").starts_with("250"),
+            "null return-path must be allowed"
+        );
     }
 
     #[test]
@@ -735,8 +783,12 @@ mod tests {
         let mut s = authed_session();
         s.feed_line("EHLO c");
         let cred = base64_encode(b"\0alice@dmtap.local\0pw");
-        assert!(s.feed_line(&format!("AUTH PLAIN {cred}")).starts_with("235"));
-        assert!(s.feed_line("MAIL FROM:<alice@dmtap.local> SIZE=100").starts_with("250"));
+        assert!(s
+            .feed_line(&format!("AUTH PLAIN {cred}"))
+            .starts_with("235"));
+        assert!(s
+            .feed_line("MAIL FROM:<alice@dmtap.local> SIZE=100")
+            .starts_with("250"));
         assert!(s.feed_line("RCPT TO:<bob@example.net>").starts_with("250"));
         assert!(s.feed_line("DATA").starts_with("354"));
         s.feed_line("Subject: Hi");
@@ -760,21 +812,34 @@ mod tests {
         let mut s = authed_session();
         s.feed_line("EHLO c");
         let cred = base64_encode(b"\0alice@dmtap.local\0pw");
-        assert!(s.feed_line(&format!("AUTH PLAIN {cred}")).starts_with("235"));
-        assert!(s.feed_line("MAIL FROM:<alice@dmtap.local>").starts_with("250"));
+        assert!(s
+            .feed_line(&format!("AUTH PLAIN {cred}"))
+            .starts_with("235"));
+        assert!(s
+            .feed_line("MAIL FROM:<alice@dmtap.local>")
+            .starts_with("250"));
         assert!(s.feed_line("RCPT TO:<bob@example.net>").starts_with("250"));
         assert!(s.feed_line("DATA").starts_with("354"));
         assert!(!s.wants_close(), "not closing before any QUIT");
         s.feed_line("Subject: Hi");
         s.feed_line("");
         s.feed_line("QUIT"); // a bare QUIT line INSIDE the body — must be buffered, not a close
-        assert!(!s.wants_close(), "a DATA-body QUIT line must NOT request connection close");
+        assert!(
+            !s.wants_close(),
+            "a DATA-body QUIT line must NOT request connection close"
+        );
         s.feed_line("still here");
-        assert!(s.feed_line(".").starts_with("250"), "message completes normally");
+        assert!(
+            s.feed_line(".").starts_with("250"),
+            "message completes normally"
+        );
         let subs = s.take_submissions();
         assert_eq!(subs.len(), 1, "the message is delivered, not lost");
         // The buffered body carries the literal QUIT line byte-exact.
-        assert!(subs[0].data.windows(4).any(|w| w == b"QUIT"), "QUIT line kept as content");
+        assert!(
+            subs[0].data.windows(4).any(|w| w == b"QUIT"),
+            "QUIT line kept as content"
+        );
         assert!(subs[0].data.windows(10).any(|w| w == b"still here"));
 
         // A real QUIT *command* (Command phase) does request close.
@@ -834,7 +899,10 @@ mod tests {
         assert_eq!(sub.data, expected, "8-bit DATA must survive byte-exact");
         // And the parser must keep those body bytes untouched too.
         let parsed = ParsedMessage::parse(&sub.data);
-        assert_eq!(parsed.body, b"Gr\xfc\xdfe aus M\xfcnchen\r\n\xe9 dot-stuffed latin-1\r\n");
+        assert_eq!(
+            parsed.body,
+            b"Gr\xfc\xdfe aus M\xfcnchen\r\n\xe9 dot-stuffed latin-1\r\n"
+        );
     }
 
     /// Drive a full submission that declares DSN parameters, then generate the failure DSN.
@@ -843,7 +911,9 @@ mod tests {
         s.feed_line("EHLO c");
         let cred = base64_encode(b"\0alice@dmtap.local\0pw");
         s.feed_line(&format!("AUTH PLAIN {cred}"));
-        s.feed_line(&format!("MAIL FROM:<alice@dmtap.local> RET={ret} ENVID=abc123"));
+        s.feed_line(&format!(
+            "MAIL FROM:<alice@dmtap.local> RET={ret} ENVID=abc123"
+        ));
         s.feed_line(&format!("RCPT TO:<bob@example.net> NOTIFY={notify}"));
         s.feed_line("DATA");
         s.feed_line("Subject: Hi");
@@ -865,24 +935,47 @@ mod tests {
     #[test]
     fn generates_failure_dsn_report() {
         let sub = submitted_with_dsn("HDRS", "FAILURE");
-        let report =
-            DsnReport::failure_for(&sub, "mail.dmtap.local", "5.1.1", Some("550 no such user"), 0)
-                .expect("a failure DSN should be produced");
+        let report = DsnReport::failure_for(
+            &sub,
+            "mail.dmtap.local",
+            "5.1.1",
+            Some("550 no such user"),
+            0,
+        )
+        .expect("a failure DSN should be produced");
         let bytes = report.render();
         let text = String::from_utf8_lossy(&bytes);
         // Structure: RFC 3464 multipart/report with a machine-readable delivery-status part.
-        assert!(text.contains("Content-Type: multipart/report; report-type=delivery-status"), "{text}");
-        assert!(text.contains("Content-Type: message/delivery-status"), "{text}");
-        assert!(text.contains("Reporting-MTA: dns; mail.dmtap.local"), "{text}");
+        assert!(
+            text.contains("Content-Type: multipart/report; report-type=delivery-status"),
+            "{text}"
+        );
+        assert!(
+            text.contains("Content-Type: message/delivery-status"),
+            "{text}"
+        );
+        assert!(
+            text.contains("Reporting-MTA: dns; mail.dmtap.local"),
+            "{text}"
+        );
         assert!(text.contains("Original-Envelope-Id: abc123"), "{text}");
-        assert!(text.contains("Final-Recipient: rfc822;bob@example.net"), "{text}");
+        assert!(
+            text.contains("Final-Recipient: rfc822;bob@example.net"),
+            "{text}"
+        );
         assert!(text.contains("Action: failed"), "{text}");
         assert!(text.contains("Status: 5.1.1"), "{text}");
-        assert!(text.contains("Diagnostic-Code: smtp; 550 no such user"), "{text}");
+        assert!(
+            text.contains("Diagnostic-Code: smtp; 550 no such user"),
+            "{text}"
+        );
         // RET=HDRS returns only the original headers, as text/rfc822-headers.
         assert!(text.contains("Content-Type: text/rfc822-headers"), "{text}");
         assert!(text.contains("Subject: Hi"), "{text}");
-        assert!(!text.contains("Hello Bob"), "RET=HDRS must not echo the body: {text}");
+        assert!(
+            !text.contains("Hello Bob"),
+            "RET=HDRS must not echo the body: {text}"
+        );
     }
 
     #[test]
@@ -890,9 +983,15 @@ mod tests {
         let mut s = authed_session();
         s.feed_line("EHLO c");
         let cred = base64_encode(b"\0alice@dmtap.local\0pw");
-        assert!(s.feed_line(&format!("AUTH PLAIN {cred}")).starts_with("235"));
+        assert!(s
+            .feed_line(&format!("AUTH PLAIN {cred}"))
+            .starts_with("235"));
         // A second AUTH must be refused (RFC 4954 §4).
-        assert!(s.feed_line(&format!("AUTH PLAIN {cred}")).starts_with("503"), "second AUTH must 503");
+        assert!(
+            s.feed_line(&format!("AUTH PLAIN {cred}"))
+                .starts_with("503"),
+            "second AUTH must 503"
+        );
     }
 
     #[test]
@@ -902,15 +1001,24 @@ mod tests {
         s.feed_line("EHLO c");
         let cred = base64_encode(b"\0alice@dmtap.local\0pw");
         s.feed_line(&format!("AUTH PLAIN {cred}"));
-        assert!(s.feed_line("EHLO c").contains("250-SIZE 64"), "advertises the lowered SIZE");
+        assert!(
+            s.feed_line("EHLO c").contains("250-SIZE 64"),
+            "advertises the lowered SIZE"
+        );
         s.feed_line("MAIL FROM:<alice@dmtap.local>");
         s.feed_line("RCPT TO:<bob@example.net>");
         s.feed_line("DATA");
         for _ in 0..20 {
             s.feed_line("this line pushes the message over the 64-byte limit");
         }
-        assert!(s.feed_line(".").starts_with("552"), "over-limit DATA must 552");
-        assert!(s.take_submissions().is_empty(), "no submission accepted when oversized");
+        assert!(
+            s.feed_line(".").starts_with("552"),
+            "over-limit DATA must 552"
+        );
+        assert!(
+            s.take_submissions().is_empty(),
+            "no submission accepted when oversized"
+        );
     }
 
     #[test]
@@ -920,7 +1028,9 @@ mod tests {
         s.feed_line("EHLO c");
         let cred = base64_encode(b"\0alice@dmtap.local\0pw");
         s.feed_line(&format!("AUTH PLAIN {cred}"));
-        assert!(s.feed_line("MAIL FROM:<alice@dmtap.local> SIZE=99999").starts_with("552"));
+        assert!(s
+            .feed_line("MAIL FROM:<alice@dmtap.local> SIZE=99999")
+            .starts_with("552"));
     }
 
     #[test]

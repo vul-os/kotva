@@ -79,7 +79,11 @@ pub fn platform_asserted_origin(payload: &Payload) -> Option<PlatformAsserted> {
             _ => None,
         })
         .unwrap_or(false);
-    Some(PlatformAsserted { rail: text("rail")?, claim: text("claim")?, verifiable })
+    Some(PlatformAsserted {
+        rail: text("rail")?,
+        claim: text("claim")?,
+        verifiable,
+    })
 }
 
 /// §26.3 field 1 — *can it initiate?* The load-bearing field: can this rail reach a stranger cold?
@@ -252,7 +256,10 @@ pub trait LegacyAdapter {
     fn outbound_disposition(&self, to: &str, text: &str, window_open: bool) -> OutboundDisposition {
         let p = self.properties();
         if p.can_initiate_outbound_cold() || window_open {
-            OutboundDisposition::Deliverable(RailSend { to: to.to_string(), text: text.to_string() })
+            OutboundDisposition::Deliverable(RailSend {
+                to: to.to_string(),
+                text: text.to_string(),
+            })
         } else if p.rail == "whatsapp" {
             OutboundDisposition::RequiresTemplate
         } else {
@@ -348,8 +355,15 @@ mod tests {
         for r in [TELEGRAM, DISCORD, SLACK] {
             assert_eq!(r.inbound.initiation, InitiationClass::InboundTriggered);
             assert_eq!(r.outbound.initiation, InitiationClass::InboundTriggered);
-            assert!(!r.can_initiate_outbound_cold(), "{} must not initiate cold (§26.4.2)", r.rail);
-            assert_eq!(r.inbound_transport, InboundTransportClass::OutboundPersistent);
+            assert!(
+                !r.can_initiate_outbound_cold(),
+                "{} must not initiate cold (§26.4.2)",
+                r.rail
+            );
+            assert_eq!(
+                r.inbound_transport,
+                InboundTransportClass::OutboundPersistent
+            );
             assert_eq!(r.outbound.price, PriceShape::Free);
             assert_eq!(r.authenticity, RailAuthenticity::PlatformAsserted);
         }
@@ -359,21 +373,33 @@ mod tests {
         assert!(!WHATSAPP_BUSINESS.can_initiate_outbound_cold());
         // §26.9 / §26.4: hardware SMS freely initiates and is free, both directions.
         assert!(SMS_HARDWARE.can_initiate_outbound_cold());
-        assert_eq!(SMS_HARDWARE.inbound_transport, InboundTransportClass::HardwareLocal);
+        assert_eq!(
+            SMS_HARDWARE.inbound_transport,
+            InboundTransportClass::HardwareLocal
+        );
         // §26.5: no platform rail is cryptographically verifiable.
         for r in all_rails() {
-            assert_eq!(r.authenticity, RailAuthenticity::PlatformAsserted,
-                "no legacy rail here has verifiable auth (§26.5): {}", r.rail);
+            assert_eq!(
+                r.authenticity,
+                RailAuthenticity::PlatformAsserted,
+                "no legacy rail here has verifiable auth (§26.5): {}",
+                r.rail
+            );
         }
     }
 
     /// The sanctioning rule: unsanctioned rails are node-mode only; sanctioned/native may gateway.
     #[test]
     fn unsanctioned_rails_are_node_mode_only() {
-        let unofficial = RailProperties { sanctioning: Sanctioning::Unsanctioned, ..TELEGRAM };
+        let unofficial = RailProperties {
+            sanctioning: Sanctioning::Unsanctioned,
+            ..TELEGRAM
+        };
         assert!(unofficial.permits_mode(DeploymentMode::Node));
-        assert!(!unofficial.permits_mode(DeploymentMode::Gateway),
-            "an unsanctioned (ToS-violating) rail MUST NOT be operator-hosted (§26)");
+        assert!(
+            !unofficial.permits_mode(DeploymentMode::Gateway),
+            "an unsanctioned (ToS-violating) rail MUST NOT be operator-hosted (§26)"
+        );
         // The sanctioned WhatsApp Business API and native SMS may run in gateway mode.
         assert!(WHATSAPP_BUSINESS.permits_mode(DeploymentMode::Gateway));
         assert!(SMS_HARDWARE.permits_mode(DeploymentMode::Gateway));
@@ -385,16 +411,29 @@ mod tests {
     fn outbound_cold_on_inbound_triggered_rail_is_a_wall() {
         struct A(RailProperties);
         impl LegacyAdapter for A {
-            fn properties(&self) -> &RailProperties { &self.0 }
-            fn inbound_to_mote(&self, _m: &RailMessage) -> Payload { unimplemented!() }
+            fn properties(&self) -> &RailProperties {
+                &self.0
+            }
+            fn inbound_to_mote(&self, _m: &RailMessage) -> Payload {
+                unimplemented!()
+            }
         }
         // Telegram cold with no window → blocked (not deliverable).
         let tg = A(TELEGRAM);
-        assert_eq!(tg.outbound_disposition("user", "hi", false), OutboundDisposition::BlockedNoWindow);
+        assert_eq!(
+            tg.outbound_disposition("user", "hi", false),
+            OutboundDisposition::BlockedNoWindow
+        );
         // WhatsApp cold with no window → requires a template (the wall), not a free send.
         let wa = A(WHATSAPP_BUSINESS);
-        assert_eq!(wa.outbound_disposition("+27821234567", "hi", false), OutboundDisposition::RequiresTemplate);
+        assert_eq!(
+            wa.outbound_disposition("+27821234567", "hi", false),
+            OutboundDisposition::RequiresTemplate
+        );
         // WhatsApp inside the window → deliverable.
-        assert!(matches!(wa.outbound_disposition("+27821234567", "hi", true), OutboundDisposition::Deliverable(_)));
+        assert!(matches!(
+            wa.outbound_disposition("+27821234567", "hi", true),
+            OutboundDisposition::Deliverable(_)
+        ));
     }
 }

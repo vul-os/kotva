@@ -126,7 +126,9 @@ mod tests {
         let n = safety_number(&addr(b"x"), &addr(b"y"));
         let groups: Vec<&str> = n.split(' ').collect();
         assert_eq!(groups.len(), 6);
-        assert!(groups.iter().all(|g| g.len() == 5 && g.chars().all(|c| c.is_ascii_digit())));
+        assert!(groups
+            .iter()
+            .all(|g| g.len() == 5 && g.chars().all(|c| c.is_ascii_digit())));
     }
 
     #[test]

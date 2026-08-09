@@ -31,8 +31,8 @@ fn suite_from_cv(cv: Cv) -> Result<Suite, CborError> {
 /// `{ 1 => u64 epoch, 2 => enc-key mix_key, 3 => ts valid_until }`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MixKeyEntry {
-    pub epoch: u64,        // key 1
-    pub mix_key: Vec<u8>,  // key 2 — Sphinx per-hop public key for this epoch (v0 X25519)
+    pub epoch: u64,               // key 1
+    pub mix_key: Vec<u8>,         // key 2 — Sphinx per-hop public key for this epoch (v0 X25519)
     pub valid_until: TimestampMs, // key 3
 }
 
@@ -51,7 +51,11 @@ impl MixKeyEntry {
         let mix_key = as_bytes(f.req(2)?)?;
         let valid_until = as_u64(f.req(3)?)?;
         f.deny_unknown()?;
-        Ok(MixKeyEntry { epoch, mix_key, valid_until })
+        Ok(MixKeyEntry {
+            epoch,
+            mix_key,
+            valid_until,
+        })
     }
 }
 
@@ -78,8 +82,14 @@ impl MixNodeDescriptor {
         let mut m = vec![
             (1u64, Cv::U64(self.suite.as_u8() as u64)),
             (2, Cv::Bytes(self.node_ik.clone())),
-            (3, Cv::Array(self.addrs.iter().map(|a| Cv::Text(a.clone())).collect())),
-            (4, Cv::Array(self.mix_keys.iter().map(MixKeyEntry::to_cv).collect())),
+            (
+                3,
+                Cv::Array(self.addrs.iter().map(|a| Cv::Text(a.clone())).collect()),
+            ),
+            (
+                4,
+                Cv::Array(self.mix_keys.iter().map(MixKeyEntry::to_cv).collect()),
+            ),
             (5, Cv::U64(self.layer as u64)),
             (6, Cv::U64(self.ts)),
         ];
@@ -131,7 +141,17 @@ impl MixNodeDescriptor {
         let substrate = f.take(8).map(as_u8).transpose()?;
         let operator = f.take(9).map(as_bytes).transpose()?;
         f.deny_unknown()?;
-        Ok(MixNodeDescriptor { suite, node_ik, addrs, mix_keys, layer, ts, sig, substrate, operator })
+        Ok(MixNodeDescriptor {
+            suite,
+            node_ik,
+            addrs,
+            mix_keys,
+            layer,
+            ts,
+            sig,
+            substrate,
+            operator,
+        })
     }
 
     /// Issue (sign) a descriptor with the node's `IK` (§18.9.9); `node_ik` is set from the signer.
@@ -165,7 +185,12 @@ impl MixNodeDescriptor {
         if !self.suite.is_supported() {
             return Err(IdentityError::UnsupportedSuite(self.suite.as_u8()));
         }
-        verify_domain(&self.node_ik, MIX_DESCRIPTOR_DS, &self.signing_body(), &self.sig)
+        verify_domain(
+            &self.node_ik,
+            MIX_DESCRIPTOR_DS,
+            &self.signing_body(),
+            &self.sig,
+        )
     }
 
     /// Per-**descriptor** freshness / usable-key check (spec §4.4.4, §16.3), failing closed with
@@ -279,13 +304,13 @@ impl MixDescriptorError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MixDirectory {
     pub suite: Suite,                  // key 1
-    pub authority: Vec<u8>,            // key 2 — directory-authority identity key (pinned via DNS/KT)
-    pub epoch: u64,                    // key 3
-    pub version: u64,                  // key 4 — monotonic; reject older-or-equal
+    pub authority: Vec<u8>, // key 2 — directory-authority identity key (pinned via DNS/KT)
+    pub epoch: u64,         // key 3
+    pub version: u64,       // key 4 — monotonic; reject older-or-equal
     pub mixes: Vec<MixNodeDescriptor>, // key 5 — the fleet, each independently signed (≥ 1)
-    pub prev: ContentId,              // key 6 — content address of the previous directory (chain)
-    pub ts: TimestampMs,              // key 7
-    pub sig: Vec<u8>,                 // key 8 — §18.9.9
+    pub prev: ContentId,    // key 6 — content address of the previous directory (chain)
+    pub ts: TimestampMs,    // key 7
+    pub sig: Vec<u8>,       // key 8 — §18.9.9
 }
 
 impl MixDirectory {
@@ -297,7 +322,10 @@ impl MixDirectory {
             (2, Cv::Bytes(self.authority.clone())),
             (3, Cv::U64(self.epoch)),
             (4, Cv::U64(self.version)),
-            (5, Cv::Array(self.mixes.iter().map(|d| d.to_cv(true)).collect())),
+            (
+                5,
+                Cv::Array(self.mixes.iter().map(|d| d.to_cv(true)).collect()),
+            ),
             (6, Cv::Bytes(self.prev.as_bytes().to_vec())),
             (7, Cv::U64(self.ts)),
         ];
@@ -335,7 +363,16 @@ impl MixDirectory {
         let ts = as_u64(f.req(7)?)?;
         let sig = as_bytes(f.req(8)?)?;
         f.deny_unknown()?;
-        Ok(MixDirectory { suite, authority, epoch, version, mixes, prev, ts, sig })
+        Ok(MixDirectory {
+            suite,
+            authority,
+            epoch,
+            version,
+            mixes,
+            prev,
+            ts,
+            sig,
+        })
     }
 
     /// Sign a directory with the authority `IK` (§18.9.9); `authority` is set from the signer.
@@ -372,7 +409,12 @@ impl MixDirectory {
         if !self.suite.is_supported() {
             return Err(IdentityError::UnsupportedSuite(self.suite.as_u8()));
         }
-        verify_domain(&self.authority, MIX_DIRECTORY_DS, &self.signing_body(), &self.sig)
+        verify_domain(
+            &self.authority,
+            MIX_DIRECTORY_DS,
+            &self.signing_body(),
+            &self.sig,
+        )
     }
 }
 
@@ -425,7 +467,9 @@ pub struct MixDirectoryTracker {
 impl MixDirectoryTracker {
     /// A tracker with no authorities seen.
     pub fn new() -> Self {
-        MixDirectoryTracker { seen: std::collections::BTreeMap::new() }
+        MixDirectoryTracker {
+            seen: std::collections::BTreeMap::new(),
+        }
     }
 
     /// The highest `version` accepted from `authority`, or `None` if none seen.
@@ -463,7 +507,11 @@ mod tests {
         MixNodeDescriptor::issue(
             &key(seed),
             vec!["/ip4/198.51.100.7/udp/443/quic-v1".into()],
-            vec![MixKeyEntry { epoch: 42, mix_key: vec![seed; 32], valid_until: 1_700_000_600_000 }],
+            vec![MixKeyEntry {
+                epoch: 42,
+                mix_key: vec![seed; 32],
+                valid_until: 1_700_000_600_000,
+            }],
             layer,
             1_700_000_000_000,
             None,
@@ -477,7 +525,10 @@ mod tests {
         assert!(d.verify().is_ok());
         let bytes = d.det_cbor();
         assert_eq!(bytes[0] & 0xe0, 0xa0, "descriptor is a CBOR map");
-        assert_eq!(bytes[1], 0x01, "first key is integer 1 (suite), not a text key");
+        assert_eq!(
+            bytes[1], 0x01,
+            "first key is integer 1 (suite), not a text key"
+        );
         let back = MixNodeDescriptor::from_det_cbor(&bytes).unwrap();
         assert_eq!(d, back);
         assert_eq!(bytes, back.det_cbor());
@@ -528,16 +579,22 @@ mod tests {
         let at_expiry = d.check_fresh(1_700_000_600_000, 0).unwrap_err();
         assert_eq!(at_expiry, MixDescriptorError::Stale); // boundary is fail-closed
         assert_eq!(at_expiry.code(), 0x030C);
-        assert_eq!(d.check_fresh(1_700_000_900_000, 0), Err(MixDescriptorError::Stale));
+        assert_eq!(
+            d.check_fresh(1_700_000_900_000, 0),
+            Err(MixDescriptorError::Stale)
+        );
     }
 
     #[test]
     fn stale_descriptor_past_reattestation_window_fails_030c() {
         let d = descriptor(0x11, 0); // ts = 1_700_000_000_000
-        // The key is still usable at `now`, but the descriptor was issued too long ago:
-        // now = ts + 120s while max_age = 60s ⇒ past the re-attestation window.
+                                     // The key is still usable at `now`, but the descriptor was issued too long ago:
+                                     // now = ts + 120s while max_age = 60s ⇒ past the re-attestation window.
         let now = 1_700_000_120_000;
-        assert!(d.mix_keys.iter().any(|k| k.valid_until > now), "key still usable at now");
+        assert!(
+            d.mix_keys.iter().any(|k| k.valid_until > now),
+            "key still usable at now"
+        );
         let err = d.check_fresh(now, 60_000).unwrap_err();
         assert_eq!(err, MixDescriptorError::Stale);
         assert_eq!(err.code(), 0x030C);
@@ -551,7 +608,11 @@ mod tests {
             &key(0x22),
             42,
             1,
-            vec![descriptor(0x11, 0), descriptor(0x33, 1), descriptor(0x44, 2)],
+            vec![
+                descriptor(0x11, 0),
+                descriptor(0x33, 1),
+                descriptor(0x44, 2),
+            ],
             ContentId::of(b"genesis-mix-directory"),
             1_700_000_000_000,
         );
@@ -572,7 +633,10 @@ mod tests {
         d.mix_keys.clear();
         d.sig.clear();
         let bytes = cbor::encode(&d.to_cv(true));
-        assert_eq!(MixNodeDescriptor::from_det_cbor(&bytes), Err(CborError::TypeMismatch));
+        assert_eq!(
+            MixNodeDescriptor::from_det_cbor(&bytes),
+            Err(CborError::TypeMismatch)
+        );
     }
 
     fn directory_at(authority: &IdentityKey, version: u64) -> MixDirectory {
@@ -580,7 +644,11 @@ mod tests {
             authority,
             42,
             version,
-            vec![descriptor(0x11, 0), descriptor(0x33, 1), descriptor(0x44, 2)],
+            vec![
+                descriptor(0x11, 0),
+                descriptor(0x33, 1),
+                descriptor(0x44, 2),
+            ],
             ContentId::of(b"genesis-mix-directory"),
             1_700_000_000_000,
         )
@@ -615,7 +683,10 @@ mod tests {
         assert_eq!(eq, Err(MixDirectoryError::Stale));
         assert_eq!(eq.unwrap_err().code(), 0x0311);
         // Strictly-older version is a rollback.
-        assert_eq!(tr.accept(&directory_at(&auth, 3)), Err(MixDirectoryError::Stale));
+        assert_eq!(
+            tr.accept(&directory_at(&auth, 3)),
+            Err(MixDirectoryError::Stale)
+        );
         // A rejected rollback never lowers the mark.
         assert_eq!(tr.last_version(&auth.public()), Some(7));
     }
@@ -656,7 +727,11 @@ mod tests {
         let desc = MixNodeDescriptor::issue(
             &key(0x11),
             vec!["/ip4/10.0.0.1/tcp/443".into()],
-            vec![MixKeyEntry { epoch: 42, mix_key: vec![0x11; 32], valid_until: 1_700_000_600_000 }],
+            vec![MixKeyEntry {
+                epoch: 42,
+                mix_key: vec![0x11; 32],
+                valid_until: 1_700_000_600_000,
+            }],
             1,
             1_700_000_000_000,
             Some(0x02),
@@ -677,17 +752,30 @@ mod tests {
             for n in 0..valid.len() {
                 mutants.push(valid[..n].to_vec());
             }
-            for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8], vec![0xa1, 0x00, 0x00]] {
+            for junk in [
+                vec![0x00u8],
+                vec![0xff, 0xff],
+                vec![0x9f; 8],
+                vec![0xa1, 0x00, 0x00],
+            ] {
                 let mut m = valid.clone();
                 m.extend_from_slice(&junk);
                 mutants.push(m);
             }
             for m in &mutants {
                 if let Ok(o) = MixNodeDescriptor::from_det_cbor(m) {
-                    assert_eq!(&o.det_cbor(), m, "descriptor decoder accepted a non-canonical encoding");
+                    assert_eq!(
+                        &o.det_cbor(),
+                        m,
+                        "descriptor decoder accepted a non-canonical encoding"
+                    );
                 }
                 if let Ok(o) = MixDirectory::from_det_cbor(m) {
-                    assert_eq!(&o.det_cbor(), m, "directory decoder accepted a non-canonical encoding");
+                    assert_eq!(
+                        &o.det_cbor(),
+                        m,
+                        "directory decoder accepted a non-canonical encoding"
+                    );
                 }
             }
         }

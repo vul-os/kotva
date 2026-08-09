@@ -53,7 +53,9 @@ pub fn unhex(s: &str) -> Result<Vec<u8>, String> {
 
 fn safe_int(v: i64, what: &str) -> Result<Value, String> {
     if v.abs() > JS_SAFE_INT {
-        return Err(format!("{what} ({v}) is outside JavaScript's exact-integer range"));
+        return Err(format!(
+            "{what} ({v}) is outside JavaScript's exact-integer range"
+        ));
     }
     Ok(json!(v))
 }
@@ -70,7 +72,9 @@ fn text(v: &Value, k: &str) -> Result<String, String> {
 }
 
 fn u64_of(v: &Value, k: &str) -> Result<u64, String> {
-    field(v, k).and_then(Value::as_u64).ok_or_else(|| format!("missing or non-integer `{k}`"))
+    field(v, k)
+        .and_then(Value::as_u64)
+        .ok_or_else(|| format!("missing or non-integer `{k}`"))
 }
 
 // --- SVal ---------------------------------------------------------------------------------------
@@ -117,30 +121,46 @@ pub fn sval_to_json(v: &SVal) -> Result<Value, String> {
 pub fn sval_from_json(v: &Value) -> Result<SVal, String> {
     let obj: &Map<String, Value> = v.as_object().ok_or("value is not a tagged object")?;
     if obj.len() != 1 {
-        return Err(format!("a tagged value carries exactly one tag, got {}", obj.len()));
+        return Err(format!(
+            "a tagged value carries exactly one tag, got {}",
+            obj.len()
+        ));
     }
     let (tag, body) = obj.iter().next().expect("len == 1");
     match tag.as_str() {
-        "tstr" => Ok(SVal::Text(body.as_str().ok_or("`tstr` is not a string")?.to_owned())),
-        "bstr" => Ok(SVal::Bytes(unhex(body.as_str().ok_or("`bstr` is not a string")?)?)),
+        "tstr" => Ok(SVal::Text(
+            body.as_str().ok_or("`tstr` is not a string")?.to_owned(),
+        )),
+        "bstr" => Ok(SVal::Bytes(unhex(
+            body.as_str().ok_or("`bstr` is not a string")?,
+        )?)),
         "bool" => Ok(SVal::Bool(body.as_bool().ok_or("`bool` is not a boolean")?)),
         "int" => {
             let n = body.as_i64().ok_or("`int` is not an integer")?;
             if n.abs() > JS_SAFE_INT {
-                return Err(format!("`int` ({n}) is outside JavaScript's exact-integer range"));
+                return Err(format!(
+                    "`int` ({n}) is outside JavaScript's exact-integer range"
+                ));
             }
             Ok(SVal::int(n))
         }
         "arr" => {
             let items = body.as_array().ok_or("`arr` is not an array")?;
-            Ok(SVal::Array(items.iter().map(sval_from_json).collect::<Result<_, _>>()?))
+            Ok(SVal::Array(
+                items.iter().map(sval_from_json).collect::<Result<_, _>>()?,
+            ))
         }
         "map" => {
             let items = body.as_array().ok_or("`map` is not an array")?;
             let mut out = Vec::with_capacity(items.len());
             for pair in items {
-                let p = pair.as_array().filter(|p| p.len() == 2).ok_or("`map` entry is not a pair")?;
-                let k = p[0].as_u64().ok_or("`map` key is not an unsigned integer")?;
+                let p = pair
+                    .as_array()
+                    .filter(|p| p.len() == 2)
+                    .ok_or("`map` entry is not a pair")?;
+                let k = p[0]
+                    .as_u64()
+                    .ok_or("`map` key is not an unsigned integer")?;
                 out.push((k, sval_from_json(&p[1])?));
             }
             Ok(SVal::Map(out))
@@ -149,7 +169,10 @@ pub fn sval_from_json(v: &Value) -> Result<SVal, String> {
             let items = body.as_array().ok_or("`bmap` is not an array")?;
             let mut out = Vec::with_capacity(items.len());
             for pair in items {
-                let p = pair.as_array().filter(|p| p.len() == 2).ok_or("`bmap` entry is not a pair")?;
+                let p = pair
+                    .as_array()
+                    .filter(|p| p.len() == 2)
+                    .ok_or("`bmap` entry is not a pair")?;
                 let k = unhex(p[0].as_str().ok_or("`bmap` key is not a hex string")?)?;
                 out.push((k, sval_from_json(&p[1])?));
             }
@@ -159,8 +182,14 @@ pub fn sval_from_json(v: &Value) -> Result<SVal, String> {
             let items = body.as_array().ok_or("`tmap` is not an array")?;
             let mut out = Vec::with_capacity(items.len());
             for pair in items {
-                let p = pair.as_array().filter(|p| p.len() == 2).ok_or("`tmap` entry is not a pair")?;
-                let k = p[0].as_str().ok_or("`tmap` key is not a string")?.to_owned();
+                let p = pair
+                    .as_array()
+                    .filter(|p| p.len() == 2)
+                    .ok_or("`tmap` entry is not a pair")?;
+                let k = p[0]
+                    .as_str()
+                    .ok_or("`tmap` key is not a string")?
+                    .to_owned();
                 out.push((k, sval_from_json(&p[1])?));
             }
             Ok(SVal::TextMap(out))
@@ -221,8 +250,10 @@ pub fn op_to_json(op: &SyncOp) -> Result<Value, String> {
         Some(v) => Some(sval_to_json(v)?),
         None => None,
     };
-    let observed =
-        op.observed.as_ref().map(|tags| tags.iter().map(addtag_to_json).collect::<Vec<_>>());
+    let observed = op
+        .observed
+        .as_ref()
+        .map(|tags| tags.iter().map(addtag_to_json).collect::<Vec<_>>());
     Ok(json!({
         "kind": op.kind,
         "ns": op.ns,

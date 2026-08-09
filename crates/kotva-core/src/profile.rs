@@ -471,14 +471,23 @@ mod tests {
         for n in 0..valid.len() {
             mutants.push(valid[..n].to_vec());
         }
-        for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8], vec![0xa1, 0x00, 0x00]] {
+        for junk in [
+            vec![0x00u8],
+            vec![0xff, 0xff],
+            vec![0x9f; 8],
+            vec![0xa1, 0x00, 0x00],
+        ] {
             let mut m = valid.clone();
             m.extend_from_slice(&junk);
             mutants.push(m);
         }
         for m in &mutants {
             if let Ok(o) = Profile::from_det_cbor(m) {
-                assert_eq!(&o.det_cbor(), m, "profile decoder accepted a non-canonical encoding");
+                assert_eq!(
+                    &o.det_cbor(),
+                    m,
+                    "profile decoder accepted a non-canonical encoding"
+                );
             }
         }
         assert_eq!(Profile::from_det_cbor(&valid).unwrap(), p);
@@ -530,8 +539,14 @@ mod tests {
         // still enforced independently (verify_avatar), unchanged by the URL guard.
         let ik = IdentityKey::generate();
         let p = sample(&ik); // avatar url = https://example.invalid/a.png with a hash
-        assert!(p.validate_avatar_url().is_ok(), "a normal https URL is accepted");
-        assert!(p.verify_avatar(b"avatar-bytes").is_ok(), "content-address still enforced");
+        assert!(
+            p.validate_avatar_url().is_ok(),
+            "a normal https URL is accepted"
+        );
+        assert!(
+            p.verify_avatar(b"avatar-bytes").is_ok(),
+            "content-address still enforced"
+        );
         assert_eq!(
             p.verify_avatar(b"swapped").unwrap_err(),
             ProfileError::AvatarHashMismatch,
@@ -542,7 +557,10 @@ mod tests {
     #[test]
     fn avatar_url_http_rejected() {
         // Non-https scheme is a fail-closed reject (0x011B): no plaintext / downgrade fetch.
-        let a = Avatar { url: "http://example.com/a.png".into(), hash: None };
+        let a = Avatar {
+            url: "http://example.com/a.png".into(),
+            hash: None,
+        };
         let err = a.validate_url().unwrap_err();
         assert_eq!(err, ProfileError::AvatarUrlUnsafe);
         assert_eq!(err.code(), 0x011B);
@@ -561,7 +579,10 @@ mod tests {
             "https://user:pass@127.0.0.1/a.png",   // userinfo must not smuggle the host past us
             "https://localhost/a.png",             // obvious internal hostname
         ] {
-            let a = Avatar { url: url.into(), hash: None };
+            let a = Avatar {
+                url: url.into(),
+                hash: None,
+            };
             assert_eq!(
                 a.validate_url(),
                 Err(ProfileError::AvatarUrlUnsafe),
@@ -576,15 +597,18 @@ mod tests {
     #[test]
     fn avatar_url_numeric_ssrf_encodings_rejected() {
         for url in [
-            "https://2130706433/a.png",       // decimal 127.0.0.1
-            "https://0x7f000001/a.png",        // hex 127.0.0.1
-            "https://0177.0.0.1/a.png",        // octal 127.0.0.1
-            "https://0x7f.0.0.1/a.png",        // dotted-hex mix
-            "https://[::127.0.0.1]/a.png",     // v4-compatible IPv6 → 127.0.0.1
+            "https://2130706433/a.png",         // decimal 127.0.0.1
+            "https://0x7f000001/a.png",         // hex 127.0.0.1
+            "https://0177.0.0.1/a.png",         // octal 127.0.0.1
+            "https://0x7f.0.0.1/a.png",         // dotted-hex mix
+            "https://[::127.0.0.1]/a.png",      // v4-compatible IPv6 → 127.0.0.1
             "https://[::ffff:127.0.0.1]/a.png", // v4-mapped IPv6 → 127.0.0.1
-            "https://017700000001/a.png",      // octal 32-bit form
+            "https://017700000001/a.png",       // octal 32-bit form
         ] {
-            let a = Avatar { url: url.into(), hash: None };
+            let a = Avatar {
+                url: url.into(),
+                hash: None,
+            };
             assert_eq!(
                 a.validate_url(),
                 Err(ProfileError::AvatarUrlUnsafe),
@@ -597,12 +621,18 @@ mod tests {
     fn avatar_url_public_targets_accepted() {
         // A public IP literal and normal hostnames are fine — only internal targets are blocked.
         for url in [
-            "https://93.184.216.34/a.png", // public IPv4 literal
+            "https://93.184.216.34/a.png",        // public IPv4 literal
             "https://[2606:2800:220:1::1]/a.png", // public IPv6 literal
             "https://cdn.example.com/avatars/x.png",
         ] {
-            let a = Avatar { url: url.into(), hash: None };
-            assert!(a.validate_url().is_ok(), "public target should be accepted: {url}");
+            let a = Avatar {
+                url: url.into(),
+                hash: None,
+            };
+            assert!(
+                a.validate_url().is_ok(),
+                "public target should be accepted: {url}"
+            );
         }
     }
 
@@ -615,7 +645,10 @@ mod tests {
             "No Hash",
             None,
             None,
-            Some(Avatar { url: "https://x.invalid/y".into(), hash: None }),
+            Some(Avatar {
+                url: "https://x.invalid/y".into(),
+                hash: None,
+            }),
             None,
             1,
         );

@@ -126,8 +126,10 @@ fn read_literal(buf: &[u8], mut i: usize) -> Result<(Vec<u8>, usize), ParseError
     while i < buf.len() && buf[i].is_ascii_digit() {
         i += 1;
     }
-    let n: usize =
-        std::str::from_utf8(&buf[start..i]).ok().and_then(|s| s.parse().ok()).ok_or(ParseError::BadLiteral)?;
+    let n: usize = std::str::from_utf8(&buf[start..i])
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .ok_or(ParseError::BadLiteral)?;
     // Optional LITERAL+ non-sync marker.
     if i < buf.len() && buf[i] == b'+' {
         i += 1;
@@ -179,19 +181,50 @@ pub enum Command {
     Logout,
     StartTls,
     Enable(Vec<String>),
-    Login { user: String, pass: String },
-    Authenticate { mechanism: String, initial: Option<String> },
-    Select { mailbox: String, qresync: Option<QResyncParams>, condstore: bool },
-    Examine { mailbox: String, qresync: Option<QResyncParams>, condstore: bool },
+    Login {
+        user: String,
+        pass: String,
+    },
+    Authenticate {
+        mechanism: String,
+        initial: Option<String>,
+    },
+    Select {
+        mailbox: String,
+        qresync: Option<QResyncParams>,
+        condstore: bool,
+    },
+    Examine {
+        mailbox: String,
+        qresync: Option<QResyncParams>,
+        condstore: bool,
+    },
     /// CREATE, optionally with a SPECIAL-USE `(USE (\Archive …))` attribute (RFC 6154 §3).
-    Create { name: String, use_attr: Option<String> },
+    Create {
+        name: String,
+        use_attr: Option<String>,
+    },
     Delete(String),
-    Rename { from: String, to: String },
+    Rename {
+        from: String,
+        to: String,
+    },
     Subscribe(String),
     Unsubscribe(String),
-    List { reference: String, pattern: String, return_opts: Vec<String>, select_opts: Vec<String> },
-    Lsub { reference: String, pattern: String },
-    Status { mailbox: String, items: Vec<String> },
+    List {
+        reference: String,
+        pattern: String,
+        return_opts: Vec<String>,
+        select_opts: Vec<String>,
+    },
+    Lsub {
+        reference: String,
+        pattern: String,
+    },
+    Status {
+        mailbox: String,
+        items: Vec<String>,
+    },
     Append {
         mailbox: String,
         flags: Vec<Flag>,
@@ -209,15 +242,44 @@ pub enum Command {
     Idle,
     Namespace,
     Id(Option<Vec<(String, String)>>),
-    Search { charset: Option<String>, key: SearchKey, uid: bool, ret: Vec<String> },
-    Fetch { set: SequenceSet, items: Vec<FetchItem>, uid: bool, changedsince: Option<u64>, vanished: bool },
+    Search {
+        charset: Option<String>,
+        key: SearchKey,
+        uid: bool,
+        ret: Vec<String>,
+    },
+    Fetch {
+        set: SequenceSet,
+        items: Vec<FetchItem>,
+        uid: bool,
+        changedsince: Option<u64>,
+        vanished: bool,
+    },
     Store(StoreCommand),
-    Copy { set: SequenceSet, mailbox: String, uid: bool },
-    Move { set: SequenceSet, mailbox: String, uid: bool },
+    Copy {
+        set: SequenceSet,
+        mailbox: String,
+        uid: bool,
+    },
+    Move {
+        set: SequenceSet,
+        mailbox: String,
+        uid: bool,
+    },
     /// SORT (RFC 5256): `SORT (criteria…) charset search-key`.
-    Sort { criteria: Vec<SortCriterion>, charset: Option<String>, key: SearchKey, uid: bool },
+    Sort {
+        criteria: Vec<SortCriterion>,
+        charset: Option<String>,
+        key: SearchKey,
+        uid: bool,
+    },
     /// THREAD (RFC 5256): `THREAD algorithm charset search-key`.
-    Thread { algorithm: ThreadAlgorithm, charset: Option<String>, key: SearchKey, uid: bool },
+    Thread {
+        algorithm: ThreadAlgorithm,
+        charset: Option<String>,
+        key: SearchKey,
+        uid: bool,
+    },
 }
 
 /// A SORT ordering criterion (RFC 5256 §3), optionally reversed.
@@ -300,11 +362,21 @@ pub enum FetchItem {
     Rfc822Text,
     ModSeq,
     /// `BODY[section]<partial>` / `BODY.PEEK[section]<partial>`.
-    BodySection { peek: bool, section: Section, partial: Option<(u32, u32)> },
+    BodySection {
+        peek: bool,
+        section: Section,
+        partial: Option<(u32, u32)>,
+    },
     /// `BINARY[section]<partial>` / `BINARY.PEEK[…]` (RFC 3516): the CTE-decoded part content.
-    Binary { peek: bool, section: Vec<u32>, partial: Option<(u32, u32)> },
+    Binary {
+        peek: bool,
+        section: Vec<u32>,
+        partial: Option<(u32, u32)>,
+    },
     /// `BINARY.SIZE[section]` (RFC 3516): the decoded octet count.
-    BinarySize { section: Vec<u32> },
+    BinarySize {
+        section: Vec<u32>,
+    },
 }
 
 /// A body section specifier (RFC 9051 §6.4.5, `section`).
@@ -334,15 +406,26 @@ pub fn parse_command(buf: &[u8]) -> Result<ParsedCommand, ParseError> {
 
 /// Parse an already-tokenized command (shared with the SASL-IR / literal reader path).
 pub fn parse_tokens(tokens: &[Token]) -> Result<ParsedCommand, ParseError> {
-    let tag = tokens.first().and_then(Token::as_str).ok_or(ParseError::Empty)?.to_string();
-    let name = tokens.get(1).and_then(Token::as_str).ok_or(ParseError::Empty)?.to_ascii_uppercase();
+    let tag = tokens
+        .first()
+        .and_then(Token::as_str)
+        .ok_or(ParseError::Empty)?
+        .to_string();
+    let name = tokens
+        .get(1)
+        .and_then(Token::as_str)
+        .ok_or(ParseError::Empty)?
+        .to_ascii_uppercase();
     let args = &tokens[2..];
     let command = parse_body(&name, args)?;
     Ok(ParsedCommand { tag, command })
 }
 
 fn atom_at(args: &[Token], i: usize) -> Result<String, ParseError> {
-    args.get(i).and_then(Token::as_str).map(str::to_string).ok_or(ParseError::Syntax("missing argument"))
+    args.get(i)
+        .and_then(Token::as_str)
+        .map(str::to_string)
+        .ok_or(ParseError::Syntax("missing argument"))
 }
 
 fn parse_body(name: &str, args: &[Token]) -> Result<Command, ParseError> {
@@ -358,10 +441,17 @@ fn parse_body(name: &str, args: &[Token]) -> Result<Command, ParseError> {
         "NAMESPACE" => Command::Namespace,
         "EXPUNGE" => Command::Expunge,
         "ENABLE" => {
-            let caps = args.iter().filter_map(Token::as_str).map(str::to_string).collect();
+            let caps = args
+                .iter()
+                .filter_map(Token::as_str)
+                .map(str::to_string)
+                .collect();
             Command::Enable(caps)
         }
-        "LOGIN" => Command::Login { user: atom_at(args, 0)?, pass: atom_at(args, 1)? },
+        "LOGIN" => Command::Login {
+            user: atom_at(args, 0)?,
+            pass: atom_at(args, 1)?,
+        },
         "AUTHENTICATE" => {
             let mechanism = atom_at(args, 0)?;
             // SASL-IR (RFC 4959): an optional initial response as the next arg.
@@ -372,18 +462,32 @@ fn parse_body(name: &str, args: &[Token]) -> Result<Command, ParseError> {
             let mailbox = atom_at(args, 0)?;
             let (qresync, condstore) = parse_select_params(&args[1.min(args.len())..])?;
             if name == "SELECT" {
-                Command::Select { mailbox, qresync, condstore }
+                Command::Select {
+                    mailbox,
+                    qresync,
+                    condstore,
+                }
             } else {
-                Command::Examine { mailbox, qresync, condstore }
+                Command::Examine {
+                    mailbox,
+                    qresync,
+                    condstore,
+                }
             }
         }
         "CREATE" => parse_create(args)?,
         "DELETE" => Command::Delete(atom_at(args, 0)?),
-        "RENAME" => Command::Rename { from: atom_at(args, 0)?, to: atom_at(args, 1)? },
+        "RENAME" => Command::Rename {
+            from: atom_at(args, 0)?,
+            to: atom_at(args, 1)?,
+        },
         "SUBSCRIBE" => Command::Subscribe(atom_at(args, 0)?),
         "UNSUBSCRIBE" => Command::Unsubscribe(atom_at(args, 0)?),
         "LIST" => parse_list(args)?,
-        "LSUB" => Command::Lsub { reference: atom_at(args, 0)?, pattern: atom_at(args, 1)? },
+        "LSUB" => Command::Lsub {
+            reference: atom_at(args, 0)?,
+            pattern: atom_at(args, 1)?,
+        },
         "STATUS" => parse_status(args)?,
         "APPEND" => parse_append(args)?,
         "ID" => parse_id(args)?,
@@ -418,10 +522,11 @@ fn parse_select_params(args: &[Token]) -> Result<(Option<QResyncParams>, bool), 
             Some("QRESYNC") => {
                 // QRESYNC is followed by a parenthesised argument list.
                 let (q, ni) = read_paren_tokens(&inner, i + 1)?;
-                let uid_validity =
-                    q.first().and_then(Token::as_str).and_then(|s| s.parse().ok()).ok_or(
-                        ParseError::Syntax("QRESYNC needs UIDVALIDITY"),
-                    )?;
+                let uid_validity = q
+                    .first()
+                    .and_then(Token::as_str)
+                    .and_then(|s| s.parse().ok())
+                    .ok_or(ParseError::Syntax("QRESYNC needs UIDVALIDITY"))?;
                 let modseq = q
                     .get(1)
                     .and_then(Token::as_str)
@@ -429,8 +534,15 @@ fn parse_select_params(args: &[Token]) -> Result<(Option<QResyncParams>, bool), 
                     .ok_or(ParseError::Syntax("QRESYNC needs modseq"))?;
                 // The third element (if an atom, not the trailing `(seq uid)` match list) is the
                 // set of UIDs the client still knows.
-                let known_uids = q.get(2).and_then(Token::as_str).and_then(SequenceSet::parse);
-                qresync = Some(QResyncParams { uid_validity, modseq, known_uids });
+                let known_uids = q
+                    .get(2)
+                    .and_then(Token::as_str)
+                    .and_then(SequenceSet::parse);
+                qresync = Some(QResyncParams {
+                    uid_validity,
+                    modseq,
+                    known_uids,
+                });
                 i = ni;
             }
             _ => i += 1,
@@ -457,13 +569,21 @@ fn parse_list(args: &[Token]) -> Result<Command, ParseError> {
             return_opts = opts;
         }
     }
-    Ok(Command::List { reference, pattern, return_opts, select_opts })
+    Ok(Command::List {
+        reference,
+        pattern,
+        return_opts,
+        select_opts,
+    })
 }
 
 fn parse_status(args: &[Token]) -> Result<Command, ParseError> {
     let mailbox = atom_at(args, 0)?;
     let (items, _n) = read_paren_atoms(args, 1)?;
-    Ok(Command::Status { mailbox, items: items.into_iter().map(|s| s.to_ascii_uppercase()).collect() })
+    Ok(Command::Status {
+        mailbox,
+        items: items.into_iter().map(|s| s.to_ascii_uppercase()).collect(),
+    })
 }
 
 fn parse_append(args: &[Token]) -> Result<Command, ParseError> {
@@ -508,14 +628,28 @@ fn parse_append(args: &[Token]) -> Result<Command, ParseError> {
                 _ => return Err(ParseError::Syntax("bad CATENATE part")),
             }
         }
-        return Ok(Command::Append { mailbox, flags, date, message: Vec::new(), catenate: Some(parts) });
+        return Ok(Command::Append {
+            mailbox,
+            flags,
+            date,
+            message: Vec::new(),
+            catenate: Some(parts),
+        });
     }
     let message = match args.get(i) {
         Some(Token::Literal(b)) => b.clone(),
-        Some(t) => t.as_bytes().ok_or(ParseError::Syntax("APPEND needs a message"))?,
+        Some(t) => t
+            .as_bytes()
+            .ok_or(ParseError::Syntax("APPEND needs a message"))?,
         None => return Err(ParseError::Syntax("APPEND needs a message")),
     };
-    Ok(Command::Append { mailbox, flags, date, message, catenate: None })
+    Ok(Command::Append {
+        mailbox,
+        flags,
+        date,
+        message,
+        catenate: None,
+    })
 }
 
 fn parse_create(args: &[Token]) -> Result<Command, ParseError> {
@@ -526,7 +660,11 @@ fn parse_create(args: &[Token]) -> Result<Command, ParseError> {
         let (inner, _n) = read_paren_tokens(args, 1)?;
         let mut it = inner.iter();
         while let Some(tok) = it.next() {
-            if tok.as_str().map(|s| s.eq_ignore_ascii_case("USE")).unwrap_or(false) {
+            if tok
+                .as_str()
+                .map(|s| s.eq_ignore_ascii_case("USE"))
+                .unwrap_or(false)
+            {
                 if let Some(Token::LParen) = it.next() {
                     // The next atom is the first \Use attribute.
                     use_attr = it.next().and_then(Token::as_str).map(str::to_string);
@@ -568,7 +706,12 @@ fn parse_sort(args: &[Token], uid: bool) -> Result<Command, ParseError> {
     // charset (required by RFC 5256 grammar) then the search program.
     let charset = args.get(next).and_then(Token::as_str).map(str::to_string);
     let key = crate::search::parse_search_key(&args[(next + 1).min(args.len())..])?;
-    Ok(Command::Sort { criteria, charset, key, uid })
+    Ok(Command::Sort {
+        criteria,
+        charset,
+        key,
+        uid,
+    })
 }
 
 fn parse_thread(args: &[Token], uid: bool) -> Result<Command, ParseError> {
@@ -581,7 +724,12 @@ fn parse_thread(args: &[Token], uid: bool) -> Result<Command, ParseError> {
     };
     let charset = args.get(1).and_then(Token::as_str).map(str::to_string);
     let key = crate::search::parse_search_key(&args[2.min(args.len())..])?;
-    Ok(Command::Thread { algorithm, charset, key, uid })
+    Ok(Command::Thread {
+        algorithm,
+        charset,
+        key,
+        uid,
+    })
 }
 
 fn parse_id(args: &[Token]) -> Result<Command, ParseError> {
@@ -623,11 +771,17 @@ fn parse_search(args: &[Token], uid: bool) -> Result<Command, ParseError> {
         }
     }
     let key = crate::search::parse_search_key(&args[i.min(args.len())..])?;
-    Ok(Command::Search { charset, key, uid, ret })
+    Ok(Command::Search {
+        charset,
+        key,
+        uid,
+        ret,
+    })
 }
 
 fn parse_fetch(args: &[Token], uid: bool) -> Result<Command, ParseError> {
-    let set = SequenceSet::parse(atom_at(args, 0)?.as_str()).ok_or(ParseError::Syntax("bad sequence set"))?;
+    let set = SequenceSet::parse(atom_at(args, 0)?.as_str())
+        .ok_or(ParseError::Syntax("bad sequence set"))?;
     let (items, next) = parse_fetch_items(args, 1)?;
     // Optional `(CHANGEDSINCE n [VANISHED])` modifier list (RFC 7162 §3.1.5 / §3.2.5).
     let mut changedsince = None;
@@ -643,7 +797,13 @@ fn parse_fetch(args: &[Token], uid: bool) -> Result<Command, ParseError> {
             }
         }
     }
-    Ok(Command::Fetch { set, items, uid, changedsince, vanished })
+    Ok(Command::Fetch {
+        set,
+        items,
+        uid,
+        changedsince,
+        vanished,
+    })
 }
 
 fn parse_fetch_items(args: &[Token], start: usize) -> Result<(Vec<FetchItem>, usize), ParseError> {
@@ -681,8 +841,17 @@ fn parse_fetch_att_list(inner: &[Token]) -> Result<Vec<FetchItem>, ParseError> {
 fn expand_fetch_macro(atom: &str) -> Option<Vec<FetchItem>> {
     let up = atom.to_ascii_uppercase();
     Some(match up.as_str() {
-        "ALL" => vec![FetchItem::Flags, FetchItem::InternalDate, FetchItem::Rfc822Size, FetchItem::Envelope],
-        "FAST" => vec![FetchItem::Flags, FetchItem::InternalDate, FetchItem::Rfc822Size],
+        "ALL" => vec![
+            FetchItem::Flags,
+            FetchItem::InternalDate,
+            FetchItem::Rfc822Size,
+            FetchItem::Envelope,
+        ],
+        "FAST" => vec![
+            FetchItem::Flags,
+            FetchItem::InternalDate,
+            FetchItem::Rfc822Size,
+        ],
         "FULL" => vec![
             FetchItem::Flags,
             FetchItem::InternalDate,
@@ -696,7 +865,10 @@ fn expand_fetch_macro(atom: &str) -> Option<Vec<FetchItem>> {
 
 /// Parse one fetch-att starting at `toks[0]`, returning (item, tokens-consumed).
 fn parse_one_fetch_att(toks: &[Token]) -> Result<(FetchItem, usize), ParseError> {
-    let head = toks.first().and_then(Token::as_str).ok_or(ParseError::Syntax("bad fetch item"))?;
+    let head = toks
+        .first()
+        .and_then(Token::as_str)
+        .ok_or(ParseError::Syntax("bad fetch item"))?;
     let up = head.to_ascii_uppercase();
     let simple = match up.as_str() {
         "FLAGS" => Some(FetchItem::Flags),
@@ -738,7 +910,14 @@ fn parse_one_fetch_att(toks: &[Token]) -> Result<(FetchItem, usize), ParseError>
                 consumed += 1;
             }
         }
-        return Ok((FetchItem::Binary { peek, section, partial }, consumed));
+        return Ok((
+            FetchItem::Binary {
+                peek,
+                section,
+                partial,
+            },
+            consumed,
+        ));
     }
     // BODY / BODY.PEEK, optionally with a [section]<partial>.
     if up == "BODY" || up == "BODY.PEEK" {
@@ -755,7 +934,14 @@ fn parse_one_fetch_att(toks: &[Token]) -> Result<(FetchItem, usize), ParseError>
                     consumed += 1;
                 }
             }
-            return Ok((FetchItem::BodySection { peek, section, partial }, consumed));
+            return Ok((
+                FetchItem::BodySection {
+                    peek,
+                    section,
+                    partial,
+                },
+                consumed,
+            ));
         }
         // Bare BODY = non-extensible bodystructure.
         return Ok((FetchItem::Body, 1));
@@ -782,7 +968,11 @@ fn parse_section(toks: &[Token]) -> Result<Section, ParseError> {
         _ => {
             // Numeric part path like `1`, `1.2`, `1.2.MIME`, possibly with trailing HEADER/TEXT.
             let s = first;
-            if s.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+            if s.chars()
+                .next()
+                .map(|c| c.is_ascii_digit())
+                .unwrap_or(false)
+            {
                 let mut mime = false;
                 let mut nums = Vec::new();
                 for seg in s.split('.') {
@@ -813,7 +1003,11 @@ fn section_field_list(toks: &[Token]) -> Result<Vec<String>, ParseError> {
         }
         _ => toks,
     };
-    Ok(inner.iter().filter_map(Token::as_str).map(|s| s.to_string()).collect())
+    Ok(inner
+        .iter()
+        .filter_map(Token::as_str)
+        .map(|s| s.to_string())
+        .collect())
 }
 
 fn parse_partial(a: &str) -> Option<(u32, u32)> {
@@ -823,7 +1017,8 @@ fn parse_partial(a: &str) -> Option<(u32, u32)> {
 }
 
 fn parse_store(args: &[Token], uid: bool) -> Result<StoreCommand, ParseError> {
-    let set = SequenceSet::parse(atom_at(args, 0)?.as_str()).ok_or(ParseError::Syntax("bad sequence set"))?;
+    let set = SequenceSet::parse(atom_at(args, 0)?.as_str())
+        .ok_or(ParseError::Syntax("bad sequence set"))?;
     let mut i = 1;
     let mut unchangedsince = None;
     // Optional `(UNCHANGEDSINCE n)` modifier (RFC 7162).
@@ -853,13 +1048,25 @@ fn parse_store(args: &[Token], uid: bool) -> Result<StoreCommand, ParseError> {
         let (fs, _n) = read_paren_atoms(args, i)?;
         fs.iter().map(|s| Flag::parse(s)).collect()
     } else {
-        args[i..].iter().filter_map(Token::as_str).map(Flag::parse).collect()
+        args[i..]
+            .iter()
+            .filter_map(Token::as_str)
+            .map(Flag::parse)
+            .collect()
     };
-    Ok(StoreCommand { set, op, flags, silent, uid, unchangedsince })
+    Ok(StoreCommand {
+        set,
+        op,
+        flags,
+        silent,
+        uid,
+        unchangedsince,
+    })
 }
 
 fn parse_copy_move(args: &[Token], uid: bool, is_move: bool) -> Result<Command, ParseError> {
-    let set = SequenceSet::parse(atom_at(args, 0)?.as_str()).ok_or(ParseError::Syntax("bad sequence set"))?;
+    let set = SequenceSet::parse(atom_at(args, 0)?.as_str())
+        .ok_or(ParseError::Syntax("bad sequence set"))?;
     let mailbox = atom_at(args, 1)?;
     Ok(if is_move {
         Command::Move { set, mailbox, uid }
@@ -892,7 +1099,13 @@ fn parse_uid(args: &[Token]) -> Result<Command, ParseError> {
 
 fn read_paren_atoms(args: &[Token], open: usize) -> Result<(Vec<String>, usize), ParseError> {
     let (toks, next) = read_paren_tokens(args, open)?;
-    Ok((toks.iter().filter_map(Token::as_str).map(str::to_string).collect(), next))
+    Ok((
+        toks.iter()
+            .filter_map(Token::as_str)
+            .map(str::to_string)
+            .collect(),
+        next,
+    ))
 }
 
 fn read_paren_tokens(args: &[Token], open: usize) -> Result<(Vec<Token>, usize), ParseError> {
@@ -964,7 +1177,11 @@ mod tests {
         // than over-read, and can never panic.
         for n in [usize::MAX - 1, usize::MAX / 2, 1_000_000usize] {
             let line = format!("a LOGIN {{{n}}}\r\n");
-            assert_eq!(tokenize(line.as_bytes()), Err(ParseError::BadLiteral), "n={n}");
+            assert_eq!(
+                tokenize(line.as_bytes()),
+                Err(ParseError::BadLiteral),
+                "n={n}"
+            );
         }
 
         // A literal advertising exactly the available bytes still parses (guard is not off-by-one).
@@ -974,21 +1191,33 @@ mod tests {
 
     #[test]
     fn parses_login() {
-        assert_eq!(cmd("a1 LOGIN alice secret"), Command::Login { user: "alice".into(), pass: "secret".into() });
+        assert_eq!(
+            cmd("a1 LOGIN alice secret"),
+            Command::Login {
+                user: "alice".into(),
+                pass: "secret".into()
+            }
+        );
     }
 
     #[test]
     fn parses_select_condstore() {
         assert_eq!(
             cmd("a SELECT INBOX (CONDSTORE)"),
-            Command::Select { mailbox: "INBOX".into(), qresync: None, condstore: true }
+            Command::Select {
+                mailbox: "INBOX".into(),
+                qresync: None,
+                condstore: true
+            }
         );
     }
 
     #[test]
     fn parses_select_qresync() {
         match cmd("a SELECT INBOX (QRESYNC (67890007 90060115 1:29))") {
-            Command::Select { qresync: Some(q), .. } => {
+            Command::Select {
+                qresync: Some(q), ..
+            } => {
                 assert_eq!(q.uid_validity, 67890007);
                 assert_eq!(q.modseq, 90060115);
                 assert!(q.known_uids.is_some());
@@ -1008,7 +1237,11 @@ mod tests {
                 assert!(items.contains(&FetchItem::Uid));
                 assert!(items.iter().any(|i| matches!(
                     i,
-                    FetchItem::BodySection { peek: true, section: Section::HeaderFields(_), partial: Some((0, 100)) }
+                    FetchItem::BodySection {
+                        peek: true,
+                        section: Section::HeaderFields(_),
+                        partial: Some((0, 100))
+                    }
                 )));
             }
             _ => panic!(),
@@ -1039,7 +1272,12 @@ mod tests {
     fn parses_append_literal() {
         let raw = b"a APPEND INBOX (\\Seen) {11}\r\nHello world\r\n";
         match parse_command(raw).unwrap().command {
-            Command::Append { mailbox, flags, message, .. } => {
+            Command::Append {
+                mailbox,
+                flags,
+                message,
+                ..
+            } => {
                 assert_eq!(mailbox, "INBOX");
                 assert!(flags.contains(&Flag::Seen));
                 assert_eq!(message, b"Hello world");

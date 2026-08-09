@@ -204,13 +204,19 @@ impl OrSet {
 
     /// Record an add of `element` under `target` with its globally-unique tag.
     pub fn add(&mut self, target: &str, element: &SVal, tag: AddTag) {
-        self.adds.entry((target.to_owned(), element.det_cbor())).or_default().insert(tag);
+        self.adds
+            .entry((target.to_owned(), element.det_cbor()))
+            .or_default()
+            .insert(tag);
     }
 
     /// Tombstone the `observed` add-tags of `(target, element)`. Tombstones are recorded even if
     /// the corresponding add has not yet arrived — a remove that precedes its add still converges.
     pub fn remove(&mut self, target: &str, element: &SVal, observed: &[AddTag]) {
-        let e = self.tombstones.entry((target.to_owned(), element.det_cbor())).or_default();
+        let e = self
+            .tombstones
+            .entry((target.to_owned(), element.det_cbor()))
+            .or_default();
         for tag in observed {
             e.insert(tag.clone());
         }
@@ -245,17 +251,27 @@ impl OrSet {
 
     /// The present `(target, element-bytes)` pairs, in canonical order.
     pub fn present(&self) -> Vec<ElemKey> {
-        self.adds.keys().filter(|k| self.contains_key(k)).cloned().collect()
+        self.adds
+            .keys()
+            .filter(|k| self.contains_key(k))
+            .cloned()
+            .collect()
     }
 
     /// Join with `other`: per-element union of adds and of tombstones — commutative, associative,
     /// idempotent.
     pub fn merge(&mut self, other: &OrSet) {
         for (k, tags) in &other.adds {
-            self.adds.entry(k.clone()).or_default().extend(tags.iter().cloned());
+            self.adds
+                .entry(k.clone())
+                .or_default()
+                .extend(tags.iter().cloned());
         }
         for (k, tags) in &other.tombstones {
-            self.tombstones.entry(k.clone()).or_default().extend(tags.iter().cloned());
+            self.tombstones
+                .entry(k.clone())
+                .or_default()
+                .extend(tags.iter().cloned());
         }
     }
 
@@ -340,7 +356,9 @@ impl LwwMap {
 
     /// The winning value of `(target, field)`.
     pub fn get(&self, target: &str, field: &str) -> Option<&SVal> {
-        self.regs.get(&(target.to_owned(), field.to_owned())).map(|(_, v)| v)
+        self.regs
+            .get(&(target.to_owned(), field.to_owned()))
+            .map(|(_, v)| v)
     }
 
     /// The winning cell (HLC + value) of `(target, field)`.
@@ -457,7 +475,10 @@ impl DeathReg {
 
     /// The winning death state of `object` (default `Live`).
     pub fn state(&self, object: &str) -> DeathState {
-        self.regs.get(object).map(|(_, s)| *s).unwrap_or(DeathState::Live)
+        self.regs
+            .get(object)
+            .map(|(_, s)| *s)
+            .unwrap_or(DeathState::Live)
     }
 
     /// Whether `object` currently bears a `Deleted` certificate.
@@ -476,7 +497,10 @@ impl DeathReg {
 
     /// The deleted objects with their classes, in canonical order.
     pub fn deleted(&self) -> Vec<(String, DeathClass)> {
-        self.regs.iter().filter_map(|(o, (_, s))| s.class().map(|c| (o.clone(), c))).collect()
+        self.regs
+            .iter()
+            .filter_map(|(o, (_, s))| s.class().map(|c| (o.clone(), c)))
+            .collect()
     }
 
     /// Join with `other`: per object, keep the winning certificate (a join).
@@ -657,7 +681,10 @@ impl RgaSeq {
     /// `ERR_SYNC_SEQ_ORIGIN_MISSING` (`0x0A07`), a defer-and-retry condition, not a rejection of
     /// the op's validity.
     pub fn insert(&mut self, id: Hlc, value: SVal, origin: Option<Hlc>) -> Result<(), SyncError> {
-        let atom = Atom { value, origin: origin.clone() };
+        let atom = Atom {
+            value,
+            origin: origin.clone(),
+        };
         match &origin {
             // A tombstoned origin still resolves: tombstones are retained until GC precisely so a
             // concurrent insert after a removed atom keeps a well-defined position (§4.7).
@@ -682,7 +709,11 @@ impl RgaSeq {
                 .pending
                 .iter()
                 .enumerate()
-                .filter(|(_, (_, a))| a.origin.as_ref().map_or(true, |o| self.atoms.contains_key(o)))
+                .filter(|(_, (_, a))| {
+                    a.origin
+                        .as_ref()
+                        .map_or(true, |o| self.atoms.contains_key(o))
+                })
                 .map(|(i, _)| i)
                 .collect();
             if ready.is_empty() {
@@ -709,7 +740,10 @@ impl RgaSeq {
     pub fn order(&self) -> Vec<Hlc> {
         let mut children: BTreeMap<Option<Hlc>, Vec<Hlc>> = BTreeMap::new();
         for (id, atom) in &self.atoms {
-            children.entry(atom.origin.clone()).or_default().push(id.clone());
+            children
+                .entry(atom.origin.clone())
+                .or_default()
+                .push(id.clone());
         }
         for sibs in children.values_mut() {
             sibs.sort_by(|a, b| b.cmp(a)); // descending element id: newer-first
@@ -826,7 +860,8 @@ impl Tree {
     /// Record a move. The observable tree is always recomputed by [`replay`](Self::replay), so
     /// recording is order-independent even though applying is not.
     pub fn record(&mut self, hlc: Hlc, node: &str, parent: &str, ord: &str) {
-        self.moves.insert((hlc, node.to_owned()), (parent.to_owned(), ord.to_owned()));
+        self.moves
+            .insert((hlc, node.to_owned()), (parent.to_owned(), ord.to_owned()));
     }
 
     /// Replay every recorded move in ascending HLC order, skipping cycle-closing moves.
@@ -837,7 +872,8 @@ impl Tree {
                 out.skipped.push((hlc.clone(), node.clone()));
                 continue;
             }
-            out.edges.insert(node.clone(), (parent.clone(), ord.clone()));
+            out.edges
+                .insert(node.clone(), (parent.clone(), ord.clone()));
             out.applied.push((hlc.clone(), node.clone()));
         }
         out
@@ -860,11 +896,7 @@ impl Tree {
 /// Whether moving `node` under `new_parent` would close a cycle, given the edges formed by all
 /// strictly-earlier moves: true iff `new_parent == node`, or walking up from `new_parent` reaches
 /// `node` (i.e. `new_parent` is a descendant of `node`).
-fn would_cycle(
-    edges: &BTreeMap<String, (String, String)>,
-    node: &str,
-    new_parent: &str,
-) -> bool {
+fn would_cycle(edges: &BTreeMap<String, (String, String)>, node: &str, new_parent: &str) -> bool {
     if new_parent == node {
         return true;
     }
@@ -897,11 +929,18 @@ mod tests {
     }
 
     fn h(counter: u32, author: u8) -> Hlc {
-        Hlc { wall: 1_700_000_100_000, counter, author: a(author) }
+        Hlc {
+            wall: 1_700_000_100_000,
+            counter,
+            author: a(author),
+        }
     }
 
     fn tag(counter: u32, author: u8) -> AddTag {
-        AddTag { author: a(author), hlc: h(counter, author) }
+        AddTag {
+            author: a(author),
+            hlc: h(counter, author),
+        }
     }
 
     #[test]
@@ -977,19 +1016,31 @@ mod tests {
     fn rga_siblings_are_newer_first_and_tombstone_origins_resolve() {
         let mut s = RgaSeq::new();
         let root = h(0, 0xcc);
-        s.insert(root.clone(), SVal::Text("atom0".into()), None).unwrap();
-        s.insert(h(3, 0xcc), SVal::Text("X".into()), Some(root.clone())).unwrap();
-        s.insert(h(4, 0xcc), SVal::Text("Y".into()), Some(root.clone())).unwrap();
+        s.insert(root.clone(), SVal::Text("atom0".into()), None)
+            .unwrap();
+        s.insert(h(3, 0xcc), SVal::Text("X".into()), Some(root.clone()))
+            .unwrap();
+        s.insert(h(4, 0xcc), SVal::Text("Y".into()), Some(root.clone()))
+            .unwrap();
         assert_eq!(
             s.values(),
-            vec![SVal::Text("atom0".into()), SVal::Text("Y".into()), SVal::Text("X".into())]
+            vec![
+                SVal::Text("atom0".into()),
+                SVal::Text("Y".into()),
+                SVal::Text("X".into())
+            ]
         );
         // An insert after a tombstoned atom still resolves.
         s.remove(h(3, 0xcc));
-        s.insert(h(5, 0xcc), SVal::Text("Z".into()), Some(h(3, 0xcc))).unwrap();
+        s.insert(h(5, 0xcc), SVal::Text("Z".into()), Some(h(3, 0xcc)))
+            .unwrap();
         assert_eq!(
             s.values(),
-            vec![SVal::Text("atom0".into()), SVal::Text("Y".into()), SVal::Text("Z".into())]
+            vec![
+                SVal::Text("atom0".into()),
+                SVal::Text("Y".into()),
+                SVal::Text("Z".into())
+            ]
         );
     }
 
@@ -997,10 +1048,17 @@ mod tests {
     fn rga_buffers_an_unknown_origin_until_it_arrives() {
         let mut s = RgaSeq::new();
         let origin = h(1, 0xcc);
-        s.insert(h(2, 0xcc), SVal::Text("late".into()), Some(origin.clone())).unwrap();
-        assert!(s.values().is_empty(), "buffered, not applied and not rejected");
+        s.insert(h(2, 0xcc), SVal::Text("late".into()), Some(origin.clone()))
+            .unwrap();
+        assert!(
+            s.values().is_empty(),
+            "buffered, not applied and not rejected"
+        );
         s.insert(origin, SVal::Text("first".into()), None).unwrap();
-        assert_eq!(s.values(), vec![SVal::Text("first".into()), SVal::Text("late".into())]);
+        assert_eq!(
+            s.values(),
+            vec![SVal::Text("first".into()), SVal::Text("late".into())]
+        );
     }
 
     #[test]

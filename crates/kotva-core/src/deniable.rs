@@ -45,18 +45,18 @@ fn suite_from_cv(cv: Cv) -> Result<Suite, CborError> {
 /// replaces the retired XEdDSA-from-`IK` construction (§18.9.10).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeniablePrekeyBundle {
-    pub suite: Suite,             // key 1 — 0x01 X3DH or 0x02 PQXDH
-    pub ik: Vec<u8>,              // key 2 — the identity these prekeys belong to (Ed25519 IK)
-    pub idk: Vec<u8>,             // key 11 — dedicated long-term deniable-identity DH key (X25519)
-    pub idk_sig: Vec<u8>,         // key 12 — device-key sig over `idk` (DS `DMTAP-v0/deniable-idk`)
-    pub spk: Vec<u8>,             // key 3 — signed prekey (X25519 DH public)
-    pub spk_sig: Vec<u8>,         // key 4 — device-key sig over `spk` (DS `DMTAP-v0/deniable-spk`)
-    pub opks: Vec<Vec<u8>>,       // key 5 — one-time prekeys; MAY be empty
+    pub suite: Suite,                // key 1 — 0x01 X3DH or 0x02 PQXDH
+    pub ik: Vec<u8>,                 // key 2 — the identity these prekeys belong to (Ed25519 IK)
+    pub idk: Vec<u8>, // key 11 — dedicated long-term deniable-identity DH key (X25519)
+    pub idk_sig: Vec<u8>, // key 12 — device-key sig over `idk` (DS `DMTAP-v0/deniable-idk`)
+    pub spk: Vec<u8>, // key 3 — signed prekey (X25519 DH public)
+    pub spk_sig: Vec<u8>, // key 4 — device-key sig over `spk` (DS `DMTAP-v0/deniable-spk`)
+    pub opks: Vec<Vec<u8>>, // key 5 — one-time prekeys; MAY be empty
     pub last_kem: Option<Vec<u8>>, // key 6 — (PQ) last-resort ML-KEM enc key
     pub okems: Option<Vec<Vec<u8>>>, // key 7 — (PQ) one-time ML-KEM enc keys
-    pub version: u64,             // key 8 — monotonic; reject older-or-equal
-    pub ts: TimestampMs,          // key 9
-    pub sig: Vec<u8>,             // key 10 — §18.9.10, over det_cbor(bundle ∖ {10})
+    pub version: u64, // key 8 — monotonic; reject older-or-equal
+    pub ts: TimestampMs, // key 9
+    pub sig: Vec<u8>, // key 10 — §18.9.10, over det_cbor(bundle ∖ {10})
 }
 
 impl DeniablePrekeyBundle {
@@ -68,13 +68,19 @@ impl DeniablePrekeyBundle {
             (2, Cv::Bytes(self.ik.clone())),
             (3, Cv::Bytes(self.spk.clone())),
             (4, Cv::Bytes(self.spk_sig.clone())),
-            (5, Cv::Array(self.opks.iter().map(|o| Cv::Bytes(o.clone())).collect())),
+            (
+                5,
+                Cv::Array(self.opks.iter().map(|o| Cv::Bytes(o.clone())).collect()),
+            ),
         ];
         if let Some(k) = &self.last_kem {
             m.push((6, Cv::Bytes(k.clone())));
         }
         if let Some(ks) = &self.okems {
-            m.push((7, Cv::Array(ks.iter().map(|k| Cv::Bytes(k.clone())).collect())));
+            m.push((
+                7,
+                Cv::Array(ks.iter().map(|k| Cv::Bytes(k.clone())).collect()),
+            ));
         }
         m.push((8, Cv::U64(self.version)));
         m.push((9, Cv::U64(self.ts)));
@@ -109,7 +115,12 @@ impl DeniablePrekeyBundle {
             .collect::<Result<_, _>>()?;
         let last_kem = f.take(6).map(as_bytes).transpose()?;
         let okems = match f.take(7) {
-            Some(c) => Some(as_array(c)?.into_iter().map(as_bytes).collect::<Result<_, _>>()?),
+            Some(c) => Some(
+                as_array(c)?
+                    .into_iter()
+                    .map(as_bytes)
+                    .collect::<Result<_, _>>()?,
+            ),
             None => None,
         };
         let version = as_u64(f.req(8)?)?;
@@ -119,7 +130,18 @@ impl DeniablePrekeyBundle {
         let idk_sig = as_bytes(f.req(12)?)?;
         f.deny_unknown()?;
         Ok(DeniablePrekeyBundle {
-            suite, ik, idk, idk_sig, spk, spk_sig, opks, last_kem, okems, version, ts, sig,
+            suite,
+            ik,
+            idk,
+            idk_sig,
+            spk,
+            spk_sig,
+            opks,
+            last_kem,
+            okems,
+            version,
+            ts,
+            sig,
         })
     }
 
@@ -163,7 +185,12 @@ impl DeniablePrekeyBundle {
         }
         verify_domain(&self.ik, DENIABLE_IDK_DS, &self.idk, &self.idk_sig)?;
         verify_domain(&self.ik, DENIABLE_SPK_DS, &self.spk, &self.spk_sig)?;
-        verify_domain(&self.ik, DENIABLE_PREKEYS_DS, &self.signing_body(), &self.sig)
+        verify_domain(
+            &self.ik,
+            DENIABLE_PREKEYS_DS,
+            &self.signing_body(),
+            &self.sig,
+        )
     }
 }
 
@@ -219,16 +246,16 @@ impl DeniableMessage {
 /// for AD binding and to authorize `idk_a` — it is **no longer a DH input** (§5.2.1 / §18.3.9).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeniableInit {
-    pub suite: Suite,                // key 1 — 0x01 X3DH / 0x02 PQXDH
-    pub ik_a: Vec<u8>,               // key 2 — initiator Ed25519 IK (AD binding + authorizes idk_a)
-    pub idk_a: Vec<u8>,              // key 9 — initiator dedicated deniable-identity DH key (X25519)
-    pub idk_a_cert: Vec<u8>,         // key 10 — device-key sig over idk_a (DS DMTAP-v0/deniable-idk)
-    pub ek_a: Vec<u8>,               // key 3 — initiator ephemeral X25519 public
-    pub spk_ref: ContentId,          // key 4 — content-addr of the responder signed prekey consumed
-    pub opk_ref: Option<ContentId>,  // key 5 — content-addr of the one-time prekey consumed
-    pub kem_ct: Option<Vec<u8>>,     // key 6 — (PQ) KEM ciphertext, iff suite = 0x02
-    pub kem_ref: Option<ContentId>,  // key 7 — (PQ) content-addr of the one-time KEM prekey
-    pub msg: DeniableMessage,        // key 8 — the first Double-Ratchet message (embedded)
+    pub suite: Suite,               // key 1 — 0x01 X3DH / 0x02 PQXDH
+    pub ik_a: Vec<u8>,              // key 2 — initiator Ed25519 IK (AD binding + authorizes idk_a)
+    pub idk_a: Vec<u8>,             // key 9 — initiator dedicated deniable-identity DH key (X25519)
+    pub idk_a_cert: Vec<u8>,        // key 10 — device-key sig over idk_a (DS DMTAP-v0/deniable-idk)
+    pub ek_a: Vec<u8>,              // key 3 — initiator ephemeral X25519 public
+    pub spk_ref: ContentId,         // key 4 — content-addr of the responder signed prekey consumed
+    pub opk_ref: Option<ContentId>, // key 5 — content-addr of the one-time prekey consumed
+    pub kem_ct: Option<Vec<u8>>,    // key 6 — (PQ) KEM ciphertext, iff suite = 0x02
+    pub kem_ref: Option<ContentId>, // key 7 — (PQ) content-addr of the one-time KEM prekey
+    pub msg: DeniableMessage,       // key 8 — the first Double-Ratchet message (embedded)
 }
 
 impl DeniableInit {
@@ -267,7 +294,18 @@ impl DeniableInit {
         let msg = DeniableMessage::from_cv(f.req(8)?)?;
         let idk_a = as_bytes(f.req(9)?)?;
         let idk_a_cert = as_bytes(f.req(10)?)?;
-        Ok(DeniableInit { suite, ik_a, idk_a, idk_a_cert, ek_a, spk_ref, opk_ref, kem_ct, kem_ref, msg })
+        Ok(DeniableInit {
+            suite,
+            ik_a,
+            idk_a,
+            idk_a_cert,
+            ek_a,
+            spk_ref,
+            opk_ref,
+            kem_ct,
+            kem_ref,
+            msg,
+        })
     }
 
     /// Verify the initiator's dedicated deniable-identity DH key `idk_a` is certified by its Ed25519
@@ -328,12 +366,12 @@ impl DeniableFrame {
 /// on **any** unrecognized key, so a smuggled signature is rejected regardless of the key it uses.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeniablePayload {
-    pub from: Vec<u8>,             // key 1 — sender IK (bound by X3DH, NOT a signature)
-    pub kind: Kind,               // key 2 — the real content kind (§2.3)
-    pub headers: Headers,         // key 3
-    pub body: Vec<u8>,            // key 4
-    pub refs: Vec<ContentId>,     // key 5 — MAY be empty
-    pub attach: Vec<Attachment>,  // key 6 — MAY be empty
+    pub from: Vec<u8>,           // key 1 — sender IK (bound by X3DH, NOT a signature)
+    pub kind: Kind,              // key 2 — the real content kind (§2.3)
+    pub headers: Headers,        // key 3
+    pub body: Vec<u8>,           // key 4
+    pub refs: Vec<ContentId>,    // key 5 — MAY be empty
+    pub attach: Vec<Attachment>, // key 6 — MAY be empty
     pub expires: Option<TimestampMs>, // key 7
 }
 
@@ -345,8 +383,19 @@ impl DeniablePayload {
             (2, Cv::U64(self.kind.as_u8() as u64)),
             (3, self.headers.to_cv()),
             (4, Cv::Bytes(self.body.clone())),
-            (5, Cv::Array(self.refs.iter().map(|r| Cv::Bytes(r.as_bytes().to_vec())).collect())),
-            (6, Cv::Array(self.attach.iter().map(Attachment::to_cv).collect())),
+            (
+                5,
+                Cv::Array(
+                    self.refs
+                        .iter()
+                        .map(|r| Cv::Bytes(r.as_bytes().to_vec()))
+                        .collect(),
+                ),
+            ),
+            (
+                6,
+                Cv::Array(self.attach.iter().map(Attachment::to_cv).collect()),
+            ),
         ];
         if let Some(e) = self.expires {
             m.push((7, Cv::U64(e)));
@@ -378,7 +427,15 @@ impl DeniablePayload {
             .collect::<Result<_, _>>()?;
         let expires = f.take(7).map(as_u64).transpose()?;
         f.deny_unknown()?;
-        Ok(DeniablePayload { from, kind, headers, body, refs, attach, expires })
+        Ok(DeniablePayload {
+            from,
+            kind,
+            headers,
+            body,
+            refs,
+            attach,
+            expires,
+        })
     }
 }
 
@@ -412,20 +469,27 @@ mod tests {
 
     #[test]
     fn tampered_bundle_fails_signature() {
-        let mut b = DeniablePrekeyBundle::issue(&key(0x11), vec![0xcd; 32], vec![0xab; 32], vec![], 1, 1);
+        let mut b =
+            DeniablePrekeyBundle::issue(&key(0x11), vec![0xcd; 32], vec![0xab; 32], vec![], 1, 1);
         b.spk[0] ^= 0xff; // invalidates both spk_sig and sig
         assert_eq!(b.verify(), Err(IdentityError::BadSignature));
     }
 
     #[test]
     fn tampered_idk_fails_certification() {
-        let mut b = DeniablePrekeyBundle::issue(&key(0x11), vec![0xcd; 32], vec![0xab; 32], vec![], 1, 1);
+        let mut b =
+            DeniablePrekeyBundle::issue(&key(0x11), vec![0xcd; 32], vec![0xab; 32], vec![], 1, 1);
         b.idk[0] ^= 0xff; // invalidates idk_sig (and the body sig)
         assert_eq!(b.verify(), Err(IdentityError::BadSignature));
     }
 
     fn sample_message() -> DeniableMessage {
-        DeniableMessage { dh: vec![0x09; 32], pn: 0, n: 5, ct: vec![0xde, 0xad, 0xbe, 0xef] }
+        DeniableMessage {
+            dh: vec![0x09; 32],
+            pn: 0,
+            n: 5,
+            ct: vec![0xde, 0xad, 0xbe, 0xef],
+        }
     }
 
     #[test]
@@ -492,7 +556,10 @@ mod tests {
         let p = DeniablePayload {
             from: key(0x11).public(),
             kind: Kind::Chat,
-            headers: Headers { subject: Some("hi".into()), ..Default::default() },
+            headers: Headers {
+                subject: Some("hi".into()),
+                ..Default::default()
+            },
             body: b"deniable hello".to_vec(),
             refs: vec![],
             attach: vec![],
@@ -509,7 +576,10 @@ mod tests {
         };
         m.push((8, Cv::Bytes(vec![0u8; 64]))); // a stray "signature"
         let leaky = cbor::encode(&Cv::Map(m));
-        assert_eq!(DeniablePayload::from_det_cbor(&leaky), Err(CborError::UnknownKey(8)));
+        assert_eq!(
+            DeniablePayload::from_det_cbor(&leaky),
+            Err(CborError::UnknownKey(8))
+        );
     }
 
     /// §18.1: every decoder here must be panic-free on arbitrary input and reject any NON-canonical
@@ -555,17 +625,30 @@ mod tests {
             for n in 0..valid.len() {
                 mutants.push(valid[..n].to_vec());
             }
-            for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8], vec![0xa1, 0x00, 0x00]] {
+            for junk in [
+                vec![0x00u8],
+                vec![0xff, 0xff],
+                vec![0x9f; 8],
+                vec![0xa1, 0x00, 0x00],
+            ] {
                 let mut m = valid.clone();
                 m.extend_from_slice(&junk);
                 mutants.push(m);
             }
             for m in &mutants {
                 if let Ok(o) = DeniablePrekeyBundle::from_det_cbor(m) {
-                    assert_eq!(&o.det_cbor(), m, "bundle decoder accepted a non-canonical encoding");
+                    assert_eq!(
+                        &o.det_cbor(),
+                        m,
+                        "bundle decoder accepted a non-canonical encoding"
+                    );
                 }
                 if let Ok(o) = DeniableFrame::from_det_cbor(m) {
-                    assert_eq!(&o.det_cbor(), m, "frame decoder accepted a non-canonical encoding");
+                    assert_eq!(
+                        &o.det_cbor(),
+                        m,
+                        "frame decoder accepted a non-canonical encoding"
+                    );
                 }
             }
         }

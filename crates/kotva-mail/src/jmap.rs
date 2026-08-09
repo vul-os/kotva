@@ -117,12 +117,21 @@ pub(crate) const MAX_OBJECTS_IN_SET: usize = 500;
 /// `requestTooLarge` — so an unbounded create/update/destroy map cannot drive unbounded object
 /// construction, store mutation, and response building.
 fn enforce_set_limit(args: &Value) -> Result<(), Value> {
-    let objs = |k: &str| args.get(k).and_then(|v| v.as_object()).map_or(0, |m| m.len());
+    let objs = |k: &str| {
+        args.get(k)
+            .and_then(|v| v.as_object())
+            .map_or(0, |m| m.len())
+    };
     let n = objs("create")
         + objs("update")
-        + args.get("destroy").and_then(|v| v.as_array()).map_or(0, |a| a.len());
+        + args
+            .get("destroy")
+            .and_then(|v| v.as_array())
+            .map_or(0, |a| a.len());
     if n > MAX_OBJECTS_IN_SET {
-        return Err(json!({ "type": "requestTooLarge", "description": "more than maxObjectsInSet objects in one /set" }));
+        return Err(
+            json!({ "type": "requestTooLarge", "description": "more than maxObjectsInSet objects in one /set" }),
+        );
     }
     Ok(())
 }
@@ -176,7 +185,10 @@ pub fn process<S: MailStore>(store: &mut S, account_id: &str, req: &Request) -> 
             break;
         }
     }
-    Response { method_responses: responses, session_state: state_string(store) }
+    Response {
+        method_responses: responses,
+        session_state: state_string(store),
+    }
 }
 
 fn dispatch<S: MailStore>(
@@ -190,16 +202,30 @@ fn dispatch<S: MailStore>(
         "Core/echo" => Ok(("Core/echo".into(), args.clone())),
         "Mailbox/get" => mailbox_get(store, account, args).map(|v| ("Mailbox/get".into(), v)),
         "Mailbox/query" => Ok(("Mailbox/query".into(), mailbox_query(store, account))),
-        "Mailbox/changes" => Ok(("Mailbox/changes".into(), changes(store, account, JmapObj::Mailbox, args))),
+        "Mailbox/changes" => Ok((
+            "Mailbox/changes".into(),
+            changes(store, account, JmapObj::Mailbox, args),
+        )),
         "Mailbox/set" => mailbox_set(store, account, args).map(|v| ("Mailbox/set".into(), v)),
         "Email/get" => email_get(store, account, args).map(|v| ("Email/get".into(), v)),
         "Email/query" => Ok(("Email/query".into(), email_query(store, account, args))),
-        "Email/changes" => Ok(("Email/changes".into(), changes(store, account, JmapObj::Email, args))),
-        "Email/queryChanges" => Ok(("Email/queryChanges".into(), email_query_changes(store, account, args))),
+        "Email/changes" => Ok((
+            "Email/changes".into(),
+            changes(store, account, JmapObj::Email, args),
+        )),
+        "Email/queryChanges" => Ok((
+            "Email/queryChanges".into(),
+            email_query_changes(store, account, args),
+        )),
         "Email/set" => email_set(store, account, args).map(|v| ("Email/set".into(), v)),
         "Thread/get" => thread_get(store, account, args).map(|v| ("Thread/get".into(), v)),
-        "Thread/changes" => Ok(("Thread/changes".into(), changes(store, account, JmapObj::Thread, args))),
-        "SearchSnippet/get" => search_snippet_get(store, account, args).map(|v| ("SearchSnippet/get".into(), v)),
+        "Thread/changes" => Ok((
+            "Thread/changes".into(),
+            changes(store, account, JmapObj::Thread, args),
+        )),
+        "SearchSnippet/get" => {
+            search_snippet_get(store, account, args).map(|v| ("SearchSnippet/get".into(), v))
+        }
         "Identity/get" => Ok(("Identity/get".into(), identity_get(account, args))),
         "Identity/changes" => Ok(("Identity/changes".into(), identity_changes(account, args))),
         "Identity/set" => Ok(("Identity/set".into(), identity_set(account, args))),
@@ -240,7 +266,9 @@ fn resolve_references(args: &Value, prior: &[Invocation]) -> Result<Value, Value
     for (k, v) in obj {
         // The wire spelling of a back-reference argument is `#<realArgName>`.
         if let Some(real) = k.strip_prefix('#') {
-            let rr = v.as_object().ok_or_else(|| ref_error("ResultReference not an object"))?;
+            let rr = v
+                .as_object()
+                .ok_or_else(|| ref_error("ResultReference not an object"))?;
             let result_of = rr.get("resultOf").and_then(Value::as_str);
             let mname = rr.get("name").and_then(Value::as_str);
             let path = rr.get("path").and_then(Value::as_str);
@@ -252,10 +280,13 @@ fn resolve_references(args: &Value, prior: &[Invocation]) -> Result<Value, Value
                 .iter()
                 .find(|(n, _, cid)| n == mname && cid == result_of)
                 .ok_or_else(|| ref_error("ResultReference target not found"))?;
-            let resolved = eval_pointer(&source.1, path).ok_or_else(|| ref_error("bad ResultReference path"))?;
+            let resolved = eval_pointer(&source.1, path)
+                .ok_or_else(|| ref_error("bad ResultReference path"))?;
             resolved_bytes = resolved_bytes.saturating_add(resolved.to_string().len());
             if resolved_bytes > MAX_RESPONSE_BYTES {
-                return Err(ref_error("resolved back-references exceed the response-size limit"));
+                return Err(ref_error(
+                    "resolved back-references exceed the response-size limit",
+                ));
             }
             out.insert(real.to_string(), resolved);
         } else {
@@ -314,10 +345,15 @@ fn mailbox_get<S: MailStore>(store: &S, account: &str, args: &Value) -> Result<V
     // and with no cap on the mailbox count either (CREATE has no per-account limit). Reject an
     // oversized id list, and index the filter into a set so the scan is O(mailboxes + ids), not the
     // product.
-    let id_set: Option<std::collections::HashSet<&str>> = match args.get("ids").and_then(|v| v.as_array()) {
+    let id_set: Option<std::collections::HashSet<&str>> = match args
+        .get("ids")
+        .and_then(|v| v.as_array())
+    {
         Some(f) => {
             if f.len() > MAX_OBJECTS_IN_GET {
-                return Err(json!({ "type": "requestTooLarge", "description": "more than maxObjectsInGet ids requested" }));
+                return Err(
+                    json!({ "type": "requestTooLarge", "description": "more than maxObjectsInGet ids requested" }),
+                );
             }
             Some(f.iter().filter_map(|v| v.as_str()).collect())
         }
@@ -409,7 +445,10 @@ fn flag_of_keyword(kw: &str) -> Flag {
 }
 
 fn email_query<S: MailStore>(store: &S, account: &str, args: &Value) -> Value {
-    let in_mailbox = args.get("filter").and_then(|f| f.get("inMailbox")).and_then(|v| v.as_str());
+    let in_mailbox = args
+        .get("filter")
+        .and_then(|f| f.get("inMailbox"))
+        .and_then(|v| v.as_str());
     let mut ids = Vec::new();
     for name in store.mailbox_names() {
         if let Some(target) = in_mailbox {
@@ -437,7 +476,10 @@ fn email_query<S: MailStore>(store: &S, account: &str, args: &Value) -> Value {
 
 fn email_get<S: MailStore>(store: &S, account: &str, args: &Value) -> Result<Value, Value> {
     let want_ids: Vec<String> = match args.get("ids").and_then(|v| v.as_array()) {
-        Some(arr) => arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect(),
+        Some(arr) => arr
+            .iter()
+            .filter_map(|v| v.as_str().map(str::to_string))
+            .collect(),
         None => {
             // null ids = all emails.
             let mut all = Vec::new();
@@ -459,13 +501,20 @@ fn email_get<S: MailStore>(store: &S, account: &str, args: &Value) -> Result<Val
     // the response BYTES — each object embeds the full decoded body, so the cumulative-byte bound in
     // the loop below is what stops a duplicate-packed id list from copying one large message N times.
     if want_ids.len() > MAX_OBJECTS_IN_GET {
-        return Err(json!({ "type": "requestTooLarge", "description": "more than maxObjectsInGet ids requested" }));
+        return Err(
+            json!({ "type": "requestTooLarge", "description": "more than maxObjectsInGet ids requested" }),
+        );
     }
     let mut list = Vec::new();
     let mut not_found = Vec::new();
     let mut resp_bytes = 0usize;
     for id in &want_ids {
-        match parse_email_id(id).and_then(|(mb, uid)| store.mailbox(&mb).and_then(|m| m.by_uid(uid)).map(|msg| (mb, msg))) {
+        match parse_email_id(id).and_then(|(mb, uid)| {
+            store
+                .mailbox(&mb)
+                .and_then(|m| m.by_uid(uid))
+                .map(|msg| (mb, msg))
+        }) {
             Some((mailbox, msg)) => {
                 let parsed = ParsedMessage::parse(&msg.raw);
                 // Display text goes through the crate's one i18n path: RFC 2047 for headers,
@@ -505,7 +554,9 @@ fn email_get<S: MailStore>(store: &S, account: &str, args: &Value) -> Result<Val
                 resp_bytes = resp_bytes.saturating_add(obj.to_string().len());
                 list.push(obj);
                 if resp_bytes > MAX_RESPONSE_BYTES {
-                    return Err(json!({ "type": "requestTooLarge", "description": "Email/get response exceeds the response-size limit" }));
+                    return Err(
+                        json!({ "type": "requestTooLarge", "description": "Email/get response exceeds the response-size limit" }),
+                    );
                 }
             }
             None => not_found.push(id.clone()),
@@ -648,12 +699,18 @@ fn compose_email<S: MailStore>(store: &mut S, obj: &Value) -> Result<(String, u3
     let mailbox = obj
         .get("mailboxIds")
         .and_then(|v| v.as_object())
-        .and_then(|m| m.iter().find(|(_, v)| v.as_bool() == Some(true)).map(|(k, _)| k.clone()))
+        .and_then(|m| {
+            m.iter()
+                .find(|(_, v)| v.as_bool() == Some(true))
+                .map(|(k, _)| k.clone())
+        })
         .filter(|m| store.mailbox(m).is_some())
         .or_else(|| store.mailbox("Drafts").map(|_| "Drafts".to_string()))
         .unwrap_or_else(|| "INBOX".to_string());
     if store.mailbox(&mailbox).is_none() {
-        return Err(json!({ "type": "notFound", "description": "mailboxIds references no such mailbox" }));
+        return Err(
+            json!({ "type": "notFound", "description": "mailboxIds references no such mailbox" }),
+        );
     }
 
     let mut headers = String::new();
@@ -693,7 +750,10 @@ fn compose_email<S: MailStore>(store: &mut S, obj: &Value) -> Result<(String, u3
             crate::mime::encode_header_value(&sanitize_header(subject))
         ));
     }
-    headers.push_str(&format!("Date: {}\r\n", crate::mime::format_rfc5322_date(0)));
+    headers.push_str(&format!(
+        "Date: {}\r\n",
+        crate::mime::format_rfc5322_date(0)
+    ));
     headers.push_str("MIME-Version: 1.0\r\n");
     headers.push_str("Content-Type: text/plain; charset=utf-8\r\n");
 
@@ -783,17 +843,24 @@ fn thread_get<S: MailStore>(store: &S, account: &str, args: &Value) -> Result<Va
     let want: Vec<String> = args
         .get("ids")
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
         .unwrap_or_default();
     // RFC 8620 §5.1: bound the requested-id count before ANY per-message work. The old form was
     // O(requested_ids × total_messages) FULL MIME parses — a small (or duplicate-packed) id list
     // forced ~1e9 parses, an amplification DoS.
     if want.len() > MAX_OBJECTS_IN_GET {
-        return Err(json!({ "type": "requestTooLarge", "description": "more than maxObjectsInGet ids requested" }));
+        return Err(
+            json!({ "type": "requestTooLarge", "description": "more than maxObjectsInGet ids requested" }),
+        );
     }
     // Build threadId -> [emailId] in a SINGLE pass over all messages, each parsed at most once via
     // the memoized cache (shared with the IMAP path), so answering R ids is O(M + R), not O(R × M).
-    let mut by_thread: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+    let mut by_thread: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
     for name in store.mailbox_names() {
         let mb = match store.mailbox(&name) {
             Some(m) => m,
@@ -801,12 +868,17 @@ fn thread_get<S: MailStore>(store: &S, account: &str, args: &Value) -> Result<Va
         };
         for m in &mb.messages {
             let tid = thread_id(m.parsed_cached(), m.uid);
-            by_thread.entry(tid).or_default().push(email_id(&name, m.uid));
+            by_thread
+                .entry(tid)
+                .or_default()
+                .push(email_id(&name, m.uid));
         }
     }
     let list: Vec<Value> = want
         .iter()
-        .map(|tid| json!({ "id": tid, "emailIds": by_thread.get(tid).cloned().unwrap_or_default() }))
+        .map(
+            |tid| json!({ "id": tid, "emailIds": by_thread.get(tid).cloned().unwrap_or_default() }),
+        )
         .collect();
     Ok(json!({ "accountId": account, "state": state_string(store), "list": list, "notFound": [] }))
 }
@@ -855,7 +927,10 @@ fn submission_get(account: &str, args: &Value) -> Value {
 /// ([`MailStore::jmap_changes`]). `sinceState` is required; an unparseable token yields the
 /// `cannotCalculateChanges` error so the client falls back to a full `/query`+`/get`.
 fn changes<S: MailStore>(store: &S, account: &str, obj: JmapObj, args: &Value) -> Value {
-    let since = args.get("sinceState").and_then(Value::as_str).unwrap_or("0");
+    let since = args
+        .get("sinceState")
+        .and_then(Value::as_str)
+        .unwrap_or("0");
     match store.jmap_changes(obj, since) {
         Some(c) => json!({
             "accountId": account,
@@ -891,7 +966,10 @@ fn mailbox_set<S: MailStore>(store: &mut S, account: &str, args: &Value) -> Resu
         for (cid, obj) in create {
             let name = obj.get("name").and_then(Value::as_str).unwrap_or("");
             if name.is_empty() {
-                not_created.insert(cid.clone(), json!({ "type": "invalidProperties", "properties": ["name"] }));
+                not_created.insert(
+                    cid.clone(),
+                    json!({ "type": "invalidProperties", "properties": ["name"] }),
+                );
                 continue;
             }
             // A parentId prefixes the child name with the parent's path ("Parent/Child").
@@ -904,7 +982,10 @@ fn mailbox_set<S: MailStore>(store: &mut S, account: &str, args: &Value) -> Resu
                     created.insert(cid.clone(), json!({ "id": full, "totalEmails": 0, "unreadEmails": 0, "totalThreads": 0, "unreadThreads": 0, "isSubscribed": true }));
                 }
                 Err(e) => {
-                    not_created.insert(cid.clone(), json!({ "type": "invalidArguments", "description": e.to_string() }));
+                    not_created.insert(
+                        cid.clone(),
+                        json!({ "type": "invalidArguments", "description": e.to_string() }),
+                    );
                 }
             }
         }
@@ -936,7 +1017,10 @@ fn mailbox_set<S: MailStore>(store: &mut S, account: &str, args: &Value) -> Resu
             match store.delete(id) {
                 Ok(()) => destroyed.push(Value::String(id.to_string())),
                 Err(e) => {
-                    not_destroyed.insert(id.to_string(), json!({ "type": "notFound", "description": e.to_string() }));
+                    not_destroyed.insert(
+                        id.to_string(),
+                        json!({ "type": "notFound", "description": e.to_string() }),
+                    );
                 }
             }
         }
@@ -960,7 +1044,10 @@ fn mailbox_set<S: MailStore>(store: &mut S, account: &str, args: &Value) -> Resu
 /// `Email/queryChanges`: since we compute query results directly from the store, report the added
 /// items from the modseq delta and the removed items from the vanished log (RFC 8620 §5.6).
 fn email_query_changes<S: MailStore>(store: &S, account: &str, args: &Value) -> Value {
-    let since = args.get("sinceQueryState").and_then(Value::as_str).unwrap_or("0");
+    let since = args
+        .get("sinceQueryState")
+        .and_then(Value::as_str)
+        .unwrap_or("0");
     match store.jmap_changes(JmapObj::Email, since) {
         Some(c) => {
             let added: Vec<Value> = c
@@ -986,7 +1073,11 @@ fn email_query_changes<S: MailStore>(store: &S, account: &str, args: &Value) -> 
 
 /// `SearchSnippet/get`: return subject/preview snippets for the given emails, highlighting the
 /// filter's text terms with `<mark>…</mark>` (a reference highlighter over the plaintext body).
-fn search_snippet_get<S: MailStore>(store: &S, account: &str, args: &Value) -> Result<Value, Value> {
+fn search_snippet_get<S: MailStore>(
+    store: &S,
+    account: &str,
+    args: &Value,
+) -> Result<Value, Value> {
     let terms: Vec<String> = args
         .get("filter")
         .and_then(collect_filter_terms)
@@ -994,23 +1085,33 @@ fn search_snippet_get<S: MailStore>(store: &S, account: &str, args: &Value) -> R
     let ids: Vec<String> = args
         .get("emailIds")
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
         .unwrap_or_default();
     // RFC 8620 §5.1 (same cap as the sibling /get handlers): a snippet request is per-email work, so
     // bound the id count BEFORE the parse loop — a duplicate-packed emailIds list would otherwise
     // force one uncached MIME parse + body decode per id, an amplification DoS.
     if ids.len() > MAX_OBJECTS_IN_GET {
-        return Err(json!({ "type": "requestTooLarge", "description": "more than maxObjectsInGet emailIds requested" }));
+        return Err(
+            json!({ "type": "requestTooLarge", "description": "more than maxObjectsInGet emailIds requested" }),
+        );
     }
     let mut list = Vec::new();
     for id in ids {
-        let msg = parse_email_id(&id).and_then(|(mb, uid)| store.mailbox(&mb).and_then(|m| m.by_uid(uid)));
+        let msg = parse_email_id(&id)
+            .and_then(|(mb, uid)| store.mailbox(&mb).and_then(|m| m.by_uid(uid)));
         let (subject, preview) = match msg {
             Some(m) => {
                 let p = m.parsed_cached();
                 (
                     // Snippets highlight what the user sees — the decoded subject, not raw 2047.
-                    highlight(&crate::mime::decode_encoded_words(p.header("Subject").unwrap_or("")), &terms),
+                    highlight(
+                        &crate::mime::decode_encoded_words(p.header("Subject").unwrap_or("")),
+                        &terms,
+                    ),
                     highlight(&preview(p), &terms),
                 )
             }
@@ -1111,7 +1212,12 @@ fn highlight(text: &str, terms: &[String]) -> Value {
         }
         let needle: Vec<char> = term.to_lowercase().chars().collect();
         if let Some((pos, end)) = find_ci(&result, &needle) {
-            result = format!("{}<mark>{}</mark>{}", &result[..pos], &result[pos..end], &result[end..]);
+            result = format!(
+                "{}<mark>{}</mark>{}",
+                &result[..pos],
+                &result[pos..end],
+                &result[end..]
+            );
         }
     }
     Value::String(result)
@@ -1145,7 +1251,10 @@ fn identity_get(account: &str, args: &Value) -> Value {
 }
 
 fn identity_changes(account: &str, args: &Value) -> Value {
-    let since = args.get("sinceState").and_then(Value::as_str).unwrap_or("0");
+    let since = args
+        .get("sinceState")
+        .and_then(Value::as_str)
+        .unwrap_or("0");
     json!({
         "accountId": account,
         "oldState": since,
@@ -1166,13 +1275,19 @@ fn identity_set(account: &str, args: &Value) -> Value {
     if let Some(create) = args.get("create").and_then(|v| v.as_object()) {
         for (cid, obj) in create {
             let email = obj.get("email").and_then(Value::as_str).unwrap_or(account);
-            created.insert(cid.clone(), json!({ "id": format!("I-{cid}"), "email": email, "mayDelete": true }));
+            created.insert(
+                cid.clone(),
+                json!({ "id": format!("I-{cid}"), "email": email, "mayDelete": true }),
+            );
         }
     }
     if let Some(list) = args.get("destroy").and_then(|v| v.as_array()) {
         for id in list.iter().filter_map(Value::as_str) {
             if id == "I0" {
-                not_destroyed.insert(id.to_string(), json!({ "type": "forbidden", "description": "default identity" }));
+                not_destroyed.insert(
+                    id.to_string(),
+                    json!({ "type": "forbidden", "description": "default identity" }),
+                );
             }
         }
     }
@@ -1258,7 +1373,10 @@ mod tests {
     }
 
     fn call(store: &mut MemoryStore, name: &str, args: Value) -> Value {
-        let req = Request { using: vec![CAP_MAIL.into()], method_calls: vec![(name.into(), args, "c1".into())] };
+        let req = Request {
+            using: vec![CAP_MAIL.into()],
+            method_calls: vec![(name.into(), args, "c1".into())],
+        };
         let resp = process(store, "acct1", &req);
         resp.method_responses[0].1.clone()
     }
@@ -1287,7 +1405,10 @@ mod tests {
         assert_eq!(s["primaryAccounts"][CAP_MAIL], json!("acct1"));
         assert!(s["apiUrl"].as_str().unwrap().ends_with("/jmap/api/"));
         // The advertised call limit is the shared enforced constant (no advertise/enforce drift).
-        assert_eq!(s["capabilities"]["urn:ietf:params:jmap:core"]["maxCallsInRequest"], json!(MAX_CALLS_IN_REQUEST));
+        assert_eq!(
+            s["capabilities"]["urn:ietf:params:jmap:core"]["maxCallsInRequest"],
+            json!(MAX_CALLS_IN_REQUEST)
+        );
     }
 
     #[test]
@@ -1296,31 +1417,52 @@ mod tests {
         // than maxObjectsInGet with requestTooLarge BEFORE any per-id MIME parse — else an unbounded
         // or duplicate-packed id list drives an O(ids) or O(ids×messages) parse DoS.
         let mut store = store_with_mail();
-        let over: Vec<Value> = (0..=MAX_OBJECTS_IN_GET).map(|i| json!(format!("x_{i}"))).collect();
+        let over: Vec<Value> = (0..=MAX_OBJECTS_IN_GET)
+            .map(|i| json!(format!("x_{i}")))
+            .collect();
         for method in ["Email/get", "Thread/get"] {
             let req = Request {
                 using: vec![CAP_MAIL.into()],
                 method_calls: vec![(method.to_string(), json!({ "ids": over }), "c1".into())],
             };
             let resp = process(&mut store, "acct1", &req);
-            assert_eq!(resp.method_responses[0].0, "error", "{method} over-limit must be an error");
-            assert_eq!(resp.method_responses[0].1["type"], json!("requestTooLarge"), "{method}");
+            assert_eq!(
+                resp.method_responses[0].0, "error",
+                "{method} over-limit must be an error"
+            );
+            assert_eq!(
+                resp.method_responses[0].1["type"],
+                json!("requestTooLarge"),
+                "{method}"
+            );
         }
         // SearchSnippet/get shares the cap but keys on `emailIds`.
         let snip = Request {
             using: vec![CAP_MAIL.into()],
-            method_calls: vec![("SearchSnippet/get".into(), json!({ "emailIds": over }), "c1".into())],
+            method_calls: vec![(
+                "SearchSnippet/get".into(),
+                json!({ "emailIds": over }),
+                "c1".into(),
+            )],
         };
         let sr = process(&mut store, "acct1", &snip);
-        assert_eq!(sr.method_responses[0].0, "error", "SearchSnippet/get over-limit must be an error");
+        assert_eq!(
+            sr.method_responses[0].0, "error",
+            "SearchSnippet/get over-limit must be an error"
+        );
         assert_eq!(sr.method_responses[0].1["type"], json!("requestTooLarge"));
         // An at-limit Email/get is processed normally (not an error).
-        let at: Vec<Value> = (0..MAX_OBJECTS_IN_GET).map(|i| json!(format!("x_{i}"))).collect();
+        let at: Vec<Value> = (0..MAX_OBJECTS_IN_GET)
+            .map(|i| json!(format!("x_{i}")))
+            .collect();
         let req = Request {
             using: vec![CAP_MAIL.into()],
             method_calls: vec![("Email/get".into(), json!({ "ids": at }), "c1".into())],
         };
-        assert_eq!(process(&mut store, "acct1", &req).method_responses[0].0, "Email/get");
+        assert_eq!(
+            process(&mut store, "acct1", &req).method_responses[0].0,
+            "Email/get"
+        );
     }
 
     #[test]
@@ -1339,8 +1481,15 @@ mod tests {
                 method_calls: vec![(method.to_string(), json!({ "create": create }), "c1".into())],
             };
             let resp = process(&mut store, "acct1", &req);
-            assert_eq!(resp.method_responses[0].0, "error", "{method} over-limit /set must error");
-            assert_eq!(resp.method_responses[0].1["type"], json!("requestTooLarge"), "{method}");
+            assert_eq!(
+                resp.method_responses[0].0, "error",
+                "{method} over-limit /set must error"
+            );
+            assert_eq!(
+                resp.method_responses[0].1["type"],
+                json!("requestTooLarge"),
+                "{method}"
+            );
         }
     }
 
@@ -1353,23 +1502,45 @@ mod tests {
         let too_many: Vec<Invocation> = (0..=MAX_CALLS_IN_REQUEST)
             .map(|i| ("Core/echo".to_string(), json!({ "n": i }), format!("c{i}")))
             .collect();
-        let req = Request { using: vec![CAP_MAIL.into()], method_calls: too_many };
+        let req = Request {
+            using: vec![CAP_MAIL.into()],
+            method_calls: too_many,
+        };
         let resp = process(&mut store, "acct1", &req);
-        assert_eq!(resp.method_responses.len(), 1, "over-limit request yields one request-level error");
+        assert_eq!(
+            resp.method_responses.len(),
+            1,
+            "over-limit request yields one request-level error"
+        );
         assert_eq!(resp.method_responses[0].0, "error");
         assert_eq!(resp.method_responses[0].1["type"], json!("requestTooLarge"));
         // A request exactly at the limit still runs every call.
         let at_limit: Vec<Invocation> = (0..MAX_CALLS_IN_REQUEST)
             .map(|i| ("Core/echo".to_string(), json!({ "n": i }), format!("c{i}")))
             .collect();
-        let resp2 = process(&mut store, "acct1", &Request { using: vec![CAP_MAIL.into()], method_calls: at_limit });
-        assert_eq!(resp2.method_responses.len(), MAX_CALLS_IN_REQUEST, "at-limit request runs all calls");
+        let resp2 = process(
+            &mut store,
+            "acct1",
+            &Request {
+                using: vec![CAP_MAIL.into()],
+                method_calls: at_limit,
+            },
+        );
+        assert_eq!(
+            resp2.method_responses.len(),
+            MAX_CALLS_IN_REQUEST,
+            "at-limit request runs all calls"
+        );
     }
 
     #[test]
     fn mailbox_get_lists_folders() {
         let mut s = store_with_mail();
-        let r = call(&mut s, "Mailbox/get", json!({ "accountId": "acct1", "ids": null }));
+        let r = call(
+            &mut s,
+            "Mailbox/get",
+            json!({ "accountId": "acct1", "ids": null }),
+        );
         let list = r["list"].as_array().unwrap();
         assert!(list.iter().any(|m| m["id"] == json!("INBOX")));
         let inbox = list.iter().find(|m| m["id"] == json!("INBOX")).unwrap();
@@ -1380,10 +1551,18 @@ mod tests {
     #[test]
     fn email_query_and_get() {
         let mut s = store_with_mail();
-        let q = call(&mut s, "Email/query", json!({ "accountId": "acct1", "filter": { "inMailbox": "INBOX" } }));
+        let q = call(
+            &mut s,
+            "Email/query",
+            json!({ "accountId": "acct1", "filter": { "inMailbox": "INBOX" } }),
+        );
         let ids = q["ids"].as_array().unwrap();
         assert_eq!(ids.len(), 1);
-        let g = call(&mut s, "Email/get", json!({ "accountId": "acct1", "ids": ids }));
+        let g = call(
+            &mut s,
+            "Email/get",
+            json!({ "accountId": "acct1", "ids": ids }),
+        );
         let email = &g["list"][0];
         assert_eq!(email["subject"], json!("Hello"));
         assert_eq!(email["from"][0]["email"], json!("alice@example.com"));
@@ -1399,7 +1578,12 @@ mod tests {
             json!({ "accountId": "acct1", "update": { id.clone(): { "keywords": { "$seen": true } } } }),
         );
         assert!(r["updated"].get(&id).is_some());
-        assert!(s.mailbox("INBOX").unwrap().by_uid(1).unwrap().has_flag(&Flag::Seen));
+        assert!(s
+            .mailbox("INBOX")
+            .unwrap()
+            .by_uid(1)
+            .unwrap()
+            .has_flag(&Flag::Seen));
     }
 
     #[test]
@@ -1416,7 +1600,11 @@ mod tests {
             vec![],
             1_752_000_000_000,
         );
-        let g = call(&mut s, "Email/get", json!({ "accountId": "acct1", "ids": [email_id("INBOX", 1)] }));
+        let g = call(
+            &mut s,
+            "Email/get",
+            json!({ "accountId": "acct1", "ids": [email_id("INBOX", 1)] }),
+        );
         let email = &g["list"][0];
         // Headers surface decoded, not as =?UTF-8?B?…?= gibberish.
         assert_eq!(email["subject"], json!("Привет"));
@@ -1426,7 +1614,10 @@ mod tests {
         assert_eq!(bv["value"].as_str().unwrap().trim_end(), "Привет, мир!");
         assert_eq!(bv["isEncodingProblem"], json!(false));
         // Preview shows the same decoded text.
-        assert!(email["preview"].as_str().unwrap().starts_with("Привет"), "{email}");
+        assert!(
+            email["preview"].as_str().unwrap().starts_with("Привет"),
+            "{email}"
+        );
     }
 
     #[test]
@@ -1440,7 +1631,11 @@ mod tests {
             vec![],
             1_752_000_000_000,
         );
-        let g = call(&mut s, "Email/get", json!({ "accountId": "acct1", "ids": [email_id("INBOX", 1)] }));
+        let g = call(
+            &mut s,
+            "Email/get",
+            json!({ "accountId": "acct1", "ids": [email_id("INBOX", 1)] }),
+        );
         let bv = &g["list"][0]["bodyValues"]["1"];
         // We don't ship GB18030 tables (std-only): the decode is lossy and MUST say so, never
         // assert `isEncodingProblem: false` over U+FFFD soup.
@@ -1466,8 +1661,16 @@ mod tests {
         let raw = s.mailbox(&mb).unwrap().by_uid(uid).unwrap().raw.clone();
         // Stored header block is wire-legal ASCII (2047-encoded), and the JMAP view round-trips.
         let (hdr, _) = crate::mime::header_and_body(&raw);
-        assert!(hdr.is_ascii(), "compose leaked raw 8-bit headers: {:?}", String::from_utf8_lossy(&hdr));
-        let g = call(&mut s, "Email/get", json!({ "accountId": "acct1", "ids": [id] }));
+        assert!(
+            hdr.is_ascii(),
+            "compose leaked raw 8-bit headers: {:?}",
+            String::from_utf8_lossy(&hdr)
+        );
+        let g = call(
+            &mut s,
+            "Email/get",
+            json!({ "accountId": "acct1", "ids": [id] }),
+        );
         assert_eq!(g["list"][0]["subject"], json!("Привет, мир"));
         assert_eq!(g["list"][0]["from"][0]["name"], json!("Алиса"));
     }
@@ -1491,7 +1694,8 @@ mod tests {
 
     #[test]
     fn request_deserializes() {
-        let raw = r#"{"using":["urn:ietf:params:jmap:core"],"methodCalls":[["Mailbox/query",{},"0"]]}"#;
+        let raw =
+            r#"{"using":["urn:ietf:params:jmap:core"],"methodCalls":[["Mailbox/query",{},"0"]]}"#;
         let req: Request = serde_json::from_str(raw).unwrap();
         assert_eq!(req.method_calls[0].0, "Mailbox/query");
     }
@@ -1520,9 +1724,22 @@ mod tests {
                 "textBody": [{ "partId": "b", "type": "text/plain" }]
             } } }),
         );
-        let ch = call(&mut s, "Email/changes", json!({ "accountId": "acct1", "sinceState": state0 }));
-        let created: Vec<&str> = ch["created"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
-        assert_eq!(created, vec!["INBOX|2"], "new email must be in created: {ch}");
+        let ch = call(
+            &mut s,
+            "Email/changes",
+            json!({ "accountId": "acct1", "sinceState": state0 }),
+        );
+        let created: Vec<&str> = ch["created"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
+        assert_eq!(
+            created,
+            vec!["INBOX|2"],
+            "new email must be in created: {ch}"
+        );
         assert!(ch["updated"].as_array().unwrap().is_empty());
 
         // Update a keyword → appears in `updated`.
@@ -1532,21 +1749,37 @@ mod tests {
             "Email/set",
             json!({ "accountId": "acct1", "update": { "INBOX|1": { "keywords/$seen": true } } }),
         );
-        let ch = call(&mut s, "Email/changes", json!({ "accountId": "acct1", "sinceState": state1 }));
+        let ch = call(
+            &mut s,
+            "Email/changes",
+            json!({ "accountId": "acct1", "sinceState": state1 }),
+        );
         assert_eq!(ch["updated"][0], json!("INBOX|1"), "updated: {ch}");
         assert!(ch["created"].as_array().unwrap().is_empty());
 
         // Destroy → appears in `destroyed` (from the vanished log).
         let state2 = s.jmap_state();
-        call(&mut s, "Email/set", json!({ "accountId": "acct1", "destroy": ["INBOX|1"] }));
-        let ch = call(&mut s, "Email/changes", json!({ "accountId": "acct1", "sinceState": state2 }));
+        call(
+            &mut s,
+            "Email/set",
+            json!({ "accountId": "acct1", "destroy": ["INBOX|1"] }),
+        );
+        let ch = call(
+            &mut s,
+            "Email/changes",
+            json!({ "accountId": "acct1", "sinceState": state2 }),
+        );
         assert_eq!(ch["destroyed"][0], json!("INBOX|1"), "destroyed: {ch}");
     }
 
     #[test]
     fn changes_unparseable_state_reports_cannot_calculate() {
         let mut s = store_with_mail();
-        let ch = call(&mut s, "Email/changes", json!({ "accountId": "acct1", "sinceState": "!!!not-base64!!!" }));
+        let ch = call(
+            &mut s,
+            "Email/changes",
+            json!({ "accountId": "acct1", "sinceState": "!!!not-base64!!!" }),
+        );
         assert_eq!(ch["type"], json!("cannotCalculateChanges"), "{ch}");
     }
 
@@ -1593,7 +1826,8 @@ mod tests {
         );
         let id = r["created"]["x"]["id"].as_str().unwrap();
         let (mb, uid) = parse_email_id(id).unwrap();
-        let raw = String::from_utf8_lossy(&s.mailbox(&mb).unwrap().by_uid(uid).unwrap().raw).to_string();
+        let raw =
+            String::from_utf8_lossy(&s.mailbox(&mb).unwrap().by_uid(uid).unwrap().raw).to_string();
         // The CRLF-injected "Bcc" must be flattened into the Subject, not a real header line.
         assert!(!raw.contains("\r\nBcc:"), "header injection leaked: {raw}");
     }
@@ -1618,9 +1852,16 @@ mod tests {
         );
         let id = r["created"]["x"]["id"].as_str().unwrap();
         let (mb, uid) = parse_email_id(id).unwrap();
-        let raw = String::from_utf8_lossy(&s.mailbox(&mb).unwrap().by_uid(uid).unwrap().raw).to_string();
-        assert!(!raw.contains("\r\nBcc:"), "From.name must not inject a header: {raw}");
-        assert!(!raw.contains("\r\nX-Injected"), "To.email must not inject a header: {raw}");
+        let raw =
+            String::from_utf8_lossy(&s.mailbox(&mb).unwrap().by_uid(uid).unwrap().raw).to_string();
+        assert!(
+            !raw.contains("\r\nBcc:"),
+            "From.name must not inject a header: {raw}"
+        );
+        assert!(
+            !raw.contains("\r\nX-Injected"),
+            "To.email must not inject a header: {raw}"
+        );
         // The composed message must still parse as exactly one From line and one To line.
         let parsed = ParsedMessage::parse(raw.as_bytes());
         assert_eq!(parsed.header("bcc"), None);
@@ -1640,15 +1881,27 @@ mod tests {
     fn mailbox_set_create_update_destroy() {
         let mut s = store_with_mail();
         // create
-        let r = call(&mut s, "Mailbox/set", json!({ "accountId": "acct1", "create": { "c1": { "name": "Work" } } }));
+        let r = call(
+            &mut s,
+            "Mailbox/set",
+            json!({ "accountId": "acct1", "create": { "c1": { "name": "Work" } } }),
+        );
         assert_eq!(r["created"]["c1"]["id"], json!("Work"));
         assert!(s.mailbox("Work").is_some());
         // update (rename)
-        let r = call(&mut s, "Mailbox/set", json!({ "accountId": "acct1", "update": { "Work": { "name": "Projects" } } }));
+        let r = call(
+            &mut s,
+            "Mailbox/set",
+            json!({ "accountId": "acct1", "update": { "Work": { "name": "Projects" } } }),
+        );
         assert!(r["updated"].get("Work").is_some(), "{r}");
         assert!(s.mailbox("Projects").is_some());
         // destroy
-        let r = call(&mut s, "Mailbox/set", json!({ "accountId": "acct1", "destroy": ["Projects"] }));
+        let r = call(
+            &mut s,
+            "Mailbox/set",
+            json!({ "accountId": "acct1", "destroy": ["Projects"] }),
+        );
         assert_eq!(r["destroyed"][0], json!("Projects"));
         assert!(s.mailbox("Projects").is_none());
     }
@@ -1656,12 +1909,24 @@ mod tests {
     #[test]
     fn identity_get_and_set() {
         let mut s = store_with_mail();
-        let g = call(&mut s, "Identity/get", json!({ "accountId": "acct1", "ids": null }));
+        let g = call(
+            &mut s,
+            "Identity/get",
+            json!({ "accountId": "acct1", "ids": null }),
+        );
         assert_eq!(g["list"][0]["email"], json!("acct1"));
-        let st = call(&mut s, "Identity/set", json!({ "accountId": "acct1", "create": { "n": { "email": "alias@dmtap.local", "name": "Alias" } } }));
+        let st = call(
+            &mut s,
+            "Identity/set",
+            json!({ "accountId": "acct1", "create": { "n": { "email": "alias@dmtap.local", "name": "Alias" } } }),
+        );
         assert_eq!(st["created"]["n"]["email"], json!("alias@dmtap.local"));
         // The default identity cannot be destroyed.
-        let d = call(&mut s, "Identity/set", json!({ "accountId": "acct1", "destroy": ["I0"] }));
+        let d = call(
+            &mut s,
+            "Identity/set",
+            json!({ "accountId": "acct1", "destroy": ["I0"] }),
+        );
         assert!(d["notDestroyed"].get("I0").is_some(), "{d}");
     }
 
@@ -1681,7 +1946,11 @@ mod tests {
     #[test]
     fn push_subscription_set_echoes_verification() {
         let mut s = store_with_mail();
-        let r = call(&mut s, "PushSubscription/set", json!({ "create": { "p": { "deviceClientId": "d1", "url": "https://push.example/x" } } }));
+        let r = call(
+            &mut s,
+            "PushSubscription/set",
+            json!({ "create": { "p": { "deviceClientId": "d1", "url": "https://push.example/x" } } }),
+        );
         assert!(r["created"]["p"]["verificationCode"].is_string(), "{r}");
         // get on a fresh session lists none, and omits accountId per RFC 8620.
         let g = call(&mut s, "PushSubscription/get", json!({}));
@@ -1692,7 +1961,11 @@ mod tests {
     #[test]
     fn email_submission_get_reports_not_found() {
         let mut s = store_with_mail();
-        let r = call(&mut s, "EmailSubmission/get", json!({ "accountId": "acct1", "ids": ["sub-1"] }));
+        let r = call(
+            &mut s,
+            "EmailSubmission/get",
+            json!({ "accountId": "acct1", "ids": ["sub-1"] }),
+        );
         assert_eq!(r["notFound"][0], json!("sub-1"), "{r}");
         assert!(r["list"].as_array().unwrap().is_empty());
     }
@@ -1710,7 +1983,11 @@ mod tests {
         let req = Request {
             using: vec![CAP_MAIL.into()],
             method_calls: vec![
-                ("Email/query".into(), json!({ "accountId": "acct1", "filter": { "inMailbox": "INBOX" } }), "q".into()),
+                (
+                    "Email/query".into(),
+                    json!({ "accountId": "acct1", "filter": { "inMailbox": "INBOX" } }),
+                    "q".into(),
+                ),
                 (
                     "Email/get".into(),
                     json!({ "accountId": "acct1", "#ids": { "resultOf": "q", "name": "Email/query", "path": "/ids" } }),
@@ -1720,7 +1997,11 @@ mod tests {
         };
         let resp = process(&mut s, "acct1", &req);
         let get = &resp.method_responses[1].1;
-        assert_eq!(get["list"][0]["subject"], json!("Hello"), "back-ref get: {get}");
+        assert_eq!(
+            get["list"][0]["subject"],
+            json!("Hello"),
+            "back-ref get: {get}"
+        );
     }
 
     #[test]
@@ -1730,8 +2011,11 @@ mod tests {
         // size check — process()'s MAX_RESPONSE_BYTES runs only after resolve+dispatch and gates only
         // subsequent calls. resolve_references now bounds cumulative resolved size, failing closed.
         let big = "x".repeat(6_000_000); // ~6 MB response body
-        let prior: Vec<Invocation> =
-            vec![("Core/echo".to_string(), json!({ "data": big }), "c1".to_string())];
+        let prior: Vec<Invocation> = vec![(
+            "Core/echo".to_string(),
+            json!({ "data": big }),
+            "c1".to_string(),
+        )];
 
         // 12 back-references × ~6 MB ≈ 72 MB > MAX_RESPONSE_BYTES (50 MB) → must fail closed.
         let mut args = serde_json::Map::new();
@@ -1742,7 +2026,11 @@ mod tests {
             );
         }
         let err = resolve_references(&Value::Object(args), &prior).unwrap_err();
-        assert_eq!(err["type"], json!("invalidResultReference"), "over-budget fan-out must fail closed");
+        assert_eq!(
+            err["type"],
+            json!("invalidResultReference"),
+            "over-budget fan-out must fail closed"
+        );
 
         // A single in-budget back-reference to the same response still resolves normally.
         let ok = resolve_references(
@@ -1750,7 +2038,10 @@ mod tests {
             &prior,
         )
         .expect("a single in-budget back-reference resolves");
-        assert!(ok.get("a").is_some(), "normal back-reference resolution still works");
+        assert!(
+            ok.get("a").is_some(),
+            "normal back-reference resolution still works"
+        );
     }
 
     #[test]
@@ -1765,9 +2056,14 @@ mod tests {
         s.deliver_raw("INBOX", raw, vec![], 1_752_000_000_000);
 
         // 30 duplicate ids → a ~180 MB would-be response (> MAX_RESPONSE_BYTES = 50 MB) → fail closed.
-        let ids: Vec<Value> =
-            std::iter::repeat(Value::String("INBOX|1".into())).take(30).collect();
-        let r = call(&mut s, "Email/get", json!({ "accountId": "acct1", "ids": ids }));
+        let ids: Vec<Value> = std::iter::repeat(Value::String("INBOX|1".into()))
+            .take(30)
+            .collect();
+        let r = call(
+            &mut s,
+            "Email/get",
+            json!({ "accountId": "acct1", "ids": ids }),
+        );
         assert_eq!(
             r["type"],
             json!("requestTooLarge"),
@@ -1775,8 +2071,16 @@ mod tests {
         );
 
         // A single get of the same message (~6 MB < 50 MB) still succeeds.
-        let ok = call(&mut s, "Email/get", json!({ "accountId": "acct1", "ids": ["INBOX|1"] }));
-        assert_eq!(ok["list"][0]["id"], json!("INBOX|1"), "single get still works: {ok}");
+        let ok = call(
+            &mut s,
+            "Email/get",
+            json!({ "accountId": "acct1", "ids": ["INBOX|1"] }),
+        );
+        assert_eq!(
+            ok["list"][0]["id"],
+            json!("INBOX|1"),
+            "single get still works: {ok}"
+        );
     }
 
     #[test]
@@ -1784,9 +2088,16 @@ mod tests {
         // Security regression: a wide FilterOperator `conditions` array yielded one term per
         // condition with no cap, amplifying highlight() into O(terms·emails·text). Capped at
         // MAX_FILTER_TERMS.
-        let conds: Vec<Value> = (0..(MAX_FILTER_TERMS * 10)).map(|_| json!({ "text": "a" })).collect();
-        let terms = collect_filter_terms(&json!({ "operator": "AND", "conditions": conds })).unwrap();
-        assert!(terms.len() <= MAX_FILTER_TERMS, "filter term count must be bounded, got {}", terms.len());
+        let conds: Vec<Value> = (0..(MAX_FILTER_TERMS * 10))
+            .map(|_| json!({ "text": "a" }))
+            .collect();
+        let terms =
+            collect_filter_terms(&json!({ "operator": "AND", "conditions": conds })).unwrap();
+        assert!(
+            terms.len() <= MAX_FILTER_TERMS,
+            "filter term count must be bounded, got {}",
+            terms.len()
+        );
         // A normal small filter still collects its terms.
         let ok = collect_filter_terms(&json!({ "subject": "hi", "from": "bob" })).unwrap();
         assert_eq!(ok.len(), 2);
@@ -1801,11 +2112,27 @@ mod tests {
         let ids: Vec<Value> = (0..(MAX_OBJECTS_IN_GET + 1))
             .map(|i| Value::String(format!("z{i}")))
             .collect();
-        let r = call(&mut s, "Mailbox/get", json!({ "accountId": "acct1", "ids": ids }));
-        assert_eq!(r["type"], json!("requestTooLarge"), "oversized Mailbox/get ids must fail closed: {r}");
+        let r = call(
+            &mut s,
+            "Mailbox/get",
+            json!({ "accountId": "acct1", "ids": ids }),
+        );
+        assert_eq!(
+            r["type"],
+            json!("requestTooLarge"),
+            "oversized Mailbox/get ids must fail closed: {r}"
+        );
         // A normal request (filter by real id) still returns that mailbox.
-        let ok = call(&mut s, "Mailbox/get", json!({ "accountId": "acct1", "ids": ["INBOX"] }));
-        assert_eq!(ok["list"][0]["id"], json!("INBOX"), "normal Mailbox/get works: {ok}");
+        let ok = call(
+            &mut s,
+            "Mailbox/get",
+            json!({ "accountId": "acct1", "ids": ["INBOX"] }),
+        );
+        assert_eq!(
+            ok["list"][0]["id"],
+            json!("INBOX"),
+            "normal Mailbox/get works: {ok}"
+        );
     }
 
     #[test]
@@ -1825,6 +2152,10 @@ mod tests {
         );
         // Must complete and return a bounded snippet (the highlighted subject is capped, not ~4 MiB).
         let subj = r["list"][0]["subject"].as_str().unwrap_or("");
-        assert!(subj.len() < 100_000, "highlighted subject must be length-bounded, got {}", subj.len());
+        assert!(
+            subj.len() < 100_000,
+            "highlighted subject must be length-bounded, got {}",
+            subj.len()
+        );
     }
 }

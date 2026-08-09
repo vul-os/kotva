@@ -117,7 +117,9 @@ impl<S: MailStore, A: Authenticator> Pop3Session<S, A> {
             // could send USER/PASS or AUTH PLAIN in the clear and leak the bearer app-password
             // (§8.2). APOP is challenge-response (never transmits the plaintext secret) and stays
             // permitted in cleartext per RFC 1939 §7.
-            (State::Authorization, "USER" | "PASS" | "AUTH") if !self.tls => Self::privacy_required(),
+            (State::Authorization, "USER" | "PASS" | "AUTH") if !self.tls => {
+                Self::privacy_required()
+            }
             (State::Authorization, "USER") => {
                 self.user = Some(rest);
                 b"+OK send PASS\r\n".to_vec()
@@ -165,7 +167,16 @@ impl<S: MailStore, A: Authenticator> Pop3Session<S, A> {
         self.slots = self
             .store
             .mailbox("INBOX")
-            .map(|mb| mb.messages.iter().map(|m| Slot { uid: m.uid, raw: m.raw.clone(), deleted: false }).collect())
+            .map(|mb| {
+                mb.messages
+                    .iter()
+                    .map(|m| Slot {
+                        uid: m.uid,
+                        raw: m.raw.clone(),
+                        deleted: false,
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
     }
 
@@ -204,7 +215,11 @@ impl<S: MailStore, A: Authenticator> Pop3Session<S, A> {
     }
 
     fn auth_cmd(&mut self, rest: &str) -> String {
-        let mech = rest.split_whitespace().next().unwrap_or("").to_ascii_uppercase();
+        let mech = rest
+            .split_whitespace()
+            .next()
+            .unwrap_or("")
+            .to_ascii_uppercase();
         if mech == "PLAIN" {
             if let Some(ir) = rest.split_whitespace().nth(1) {
                 return self.finish_plain(ir);
@@ -236,7 +251,9 @@ impl<S: MailStore, A: Authenticator> Pop3Session<S, A> {
     }
 
     fn stat(&self) -> String {
-        let (count, size) = self.active().fold((0usize, 0usize), |(c, s), (_, slot)| (c + 1, s + slot.raw.len()));
+        let (count, size) = self.active().fold((0usize, 0usize), |(c, s), (_, slot)| {
+            (c + 1, s + slot.raw.len())
+        });
         format!("+OK {count} {size}\r\n")
     }
 
@@ -324,8 +341,12 @@ impl<S: MailStore, A: Authenticator> Pop3Session<S, A> {
     fn quit(&mut self) -> String {
         if self.state == State::Transaction {
             // UPDATE state: commit deletions to the store's INBOX.
-            let to_delete: Vec<u32> =
-                self.slots.iter().filter(|s| s.deleted).map(|s| s.uid).collect();
+            let to_delete: Vec<u32> = self
+                .slots
+                .iter()
+                .filter(|s| s.deleted)
+                .map(|s| s.uid)
+                .collect();
             if let Some(mb) = self.store.mailbox_mut("INBOX") {
                 for uid in &to_delete {
                     // POP3 delete == expunge; remove_at records the vanished UID (QRESYNC / JMAP).
@@ -383,8 +404,18 @@ mod tests {
 
     fn session() -> Pop3Session<MemoryStore, StaticAuthenticator> {
         let mut store = MemoryStore::empty();
-        store.deliver_raw("INBOX", b"Subject: One\r\n\r\nbody one\r\n".to_vec(), vec![], 0);
-        store.deliver_raw("INBOX", b"Subject: Two\r\n\r\nbody two\r\n".to_vec(), vec![], 0);
+        store.deliver_raw(
+            "INBOX",
+            b"Subject: One\r\n\r\nbody one\r\n".to_vec(),
+            vec![],
+            0,
+        );
+        store.deliver_raw(
+            "INBOX",
+            b"Subject: Two\r\n\r\nbody two\r\n".to_vec(),
+            vec![],
+            0,
+        );
         let mut auth = StaticAuthenticator::new();
         auth.issue("alice", "pw", vec![1], "test");
         Pop3Session::new(store, auth, true)
@@ -403,7 +434,9 @@ mod tests {
     fn apop_authenticates() {
         let mut s = session();
         let digest = hex(&md5(format!("{}pw", s.banner).as_bytes()));
-        assert!(s.feed_line(&format!("APOP alice {digest}")).starts_with("+OK"));
+        assert!(s
+            .feed_line(&format!("APOP alice {digest}"))
+            .starts_with("+OK"));
         assert!(s.is_authenticated());
     }
 
@@ -415,7 +448,10 @@ mod tests {
         // on another.
         let s1 = session();
         let s2 = session();
-        assert_ne!(s1.banner, s2.banner, "each POP3 session must issue a unique APOP challenge");
+        assert_ne!(
+            s1.banner, s2.banner,
+            "each POP3 session must issue a unique APOP challenge"
+        );
         assert!(
             s1.banner.starts_with('<') && s1.banner.ends_with('>') && s1.banner.contains('@'),
             "banner must be a well-formed msg-id: {}",
@@ -425,7 +461,9 @@ mod tests {
         let stale_digest = hex(&md5(format!("{}pw", s1.banner).as_bytes()));
         let mut victim = session(); // its own distinct banner
         assert!(
-            !victim.feed_line(&format!("APOP alice {stale_digest}")).starts_with("+OK"),
+            !victim
+                .feed_line(&format!("APOP alice {stale_digest}"))
+                .starts_with("+OK"),
             "a digest captured for another session's challenge must not replay"
         );
         assert!(!victim.is_authenticated());
@@ -438,13 +476,17 @@ mod tests {
         // the digest is lowercased before the compare.
         let mut s = session();
         let good = hex(&md5(format!("{}pw", s.banner).as_bytes()));
-        assert!(s.feed_line(&format!("APOP alice {}", good.to_ascii_uppercase())).starts_with("+OK"));
+        assert!(s
+            .feed_line(&format!("APOP alice {}", good.to_ascii_uppercase()))
+            .starts_with("+OK"));
         assert!(s.is_authenticated());
 
         let mut s = session();
         // Same length as a real MD5-hex digest, but wrong contents.
         let bad = "0".repeat(good.len());
-        assert!(s.feed_line(&format!("APOP alice {bad}")).contains("digest mismatch"));
+        assert!(s
+            .feed_line(&format!("APOP alice {bad}"))
+            .contains("digest mismatch"));
         assert!(!s.is_authenticated());
     }
 
@@ -484,7 +526,9 @@ mod tests {
         // APOP (never transmits the plaintext secret) stays permitted in cleartext.
         let mut s = cleartext();
         let digest = hex(&md5(format!("{}pw", s.banner).as_bytes()));
-        assert!(s.feed_line(&format!("APOP alice {digest}")).starts_with("+OK"));
+        assert!(s
+            .feed_line(&format!("APOP alice {digest}"))
+            .starts_with("+OK"));
         assert!(s.is_authenticated());
 
         // After STLS the same password credentials succeed.
@@ -512,11 +556,17 @@ mod tests {
             reply.windows(raw.len()).any(|w| w == raw),
             "8-bit message bytes must appear unmodified in the RETR reply"
         );
-        assert!(!reply.windows(3).any(|w| w == "\u{FFFD}".as_bytes()), "no replacement chars");
+        assert!(
+            !reply.windows(3).any(|w| w == "\u{FFFD}".as_bytes()),
+            "no replacement chars"
+        );
         // TOP keeps the 8-bit header bytes intact too.
         let top = s.feed_line_raw("TOP 1 1");
         let needle: &[u8] = b"Gr\xfc\xdfe";
-        assert!(top.windows(needle.len()).any(|w| w == needle), "TOP must keep raw header bytes");
+        assert!(
+            top.windows(needle.len()).any(|w| w == needle),
+            "TOP must keep raw header bytes"
+        );
     }
 
     #[test]

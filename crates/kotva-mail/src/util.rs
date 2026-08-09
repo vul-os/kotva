@@ -13,8 +13,16 @@ pub fn base64_encode(input: &[u8]) -> String {
         let n = (b0 << 16) | (b1 << 8) | b2;
         out.push(B64[((n >> 18) & 63) as usize] as char);
         out.push(B64[((n >> 12) & 63) as usize] as char);
-        out.push(if chunk.len() > 1 { B64[((n >> 6) & 63) as usize] as char } else { '=' });
-        out.push(if chunk.len() > 2 { B64[(n & 63) as usize] as char } else { '=' });
+        out.push(if chunk.len() > 1 {
+            B64[((n >> 6) & 63) as usize] as char
+        } else {
+            '='
+        });
+        out.push(if chunk.len() > 2 {
+            B64[(n & 63) as usize] as char
+        } else {
+            '='
+        });
     }
     out
 }
@@ -84,7 +92,12 @@ pub fn md5(input: &[u8]) -> [u8; 16] {
     for chunk in msg.chunks_exact(64) {
         let mut m = [0u32; 16];
         for (i, w) in m.iter_mut().enumerate() {
-            *w = u32::from_le_bytes([chunk[i * 4], chunk[i * 4 + 1], chunk[i * 4 + 2], chunk[i * 4 + 3]]);
+            *w = u32::from_le_bytes([
+                chunk[i * 4],
+                chunk[i * 4 + 1],
+                chunk[i * 4 + 2],
+                chunk[i * 4 + 3],
+            ]);
         }
         let (mut a, mut b, mut c, mut d) = (a0, b0, c0, d0);
         for i in 0..64 {
@@ -139,9 +152,22 @@ mod tests {
 
     #[test]
     fn base64_round_trips() {
-        for s in [&b""[..], b"f", b"fo", b"foo", b"foob", b"fooba", b"foobar", b"\x00\xff\x10"] {
+        for s in [
+            &b""[..],
+            b"f",
+            b"fo",
+            b"foo",
+            b"foob",
+            b"fooba",
+            b"foobar",
+            b"\x00\xff\x10",
+        ] {
             let enc = base64_encode(s);
-            assert_eq!(base64_decode(&enc).as_deref(), Some(s), "round trip for {s:?}");
+            assert_eq!(
+                base64_decode(&enc).as_deref(),
+                Some(s),
+                "round trip for {s:?}"
+            );
         }
     }
 

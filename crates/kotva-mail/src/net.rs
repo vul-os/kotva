@@ -48,26 +48,38 @@ pub fn read_imap_command<R: BufRead, W: Write>(
         if line.len() > MAX_LINE {
             let _ = writer.write_all(b"* BAD command line too long\r\n");
             let _ = writer.flush();
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "command line too long"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "command line too long",
+            ));
         }
         buf.extend_from_slice(&line);
         if buf.len() > MAX_COMMAND {
             let _ = writer.write_all(b"* BAD command too large\r\n");
             let _ = writer.flush();
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "assembled command exceeds MAX_COMMAND"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "assembled command exceeds MAX_COMMAND",
+            ));
         }
         match trailing_literal(&line) {
             Some((size, _sync)) if size > MAX_LITERAL => {
                 let _ = writer.write_all(b"* BAD literal too large\r\n");
                 let _ = writer.flush();
-                return Err(io::Error::new(io::ErrorKind::InvalidData, "literal exceeds MAX_LITERAL"));
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "literal exceeds MAX_LITERAL",
+                ));
             }
             // Reject before allocating: the running buffer plus this literal must fit the aggregate
             // cap, so a chain of literals cannot force an unbounded `vec![0u8; size]` allocation.
             Some((size, _sync)) if buf.len().saturating_add(size) > MAX_COMMAND => {
                 let _ = writer.write_all(b"* BAD command too large\r\n");
                 let _ = writer.flush();
-                return Err(io::Error::new(io::ErrorKind::InvalidData, "assembled command exceeds MAX_COMMAND"));
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "assembled command exceeds MAX_COMMAND",
+                ));
             }
             Some((size, sync)) => {
                 if sync {
@@ -303,7 +315,10 @@ mod tests {
         let mut w = Vec::new();
         let cmd = read_imap_command(&mut r, &mut w).unwrap().unwrap();
         assert!(cmd.windows(5).any(|c| c == b"HELLO"));
-        assert_eq!(w, b"+ Ready for literal data\r\n", "must prompt for a sync literal");
+        assert_eq!(
+            w, b"+ Ready for literal data\r\n",
+            "must prompt for a sync literal"
+        );
     }
 
     #[test]
@@ -317,8 +332,14 @@ mod tests {
 
     #[test]
     fn detects_trailing_literal() {
-        assert_eq!(trailing_literal(b"a APPEND INBOX {11}\r\n"), Some((11, true)));
-        assert_eq!(trailing_literal(b"a APPEND INBOX {11+}\r\n"), Some((11, false)));
+        assert_eq!(
+            trailing_literal(b"a APPEND INBOX {11}\r\n"),
+            Some((11, true))
+        );
+        assert_eq!(
+            trailing_literal(b"a APPEND INBOX {11+}\r\n"),
+            Some((11, false))
+        );
         assert_eq!(trailing_literal(b"a NOOP\r\n"), None);
     }
 
@@ -330,6 +351,10 @@ mod tests {
         let mut w = Vec::new();
         let err = read_imap_command(&mut r, &mut w).unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::InvalidData);
-        assert!(w.windows(4).any(|c| c == b"BAD "), "must warn BAD: {:?}", String::from_utf8_lossy(&w));
+        assert!(
+            w.windows(4).any(|c| c == b"BAD "),
+            "must warn BAD: {:?}",
+            String::from_utf8_lossy(&w)
+        );
     }
 }

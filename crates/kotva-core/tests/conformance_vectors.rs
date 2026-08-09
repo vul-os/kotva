@@ -67,12 +67,25 @@ fn cbor_vectors_round_trip() {
         match vec.input["type"].as_str().unwrap() {
             "Identity" => {
                 let obj = Identity::from_det_cbor(&bytes).unwrap();
-                assert!(obj.verify(None).is_ok(), "decoded Identity must verify: {}", vec.name);
-                assert_eq!(hex(&obj.det_cbor()), cbor_hex, "re-encode must be byte-identical: {}", vec.name);
+                assert!(
+                    obj.verify(None).is_ok(),
+                    "decoded Identity must verify: {}",
+                    vec.name
+                );
+                assert_eq!(
+                    hex(&obj.det_cbor()),
+                    cbor_hex,
+                    "re-encode must be byte-identical: {}",
+                    vec.name
+                );
             }
             "DeviceCert" => {
                 let obj = DeviceCert::from_det_cbor(&bytes).unwrap();
-                assert!(obj.verify().is_ok(), "decoded DeviceCert must verify: {}", vec.name);
+                assert!(
+                    obj.verify().is_ok(),
+                    "decoded DeviceCert must verify: {}",
+                    vec.name
+                );
                 assert_eq!(hex(&obj.det_cbor()), cbor_hex, "{}", vec.name);
             }
             "Payload" => {
@@ -82,31 +95,56 @@ fn cbor_vectors_round_trip() {
             "Envelope" => {
                 let obj = Envelope::from_det_cbor(&bytes).unwrap();
                 // Envelope carries its own content address — it must still verify after decode.
-                assert!(obj.id.verify(&obj.ciphertext), "Envelope id must match ciphertext: {}", vec.name);
+                assert!(
+                    obj.id.verify(&obj.ciphertext),
+                    "Envelope id must match ciphertext: {}",
+                    vec.name
+                );
                 assert_eq!(hex(&obj.det_cbor()), cbor_hex, "{}", vec.name);
             }
             "MixNodeDescriptor" => {
                 let obj = kotva_core::mixnet::MixNodeDescriptor::from_det_cbor(&bytes).unwrap();
-                assert!(obj.verify().is_ok(), "decoded MixNodeDescriptor must verify: {}", vec.name);
+                assert!(
+                    obj.verify().is_ok(),
+                    "decoded MixNodeDescriptor must verify: {}",
+                    vec.name
+                );
                 assert_eq!(hex(&obj.det_cbor()), cbor_hex, "{}", vec.name);
             }
             "MixDirectory" => {
                 let obj = kotva_core::mixnet::MixDirectory::from_det_cbor(&bytes).unwrap();
-                assert!(obj.verify().is_ok(), "decoded MixDirectory must verify: {}", vec.name);
+                assert!(
+                    obj.verify().is_ok(),
+                    "decoded MixDirectory must verify: {}",
+                    vec.name
+                );
                 // Each enclosed descriptor also self-verifies (authority attests membership only).
                 for m in &obj.mixes {
-                    assert!(m.verify().is_ok(), "enclosed MixNodeDescriptor must verify: {}", vec.name);
+                    assert!(
+                        m.verify().is_ok(),
+                        "enclosed MixNodeDescriptor must verify: {}",
+                        vec.name
+                    );
                 }
                 assert_eq!(hex(&obj.det_cbor()), cbor_hex, "{}", vec.name);
             }
             "DomainDirectory" => {
                 let obj = kotva_core::directory::DomainDirectory::from_det_cbor(&bytes).unwrap();
-                assert!(obj.verify().is_ok(), "decoded DomainDirectory must verify: {}", vec.name);
+                assert!(
+                    obj.verify().is_ok(),
+                    "decoded DomainDirectory must verify: {}",
+                    vec.name
+                );
                 assert_eq!(hex(&obj.det_cbor()), cbor_hex, "{}", vec.name);
             }
             "DeniablePrekeyBundle" => {
-                let obj = kotva_core::deniable::DeniablePrekeyBundle::from_det_cbor(&bytes).unwrap();
-                assert!(obj.verify().is_ok(), "decoded DeniablePrekeyBundle must verify: {}", vec.name);
+                let obj =
+                    kotva_core::deniable::DeniablePrekeyBundle::from_det_cbor(&bytes).unwrap();
+                assert!(
+                    obj.verify().is_ok(),
+                    "decoded DeniablePrekeyBundle must verify: {}",
+                    vec.name
+                );
                 assert_eq!(hex(&obj.det_cbor()), cbor_hex, "{}", vec.name);
             }
             "DeniableFrame" => {
@@ -120,12 +158,21 @@ fn cbor_vectors_round_trip() {
             "Manifest" => {
                 let obj = Manifest::from_det_cbor(&bytes).unwrap();
                 // A Manifest self-verifies: its id MUST equal the §18.9.5 Merkle root.
-                assert_eq!(obj.id, obj.merkle_root(), "Manifest id must equal Merkle root: {}", vec.name);
+                assert_eq!(
+                    obj.id,
+                    obj.merkle_root(),
+                    "Manifest id must equal Merkle root: {}",
+                    vec.name
+                );
                 assert_eq!(hex(&obj.det_cbor()), cbor_hex, "{}", vec.name);
             }
             "SignedTreeHead" => {
                 let obj = kotva_core::kt::SignedTreeHead::from_det_cbor(&bytes).unwrap();
-                assert!(obj.verify().is_ok(), "decoded SignedTreeHead must verify: {}", vec.name);
+                assert!(
+                    obj.verify().is_ok(),
+                    "decoded SignedTreeHead must verify: {}",
+                    vec.name
+                );
                 assert_eq!(hex(&obj.det_cbor()), cbor_hex, "{}", vec.name);
             }
             "InclusionProof" => {
@@ -138,12 +185,21 @@ fn cbor_vectors_round_trip() {
             }
             "CapabilityToken" => {
                 let obj = kotva_core::capability::CapabilityToken::from_det_cbor(&bytes).unwrap();
-                assert!(obj.verify().is_ok(), "decoded CapabilityToken must verify: {}", vec.name);
+                assert!(
+                    obj.verify().is_ok(),
+                    "decoded CapabilityToken must verify: {}",
+                    vec.name
+                );
                 assert_eq!(hex(&obj.det_cbor()), cbor_hex, "{}", vec.name);
             }
             "CapabilityRevocation" => {
-                let obj = kotva_core::capability::CapabilityRevocation::from_det_cbor(&bytes).unwrap();
-                assert!(obj.verify().is_ok(), "decoded CapabilityRevocation must verify: {}", vec.name);
+                let obj =
+                    kotva_core::capability::CapabilityRevocation::from_det_cbor(&bytes).unwrap();
+                assert!(
+                    obj.verify().is_ok(),
+                    "decoded CapabilityRevocation must verify: {}",
+                    vec.name
+                );
                 assert_eq!(hex(&obj.det_cbor()), cbor_hex, "{}", vec.name);
             }
             other => panic!("unknown cbor type {other}"),

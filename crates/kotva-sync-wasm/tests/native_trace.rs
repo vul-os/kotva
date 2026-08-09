@@ -21,14 +21,14 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use dmtap_core::id::ContentId;
 use dmtap_core::identity::IdentityKey;
 use dmtap_sync::detcbor::{decode, encode, SVal};
 use dmtap_sync::snapshot::ObservableState;
 use dmtap_sync::state::SyncState;
-use dmtap_sync::wire::{AddTag, Hlc, SyncOp};
 use dmtap_sync::state::VersionVector;
+use dmtap_sync::wire::{AddTag, Hlc, SyncOp};
 use dmtap_sync::{cose, FastJoin, OpEntry, SnapshotBody, SyncError};
-use dmtap_core::id::ContentId;
 use serde_json::{json, Value};
 
 /// Same receiver clock as the native conformance runner and the JS harness (§3).
@@ -63,7 +63,10 @@ fn hex(b: &[u8]) -> String {
 }
 
 fn unhex(s: &str) -> Vec<u8> {
-    (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap()).collect()
+    (0..s.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
+        .collect()
 }
 
 /// The refusal spelling both surfaces record: `code name action`.
@@ -72,21 +75,31 @@ fn refusal(e: SyncError) -> String {
 }
 
 fn s<'a>(v: &'a Value, k: &str) -> &'a str {
-    v.get(k).and_then(Value::as_str).unwrap_or_else(|| panic!("missing string `{k}`"))
+    v.get(k)
+        .and_then(Value::as_str)
+        .unwrap_or_else(|| panic!("missing string `{k}`"))
 }
 
 fn arr<'a>(v: &'a Value, k: &str) -> &'a Vec<Value> {
-    v.get(k).and_then(Value::as_array).unwrap_or_else(|| panic!("missing array `{k}`"))
+    v.get(k)
+        .and_then(Value::as_array)
+        .unwrap_or_else(|| panic!("missing array `{k}`"))
 }
 
 fn strs(v: &Value, k: &str) -> Vec<String> {
-    arr(v, k).iter().map(|e| e.as_str().unwrap_or_default().to_owned()).collect()
+    arr(v, k)
+        .iter()
+        .map(|e| e.as_str().unwrap_or_default().to_owned())
+        .collect()
 }
 
 fn hlc_of(v: &Value) -> Hlc {
     Hlc {
         wall: v.get("wall").and_then(Value::as_u64).expect("hlc.wall"),
-        counter: v.get("counter").and_then(Value::as_u64).expect("hlc.counter") as u32,
+        counter: v
+            .get("counter")
+            .and_then(Value::as_u64)
+            .expect("hlc.counter") as u32,
         author: unhex(s(v, "author_hex")),
     }
 }
@@ -98,7 +111,8 @@ fn op_of(h: &str) -> SyncOp {
 fn ingest(ops: &[SyncOp]) -> SyncState {
     let mut st = SyncState::new();
     for op in ops {
-        st.ingest(op, RECEIVER_NOW_MS).expect("vector op was refused by ingest");
+        st.ingest(op, RECEIVER_NOW_MS)
+            .expect("vector op was refused by ingest");
     }
     st
 }
@@ -135,7 +149,10 @@ fn observable_of(v: &Value) -> ObservableState {
     let mut st = ObservableState::default();
     for e in arr(v, "orset") {
         let t = e.as_array().unwrap();
-        st.orset.push((t[0].as_str().unwrap().into(), SVal::Text(t[1].as_str().unwrap().into())));
+        st.orset.push((
+            t[0].as_str().unwrap().into(),
+            SVal::Text(t[1].as_str().unwrap().into()),
+        ));
     }
     for e in arr(v, "lww") {
         let t = e.as_array().unwrap();
@@ -155,13 +172,18 @@ fn observable_of(v: &Value) -> ObservableState {
     }
     for e in arr(v, "death") {
         let t = e.as_array().unwrap();
-        st.death.push((t[0].as_str().unwrap().into(), t[1].as_str().unwrap().into()));
+        st.death
+            .push((t[0].as_str().unwrap().into(), t[1].as_str().unwrap().into()));
     }
     for e in arr(v, "rga") {
         let t = e.as_array().unwrap();
         st.rga.push((
             t[0].as_str().unwrap().into(),
-            t[1].as_array().unwrap().iter().map(|a| SVal::Text(a.as_str().unwrap().into())).collect(),
+            t[1].as_array()
+                .unwrap()
+                .iter()
+                .map(|a| SVal::Text(a.as_str().unwrap().into()))
+                .collect(),
         ));
     }
     for e in arr(v, "tree") {
@@ -179,7 +201,11 @@ fn observable_of(v: &Value) -> ObservableState {
 fn observable_from_cbor(bytes: &[u8]) -> ObservableState {
     let v = decode(bytes).expect("state body is not canonical CBOR");
     let sections = v.as_array().expect("state is an array").to_vec();
-    assert_eq!(sections.len(), 6, "an observable state is exactly six sections (§6.1.1)");
+    assert_eq!(
+        sections.len(),
+        6,
+        "an observable state is exactly six sections (§6.1.1)"
+    );
     let rows = |i: usize| sections[i].as_array().unwrap_or(&[]).to_vec();
     let mut st = ObservableState::default();
     for e in rows(0) {
@@ -192,7 +218,11 @@ fn observable_from_cbor(bytes: &[u8]) -> ObservableState {
     }
     for e in rows(2) {
         let t = e.as_array().unwrap().to_vec();
-        st.pn.push((text_of(&t[0]), text_of(&t[1]), t[2].as_int().unwrap() as i128));
+        st.pn.push((
+            text_of(&t[0]),
+            text_of(&t[1]),
+            t[2].as_int().unwrap() as i128,
+        ));
     }
     for e in rows(3) {
         let t = e.as_array().unwrap().to_vec();
@@ -200,11 +230,13 @@ fn observable_from_cbor(bytes: &[u8]) -> ObservableState {
     }
     for e in rows(4) {
         let t = e.as_array().unwrap().to_vec();
-        st.rga.push((text_of(&t[0]), t[1].as_array().unwrap().to_vec()));
+        st.rga
+            .push((text_of(&t[0]), t[1].as_array().unwrap().to_vec()));
     }
     for e in rows(5) {
         let t = e.as_array().unwrap().to_vec();
-        st.tree.push((text_of(&t[0]), text_of(&t[1]), text_of(&t[2])));
+        st.tree
+            .push((text_of(&t[0]), text_of(&t[1]), text_of(&t[2])));
     }
     st
 }
@@ -217,8 +249,14 @@ fn sync_op_encode(v: &Value) -> Case {
         kind: input["kind"].as_u64().unwrap() as u8,
         ns: s(input, "ns").into(),
         target: s(input, "target").into(),
-        field: input.get("field").and_then(Value::as_str).map(str::to_owned),
-        value: input.get("value_tstr").and_then(Value::as_str).map(|t| SVal::Text(t.into())),
+        field: input
+            .get("field")
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+        value: input
+            .get("value_tstr")
+            .and_then(Value::as_str)
+            .map(|t| SVal::Text(t.into())),
         hlc: hlc_of(&input["hlc"]),
         observed: None,
         reference: None,
@@ -251,8 +289,11 @@ fn sync_op_cose_sign1_verify(v: &Value) -> Case {
         .expect_err("a substituted kid verified");
     // The DS-tag negative: sign the same payload under the SNAPSHOT tag and offer it to the op
     // verifier.
-    let foreign_preimage =
-        cose::sig_structure(&signed.protected, b"DMTAP-SYNC-v0/snapshot\x00", &signed.payload);
+    let foreign_preimage = cose::sig_structure(
+        &signed.protected,
+        b"DMTAP-SYNC-v0/snapshot\x00",
+        &signed.payload,
+    );
     let forged = cose::CoseSign1 {
         protected: signed.protected.clone(),
         payload: signed.payload.clone(),
@@ -262,9 +303,15 @@ fn sync_op_cose_sign1_verify(v: &Value) -> Case {
 
     Case::from([
         ("author".into(), hex(&op.hlc.author)),
-        ("protected_bstr".into(), hex(&encode(&SVal::Bytes(signed.protected.clone())))),
+        (
+            "protected_bstr".into(),
+            hex(&encode(&SVal::Bytes(signed.protected.clone()))),
+        ),
         ("unprotected".into(), hex(&encode(&SVal::Map(Vec::new())))),
-        ("payload_bstr".into(), hex(&encode(&SVal::Bytes(signed.payload.clone())))),
+        (
+            "payload_bstr".into(),
+            hex(&encode(&SVal::Bytes(signed.payload.clone()))),
+        ),
         ("external_aad".into(), hex(&cose::op_external_aad())),
         ("sig_structure".into(), hex(&signed.signable())),
         ("signature".into(), hex(&signed.signature)),
@@ -284,14 +331,22 @@ fn sync_op_cose_sign1_verify(v: &Value) -> Case {
 
 fn sync_author_admission(v: &Value) -> Case {
     let input = &v["input"];
-    let admitted: Vec<Vec<u8>> = strs(input, "admitted_authors_hex").iter().map(|h| unhex(h)).collect();
+    let admitted: Vec<Vec<u8>> = strs(input, "admitted_authors_hex")
+        .iter()
+        .map(|h| unhex(h))
+        .collect();
     let author = unhex(s(input, "op_hlc_author_hex"));
     let mut case = Case::from([
         (
             "refusal".into(),
-            refusal(dmtap_sync::check_admitted(&author, &admitted).expect_err("unadmitted accepted")),
+            refusal(
+                dmtap_sync::check_admitted(&author, &admitted).expect_err("unadmitted accepted"),
+            ),
         ),
-        ("op_author".into(), hex(&op_of(s(input, "op_cbor_hex")).hlc.author)),
+        (
+            "op_author".into(),
+            hex(&op_of(s(input, "op_cbor_hex")).hlc.author),
+        ),
     ]);
     for (i, a) in admitted.iter().enumerate() {
         dmtap_sync::check_admitted(a, &admitted).expect("an admitted author was refused");
@@ -307,7 +362,11 @@ fn sync_lww_merge(v: &Value) -> Case {
     let fwd = ingest(&ops);
     let rev = ingest(&ops.iter().rev().cloned().collect::<Vec<_>>());
     let cell = |st: &SyncState| {
-        let (h, val) = st.lww.cell(&target, &field).expect("no winning cell").clone();
+        let (h, val) = st
+            .lww
+            .cell(&target, &field)
+            .expect("no winning cell")
+            .clone();
         (hex(&h.det_cbor()), hex(&val.det_cbor()), text_of(&val))
     };
     let (fh, fv, ft) = cell(&fwd);
@@ -318,8 +377,14 @@ fn sync_lww_merge(v: &Value) -> Case {
         ("winner_value_text".into(), ft),
         ("reverse_winner_hlc".into(), rh),
         ("reverse_winner_value".into(), rv),
-        ("forward_root".into(), hex(dmtap_sync::state_root(&fwd).as_bytes())),
-        ("reverse_root".into(), hex(dmtap_sync::state_root(&rev).as_bytes())),
+        (
+            "forward_root".into(),
+            hex(dmtap_sync::state_root(&fwd).as_bytes()),
+        ),
+        (
+            "reverse_root".into(),
+            hex(dmtap_sync::state_root(&rev).as_bytes()),
+        ),
     ])
 }
 
@@ -332,12 +397,20 @@ fn sync_orset_merge(v: &Value) -> Case {
     let rev = ingest(&ops.iter().rev().cloned().collect::<Vec<_>>());
     let tags = fwd.orset.surviving_tags(&target, &element);
     Case::from([
-        ("present_forward".into(), fwd.is_present(&target, &element).to_string()),
-        ("present_reverse".into(), rev.is_present(&target, &element).to_string()),
+        (
+            "present_forward".into(),
+            fwd.is_present(&target, &element).to_string(),
+        ),
+        (
+            "present_reverse".into(),
+            rev.is_present(&target, &element).to_string(),
+        ),
         ("surviving_count".into(), tags.len().to_string()),
         (
             "surviving_hlc".into(),
-            tags.first().map(|t| hex(&t.hlc.det_cbor())).unwrap_or_default(),
+            tags.first()
+                .map(|t| hex(&t.hlc.det_cbor()))
+                .unwrap_or_default(),
         ),
         (
             "members".into(),
@@ -352,11 +425,15 @@ fn sync_orset_merge(v: &Value) -> Case {
 
 fn sync_orset_remove_validity(v: &Value) -> Case {
     let op = op_of(s(&v["input"], "op_cbor_hex"));
-    let validate = dmtap_sync::validate_op(&op, RECEIVER_NOW_MS).expect_err("impossible op accepted");
+    let validate =
+        dmtap_sync::validate_op(&op, RECEIVER_NOW_MS).expect_err("impossible op accepted");
     let ingest_err = SyncState::new()
         .ingest(&op, RECEIVER_NOW_MS)
         .expect_err("ingest accepted an op the validator refused");
-    Case::from([("validate".into(), refusal(validate)), ("ingest".into(), refusal(ingest_err))])
+    Case::from([
+        ("validate".into(), refusal(validate)),
+        ("ingest".into(), refusal(ingest_err)),
+    ])
 }
 
 fn sync_death_domination(v: &Value) -> Case {
@@ -368,13 +445,20 @@ fn sync_death_domination(v: &Value) -> Case {
     Case::from([
         (
             "present_death_first".into(),
-            ingest(&[death.clone(), add.clone()]).is_present(&target, &element).to_string(),
+            ingest(&[death.clone(), add.clone()])
+                .is_present(&target, &element)
+                .to_string(),
         ),
         (
             "present_add_first".into(),
-            ingest(&[add.clone(), death.clone()]).is_present(&target, &element).to_string(),
+            ingest(&[add.clone(), death.clone()])
+                .is_present(&target, &element)
+                .to_string(),
         ),
-        ("add_outranks_death".into(), (add.hlc > death.hlc).to_string()),
+        (
+            "add_outranks_death".into(),
+            (add.hlc > death.hlc).to_string(),
+        ),
     ])
 }
 
@@ -388,8 +472,14 @@ fn sync_death_tie(v: &Value) -> Case {
             "state_death_first".into(),
             death_label(&ingest(&[death.clone(), live.clone()]), &target),
         ),
-        ("state_live_first".into(), death_label(&ingest(&[live, death.clone()]), &target)),
-        ("hlcs_tie".into(), (death.hlc == op_of(s(input, "live_op_cbor_hex")).hlc).to_string()),
+        (
+            "state_live_first".into(),
+            death_label(&ingest(&[live, death.clone()]), &target),
+        ),
+        (
+            "hlcs_tie".into(),
+            (death.hlc == op_of(s(input, "live_op_cbor_hex")).hlc).to_string(),
+        ),
     ])
 }
 
@@ -404,10 +494,22 @@ fn sync_pn_merge(v: &Value) -> Case {
         ops.iter().map(|o| hex(o.op_id().as_bytes())).collect();
     Case::from([
         ("entries".into(), counter_label(&all, &target, &field)),
-        ("total".into(), all.counters.total(&target, &field).to_string()),
-        ("distinct_total".into(), distinct.counters.total(&target, &field).to_string()),
-        ("replay_total".into(), replayed.counters.total(&target, &field).to_string()),
-        ("replay_entries".into(), counter_label(&replayed, &target, &field)),
+        (
+            "total".into(),
+            all.counters.total(&target, &field).to_string(),
+        ),
+        (
+            "distinct_total".into(),
+            distinct.counters.total(&target, &field).to_string(),
+        ),
+        (
+            "replay_total".into(),
+            replayed.counters.total(&target, &field).to_string(),
+        ),
+        (
+            "replay_entries".into(),
+            counter_label(&replayed, &target, &field),
+        ),
         ("distinct_op_ids".into(), ids.len().to_string()),
     ])
 }
@@ -426,7 +528,9 @@ fn sync_counter_foreign_check(v: &Value) -> Case {
         ),
         (
             "own_entry_ok".into(),
-            dmtap_sync::check_counter_entry(&op_author, &op_author).is_ok().to_string(),
+            dmtap_sync::check_counter_entry(&op_author, &op_author)
+                .is_ok()
+                .to_string(),
         ),
     ])
 }
@@ -442,8 +546,16 @@ fn sync_rga_sibling_order(v: &Value) -> Case {
         let st = ingest(&ops);
         let seq = st.sequences.get(&target).expect("no sequence built");
         (
-            seq.values().iter().map(text_of).collect::<Vec<_>>().join(","),
-            seq.order().iter().map(|id| hex(&id.det_cbor())).collect::<Vec<_>>().join(","),
+            seq.values()
+                .iter()
+                .map(text_of)
+                .collect::<Vec<_>>()
+                .join(","),
+            seq.order()
+                .iter()
+                .map(|id| hex(&id.det_cbor()))
+                .collect::<Vec<_>>()
+                .join(","),
         )
     };
     let (vf, idf) = run(siblings.clone());
@@ -465,7 +577,14 @@ fn sync_rga_tombstone_origin(v: &Value) -> Case {
     let st = ingest(&[insert_x, remove_x, insert_y.clone()]);
     let seq = st.sequences.get(&target).expect("no sequence built");
     Case::from([
-        ("visible".into(), seq.values().iter().map(text_of).collect::<Vec<_>>().join(",")),
+        (
+            "visible".into(),
+            seq.values()
+                .iter()
+                .map(text_of)
+                .collect::<Vec<_>>()
+                .join(","),
+        ),
         (
             "labels".into(),
             seq.order()
@@ -495,7 +614,12 @@ fn sync_tree_move_replay(v: &Value) -> Case {
     let orders: Vec<Vec<SyncOp>> = vec![
         ops.clone(),
         ops.iter().rev().cloned().collect(),
-        vec![ops[3].clone(), ops[2].clone(), ops[0].clone(), ops[1].clone()],
+        vec![
+            ops[3].clone(),
+            ops[2].clone(),
+            ops[0].clone(),
+            ops[1].clone(),
+        ],
     ];
     for (i, order) in orders.iter().enumerate() {
         let replay = ingest(order).tree.replay();
@@ -513,7 +637,15 @@ fn sync_tree_move_replay(v: &Value) -> Case {
             replay
                 .skipped
                 .iter()
-                .map(|(h, _)| if *h == h1 { "h1" } else if *h == h2 { "h2" } else { "?" })
+                .map(|(h, _)| {
+                    if *h == h1 {
+                        "h1"
+                    } else if *h == h2 {
+                        "h2"
+                    } else {
+                        "?"
+                    }
+                })
                 .collect::<Vec<_>>()
                 .join(","),
         );
@@ -548,7 +680,10 @@ fn sync_snapshot_state_root(v: &Value) -> Case {
         ("empty_root".into(), hex(empty.root().as_bytes())),
         ("shuffled_cbor".into(), hex(&shuffled.det_cbor())),
         ("diverged_root".into(), hex(diverged.root().as_bytes())),
-        ("roundtrip_cbor".into(), hex(&observable_from_cbor(&cbor).det_cbor())),
+        (
+            "roundtrip_cbor".into(),
+            hex(&observable_from_cbor(&cbor).det_cbor()),
+        ),
     ])
 }
 
@@ -559,7 +694,11 @@ fn sync_snapshot_fast_join(v: &Value) -> Case {
     for op in ops_of(input, "post_covers_ops_cbor_hex") {
         let field = op.field.clone().expect("post-covers op without a field");
         let value = op.value.clone().expect("post-covers op without a value");
-        match joined.lww.iter_mut().find(|(t, f, _)| *t == op.target && *f == field) {
+        match joined
+            .lww
+            .iter_mut()
+            .find(|(t, f, _)| *t == op.target && *f == field)
+        {
             Some(cell) => cell.2 = value,
             None => joined.lww.push((op.target.clone(), field, value)),
         }
@@ -605,7 +744,9 @@ fn sync_ext_value_validate(v: &Value) -> Case {
     let carrier = op_of(s(input, "carrier_op_cbor_hex"));
     case.insert(
         "carrier_valid".into(),
-        dmtap_sync::validate_op(&carrier, RECEIVER_NOW_MS).is_ok().to_string(),
+        dmtap_sync::validate_op(&carrier, RECEIVER_NOW_MS)
+            .is_ok()
+            .to_string(),
     );
     case.insert("carrier_reencoded".into(), hex(&carrier.det_cbor()));
     case.insert("carrier_op_id".into(), hex(carrier.op_id().as_bytes()));
@@ -613,7 +754,11 @@ fn sync_ext_value_validate(v: &Value) -> Case {
     // they are the one projection both surfaces can produce identically.
     case.insert(
         "carrier_value_cbor".into(),
-        hex(&carrier.value.as_ref().expect("carrier has no value").det_cbor()),
+        hex(&carrier
+            .value
+            .as_ref()
+            .expect("carrier has no value")
+            .det_cbor()),
     );
     // §4.1.1: the merge unit is the WHOLE value — nesting is representation, never per-key merge.
     let mut rival = carrier.clone();
@@ -623,7 +768,11 @@ fn sync_ext_value_validate(v: &Value) -> Case {
     let field = carrier.field.clone().expect("carrier has no field");
     case.insert(
         "whole_value_wins".into(),
-        hex(&merged.lww.get(&carrier.target, &field).expect("no cell").det_cbor()),
+        hex(&merged
+            .lww
+            .get(&carrier.target, &field)
+            .expect("no cell")
+            .det_cbor()),
     );
     case.insert("refusal_code".into(), refusal(SyncError::OpInvalid));
     case
@@ -652,7 +801,10 @@ fn sync_snapshot_body_fold(v: &Value) -> Case {
                 .join(","),
         ),
         ("folded_state".into(), hex(&adopted.observable.det_cbor())),
-        ("folded_root".into(), hex(adopted.observable.root().as_bytes())),
+        (
+            "folded_root".into(),
+            hex(adopted.observable.root().as_bytes()),
+        ),
     ]);
 
     // A body that does not PRODUCE the root it is offered against is 0x0A09, discarded whole.
@@ -674,8 +826,14 @@ fn sync_snapshot_body_fold(v: &Value) -> Case {
         decode(&unhex(s(input, "snapshot_covers_cbor_hex"))).expect("covers CBOR"),
     )
     .expect("covers");
-    case.insert("post_op_is_after_covers".into(), covers.lacks(&post.hlc).to_string());
-    case.insert("post_op_is_below_incumbent".into(), (post.hlc < incumbent.hlc).to_string());
+    case.insert(
+        "post_op_is_after_covers".into(),
+        covers.lacks(&post.hlc).to_string(),
+    );
+    case.insert(
+        "post_op_is_below_incumbent".into(),
+        (post.hlc < incumbent.hlc).to_string(),
+    );
 
     // The conformant replica FOLDED the body, so it holds the incumbent's HLC and keeps it.
     let mut conformant = adopted.state.clone();
@@ -699,7 +857,10 @@ fn sync_snapshot_body_fold(v: &Value) -> Case {
     projection.ingest(&post, RECEIVER_NOW_MS).expect("ingest");
     let projected = ObservableState::of(&projection);
     case.insert("projection_adopt_state".into(), hex(&projected.det_cbor()));
-    case.insert("projection_adopt_root".into(), hex(projected.root().as_bytes()));
+    case.insert(
+        "projection_adopt_root".into(),
+        hex(projected.root().as_bytes()),
+    );
     case.insert(
         "roots_differ".into(),
         (projected.root().as_bytes() != after.root().as_bytes()).to_string(),
@@ -715,19 +876,30 @@ fn sync_recon_fingerprint(v: &Value) -> Case {
         let op = op_of(h.as_str().unwrap());
         let id = op.op_id();
         case.insert(format!("op_id_{label}"), hex(id.as_bytes()));
-        entries.insert(label.clone(), OpEntry { hlc: op.hlc.clone(), id });
+        entries.insert(
+            label.clone(),
+            OpEntry {
+                hlc: op.hlc.clone(),
+                id,
+            },
+        );
     }
     let holds = |key: &str| -> Vec<OpEntry> {
-        strs(input, key).iter().map(|l| entries[l].clone()).collect()
+        strs(input, key)
+            .iter()
+            .map(|l| entries[l].clone())
+            .collect()
     };
     let (a_set, b_set) = (holds("replica_A_holds"), holds("replica_B_holds"));
     let lo = hlc_of(&input["range"]["lo"]);
     let hi = hlc_of(&input["range"]["hi"]);
     let split = hlc_of(&input["split_at"]);
     for (name, set) in [("A", &a_set), ("B", &b_set)] {
-        for (range, l, h) in
-            [("full", &lo, &hi), ("sub1", &lo, &split), ("sub2", &split, &hi)]
-        {
+        for (range, l, h) in [
+            ("full", &lo, &hi),
+            ("sub1", &lo, &split),
+            ("sub2", &split, &hi),
+        ] {
             let fp = dmtap_sync::summarize(set, l, h);
             case.insert(format!("{range}_{name}_fp"), hex(fp.fp.as_bytes()));
             case.insert(format!("{range}_{name}_count"), fp.count.to_string());
@@ -739,11 +911,21 @@ fn sync_recon_fingerprint(v: &Value) -> Case {
     let outcome = dmtap_sync::reconcile(&b_set, &a_set, &lo, &hi, Default::default());
     case.insert(
         "shipped_to_B".into(),
-        outcome.missing_here.iter().map(|i| hex(i.as_bytes())).collect::<Vec<_>>().join(","),
+        outcome
+            .missing_here
+            .iter()
+            .map(|i| hex(i.as_bytes()))
+            .collect::<Vec<_>>()
+            .join(","),
     );
     case.insert(
         "shipped_to_A".into(),
-        outcome.missing_there.iter().map(|i| hex(i.as_bytes())).collect::<Vec<_>>().join(","),
+        outcome
+            .missing_there
+            .iter()
+            .map(|i| hex(i.as_bytes()))
+            .collect::<Vec<_>>()
+            .join(","),
     );
     case
 }
@@ -756,9 +938,20 @@ fn sync_ns_sparse_filter(v: &Value) -> Case {
     Case::from([
         (
             "shipped".into(),
-            shipped.iter().map(|op| hex(&op.det_cbor())).collect::<Vec<_>>().join(","),
+            shipped
+                .iter()
+                .map(|op| hex(&op.det_cbor()))
+                .collect::<Vec<_>>()
+                .join(","),
         ),
-        ("shipped_ns".into(), shipped.iter().map(|op| op.ns.clone()).collect::<Vec<_>>().join(",")),
+        (
+            "shipped_ns".into(),
+            shipped
+                .iter()
+                .map(|op| op.ns.clone())
+                .collect::<Vec<_>>()
+                .join(","),
+        ),
     ])
 }
 
@@ -770,7 +963,11 @@ fn sync_ns_leak_check(v: &Value) -> Case {
         ("op_ns".into(), op.ns.clone()),
         (
             "ref_target".into(),
-            op.reference.as_ref().expect("op carries no reference").target.clone(),
+            op.reference
+                .as_ref()
+                .expect("op carries no reference")
+                .target
+                .clone(),
         ),
         (
             "refusal".into(),
@@ -779,7 +976,10 @@ fn sync_ns_leak_check(v: &Value) -> Case {
                     .expect_err("a cross-namespace reference was accepted"),
             ),
         ),
-        ("same_ns_ok".into(), dmtap_sync::check_ns_ref(&op.ns, &op.ns).is_ok().to_string()),
+        (
+            "same_ns_ok".into(),
+            dmtap_sync::check_ns_ref(&op.ns, &op.ns).is_ok().to_string(),
+        ),
     ])
 }
 
@@ -799,7 +999,11 @@ fn sync_gc_stability_cut(v: &Value) -> Case {
 
     // The same collapsed add/tombstone pair the JS harness builds, through real ops.
     let author = cut.author.clone();
-    let add_hlc = Hlc { wall: cut.wall, counter: 1, author: author.clone() };
+    let add_hlc = Hlc {
+        wall: cut.wall,
+        counter: 1,
+        author: author.clone(),
+    };
     let element = SVal::Text("e1".into());
     let add = SyncOp {
         kind: dmtap_sync::OP_SET_ADD,
@@ -817,8 +1021,15 @@ fn sync_gc_stability_cut(v: &Value) -> Case {
         target: "tags".into(),
         field: None,
         value: Some(element),
-        hlc: Hlc { wall: cut.wall, counter: 2, author: author.clone() },
-        observed: Some(vec![AddTag { author, hlc: add_hlc }]),
+        hlc: Hlc {
+            wall: cut.wall,
+            counter: 2,
+            author: author.clone(),
+        },
+        observed: Some(vec![AddTag {
+            author,
+            hlc: add_hlc,
+        }]),
         reference: None,
     };
     let mut st = ingest(&[add, remove]);
@@ -839,7 +1050,10 @@ fn sync_gc_stability_cut(v: &Value) -> Case {
         ),
         ("pruned_something".into(), (pruned > 0).to_string()),
         ("state_before_gc".into(), before),
-        ("state_after_gc".into(), hex(&ObservableState::of(&st).det_cbor())),
+        (
+            "state_after_gc".into(),
+            hex(&ObservableState::of(&st).det_cbor()),
+        ),
     ])
 }
 
@@ -855,7 +1069,10 @@ fn hlc_of_hex(h: &str) -> Hlc {
 
 /// `{2: FastJoin}` — the §5.2.1 pull envelope.
 fn pull_envelope(fj: &FastJoin) -> Vec<u8> {
-    encode(&SVal::Map(vec![(2, decode(&fj.det_cbor()).expect("own FastJoin encoding"))]))
+    encode(&SVal::Map(vec![(
+        2,
+        decode(&fj.det_cbor()).expect("own FastJoin encoding"),
+    )]))
 }
 
 fn sync_fastjoin_pull_response(v: &Value) -> Case {
@@ -884,9 +1101,16 @@ fn sync_fastjoin_pull_response(v: &Value) -> Case {
     // forbids adopting — frozen even though C-09's own note claimed this field was untouched.
     let real_body = unhex(s(i, "snapshot_body_cbor_hex"));
 
-    let by_ref = FastJoin { snapshot: snapshot.clone(), floor: floor.clone(), state: None };
-    let inline =
-        FastJoin { snapshot: snapshot.clone(), floor: floor.clone(), state: Some(real_body.clone()) };
+    let by_ref = FastJoin {
+        snapshot: snapshot.clone(),
+        floor: floor.clone(),
+        state: None,
+    };
+    let inline = FastJoin {
+        snapshot: snapshot.clone(),
+        floor: floor.clone(),
+        state: Some(real_body.clone()),
+    };
 
     // THE FOLD: adopted straight off the vector's own conformant body, against the vector's own
     // (unchanged) root — no synthetic body or re-signed snapshot needed any more, since the real
@@ -900,7 +1124,11 @@ fn sync_fastjoin_pull_response(v: &Value) -> Case {
     let mut corrupt = real_body.clone();
     let last = corrupt.len() - 1;
     corrupt[last] ^= 0xff;
-    let hinted = FastJoin { snapshot: snapshot.clone(), floor: floor.clone(), state: Some(corrupt) };
+    let hinted = FastJoin {
+        snapshot: snapshot.clone(),
+        floor: floor.clone(),
+        state: Some(corrupt),
+    };
     let root_addr = snapshot.root.clone();
     let adopted_via_fetch = hinted
         .adopt(&empty, &[], &[], RECEIVER_NOW_MS, |addr| {
@@ -911,10 +1139,16 @@ fn sync_fastjoin_pull_response(v: &Value) -> Case {
     // C-11's non-conformant artifact: the pre-C-09 `state` document, proven REJECTED by a
     // conformant caller rather than merely unused (mirrors how the C-06 bstr-wrapped op is
     // handled).
-    let pre_c09 = FastJoin { snapshot: snapshot.clone(), floor: floor.clone(), state: None };
+    let pre_c09 = FastJoin {
+        snapshot: snapshot.clone(),
+        floor: floor.clone(),
+        state: None,
+    };
     let pre_c09_rejected = refusal(
         pre_c09
-            .adopt(&empty, &[], &[], RECEIVER_NOW_MS, |_| Some(state_body.clone()))
+            .adopt(&empty, &[], &[], RECEIVER_NOW_MS, |_| {
+                Some(state_body.clone())
+            })
             .expect_err("det_cbor(ObservableState) was adopted as a SnapshotBody"),
     );
 
@@ -922,18 +1156,29 @@ fn sync_fastjoin_pull_response(v: &Value) -> Case {
         ("snapshot_preimage".into(), hex(&preimage)),
         ("snapshot_sig".into(), hex(&snapshot.sig)),
         ("snapshot_cbor".into(), hex(&snapshot.det_cbor())),
-        ("state_root".into(), hex(dmtap_sync::state_root_of(&state_body).as_bytes())),
+        (
+            "state_root".into(),
+            hex(dmtap_sync::state_root_of(&state_body).as_bytes()),
+        ),
         ("fastjoin_cbor".into(), hex(&by_ref.det_cbor())),
         ("pull_cbor".into(), hex(&pull_envelope(&by_ref))),
         ("pull_inline_cbor".into(), hex(&pull_envelope(&inline))),
         (
             "fastjoin_roundtrip".into(),
-            hex(&FastJoin::from_det_cbor(&by_ref.det_cbor()).expect("round-trip").det_cbor()),
+            hex(&FastJoin::from_det_cbor(&by_ref.det_cbor())
+                .expect("round-trip")
+                .det_cbor()),
         ),
         ("state_address".into(), hex(snapshot.root.as_bytes())),
         ("adopted_state".into(), hex(&adopted.observable.det_cbor())),
-        ("adopted_root".into(), hex(adopted.observable.root().as_bytes())),
-        ("adopted_via_fetch_root".into(), hex(adopted_via_fetch.observable.root().as_bytes())),
+        (
+            "adopted_root".into(),
+            hex(adopted.observable.root().as_bytes()),
+        ),
+        (
+            "adopted_via_fetch_root".into(),
+            hex(adopted_via_fetch.observable.root().as_bytes()),
+        ),
         ("op_body_cbor".into(), hex(&real_body)),
         (
             "corrupt_hint_unfetchable".into(),
@@ -959,7 +1204,9 @@ fn sync_fastjoin_floor_predicate(v: &Value) -> Case {
     let i = &v["input"];
     // The responder's FastJoin, taken from the frozen pull response.
     let pull = decode(&unhex(s(&v["expected"], "caller_behind_response_cbor_hex"))).expect("pull");
-    let SVal::Map(fields) = pull else { panic!("pull response is not a map") };
+    let SVal::Map(fields) = pull else {
+        panic!("pull response is not a map")
+    };
     let (_, fj_sval) = fields.into_iter().find(|(k, _)| *k == 2).expect("key 2");
     let fj = FastJoin::from_det_cbor(&encode(&fj_sval)).expect("FastJoin decodes");
 
@@ -969,8 +1216,10 @@ fn sync_fastjoin_floor_predicate(v: &Value) -> Case {
 
     // The forbidden answer, recomputed — well-formed, which is exactly why the MUST exists. Each op
     // is embedded as a CBOR ITEM, as the vector freezes it.
-    let items: Vec<SVal> =
-        strs(i, "surviving_suffix_ops_cbor_hex").iter().map(|h| decode(&unhex(h)).unwrap()).collect();
+    let items: Vec<SVal> = strs(i, "surviving_suffix_ops_cbor_hex")
+        .iter()
+        .map(|h| decode(&unhex(h)).unwrap())
+        .collect();
     let would_be = encode(&SVal::Map(vec![(1, SVal::Array(items))]));
 
     // C-06: the NON-conformant bstr-wrapped framing, recomputed from the same suffix so both
@@ -978,7 +1227,10 @@ fn sync_fastjoin_floor_predicate(v: &Value) -> Case {
     let bstr_wrapped = encode(&SVal::Map(vec![(
         1,
         SVal::Array(
-            strs(i, "surviving_suffix_ops_cbor_hex").iter().map(|h| SVal::Bytes(unhex(h))).collect(),
+            strs(i, "surviving_suffix_ops_cbor_hex")
+                .iter()
+                .map(|h| SVal::Bytes(unhex(h)))
+                .collect(),
         ),
     )]));
 
@@ -995,7 +1247,9 @@ fn sync_fastjoin_floor_predicate(v: &Value) -> Case {
         // ...and step 2 accepts the fast-join anyway, which is the whole of C-07.
         (
             "step2_accepts_conformant_floor_above_covers".into(),
-            dmtap_sync::check_covers_closes_gap(&fj.snapshot, &floor, &behind).is_ok().to_string(),
+            dmtap_sync::check_covers_closes_gap(&fj.snapshot, &floor, &behind)
+                .is_ok()
+                .to_string(),
         ),
         (
             "covers_carries_floor_author_mark".into(),
@@ -1008,7 +1262,10 @@ fn sync_fastjoin_floor_predicate(v: &Value) -> Case {
                     .expect_err("a repeated fast-join at the same root/covers was allowed"),
             ),
         ),
-        ("first_round_makes_progress".into(), fj.check_progress(None).is_ok().to_string()),
+        (
+            "first_round_makes_progress".into(),
+            fj.check_progress(None).is_ok().to_string(),
+        ),
         (
             "behind_is_below_floor".into(),
             dmtap_sync::caller_is_below_floor(&fj.snapshot, &behind).to_string(),
@@ -1020,8 +1277,12 @@ fn sync_fastjoin_floor_predicate(v: &Value) -> Case {
         ("ops_response_would_be".into(), hex(&would_be)),
         (
             "fastjoin_roundtrip".into(),
-            hex(&FastJoin { snapshot: fj.snapshot.clone(), floor: fj.floor.clone(), state: None }
-                .det_cbor()),
+            hex(&FastJoin {
+                snapshot: fj.snapshot.clone(),
+                floor: fj.floor.clone(),
+                state: None,
+            }
+            .det_cbor()),
         ),
         (
             "state_unavailable".into(),
@@ -1119,7 +1380,10 @@ fn native_trace_matches_the_committed_artifact() {
         "sync_vectors.json at {} parsed but carries ZERO vectors — nothing was verified",
         vp.display()
     );
-    let undriven: Vec<&String> = all.iter().filter(|n| !trace.contains_key(n.as_str())).collect();
+    let undriven: Vec<&String> = all
+        .iter()
+        .filter(|n| !trace.contains_key(n.as_str()))
+        .collect();
     assert!(
         undriven.is_empty(),
         "{} of {} frozen SYNC.md §10 vectors were NOT driven through kotva-sync natively: {:?}. \
@@ -1135,7 +1399,12 @@ fn native_trace_matches_the_committed_artifact() {
         trace.len(),
         all.len()
     );
-    eprintln!("native trace: drove {}/{} frozen SYNC.md §10 vectors from {}", trace.len(), all.len(), vp.display());
+    eprintln!(
+        "native trace: drove {}/{} frozen SYNC.md §10 vectors from {}",
+        trace.len(),
+        all.len(),
+        vp.display()
+    );
 
     let document = json!({
         "note": "Recorded by `cargo test -p kotva-sync-wasm --test native_trace` from kotva-sync \

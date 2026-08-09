@@ -36,7 +36,10 @@ mod serde_bytes {
             fn visit_byte_buf<E: serde::de::Error>(self, v: Vec<u8>) -> Result<Vec<u8>, E> {
                 Ok(v)
             }
-            fn visit_seq<A: serde::de::SeqAccess<'de>>(self, mut a: A) -> Result<Vec<u8>, A::Error> {
+            fn visit_seq<A: serde::de::SeqAccess<'de>>(
+                self,
+                mut a: A,
+            ) -> Result<Vec<u8>, A::Error> {
                 let mut out = Vec::new();
                 while let Some(b) = a.next_element::<u8>()? {
                     out.push(b);

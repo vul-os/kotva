@@ -34,8 +34,8 @@ use chacha20poly1305::{
 use hkdf::Hkdf;
 use ml_dsa::signature::{Keypair, Signer, Verifier};
 use ml_dsa::{
-    EncodedVerifyingKey, Generate, MlDsa65, Signature as MlDsaSignature, SigningKey as MlDsaSigningKey,
-    VerifyingKey as MlDsaVerifyingKey,
+    EncodedVerifyingKey, Generate, MlDsa65, Signature as MlDsaSignature,
+    SigningKey as MlDsaSigningKey, VerifyingKey as MlDsaVerifyingKey,
 };
 use sha2::Sha256;
 use x_wing::{
@@ -119,7 +119,10 @@ impl HybridKemKeypair {
     pub fn generate() -> Self {
         let (dk, ek) = XWingKem::generate_keypair();
         let ek_bytes = KeyExport::to_bytes(&ek);
-        HybridKemKeypair { dk: *dk.as_bytes(), ek: ek_bytes.as_slice().to_vec() }
+        HybridKemKeypair {
+            dk: *dk.as_bytes(),
+            ek: ek_bytes.as_slice().to_vec(),
+        }
     }
 
     /// The 1216-byte X-Wing encapsulation (public) key.
@@ -149,7 +152,12 @@ fn derive_aead_key(shared_secret: &[u8]) -> [u8; 32] {
 }
 
 impl PayloadSeal for HybridSeal {
-    fn seal(&self, recipient_pub: &[u8], aad: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, MoteError> {
+    fn seal(
+        &self,
+        recipient_pub: &[u8],
+        aad: &[u8],
+        plaintext: &[u8],
+    ) -> Result<Vec<u8>, MoteError> {
         let ek = EncapsulationKey::try_from(recipient_pub).map_err(|_| MoteError::BadKey)?;
         // X-Wing encapsulation: fresh shared secret + ciphertext (getrandom-backed).
         let (ct, ss) = ek.encapsulate();
@@ -157,7 +165,13 @@ impl PayloadSeal for HybridSeal {
         let cipher = ChaCha20Poly1305::new(AeadKey::from_slice(&key));
         let nonce = Nonce::from_slice(&HYBRID_AEAD_NONCE);
         let sealed = cipher
-            .encrypt(nonce, AeadPayload { msg: plaintext, aad })
+            .encrypt(
+                nonce,
+                AeadPayload {
+                    msg: plaintext,
+                    aad,
+                },
+            )
             .map_err(|_| MoteError::SealFailed)?;
 
         let ct_bytes: &[u8] = ct.as_ref();
@@ -169,7 +183,12 @@ impl PayloadSeal for HybridSeal {
         Ok(out)
     }
 
-    fn open(&self, recipient_secret: &[u8], aad: &[u8], sealed: &[u8]) -> Result<Vec<u8>, MoteError> {
+    fn open(
+        &self,
+        recipient_secret: &[u8],
+        aad: &[u8],
+        sealed: &[u8],
+    ) -> Result<Vec<u8>, MoteError> {
         if sealed.len() < 2 {
             return Err(MoteError::DecryptFailed);
         }
@@ -180,8 +199,7 @@ impl PayloadSeal for HybridSeal {
         let ct_bytes = &sealed[2..2 + enc_len];
         let ct_body = &sealed[2 + enc_len..];
 
-        let sk: [u8; XWING_DK_LEN] =
-            recipient_secret.try_into().map_err(|_| MoteError::BadKey)?;
+        let sk: [u8; XWING_DK_LEN] = recipient_secret.try_into().map_err(|_| MoteError::BadKey)?;
         let dk = DecapsulationKey::from(sk);
         let ct = XWingCiphertext::try_from(ct_bytes).map_err(|_| MoteError::DecryptFailed)?;
         let ss = Decapsulate::decapsulate(&dk, &ct);
@@ -210,13 +228,19 @@ pub struct HybridSigningKey {
 impl HybridSigningKey {
     /// Generate a fresh hybrid signing key (both halves from the OS CSPRNG).
     pub fn generate() -> Self {
-        HybridSigningKey { ed: IdentityKey::generate(), mldsa: MlDsaSigningKey::<MlDsa65>::generate() }
+        HybridSigningKey {
+            ed: IdentityKey::generate(),
+            mldsa: MlDsaSigningKey::<MlDsa65>::generate(),
+        }
     }
 
     /// Build from an existing Ed25519 [`IdentityKey`] plus a fresh ML-DSA-65 half (useful when the
     /// classical identity already exists and is migrating to the hybrid suite).
     pub fn from_ed25519(ed: IdentityKey) -> Self {
-        HybridSigningKey { ed, mldsa: MlDsaSigningKey::<MlDsa65>::generate() }
+        HybridSigningKey {
+            ed,
+            mldsa: MlDsaSigningKey::<MlDsa65>::generate(),
+        }
     }
 
     /// The hybrid public key `Ed25519_pk(32) ‖ ML-DSA-65_pk(1952)` = 1984 B (§18.2).
@@ -316,7 +340,10 @@ mod tests {
         let pt = b"the quick brown fox jumps over the lazy dog";
         let sealed = HybridSeal.seal(kem.public(), aad, pt).unwrap();
         // [u16 ct_len][1120 ct][aead ct incl. 16-byte tag]
-        assert_eq!(u16::from_be_bytes([sealed[0], sealed[1]]) as usize, XWING_CT_LEN);
+        assert_eq!(
+            u16::from_be_bytes([sealed[0], sealed[1]]) as usize,
+            XWING_CT_LEN
+        );
         let opened = HybridSeal.open(kem.secret(), aad, &sealed).unwrap();
         assert_eq!(opened, pt);
     }
@@ -327,13 +354,22 @@ mod tests {
         let other = HybridKemKeypair::generate();
         let sealed = HybridSeal.seal(kem.public(), b"aad", b"secret").unwrap();
         // Wrong decapsulation key → AEAD authentication fails.
-        assert_eq!(HybridSeal.open(other.secret(), b"aad", &sealed), Err(MoteError::DecryptFailed));
+        assert_eq!(
+            HybridSeal.open(other.secret(), b"aad", &sealed),
+            Err(MoteError::DecryptFailed)
+        );
         // Tampered AAD → fails.
-        assert_eq!(HybridSeal.open(kem.secret(), b"other-aad", &sealed), Err(MoteError::DecryptFailed));
+        assert_eq!(
+            HybridSeal.open(kem.secret(), b"other-aad", &sealed),
+            Err(MoteError::DecryptFailed)
+        );
         // Flipping a ciphertext byte → fails.
         let mut bad = sealed.clone();
         *bad.last_mut().unwrap() ^= 0x01;
-        assert_eq!(HybridSeal.open(kem.secret(), b"aad", &bad), Err(MoteError::DecryptFailed));
+        assert_eq!(
+            HybridSeal.open(kem.secret(), b"aad", &bad),
+            Err(MoteError::DecryptFailed)
+        );
     }
 
     #[test]
@@ -365,7 +401,9 @@ mod tests {
             *b = 0;
         }
         assert_eq!(
-            verify_hybrid_domain(&pk, DS, b"m", &zeroed).unwrap_err().code(),
+            verify_hybrid_domain(&pk, DS, b"m", &zeroed)
+                .unwrap_err()
+                .code(),
             0x0210
         );
     }
@@ -378,7 +416,9 @@ mod tests {
         let mut sig = k.sign_domain(DS, b"m");
         sig[0] ^= 0x01; // corrupt the Ed25519 component
         assert_eq!(
-            verify_hybrid_domain(&pk, DS, b"m", &sig).unwrap_err().code(),
+            verify_hybrid_domain(&pk, DS, b"m", &sig)
+                .unwrap_err()
+                .code(),
             0x0210
         );
     }

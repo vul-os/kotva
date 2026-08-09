@@ -21,7 +21,9 @@ use kotva_core::cbor::{self, CborError, Cv};
 use kotva_core::deniable::{DeniablePayload, DeniablePrekeyBundle};
 use kotva_core::directory::{Custody, DirEntry, DomainDirectory, Visibility};
 use kotva_core::id::ContentId;
-use kotva_core::identity::{Cap, DeviceCert, Identity, IdentityError, IdentityKey, KeyPackageBundleRef};
+use kotva_core::identity::{
+    Cap, DeviceCert, Identity, IdentityError, IdentityKey, KeyPackageBundleRef,
+};
 use kotva_core::mixnet::{MixKeyEntry, MixNodeDescriptor};
 use kotva_core::mote::{
     build_mote, validate, Envelope, Headers, Hpke, Kind, Manifest, MoteDraft, MoteError, Outcome,
@@ -49,20 +51,36 @@ fn manifest_carrying_forbidden_key5_is_rejected() {
         (1, Cv::Bytes(ContentId::of(b"root").as_bytes().to_vec())),
         (2, Cv::U64(1024)),
         (3, Cv::U64(1024)),
-        (4, Cv::Array(vec![Cv::Bytes(ContentId::of(b"c0").as_bytes().to_vec())])),
+        (
+            4,
+            Cv::Array(vec![Cv::Bytes(ContentId::of(b"c0").as_bytes().to_vec())]),
+        ),
         (5, Cv::Bytes(vec![0u8; 32])), // FORBIDDEN: the content key must never live here
         (6, Cv::U64(Suite::Classical.as_u8() as u64)),
     ]);
     let bytes = cbor::encode(&leaky);
-    assert_eq!(Manifest::from_det_cbor(&bytes), Err(CborError::ManifestKeyPresent));
+    assert_eq!(
+        Manifest::from_det_cbor(&bytes),
+        Err(CborError::ManifestKeyPresent)
+    );
 }
 
 /// Sanity control: a well-formed Manifest (key 5 absent) round-trips and its `id` equals its own
 /// Merkle root (§18.9.5) — the positive case paired with the rejection above.
 #[test]
 fn manifest_without_key5_round_trips_and_id_is_merkle_root() {
-    let chunks = vec![ContentId::of(b"c0"), ContentId::of(b"c1"), ContentId::of(b"c2")];
-    let mut m = Manifest { id: ContentId(Vec::new()), size: 3 * 1024 * 1024, chunk_sz: 1024 * 1024, chunks, suite: Suite::Classical };
+    let chunks = vec![
+        ContentId::of(b"c0"),
+        ContentId::of(b"c1"),
+        ContentId::of(b"c2"),
+    ];
+    let mut m = Manifest {
+        id: ContentId(Vec::new()),
+        size: 3 * 1024 * 1024,
+        chunk_sz: 1024 * 1024,
+        chunks,
+        suite: Suite::Classical,
+    };
     m.id = m.merkle_root();
     let bytes = m.det_cbor();
     let back = Manifest::from_det_cbor(&bytes).expect("well-formed manifest must decode");
@@ -85,14 +103,21 @@ fn deniable_payload_rejects_any_smuggled_extra_field() {
     let p = DeniablePayload {
         from: key(0x11).public(),
         kind: Kind::Chat,
-        headers: Headers { subject: Some("hi".into()), ..Default::default() },
+        headers: Headers {
+            subject: Some("hi".into()),
+            ..Default::default()
+        },
         body: b"deniable hello".to_vec(),
         refs: vec![],
         attach: vec![],
         expires: None,
     };
     let bytes = p.det_cbor();
-    assert_eq!(DeniablePayload::from_det_cbor(&bytes).unwrap(), p, "well-formed payload must decode");
+    assert_eq!(
+        DeniablePayload::from_det_cbor(&bytes).unwrap(),
+        p,
+        "well-formed payload must decode"
+    );
 
     // Smuggle an extra key (e.g. an attacker trying to reintroduce a "signature").
     let mut m = match cbor::decode(&bytes).unwrap() {
@@ -101,7 +126,10 @@ fn deniable_payload_rejects_any_smuggled_extra_field() {
     };
     m.push((8, Cv::Bytes(vec![0u8; 64])));
     let leaky = cbor::encode(&Cv::Map(m));
-    assert_eq!(DeniablePayload::from_det_cbor(&leaky), Err(CborError::UnknownKey(8)));
+    assert_eq!(
+        DeniablePayload::from_det_cbor(&leaky),
+        Err(CborError::UnknownKey(8))
+    );
 }
 
 // ================================================================================================
@@ -112,7 +140,10 @@ fn deniable_payload_rejects_any_smuggled_extra_field() {
 #[test]
 fn decode_rejects_floating_point() {
     // Half-float 1.5 (major 7, additional info 25).
-    assert_eq!(cbor::decode(&[0xf9, 0x3e, 0x00]), Err(CborError::FloatPresent));
+    assert_eq!(
+        cbor::decode(&[0xf9, 0x3e, 0x00]),
+        Err(CborError::FloatPresent)
+    );
 }
 
 /// FINDING: a half-float encoding of NaN is still a float and MUST be rejected the same as any
@@ -121,7 +152,10 @@ fn decode_rejects_floating_point() {
 #[test]
 fn decode_rejects_half_float_nan() {
     // Half-float NaN: sign=0, exponent=0x1f (all ones), mantissa != 0.
-    assert_eq!(cbor::decode(&[0xf9, 0x7e, 0x00]), Err(CborError::FloatPresent));
+    assert_eq!(
+        cbor::decode(&[0xf9, 0x7e, 0x00]),
+        Err(CborError::FloatPresent)
+    );
 }
 
 /// FINDING: CBOR `undefined` (simple value 23, `0xf7`) MUST NOT appear on the wire (§18.1.1
@@ -130,7 +164,10 @@ fn decode_rejects_half_float_nan() {
 /// accepted", not the internal error taxonomy.
 #[test]
 fn decode_rejects_cbor_undefined() {
-    assert!(cbor::decode(&[0xf7]).is_err(), "CBOR undefined (0xf7) must be rejected, not silently accepted");
+    assert!(
+        cbor::decode(&[0xf7]).is_err(),
+        "CBOR undefined (0xf7) must be rejected, not silently accepted"
+    );
 }
 
 /// FINDING: a CBOR map with a duplicate key MUST be rejected (§18.1.1 rule 3) — otherwise which
@@ -139,7 +176,10 @@ fn decode_rejects_cbor_undefined() {
 #[test]
 fn decode_rejects_duplicate_map_key() {
     // map(2) claiming two entries both under key 1: {1: 0, 1: 1}.
-    assert_eq!(cbor::decode(&[0xa2, 0x01, 0x00, 0x01, 0x01]), Err(CborError::DuplicateKey(1)));
+    assert_eq!(
+        cbor::decode(&[0xa2, 0x01, 0x00, 0x01, 0x01]),
+        Err(CborError::DuplicateKey(1))
+    );
 }
 
 /// FINDING: an absent optional field MUST be omitted from the wire map, never present with a
@@ -148,7 +188,10 @@ fn decode_rejects_duplicate_map_key() {
 #[test]
 fn decode_rejects_null_value_for_any_key() {
     // map(1): {1: null}.
-    assert_eq!(cbor::decode(&[0xa1, 0x01, 0xf6]), Err(CborError::NullPresent));
+    assert_eq!(
+        cbor::decode(&[0xa1, 0x01, 0xf6]),
+        Err(CborError::NullPresent)
+    );
 }
 
 /// FINDING: a CBOR tag (major type 6) MUST NOT appear on the DMTAP wire (§18.1.1 rule 5) — DMTAP
@@ -156,7 +199,10 @@ fn decode_rejects_null_value_for_any_key() {
 #[test]
 fn decode_rejects_cbor_tag() {
     // tag(0) "A" — tag major type 6 wrapping a 1-byte text string.
-    assert_eq!(cbor::decode(&[0xc0, 0x61, 0x41]), Err(CborError::TagOrUndefined));
+    assert_eq!(
+        cbor::decode(&[0xc0, 0x61, 0x41]),
+        Err(CborError::TagOrUndefined)
+    );
 }
 
 /// FINDING: a signed object's decoder rejects any unknown/reserved integer key rather than
@@ -171,8 +217,15 @@ fn envelope_decoder_rejects_unknown_signed_key() {
     let recipient = IdentityKey::generate();
     let seal = SealKeypair::generate();
     let draft = MoteDraft::new(Kind::Mail, 1_700_000_000_000, b"hello dmtap".to_vec());
-    let env = build_mote(&Hpke, &sender, &eph, &recipient.public(), seal.public(), draft)
-        .expect("build_mote must succeed");
+    let env = build_mote(
+        &Hpke,
+        &sender,
+        &eph,
+        &recipient.public(),
+        seal.public(),
+        draft,
+    )
+    .expect("build_mote must succeed");
 
     let mut m = match cbor::decode(&env.det_cbor()).unwrap() {
         Cv::Map(m) => m,
@@ -180,7 +233,10 @@ fn envelope_decoder_rejects_unknown_signed_key() {
     };
     m.push((63, Cv::U64(1))); // an unknown, reserved-range key
     let bytes = cbor::encode(&Cv::Map(m));
-    assert_eq!(Envelope::from_det_cbor(&bytes), Err(CborError::UnknownKey(63)));
+    assert_eq!(
+        Envelope::from_det_cbor(&bytes),
+        Err(CborError::UnknownKey(63))
+    );
 }
 
 // ================================================================================================
@@ -194,8 +250,15 @@ fn build_and_seal(kind: Kind) -> (Envelope, IdentityKey, SealKeypair) {
     let recipient = IdentityKey::generate();
     let seal = SealKeypair::generate();
     let draft = MoteDraft::new(kind, 1_700_000_000_000, b"hello dmtap".to_vec());
-    let env = build_mote(&Hpke, &sender, &eph, &recipient.public(), seal.public(), draft)
-        .expect("build_mote must succeed");
+    let env = build_mote(
+        &Hpke,
+        &sender,
+        &eph,
+        &recipient.public(),
+        seal.public(),
+        draft,
+    )
+    .expect("build_mote must succeed");
     (env, recipient, seal)
 }
 
@@ -205,8 +268,15 @@ fn build_and_seal(kind: Kind) -> (Envelope, IdentityKey, SealKeypair) {
 fn tampered_ciphertext_fails_content_address_before_decrypt() {
     let (mut env, recipient, seal) = build_and_seal(Kind::Chat);
     env.ciphertext[0] ^= 0xff;
-    let ctx = RecipientCtx { our_ik: &recipient.public(), seal_secret: seal.secret(), sender_is_known: true };
-    assert_eq!(validate(&Hpke, &env, &ctx), Err(MoteError::BadContentAddress));
+    let ctx = RecipientCtx {
+        our_ik: &recipient.public(),
+        seal_secret: seal.secret(),
+        sender_is_known: true,
+    };
+    assert_eq!(
+        validate(&Hpke, &env, &ctx),
+        Err(MoteError::BadContentAddress)
+    );
 }
 
 /// FINDING: a forged `sender_sig` (the ephemeral per-message signature checked BEFORE decryption,
@@ -217,7 +287,11 @@ fn forged_sender_sig_is_discarded_before_decrypt() {
     if let Some(sig) = env.sender_sig.as_mut() {
         sig[0] ^= 0xff;
     }
-    let ctx = RecipientCtx { our_ik: &recipient.public(), seal_secret: seal.secret(), sender_is_known: true };
+    let ctx = RecipientCtx {
+        our_ik: &recipient.public(),
+        seal_secret: seal.secret(),
+        sender_is_known: true,
+    };
     assert_eq!(validate(&Hpke, &env, &ctx), Err(MoteError::BadSignature));
 }
 
@@ -227,7 +301,11 @@ fn forged_sender_sig_is_discarded_before_decrypt() {
 #[test]
 fn untampered_known_sender_mote_is_accepted() {
     let (env, recipient, seal) = build_and_seal(Kind::Mail);
-    let ctx = RecipientCtx { our_ik: &recipient.public(), seal_secret: seal.secret(), sender_is_known: true };
+    let ctx = RecipientCtx {
+        our_ik: &recipient.public(),
+        seal_secret: seal.secret(),
+        sender_is_known: true,
+    };
     match validate(&Hpke, &env, &ctx).unwrap() {
         Outcome::Accepted(p) => assert_eq!(p.body, b"hello dmtap"),
         Outcome::Deferred => panic!("a known-contact MOTE must be accepted, not deferred"),
@@ -255,11 +333,16 @@ fn suite_from_u8_fails_closed_on_unknown_bytes() {
     // Every reserved id is registered-but-unimplemented: none may be usable at either layer.
     assert!(!Suite::ReservedAeadGcm.is_supported() && !Suite::ReservedAeadGcm.mote_supported());
     assert!(
-        !Suite::ReservedAnchorSlhDsa.is_supported() && !Suite::ReservedAnchorSlhDsa.mote_supported()
+        !Suite::ReservedAnchorSlhDsa.is_supported()
+            && !Suite::ReservedAnchorSlhDsa.mote_supported()
     );
     assert!(!Suite::ReservedHashSha3.is_supported() && !Suite::ReservedHashSha3.mote_supported());
     for b in [0x00u8, 0x06, 0x7f, 0xfe, 0xff] {
-        assert_eq!(Suite::from_u8(b), None, "suite byte 0x{b:02x} must fail closed, never be guessed");
+        assert_eq!(
+            Suite::from_u8(b),
+            None,
+            "suite byte 0x{b:02x} must fail closed, never be guessed"
+        );
     }
 }
 
@@ -312,7 +395,10 @@ fn identity_hash_chain_sanity_is_enforced() {
     );
     // create_classical signs whatever `prev` we gave it, so the signature itself is still valid —
     // it's the *chain sanity* check inside verify() that must catch this, not signature failure.
-    assert_eq!(genesis_with_prev.verify(None), Err(IdentityError::BrokenChain));
+    assert_eq!(
+        genesis_with_prev.verify(None),
+        Err(IdentityError::BrokenChain)
+    );
 
     // version > 0 with prev = None is equally broken (a non-genesis version must chain somewhere).
     genesis_with_prev.version = 5;
@@ -368,7 +454,14 @@ fn tampered_identity_fails_signature() {
 fn device_cert_with_swapped_ik_fails_signature() {
     let ik = IdentityKey::generate();
     let dev = IdentityKey::generate();
-    let cert = DeviceCert::issue(&ik, dev.public(), "home-box", 1, None, vec![Cap::Send, Cap::Recv]);
+    let cert = DeviceCert::issue(
+        &ik,
+        dev.public(),
+        "home-box",
+        1,
+        None,
+        vec![Cap::Send, Cap::Recv],
+    );
     assert!(cert.verify().is_ok());
     let mut forged = cert.clone();
     forged.ik = dev.public(); // attacker swaps in a different (their own) root key
@@ -391,7 +484,9 @@ fn recovery_policy_rejects_empty_rotate_threshold() {
         suite: Suite::Classical,
         ik: ik.public(),
         version: 1,
-        methods: vec![RecoveryMethod::Phrase { recovery_key: vec![1, 2, 3] }],
+        methods: vec![RecoveryMethod::Phrase {
+            recovery_key: vec![1, 2, 3],
+        }],
         recover_threshold: Threshold { any_of: vec![] },
         rotate_threshold: Threshold { any_of: vec![] }, // ILLEGAL: must never be empty
         prev: None,
@@ -401,7 +496,9 @@ fn recovery_policy_rejects_empty_rotate_threshold() {
     policy.sign(&ik);
     assert_eq!(
         policy.verify(),
-        Err(IdentityError::Malformed("rotate_threshold must not be empty"))
+        Err(IdentityError::Malformed(
+            "rotate_threshold must not be empty"
+        ))
     );
 }
 
@@ -413,7 +510,11 @@ fn mix_descriptor(seed: u8, layer: u8) -> MixNodeDescriptor {
     MixNodeDescriptor::issue(
         &key(seed),
         vec!["/ip4/198.51.100.7/udp/443/quic-v1".into()],
-        vec![MixKeyEntry { epoch: 42, mix_key: vec![seed; 32], valid_until: 1_700_000_600_000 }],
+        vec![MixKeyEntry {
+            epoch: 42,
+            mix_key: vec![seed; 32],
+            valid_until: 1_700_000_600_000,
+        }],
         layer,
         1_700_000_000_000,
         None,
@@ -437,7 +538,10 @@ fn mix_node_descriptor_out_of_range_layer_fails_closed() {
         }
     }
     let bytes = cbor::encode(&Cv::Map(m));
-    assert_eq!(MixNodeDescriptor::from_det_cbor(&bytes), Err(CborError::UnknownDiscriminant(3)));
+    assert_eq!(
+        MixNodeDescriptor::from_det_cbor(&bytes),
+        Err(CborError::UnknownDiscriminant(3))
+    );
 }
 
 /// FINDING: a descriptor with zero Sphinx mix keys (`mix_keys` requires `[+ MixKeyEntry]`, i.e.
@@ -448,7 +552,10 @@ fn mix_node_descriptor_empty_mix_keys_fails_closed() {
     let mut d = mix_descriptor(0x11, 0);
     d.mix_keys.clear();
     let bytes = d.det_cbor();
-    assert_eq!(MixNodeDescriptor::from_det_cbor(&bytes), Err(CborError::TypeMismatch));
+    assert_eq!(
+        MixNodeDescriptor::from_det_cbor(&bytes),
+        Err(CborError::TypeMismatch)
+    );
 }
 
 // ================================================================================================
@@ -486,7 +593,10 @@ fn domain_directory_rejects_unknown_visibility_string() {
         }
     }
     let bytes = cbor::encode(&Cv::Map(m));
-    assert_eq!(DomainDirectory::from_det_cbor(&bytes), Err(CborError::TypeMismatch));
+    assert_eq!(
+        DomainDirectory::from_det_cbor(&bytes),
+        Err(CborError::TypeMismatch)
+    );
 }
 
 /// Positive control: a well-formed, correctly-signed `DomainDirectory` verifies, and tampering
@@ -494,7 +604,15 @@ fn domain_directory_rejects_unknown_visibility_string() {
 /// forge" — spec §3.10.3 — but it must still be tamper-evident itself).
 #[test]
 fn domain_directory_tamper_after_signing_fails_signature() {
-    let mut dir = DomainDirectory::issue(&key(0x11), "abc.com", 1, Visibility::MembersOnly, vec![], None, 1);
+    let mut dir = DomainDirectory::issue(
+        &key(0x11),
+        "abc.com",
+        1,
+        Visibility::MembersOnly,
+        vec![],
+        None,
+        1,
+    );
     assert!(dir.verify().is_ok());
     dir.entries.push(DirEntry {
         name: "evil@abc.com".into(),
@@ -516,7 +634,8 @@ fn domain_directory_tamper_after_signing_fails_signature() {
 /// `spk_sig` too, depend on the untampered `spk`).
 #[test]
 fn deniable_prekey_bundle_tampered_spk_fails_verification() {
-    let mut b = DeniablePrekeyBundle::issue(&key(0x11), vec![0xcd; 32], vec![0xab; 32], vec![], 1, 1);
+    let mut b =
+        DeniablePrekeyBundle::issue(&key(0x11), vec![0xcd; 32], vec![0xab; 32], vec![], 1, 1);
     assert!(b.verify().is_ok());
     b.spk[0] ^= 0xff;
     assert_eq!(b.verify(), Err(IdentityError::BadSignature));
@@ -533,7 +652,10 @@ fn content_id_detects_any_tamper() {
     let data = b"the atomic unit of DMTAP";
     let id = ContentId::of(data);
     assert!(id.verify(data));
-    assert!(!id.verify(b"the atomic unit of DMTAQ"), "single-byte change must be detected");
+    assert!(
+        !id.verify(b"the atomic unit of DMTAQ"),
+        "single-byte change must be detected"
+    );
 }
 
 /// FINDING: an unknown content-address algorithm prefix fails closed rather than being treated
@@ -561,11 +683,18 @@ fn keyname_single_word_typo_fails_checksum() {
     let replacement = alt.split('-').next().unwrap().to_string();
     // Pick a replacement word guaranteed to differ from the original first word.
     words[0] = if words[0] == replacement {
-        kotva_core::keyname::encode(&[8u8; 32]).split('-').next().unwrap().to_string()
+        kotva_core::keyname::encode(&[8u8; 32])
+            .split('-')
+            .next()
+            .unwrap()
+            .to_string()
     } else {
         replacement
     };
     let typo = words.join("-");
     assert_ne!(typo, good);
-    assert!(!kotva_core::keyname::verify(&typo), "a single mistyped word must fail the checksum");
+    assert!(
+        !kotva_core::keyname::verify(&typo),
+        "a single mistyped word must fail the checksum"
+    );
 }

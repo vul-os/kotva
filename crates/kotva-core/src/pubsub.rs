@@ -171,7 +171,8 @@ impl Subscription {
         if self.signer == self.subscriber {
             return Ok(());
         }
-        cert.verify().map_err(|_| PubError::SubscriptionSigInvalid)?;
+        cert.verify()
+            .map_err(|_| PubError::SubscriptionSigInvalid)?;
         if cert.ik != self.subscriber || cert.device_key != self.signer {
             return Err(PubError::SubscriptionSigInvalid);
         }
@@ -182,8 +183,13 @@ impl Subscription {
         if self.v != PUB_V0 || !self.suite.is_supported() {
             return Err(PubError::UnsupportedVersion);
         }
-        verify_domain(&self.signer, PUB_SUBSCRIPTION_DS, &self.signing_preimage(), &self.sig)
-            .map_err(|_| PubError::SubscriptionSigInvalid)
+        verify_domain(
+            &self.signer,
+            PUB_SUBSCRIPTION_DS,
+            &self.signing_preimage(),
+            &self.sig,
+        )
+        .map_err(|_| PubError::SubscriptionSigInvalid)
     }
 
     /// §25.4.2: a `Subscription` is honorable only while `now <= expires`. A holder MUST NOT push a
@@ -324,8 +330,13 @@ impl SubscriptionRevoke {
         if self.subscription != target.subscription_id() {
             return Err(PubError::SubscriptionRevokeInvalid);
         }
-        verify_domain(&self.signer, PUB_SUBSCRIPTION_REVOKE_DS, &self.signing_preimage(), &self.sig)
-            .map_err(|_| PubError::SubscriptionRevokeInvalid)?;
+        verify_domain(
+            &self.signer,
+            PUB_SUBSCRIPTION_REVOKE_DS,
+            &self.signing_preimage(),
+            &self.sig,
+        )
+        .map_err(|_| PubError::SubscriptionRevokeInvalid)?;
         if self.signer == target.subscriber {
             return Ok(());
         }
@@ -334,7 +345,8 @@ impl SubscriptionRevoke {
         let cert = cert
             .or(self.device_cert.as_ref())
             .ok_or(PubError::SubscriptionRevokeInvalid)?;
-        cert.verify().map_err(|_| PubError::SubscriptionRevokeInvalid)?;
+        cert.verify()
+            .map_err(|_| PubError::SubscriptionRevokeInvalid)?;
         if cert.ik != target.subscriber || cert.device_key != self.signer {
             return Err(PubError::SubscriptionRevokeInvalid);
         }
@@ -357,7 +369,15 @@ impl SubscriptionRevoke {
         let suite = pub_suite(f.req(6)?)?;
         let device_cert = f.take(7).map(DeviceCert::from_cv).transpose()?;
         f.deny_unknown()?;
-        Ok(SubscriptionRevoke { subscription, ts, signer, sig, v, suite, device_cert })
+        Ok(SubscriptionRevoke {
+            subscription,
+            ts,
+            signer,
+            sig,
+            v,
+            suite,
+            device_cert,
+        })
     }
 }
 
@@ -421,7 +441,13 @@ impl FeedHint {
         let tip = f.take(4).map(as_bytes).transpose()?.map(ContentId);
         let announce = f.take(5).map(as_bytes).transpose()?;
         f.deny_unknown()?;
-        Ok(FeedHint { feed, topic, seq, tip, announce })
+        Ok(FeedHint {
+            feed,
+            topic,
+            seq,
+            tip,
+            announce,
+        })
     }
 }
 
@@ -486,7 +512,12 @@ pub struct HintBudget {
 impl HintBudget {
     /// A budget of `max_per_window` hints per `window_ms`, starting at `now`.
     pub fn new(max_per_window: u32, window_ms: u64, now: u64) -> Self {
-        HintBudget { max_per_window, window_ms, window_start: now, used: 0 }
+        HintBudget {
+            max_per_window,
+            window_ms,
+            window_start: now,
+            used: 0,
+        }
     }
 
     /// Admit one inbound hint at `now`, refilling if the window has rolled over. Over budget is
@@ -551,21 +582,37 @@ mod tests {
             for n in 0..valid.len() {
                 mutants.push(valid[..n].to_vec());
             }
-            for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8], vec![0xa1, 0x00, 0x00]] {
+            for junk in [
+                vec![0x00u8],
+                vec![0xff, 0xff],
+                vec![0x9f; 8],
+                vec![0xa1, 0x00, 0x00],
+            ] {
                 let mut m = valid.clone();
                 m.extend_from_slice(&junk);
                 mutants.push(m);
             }
             for m in &mutants {
                 if let Ok(o) = Subscription::from_det_cbor(m) {
-                    assert_eq!(&o.det_cbor(), m, "Subscription decoder accepted a non-canonical encoding");
+                    assert_eq!(
+                        &o.det_cbor(),
+                        m,
+                        "Subscription decoder accepted a non-canonical encoding"
+                    );
                 }
                 if let Ok(o) = SubscriptionRevoke::from_det_cbor(m) {
-                    assert_eq!(&o.det_cbor(), m, "SubscriptionRevoke decoder accepted a non-canonical encoding");
+                    assert_eq!(
+                        &o.det_cbor(),
+                        m,
+                        "SubscriptionRevoke decoder accepted a non-canonical encoding"
+                    );
                 }
             }
         }
-        assert_eq!(Subscription::from_det_cbor(&sub_bytes).unwrap().det_cbor(), sub_bytes);
+        assert_eq!(
+            Subscription::from_det_cbor(&sub_bytes).unwrap().det_cbor(),
+            sub_bytes
+        );
     }
 
     #[test]
@@ -574,7 +621,12 @@ mod tests {
         let s = sub(&ik, &[9u8; 32], 9_000);
         assert_eq!(Subscription::from_det_cbor(&s.det_cbor()).unwrap(), s);
         s.verify().unwrap();
-        assert_eq!(s.subscription_id(), Subscription::from_det_cbor(&s.det_cbor()).unwrap().subscription_id());
+        assert_eq!(
+            s.subscription_id(),
+            Subscription::from_det_cbor(&s.det_cbor())
+                .unwrap()
+                .subscription_id()
+        );
     }
 
     #[test]
@@ -593,7 +645,9 @@ mod tests {
     fn expires_absent_is_malformed_not_unbounded() {
         let ik = IdentityKey::generate();
         let s = sub(&ik, &[9u8; 32], 9_000);
-        let Cv::Map(mut pairs) = cbor::decode(&s.det_cbor()).unwrap() else { panic!("not a map") };
+        let Cv::Map(mut pairs) = cbor::decode(&s.det_cbor()).unwrap() else {
+            panic!("not a map")
+        };
         pairs.retain(|(k, _)| *k != 7);
         let err = Subscription::from_det_cbor(&cbor::encode(&Cv::Map(pairs))).unwrap_err();
         assert_eq!(err, PubError::Cbor(cbor::CborError::MissingKey(7)));
@@ -644,13 +698,19 @@ mod tests {
         let mut s = sub(&ik, &[9u8; 32], 9_000);
         s.v = 1;
         s.sign(&ik);
-        assert_eq!(Subscription::from_det_cbor(&s.det_cbor()).unwrap_err(), PubError::UnsupportedVersion);
+        assert_eq!(
+            Subscription::from_det_cbor(&s.det_cbor()).unwrap_err(),
+            PubError::UnsupportedVersion
+        );
         assert_eq!(s.verify().unwrap_err(), PubError::UnsupportedVersion);
 
         let mut bad_suite = sub(&ik, &[9u8; 32], 9_000);
         bad_suite.suite = Suite::PqHybrid; // a KNOWN code point this build does not support
         bad_suite.sign(&ik);
-        assert!(!Suite::PqHybrid.is_supported(), "premise: this build cannot verify PqHybrid");
+        assert!(
+            !Suite::PqHybrid.is_supported(),
+            "premise: this build cannot verify PqHybrid"
+        );
         assert_eq!(
             Subscription::from_det_cbor(&bad_suite.det_cbor()).unwrap_err(),
             PubError::UnsupportedVersion,
@@ -674,7 +734,10 @@ mod tests {
         // A cert for a DIFFERENT identity must not authorize this signer.
         let other = IdentityKey::generate();
         let wrong = DeviceCert::issue(&other, device.public(), "phone", 0, None, vec![Cap::Send]);
-        assert_eq!(s.verify_with_cert(&wrong).unwrap_err(), PubError::SubscriptionSigInvalid);
+        assert_eq!(
+            s.verify_with_cert(&wrong).unwrap_err(),
+            PubError::SubscriptionSigInvalid
+        );
     }
 
     /// Build a bare (uncertified) revoke naming `target`, signed by `signer_key`. The caller sets
@@ -730,7 +793,10 @@ mod tests {
 
         let r = revoke(&s1.subscription_id(), &ik);
         r.verify_for(&s1, None).unwrap();
-        assert_eq!(r.verify_for(&s2, None).unwrap_err(), PubError::SubscriptionRevokeInvalid);
+        assert_eq!(
+            r.verify_for(&s2, None).unwrap_err(),
+            PubError::SubscriptionRevokeInvalid
+        );
     }
 
     // ── §25.5.1 (C-04): SubscriptionRevoke's own v/suite/device_cert ────────────────────────
@@ -744,7 +810,14 @@ mod tests {
         let subscriber = IdentityKey::generate();
         let s = sub(&subscriber, &[9u8; 32], 9_000);
         let device = IdentityKey::generate();
-        let cert = DeviceCert::issue(&subscriber, device.public(), "phone", 0, None, vec![Cap::Send]);
+        let cert = DeviceCert::issue(
+            &subscriber,
+            device.public(),
+            "phone",
+            0,
+            None,
+            vec![Cap::Send],
+        );
 
         let mut r = SubscriptionRevoke {
             subscription: s.subscription_id(),
@@ -775,7 +848,14 @@ mod tests {
         let device = IdentityKey::generate();
         let attacker = IdentityKey::generate();
         // A cert issued by someone else entirely, naming this same device key.
-        let wrong_cert = DeviceCert::issue(&attacker, device.public(), "phone", 0, None, vec![Cap::Send]);
+        let wrong_cert = DeviceCert::issue(
+            &attacker,
+            device.public(),
+            "phone",
+            0,
+            None,
+            vec![Cap::Send],
+        );
 
         let mut r = SubscriptionRevoke {
             subscription: s.subscription_id(),
@@ -787,7 +867,10 @@ mod tests {
             device_cert: Some(wrong_cert),
         };
         r.sign(&device);
-        assert_eq!(r.verify_for(&s, None).unwrap_err(), PubError::SubscriptionRevokeInvalid);
+        assert_eq!(
+            r.verify_for(&s, None).unwrap_err(),
+            PubError::SubscriptionRevokeInvalid
+        );
     }
 
     /// §25.13 C-04: a revoke's `suite` governs only its own `sig` and need not equal the target
@@ -820,12 +903,18 @@ mod tests {
             SubscriptionRevoke::from_det_cbor(&bad_v.det_cbor()).unwrap_err(),
             PubError::UnsupportedVersion
         );
-        assert_eq!(bad_v.verify_for(&s, None).unwrap_err(), PubError::UnsupportedVersion);
+        assert_eq!(
+            bad_v.verify_for(&s, None).unwrap_err(),
+            PubError::UnsupportedVersion
+        );
 
         let mut bad_suite = revoke(&s.subscription_id(), &ik);
         bad_suite.suite = Suite::PqHybrid; // a KNOWN code point this build does not support
         bad_suite.sign(&ik);
-        assert!(!Suite::PqHybrid.is_supported(), "premise: this build cannot verify PqHybrid");
+        assert!(
+            !Suite::PqHybrid.is_supported(),
+            "premise: this build cannot verify PqHybrid"
+        );
         assert_eq!(
             SubscriptionRevoke::from_det_cbor(&bad_suite.det_cbor()).unwrap_err(),
             PubError::UnsupportedVersion,
@@ -885,7 +974,10 @@ mod tests {
 
     #[test]
     fn subscribe_policy_bounds_the_aggregate_not_just_the_message() {
-        let p = SubscribePolicy { max_active_per_topic: Some(2), max_active_per_subscriber: Some(1) };
+        let p = SubscribePolicy {
+            max_active_per_topic: Some(2),
+            max_active_per_subscriber: Some(1),
+        };
         p.admit(0, 0).unwrap();
         p.admit(1, 0).unwrap();
         // The topic bound is aggregate: the third subscriber is refused even though each one
@@ -917,12 +1009,22 @@ mod tests {
     fn unknown_keys_are_rejected_in_every_pubsub_object() {
         let ik = IdentityKey::generate();
         let s = sub(&ik, &[9u8; 32], 9_000);
-        let Cv::Map(mut pairs) = cbor::decode(&s.det_cbor()).unwrap() else { panic!("not a map") };
+        let Cv::Map(mut pairs) = cbor::decode(&s.det_cbor()).unwrap() else {
+            panic!("not a map")
+        };
         pairs.push((99, Cv::U64(1)));
         assert!(Subscription::from_det_cbor(&cbor::encode(&Cv::Map(pairs))).is_err());
 
-        let hint = FeedHint { feed: vec![3u8; 32], topic: String::new(), seq: 1, tip: None, announce: None };
-        let Cv::Map(mut hp) = cbor::decode(&hint.det_cbor()).unwrap() else { panic!("not a map") };
+        let hint = FeedHint {
+            feed: vec![3u8; 32],
+            topic: String::new(),
+            seq: 1,
+            tip: None,
+            announce: None,
+        };
+        let Cv::Map(mut hp) = cbor::decode(&hint.det_cbor()).unwrap() else {
+            panic!("not a map")
+        };
         hp.push((99, Cv::U64(1)));
         assert!(FeedHint::from_det_cbor(&cbor::encode(&Cv::Map(hp))).is_err());
     }

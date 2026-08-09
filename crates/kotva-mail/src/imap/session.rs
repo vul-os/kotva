@@ -10,13 +10,13 @@ use crate::mime;
 use crate::search::{self, SearchCtx, SearchKey};
 use crate::store::{Flag, MailStore, Mailbox, Message};
 
+use super::capability_line;
 use super::parser::{
     self, CatPart, Command, FetchItem, ParsedCommand, QResyncParams, Section, SortCriterion,
     SortKey, StoreCommand, StoreOp, ThreadAlgorithm,
 };
 use super::response;
 use super::sequence::SequenceSet;
-use super::capability_line;
 
 /// IMAP connection state (RFC 9051 §3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,7 +89,11 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
 
     /// The greeting a server sends on connect (RFC 9051 §7.1.1).
     pub fn greeting(&self) -> Vec<u8> {
-        format!("* OK [{}] Envoir DMTAP IMAP ready\r\n", capability_line(self.tls)).into_bytes()
+        format!(
+            "* OK [{}] Envoir DMTAP IMAP ready\r\n",
+            capability_line(self.tls)
+        )
+        .into_bytes()
     }
 
     /// Process one complete command buffer; returns the response bytes.
@@ -155,7 +159,9 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
                 out
             }
             Command::Login { user, pass } => self.cmd_login(&tag, &user, &pass),
-            Command::Authenticate { mechanism, initial } => self.cmd_authenticate(&tag, &mechanism, initial),
+            Command::Authenticate { mechanism, initial } => {
+                self.cmd_authenticate(&tag, &mechanism, initial)
+            }
             _ if self.identity.is_none() => no(&tag, "Not authenticated"),
             // ENABLE mutates session state (CONDSTORE/QRESYNC) and NAMESPACE exposes structure —
             // both are authenticated-state-only (RFC 9051 §6.3.1 / RFC 2342), so they sit BELOW the
@@ -168,12 +174,16 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
                 out.extend(ok(&tag, "NAMESPACE completed"));
                 out
             }
-            Command::Select { mailbox, condstore, qresync } => {
-                self.cmd_select(&tag, &mailbox, false, condstore, qresync)
-            }
-            Command::Examine { mailbox, condstore, qresync } => {
-                self.cmd_select(&tag, &mailbox, true, condstore, qresync)
-            }
+            Command::Select {
+                mailbox,
+                condstore,
+                qresync,
+            } => self.cmd_select(&tag, &mailbox, false, condstore, qresync),
+            Command::Examine {
+                mailbox,
+                condstore,
+                qresync,
+            } => self.cmd_select(&tag, &mailbox, true, condstore, qresync),
             Command::Create { name, use_attr } => self.cmd_create(&tag, &name, use_attr.as_deref()),
             Command::Delete(name) => match self.store.delete(&name) {
                 Ok(()) => ok(&tag, "DELETE completed"),
@@ -185,16 +195,30 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
             },
             Command::Subscribe(name) => self.set_subscribed(&tag, &name, true),
             Command::Unsubscribe(name) => self.set_subscribed(&tag, &name, false),
-            Command::List { reference, pattern, return_opts, select_opts } => {
-                self.cmd_list(&tag, &reference, &pattern, false, &return_opts, &select_opts)
-            }
+            Command::List {
+                reference,
+                pattern,
+                return_opts,
+                select_opts,
+            } => self.cmd_list(
+                &tag,
+                &reference,
+                &pattern,
+                false,
+                &return_opts,
+                &select_opts,
+            ),
             Command::Lsub { reference, pattern } => {
                 self.cmd_list(&tag, &reference, &pattern, true, &[], &[])
             }
             Command::Status { mailbox, items } => self.cmd_status(&tag, &mailbox, &items),
-            Command::Append { mailbox, flags, date, message, catenate } => {
-                self.cmd_append(&tag, &mailbox, flags, date, message, catenate)
-            }
+            Command::Append {
+                mailbox,
+                flags,
+                date,
+                message,
+                catenate,
+            } => self.cmd_append(&tag, &mailbox, flags, date, message, catenate),
             Command::Idle => {
                 self.idle_tag = Some(tag);
                 continuation("idling")
@@ -205,16 +229,31 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
             Command::Unselect => self.cmd_close(&tag, false),
             Command::Expunge => self.cmd_expunge(&tag, None),
             Command::UidExpunge(set) => self.cmd_expunge(&tag, Some(set)),
-            Command::Search { key, uid, ret, charset } => self.cmd_search(&tag, key, uid, ret, charset),
-            Command::Sort { criteria, charset, key, uid } => {
-                self.cmd_sort(&tag, &criteria, charset, key, uid)
-            }
-            Command::Thread { algorithm, charset, key, uid } => {
-                self.cmd_thread(&tag, algorithm, charset, key, uid)
-            }
-            Command::Fetch { set, items, uid, changedsince, vanished } => {
-                self.cmd_fetch(&tag, set, items, uid, changedsince, vanished)
-            }
+            Command::Search {
+                key,
+                uid,
+                ret,
+                charset,
+            } => self.cmd_search(&tag, key, uid, ret, charset),
+            Command::Sort {
+                criteria,
+                charset,
+                key,
+                uid,
+            } => self.cmd_sort(&tag, &criteria, charset, key, uid),
+            Command::Thread {
+                algorithm,
+                charset,
+                key,
+                uid,
+            } => self.cmd_thread(&tag, algorithm, charset, key, uid),
+            Command::Fetch {
+                set,
+                items,
+                uid,
+                changedsince,
+                vanished,
+            } => self.cmd_fetch(&tag, set, items, uid, changedsince, vanished),
             Command::Store(sc) => self.cmd_store(&tag, sc),
             Command::Copy { set, mailbox, uid } => self.cmd_copy(&tag, set, &mailbox, uid),
             Command::Move { set, mailbox, uid } => self.cmd_move(&tag, set, &mailbox, uid),
@@ -243,13 +282,18 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
             None => return no(tag, "[CANNOT] unsupported SASL mechanism"),
         };
         if !self.tls {
-            return no(tag, "[PRIVACYREQUIRED] AUTHENTICATE disabled until STARTTLS");
+            return no(
+                tag,
+                "[PRIVACYREQUIRED] AUTHENTICATE disabled until STARTTLS",
+            );
         }
         match mech {
             SaslMechanism::Plain => match initial {
                 Some(ir) => self.finish_plain(tag, &ir),
                 None => {
-                    self.pending = Some(Pending::Plain { tag: tag.to_string() });
+                    self.pending = Some(Pending::Plain {
+                        tag: tag.to_string(),
+                    });
                     continuation("")
                 }
             },
@@ -257,11 +301,16 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
                 Some(ir) => {
                     // Initial response carries the username; still need the password.
                     let user = auth::decode_login_field(&ir).unwrap_or_default();
-                    self.pending = Some(Pending::LoginPass { tag: tag.to_string(), user });
+                    self.pending = Some(Pending::LoginPass {
+                        tag: tag.to_string(),
+                        user,
+                    });
                     continuation(&crate::util::base64_encode(b"Password:"))
                 }
                 None => {
-                    self.pending = Some(Pending::LoginUser { tag: tag.to_string() });
+                    self.pending = Some(Pending::LoginUser {
+                        tag: tag.to_string(),
+                    });
                     continuation(&crate::util::base64_encode(b"Username:"))
                 }
             },
@@ -331,7 +380,14 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
         match self.store.mailbox_mut(name) {
             Some(mb) => {
                 mb.subscribed = sub;
-                ok(tag, if sub { "SUBSCRIBE completed" } else { "UNSUBSCRIBE completed" })
+                ok(
+                    tag,
+                    if sub {
+                        "SUBSCRIBE completed"
+                    } else {
+                        "UNSUBSCRIBE completed"
+                    },
+                )
             }
             None => no(tag, "no such mailbox"),
         }
@@ -360,19 +416,27 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
         let unseen = mb.first_unseen_seq();
 
         let mut out = Vec::new();
-        out.extend(untagged("FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)"));
+        out.extend(untagged(
+            "FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)",
+        ));
         out.extend(untagged(&format!("{exists} EXISTS")));
         out.extend(untagged(&format!("{recent} RECENT")));
         if let Some(u) = unseen {
             out.extend(untagged(&format!("OK [UNSEEN {u}] first unseen")));
         }
-        out.extend(untagged(&format!("OK [UIDVALIDITY {uidvalidity}] UIDs valid")));
-        out.extend(untagged(&format!("OK [UIDNEXT {uidnext}] predicted next UID")));
+        out.extend(untagged(&format!(
+            "OK [UIDVALIDITY {uidvalidity}] UIDs valid"
+        )));
+        out.extend(untagged(&format!(
+            "OK [UIDNEXT {uidnext}] predicted next UID"
+        )));
         out.extend(untagged(
             "OK [PERMANENTFLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft \\*)] limited",
         ));
         if self.condstore {
-            out.extend(untagged(&format!("OK [HIGHESTMODSEQ {highest}] highest modseq")));
+            out.extend(untagged(&format!(
+                "OK [HIGHESTMODSEQ {highest}] highest modseq"
+            )));
         }
 
         // QRESYNC fast-resync (RFC 7162 §3.2.5.2): if the client's UIDVALIDITY still matches, tell
@@ -393,7 +457,11 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
         self.saved_search.clear();
         self.read_only = read_only;
         self.state = State::Selected;
-        let code = if read_only { "[READ-ONLY]" } else { "[READ-WRITE]" };
+        let code = if read_only {
+            "[READ-ONLY]"
+        } else {
+            "[READ-WRITE]"
+        };
         let verb = if read_only { "EXAMINE" } else { "SELECT" };
         out.extend(ok(tag, &format!("{code} {verb} completed")));
         out
@@ -430,7 +498,10 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
             .collect();
         vanished.sort_unstable();
         if !vanished.is_empty() {
-            out.extend(untagged(&format!("VANISHED (EARLIER) {}", to_sequence_set(&vanished))));
+            out.extend(untagged(&format!(
+                "VANISHED (EARLIER) {}",
+                to_sequence_set(&vanished)
+            )));
         }
 
         // Re-FETCH survivors changed since the client's modseq (UID/FLAGS/MODSEQ).
@@ -438,7 +509,11 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
             if m.modseq <= modseq {
                 continue;
             }
-            if known.as_ref().map(|m2| !m2.contains(m.uid)).unwrap_or(false) {
+            if known
+                .as_ref()
+                .map(|m2| !m2.contains(m.uid))
+                .unwrap_or(false)
+            {
                 continue;
             }
             let seq = i + 1;
@@ -554,8 +629,14 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
             .take_while(|s| {
                 matches!(
                     s.as_str(),
-                    "MESSAGES" | "RECENT" | "UIDNEXT" | "UIDVALIDITY" | "UNSEEN" | "DELETED"
-                        | "SIZE" | "HIGHESTMODSEQ"
+                    "MESSAGES"
+                        | "RECENT"
+                        | "UIDNEXT"
+                        | "UIDVALIDITY"
+                        | "UNSEEN"
+                        | "DELETED"
+                        | "SIZE"
+                        | "HIGHESTMODSEQ"
                 )
             })
             .cloned()
@@ -594,15 +675,25 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
                 "UNSEEN" => format!("UNSEEN {}", mb.unseen()),
                 "DELETED" => format!(
                     "DELETED {}",
-                    mb.messages.iter().filter(|m| m.has_flag(&Flag::Deleted)).count()
+                    mb.messages
+                        .iter()
+                        .filter(|m| m.has_flag(&Flag::Deleted))
+                        .count()
                 ),
                 "HIGHESTMODSEQ" => format!("HIGHESTMODSEQ {}", mb.highest_modseq),
-                "SIZE" => format!("SIZE {}", mb.messages.iter().map(|m| m.size()).sum::<usize>()),
+                "SIZE" => format!(
+                    "SIZE {}",
+                    mb.messages.iter().map(|m| m.size()).sum::<usize>()
+                ),
                 _ => continue,
             };
             parts.push(v);
         }
-        untagged(&format!("STATUS {} ({})", response::imap_string(name), parts.join(" ")))
+        untagged(&format!(
+            "STATUS {} ({})",
+            response::imap_string(name),
+            parts.join(" ")
+        ))
     }
 
     /// CREATE, honoring the SPECIAL-USE `(USE (\Attr))` parameter (RFC 6154 §3): the created
@@ -645,7 +736,10 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
         };
         let uidvalidity = mb.uid_validity;
         let uid = mb.append(message, flags, ts);
-        ok(tag, &format!("[APPENDUID {uidvalidity} {uid}] APPEND completed"))
+        ok(
+            tag,
+            &format!("[APPENDUID {uidvalidity} {uid}] APPEND completed"),
+        )
     }
 
     /// Assemble a CATENATE message (RFC 4469): concatenate inline `TEXT` parts with the bytes an
@@ -790,7 +884,10 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
         }
         if qresync && !vanished.is_empty() {
             vanished.sort_unstable();
-            out.extend(untagged(&format!("VANISHED {}", to_sequence_set(&vanished))));
+            out.extend(untagged(&format!(
+                "VANISHED {}",
+                to_sequence_set(&vanished)
+            )));
         }
         out.extend(ok(tag, "EXPUNGE completed"));
         out
@@ -810,7 +907,10 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
         if let Some(cs) = &charset {
             let up = cs.to_ascii_uppercase();
             if up != "UTF-8" && up != "US-ASCII" && up != "ASCII" {
-                return no(tag, "[BADCHARSET (US-ASCII UTF-8)] unsupported SEARCH charset");
+                return no(
+                    tag,
+                    "[BADCHARSET (US-ASCII UTF-8)] unsupported SEARCH charset",
+                );
             }
         }
         let name = match self.selected_name() {
@@ -833,7 +933,10 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
                 matched.push((seq, m.uid));
             }
         }
-        let hits: Vec<u32> = matched.iter().map(|&(s, u)| if uid { u } else { s }).collect();
+        let hits: Vec<u32> = matched
+            .iter()
+            .map(|&(s, u)| if uid { u } else { s })
+            .collect();
 
         // SEARCHRES RETURN (SAVE) (RFC 5182): remember the matched UIDs for later `$` reference.
         let up: Vec<String> = ret.iter().map(|r| r.to_ascii_uppercase()).collect();
@@ -917,7 +1020,14 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
         matched.sort_by(|&a, &b| sort_compare(&mb.messages[a], &mb.messages[b], criteria));
         let ids: Vec<String> = matched
             .iter()
-            .map(|&i| if uid { mb.messages[i].uid } else { (i + 1) as u32 }.to_string())
+            .map(|&i| {
+                if uid {
+                    mb.messages[i].uid
+                } else {
+                    (i + 1) as u32
+                }
+                .to_string()
+            })
             .collect();
         let mut out = untagged(format!("SORT {}", ids.join(" ")).trim_end());
         out.extend(ok(tag, "SORT completed"));
@@ -960,7 +1070,14 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
             body.push('(');
             let ids: Vec<String> = group
                 .iter()
-                .map(|&i| if uid { mb.messages[i].uid } else { (i + 1) as u32 }.to_string())
+                .map(|&i| {
+                    if uid {
+                        mb.messages[i].uid
+                    } else {
+                        (i + 1) as u32
+                    }
+                    .to_string()
+                })
                 .collect();
             body.push_str(&ids.join(" "));
             body.push(')');
@@ -1044,7 +1161,10 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
                     .collect();
                 v.sort_unstable();
                 if !v.is_empty() {
-                    out.extend(untagged(&format!("VANISHED (EARLIER) {}", to_sequence_set(&v))));
+                    out.extend(untagged(&format!(
+                        "VANISHED (EARLIER) {}",
+                        to_sequence_set(&v)
+                    )));
                 }
             }
         }
@@ -1125,7 +1245,10 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
             out.extend(ok(tag, "STORE completed"));
         } else {
             let list: Vec<String> = modified.iter().map(|u| u.to_string()).collect();
-            out.extend(ok(tag, &format!("[MODIFIED {}] STORE completed", list.join(","))));
+            out.extend(ok(
+                tag,
+                &format!("[MODIFIED {}] STORE completed", list.join(",")),
+            ));
         }
         out
     }
@@ -1213,8 +1336,10 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
                 dst_uids.join(",")
             ))
         };
-        let mut indices: Vec<usize> =
-            moved_uids.iter().filter_map(|u| smb.index_of_uid(*u)).collect();
+        let mut indices: Vec<usize> = moved_uids
+            .iter()
+            .filter_map(|u| smb.index_of_uid(*u))
+            .collect();
         indices.sort_unstable();
         let mut vanished: Vec<u32> = Vec::new();
         for &i in indices.iter().rev() {
@@ -1227,14 +1352,21 @@ impl<S: MailStore, A: Authenticator> Session<S, A> {
         }
         if qresync && !vanished.is_empty() {
             vanished.sort_unstable();
-            out.extend(untagged(&format!("VANISHED {}", to_sequence_set(&vanished))));
+            out.extend(untagged(&format!(
+                "VANISHED {}",
+                to_sequence_set(&vanished)
+            )));
         }
         out.extend(ok(tag, "MOVE completed"));
         out
     }
 
     /// Snapshot (src_uid, cloned message) pairs for a COPY/MOVE, plus the source UIDVALIDITY.
-    fn collect_for_copy(&self, set: &SequenceSet, uid_mode: bool) -> Option<(Vec<(u32, Message)>, u32)> {
+    fn collect_for_copy(
+        &self,
+        set: &SequenceSet,
+        uid_mode: bool,
+    ) -> Option<(Vec<(u32, Message)>, u32)> {
         let name = self.selected.as_ref()?;
         let set = self.materialize(set, uid_mode);
         let mb = self.store.mailbox(name)?;
@@ -1293,8 +1425,11 @@ fn render_fetch_items(
             }
             FetchItem::InternalDate => {
                 out.extend_from_slice(
-                    format!("INTERNALDATE \"{}\"", mime::format_internal_date(msg.internal_date))
-                        .as_bytes(),
+                    format!(
+                        "INTERNALDATE \"{}\"",
+                        mime::format_internal_date(msg.internal_date)
+                    )
+                    .as_bytes(),
                 );
             }
             FetchItem::Rfc822Size => {
@@ -1320,13 +1455,17 @@ fn render_fetch_items(
                 out.extend_from_slice(format!("MODSEQ ({})", msg.modseq).as_bytes());
             }
             FetchItem::Rfc822 => literal_item(&mut out, "RFC822", &msg.raw),
-            FetchItem::Rfc822Header => {
-                literal_item(&mut out, "RFC822.HEADER", &mime::header_and_body(&msg.raw).0)
-            }
+            FetchItem::Rfc822Header => literal_item(
+                &mut out,
+                "RFC822.HEADER",
+                &mime::header_and_body(&msg.raw).0,
+            ),
             FetchItem::Rfc822Text => {
                 literal_item(&mut out, "RFC822.TEXT", &mime::header_and_body(&msg.raw).1)
             }
-            FetchItem::BodySection { section, partial, .. } => {
+            FetchItem::BodySection {
+                section, partial, ..
+            } => {
                 // `extract_section` borrows the raw bytes for `[]`/`[HEADER]`/`[TEXT]`, so a
                 // `BODY[]<0.512>` on a 10 MB message never copies more than the requested window.
                 let full = response::extract_section(&msg.raw, section);
@@ -1338,7 +1477,9 @@ fn render_fetch_items(
                 };
                 literal_item(&mut out, &head, &data);
             }
-            FetchItem::Binary { section, partial, .. } => {
+            FetchItem::Binary {
+                section, partial, ..
+            } => {
                 // RFC 3516: CTE-decoded content, emitted as a literal8 (`~{n}`) since it may hold
                 // NUL bytes. A `[NIL]` decode failure would use `BODY[…] NIL`; we always decode here.
                 let full = response::extract_binary(&msg.raw, section);
@@ -1369,7 +1510,10 @@ fn render_fetch_items(
 
 /// Join a numeric MIME part path into its dotted label (`[1.2]`), empty for the whole message.
 fn join_nums(nums: &[u32]) -> String {
-    nums.iter().map(|n| n.to_string()).collect::<Vec<_>>().join(".")
+    nums.iter()
+        .map(|n| n.to_string())
+        .collect::<Vec<_>>()
+        .join(".")
 }
 
 fn literal_item(out: &mut Vec<u8>, label: &str, data: &[u8]) {
@@ -1386,7 +1530,11 @@ fn apply_store(msg: &mut Message, op: StoreOp, flags: &[Flag]) {
         StoreOp::Replace => {
             // Preserve \Recent across a flag replace (it is session state, not client-settable).
             let recent = msg.has_flag(&Flag::Recent);
-            msg.flags = flags.iter().filter(|f| **f != Flag::Recent).cloned().collect();
+            msg.flags = flags
+                .iter()
+                .filter(|f| **f != Flag::Recent)
+                .cloned()
+                .collect();
             if recent {
                 msg.set_flag(Flag::Recent);
             }
@@ -1419,7 +1567,11 @@ fn compact(uids: &[String], _valid: u32) -> String {
 fn resolve_targets(mb: &Mailbox, set: &SequenceSet, uid_mode: bool) -> Vec<usize> {
     let n = mb.messages.len();
     let count = mb.exists() as u32;
-    let ranges = if uid_mode { set.ranges_resolved(mb.max_uid()) } else { set.ranges_resolved(count) };
+    let ranges = if uid_mode {
+        set.ranges_resolved(mb.max_uid())
+    } else {
+        set.ranges_resolved(count)
+    };
 
     // Visit every matched message index, once per (range, slot). Kept as a helper so both the
     // output-proportional and the memory-bounded paths share the exact same matching logic.
@@ -1447,7 +1599,10 @@ fn resolve_targets(mb: &Mailbox, set: &SequenceSet, uid_mode: bool) -> Vec<usize
     // shape of a `1:*,1:*,…` set — switch to a marker `Vec<bool>` that caps peak memory at n
     // regardless of range count (the per-slot push would otherwise be a ranges × messages Vec that
     // OOM-aborts the process). ranges is already length-capped at SequenceSet::parse (MAX_RANGES).
-    let est: u64 = ranges.iter().map(|&(lo, hi)| u64::from(hi.saturating_sub(lo)) + 1).sum();
+    let est: u64 = ranges
+        .iter()
+        .map(|&(lo, hi)| u64::from(hi.saturating_sub(lo)) + 1)
+        .sum();
     if est > n as u64 {
         let mut hit = vec![false; n];
         visit(Box::new(|i| hit[i] = true));
@@ -1565,8 +1720,15 @@ fn parse_date_ymd(date: &str) -> Option<(i64, i64, i64)> {
     let cleaned = date.replace(',', " ");
     let mut toks = cleaned.split_whitespace();
     let mut first = toks.next()?;
-    let months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
-    let month_of = |m: &str| months.iter().position(|x| x.eq_ignore_ascii_case(m)).map(|i| i as i64 + 1);
+    let months = [
+        "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec",
+    ];
+    let month_of = |m: &str| {
+        months
+            .iter()
+            .position(|x| x.eq_ignore_ascii_case(m))
+            .map(|i| i as i64 + 1)
+    };
     if month_of(first).is_none() && first.parse::<i64>().is_err() {
         first = toks.next()?;
     }
@@ -1606,7 +1768,10 @@ fn addr_sort_key(m: &Message, header: &str, display: bool) -> String {
         // DISPLAY sort keys are the *rendered* name: RFC 2047-decode it (RFC 5957 sorts what the
         // user reads, not the wire spelling) and Unicode-lowercase for a language-blind order.
         Some(a) if display => mime::decode_encoded_words(
-            a.name.as_deref().or(a.mailbox.as_deref()).unwrap_or_default(),
+            a.name
+                .as_deref()
+                .or(a.mailbox.as_deref())
+                .unwrap_or_default(),
         )
         .to_lowercase(),
         Some(a) => a.mailbox.clone().unwrap_or_default().to_lowercase(),
@@ -1622,7 +1787,10 @@ fn build_threads(mb: &Mailbox, matched: &[usize], algo: ThreadAlgorithm) -> Vec<
         ThreadAlgorithm::OrderedSubject => {
             let mut by_subject: std::collections::BTreeMap<String, Vec<usize>> = Default::default();
             for &i in matched {
-                by_subject.entry(base_subject(&mb.messages[i])).or_default().push(i);
+                by_subject
+                    .entry(base_subject(&mb.messages[i]))
+                    .or_default()
+                    .push(i);
             }
             by_subject.into_values().collect()
         }
@@ -1668,7 +1836,11 @@ fn build_threads(mb: &Mailbox, matched: &[usize], algo: ThreadAlgorithm) -> Vec<
     };
     // Order within each thread by sort date, and threads by their first message's date.
     for g in &mut groups {
-        g.sort_by(|&a, &b| sort_date(&mb.messages[a]).cmp(&sort_date(&mb.messages[b])).then(a.cmp(&b)));
+        g.sort_by(|&a, &b| {
+            sort_date(&mb.messages[a])
+                .cmp(&sort_date(&mb.messages[b]))
+                .then(a.cmp(&b))
+        });
     }
     groups.sort_by(|a, b| {
         let da = a.first().map(|&i| sort_date(&mb.messages[i]));
@@ -1762,9 +1934,12 @@ fn parse_internal_date(s: &str) -> Option<u64> {
 }
 
 fn month_num(m: &str) -> Option<i64> {
-    const MO: [&str; 12] =
-        ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
-    MO.iter().position(|x| x.eq_ignore_ascii_case(m)).map(|i| i as i64 + 1)
+    const MO: [&str; 12] = [
+        "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec",
+    ];
+    MO.iter()
+        .position(|x| x.eq_ignore_ascii_case(m))
+        .map(|i| i as i64 + 1)
 }
 
 /// Days since 1970-01-01 for a civil date (Howard Hinnant's days_from_civil).
@@ -1863,7 +2038,10 @@ mod tests {
         let matched = wildcard_match(&pattern, &name);
         let elapsed = start.elapsed();
         assert!(!matched);
-        assert!(elapsed < std::time::Duration::from_secs(1), "wildcard match took {elapsed:?} — ReDoS regression");
+        assert!(
+            elapsed < std::time::Duration::from_secs(1),
+            "wildcard match took {elapsed:?} — ReDoS regression"
+        );
     }
 
     #[test]
@@ -1897,12 +2075,24 @@ mod tests {
         store.deliver_raw("INBOX", raw, vec![], 0);
         let mb = store.mailbox("INBOX").unwrap();
         let refs = msg_refs(&mb.messages[0]);
-        assert!(refs.len() <= 1_000, "msg_refs token count must be bounded, got {}", refs.len());
+        assert!(
+            refs.len() <= 1_000,
+            "msg_refs token count must be bounded, got {}",
+            refs.len()
+        );
         // A normal short References chain is preserved in full.
         let mut store2 = MemoryStore::empty();
-        store2.deliver_raw("INBOX", b"References: <a@b> <c@d>\r\n\r\nx".to_vec(), vec![], 0);
+        store2.deliver_raw(
+            "INBOX",
+            b"References: <a@b> <c@d>\r\n\r\nx".to_vec(),
+            vec![],
+            0,
+        );
         let mb2 = store2.mailbox("INBOX").unwrap();
-        assert_eq!(msg_refs(&mb2.messages[0]), vec!["a@b".to_string(), "c@d".to_string()]);
+        assert_eq!(
+            msg_refs(&mb2.messages[0]),
+            vec!["a@b".to_string(), "c@d".to_string()]
+        );
     }
 
     #[test]
@@ -1914,11 +2104,20 @@ mod tests {
         }
         let mb = store.mailbox("INBOX").unwrap();
         // A single UID → exactly one index, found by binary search.
-        assert_eq!(resolve_targets(mb, &SequenceSet::parse("42").unwrap(), true), vec![41]);
+        assert_eq!(
+            resolve_targets(mb, &SequenceSet::parse("42").unwrap(), true),
+            vec![41]
+        );
         // A UID range maps to the contiguous index window.
-        assert_eq!(resolve_targets(mb, &SequenceSet::parse("10:12").unwrap(), true), vec![9, 10, 11]);
+        assert_eq!(
+            resolve_targets(mb, &SequenceSet::parse("10:12").unwrap(), true),
+            vec![9, 10, 11]
+        );
         // Seq mode maps directly to indices.
-        assert_eq!(resolve_targets(mb, &SequenceSet::parse("1:3").unwrap(), false), vec![0, 1, 2]);
+        assert_eq!(
+            resolve_targets(mb, &SequenceSet::parse("1:3").unwrap(), false),
+            vec![0, 1, 2]
+        );
         // A nonexistent UID yields no targets (not a panic).
         assert!(resolve_targets(mb, &SequenceSet::parse("9999").unwrap(), true).is_empty());
     }

@@ -71,7 +71,9 @@ pub enum CborError {
     MissingKey(u64),
     #[error("Manifest carries forbidden key 5 (ERR_MANIFEST_KEY_PRESENT, §18.3.8)")]
     ManifestKeyPresent,
-    #[error("Manifest chunk list is empty — a manifest MUST carry ≥ 1 chunk (§18.3.8, fail closed)")]
+    #[error(
+        "Manifest chunk list is empty — a manifest MUST carry ≥ 1 chunk (§18.3.8, fail closed)"
+    )]
     ManifestEmptyChunks,
     #[error("unsupported / unknown algorithm suite byte {0:#04x} (fail closed)")]
     UnknownSuite(u8),
@@ -415,7 +417,10 @@ mod tests {
         let bytes = encode(&m);
         // map(4) then keys 1,2,10,24 (24 is two-byte-encoded, sorts after single-byte 10).
         assert_eq!(bytes[0], 0xa4);
-        assert_eq!(&bytes[1..], &[0x01, 0x03, 0x02, 0x02, 0x0a, 0x01, 0x18, 0x18, 0x04]);
+        assert_eq!(
+            &bytes[1..],
+            &[0x01, 0x03, 0x02, 0x02, 0x0a, 0x01, 0x18, 0x18, 0x04]
+        );
     }
 
     #[test]
@@ -503,7 +508,10 @@ mod tests {
     #[test]
     fn rejects_descending_map_keys() {
         // map {2:0, 1:0} — keys 2 then 1 are descending (DMTAP-CBOR-07: 0xa2 02 00 01 00).
-        assert_eq!(decode(&[0xa2, 0x02, 0x00, 0x01, 0x00]), Err(CborError::MapKeyOrder));
+        assert_eq!(
+            decode(&[0xa2, 0x02, 0x00, 0x01, 0x00]),
+            Err(CborError::MapKeyOrder)
+        );
     }
 
     #[test]
@@ -547,7 +555,10 @@ mod tests {
             (1, Cv::U64(24)),
             (2, Cv::Bytes(vec![0xde, 0xad, 0xbe, 0xef])),
             (3, Cv::Text("hi".into())),
-            (7, Cv::Array(vec![Cv::U64(256), Cv::Bool(true), Cv::Bool(false)])),
+            (
+                7,
+                Cv::Array(vec![Cv::U64(256), Cv::Bool(true), Cv::Bool(false)]),
+            ),
             (24, Cv::U64(1_700_000_000_000)),
         ]);
         let bytes = encode(&v);

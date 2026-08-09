@@ -63,12 +63,12 @@ pub fn identity_leaf_hash(
 /// by `tree_size` (§18.9.13).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SignedTreeHead {
-    pub suite: Suite,          // key 1
-    pub log_id: Vec<u8>,       // key 2 — the log's public signing key (the log IS its key)
-    pub tree_size: u64,        // key 3 — number of log entries (RFC 6962 tree size)
+    pub suite: Suite,           // key 1
+    pub log_id: Vec<u8>,        // key 2 — the log's public signing key (the log IS its key)
+    pub tree_size: u64,         // key 3 — number of log entries (RFC 6962 tree size)
     pub timestamp: TimestampMs, // key 4 — STH issuance time (freshness / MMD)
-    pub root_hash: ContentId,  // key 5 — RFC 6962 Merkle Tree Hash (prefix ‖ digest)
-    pub sig: Vec<u8>,          // key 6 — §18.9.13, over det_cbor(STH ∖ {6}) under log_id
+    pub root_hash: ContentId,   // key 5 — RFC 6962 Merkle Tree Hash (prefix ‖ digest)
+    pub sig: Vec<u8>,           // key 6 — §18.9.13, over det_cbor(STH ∖ {6}) under log_id
 }
 
 impl SignedTreeHead {
@@ -108,7 +108,14 @@ impl SignedTreeHead {
         let root_hash = ContentId(as_bytes(f.req(5)?)?);
         let sig = as_bytes(f.req(6)?)?;
         f.deny_unknown()?;
-        Ok(SignedTreeHead { suite, log_id, tree_size, timestamp, root_hash, sig })
+        Ok(SignedTreeHead {
+            suite,
+            log_id,
+            tree_size,
+            timestamp,
+            root_hash,
+            sig,
+        })
     }
 
     /// Sign an STH with the log's key (§18.9.13); `log_id` is set from the signer.
@@ -144,9 +151,9 @@ impl SignedTreeHead {
 /// An RFC 6962 Merkle audit path (§18.4.10). **Unsigned** — verified against an STH `root_hash`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InclusionProof {
-    pub tree_size: u64,          // key 1 — the STH tree_size this path reconstructs to
-    pub leaf_index: u64,         // key 2 — 0-based index of the leaf (< tree_size)
-    pub leaf_hash: ContentId,    // key 3 — the leaf being proven (§18.4.9 rule)
+    pub tree_size: u64,       // key 1 — the STH tree_size this path reconstructs to
+    pub leaf_index: u64,      // key 2 — 0-based index of the leaf (< tree_size)
+    pub leaf_hash: ContentId, // key 3 — the leaf being proven (§18.4.9 rule)
     pub audit_path: Vec<ContentId>, // key 4 — sibling hashes bottom-to-top; MAY be empty
 }
 
@@ -156,7 +163,15 @@ impl InclusionProof {
             (1, Cv::U64(self.tree_size)),
             (2, Cv::U64(self.leaf_index)),
             (3, Cv::Bytes(self.leaf_hash.as_bytes().to_vec())),
-            (4, Cv::Array(self.audit_path.iter().map(|h| Cv::Bytes(h.as_bytes().to_vec())).collect())),
+            (
+                4,
+                Cv::Array(
+                    self.audit_path
+                        .iter()
+                        .map(|h| Cv::Bytes(h.as_bytes().to_vec()))
+                        .collect(),
+                ),
+            ),
         ])
     }
 
@@ -176,7 +191,12 @@ impl InclusionProof {
             .map(|c| as_bytes(c).map(ContentId))
             .collect::<Result<_, _>>()?;
         f.deny_unknown()?;
-        Ok(InclusionProof { tree_size, leaf_index, leaf_hash, audit_path })
+        Ok(InclusionProof {
+            tree_size,
+            leaf_index,
+            leaf_hash,
+            audit_path,
+        })
     }
 
     /// Verify this RFC 6962 audit path folds `leaf_hash` to `root` (spec §18.4.10). A wrong path,
@@ -227,8 +247,8 @@ impl InclusionProof {
 /// (§18.4.11). **Unsigned** — verified against the two STH roots.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConsistencyProof {
-    pub first_size: u64,          // key 1 — earlier tree size (≤ second_size)
-    pub second_size: u64,         // key 2 — later tree size
+    pub first_size: u64,            // key 1 — earlier tree size (≤ second_size)
+    pub second_size: u64,           // key 2 — later tree size
     pub proof_path: Vec<ContentId>, // key 3 — RFC 6962 consistency nodes; MAY be empty
 }
 
@@ -237,7 +257,15 @@ impl ConsistencyProof {
         Cv::Map(vec![
             (1, Cv::U64(self.first_size)),
             (2, Cv::U64(self.second_size)),
-            (3, Cv::Array(self.proof_path.iter().map(|h| Cv::Bytes(h.as_bytes().to_vec())).collect())),
+            (
+                3,
+                Cv::Array(
+                    self.proof_path
+                        .iter()
+                        .map(|h| Cv::Bytes(h.as_bytes().to_vec()))
+                        .collect(),
+                ),
+            ),
         ])
     }
 
@@ -256,7 +284,11 @@ impl ConsistencyProof {
             .map(|c| as_bytes(c).map(ContentId))
             .collect::<Result<_, _>>()?;
         f.deny_unknown()?;
-        Ok(ConsistencyProof { first_size, second_size, proof_path })
+        Ok(ConsistencyProof {
+            first_size,
+            second_size,
+            proof_path,
+        })
     }
 }
 
@@ -272,14 +304,18 @@ pub enum KtError {
     /// The committed leaf ≠ the leaf recomputed from the resolved identity (§18.4.9). The log
     /// presented a binding whose leaf does not match the identity. `ERR_KT_LEAF_HASH_MISMATCH`
     /// (`0x0117`), FAIL_CLOSED_BLOCK — the log indexes, it does not redefine.
-    #[error("KT committed leaf ≠ leaf recomputed from the resolved identity \
-             (ERR_KT_LEAF_HASH_MISMATCH, 0x0117)")]
+    #[error(
+        "KT committed leaf ≠ leaf recomputed from the resolved identity \
+             (ERR_KT_LEAF_HASH_MISMATCH, 0x0117)"
+    )]
     LeafHashMismatch,
     /// A consistency proof between two STHs fails — the later tree is **not** an append-only
     /// extension of the earlier (a forked / non-extending log). `ERR_KT_STH_INCONSISTENT`
     /// (`0x0110`), HALT_ALERT — the append-only-violation evidence for equivocation (§3.5.2).
-    #[error("KT consistency proof fails — the log is not append-only / forked \
-             (ERR_KT_STH_INCONSISTENT, 0x0110)")]
+    #[error(
+        "KT consistency proof fails — the log is not append-only / forked \
+             (ERR_KT_STH_INCONSISTENT, 0x0110)"
+    )]
     NotConsistent,
 }
 
@@ -465,7 +501,11 @@ pub fn verify_consistency(
     }
     // Empty first tree: every later tree extends it; an empty proof is consistent.
     if m == 0 {
-        return if proof.proof_path.is_empty() { Ok(()) } else { Err(KtError::NotConsistent) };
+        return if proof.proof_path.is_empty() {
+            Ok(())
+        } else {
+            Err(KtError::NotConsistent)
+        };
     }
     // Decode the proof-path digests up front (any malformed hash fails closed).
     let mut path: Vec<[u8; 32]> = Vec::with_capacity(proof.proof_path.len());
@@ -541,7 +581,12 @@ pub fn verify_consistency(
 /// [`InclusionProof::verify_identity`]).
 pub fn identity_leaf_for(identity: &Identity, name: &str) -> Option<ContentId> {
     let ik = identity.iks.get(&Suite::Classical.as_u8())?;
-    Some(identity_leaf_hash(name, ik, identity.version, &identity.content_id()))
+    Some(identity_leaf_hash(
+        name,
+        ik,
+        identity.version,
+        &identity.content_id(),
+    ))
 }
 
 // --- In-memory RFC 6962 tree (reference log) -----------------------------------------------
@@ -588,7 +633,12 @@ impl MerkleTree {
         if idx >= self.leaves.len() {
             return None;
         }
-        Some(audit_path(idx, &self.leaves).into_iter().map(as_content_id).collect())
+        Some(
+            audit_path(idx, &self.leaves)
+                .into_iter()
+                .map(as_content_id)
+                .collect(),
+        )
     }
 
     /// The RFC 6962 consistency-proof nodes proving the current tree extends its own prefix of size
@@ -599,7 +649,11 @@ impl MerkleTree {
         if m == 0 || m > n {
             return None;
         }
-        let path = if m == n { Vec::new() } else { subproof(m, &self.leaves, true) };
+        let path = if m == n {
+            Vec::new()
+        } else {
+            subproof(m, &self.leaves, true)
+        };
         Some(path.into_iter().map(as_content_id).collect())
     }
 }
@@ -614,16 +668,15 @@ mod tests {
 
     #[test]
     fn sth_signs_verifies_and_round_trips() {
-        let sth = SignedTreeHead::issue(
-            &key(0x11),
-            7,
-            1_700_000_000_000,
-            ContentId::of(b"kt-root"),
-        );
+        let sth =
+            SignedTreeHead::issue(&key(0x11), 7, 1_700_000_000_000, ContentId::of(b"kt-root"));
         assert!(sth.verify().is_ok());
         let bytes = sth.det_cbor();
         assert_eq!(bytes[0] & 0xe0, 0xa0, "STH is a CBOR map");
-        assert_eq!(bytes[1], 0x01, "first key is integer 1 (suite), not a text key");
+        assert_eq!(
+            bytes[1], 0x01,
+            "first key is integer 1 (suite), not a text key"
+        );
         let back = SignedTreeHead::from_det_cbor(&bytes).unwrap();
         assert_eq!(sth, back);
         assert_eq!(bytes, back.det_cbor());
@@ -653,7 +706,11 @@ mod tests {
 
     #[test]
     fn consistency_proof_round_trips_including_empty_path() {
-        let p = ConsistencyProof { first_size: 3, second_size: 7, proof_path: vec![] };
+        let p = ConsistencyProof {
+            first_size: 3,
+            second_size: 7,
+            proof_path: vec![],
+        };
         let bytes = p.det_cbor();
         let back = ConsistencyProof::from_det_cbor(&bytes).unwrap();
         assert_eq!(p, back);
@@ -667,12 +724,18 @@ mod tests {
         // defeating the split-view/consistency checks (§6) keyed on the exact signed STH bytes.
         // Covers the signed SignedTreeHead, InclusionProof (non-empty audit_path), and
         // ConsistencyProof (non-empty proof_path) so mutations reach every nested decode path.
-        let sth = SignedTreeHead::issue(&key(0x11), 7, 1_700_000_000_000, ContentId::of(b"kt-root")).det_cbor();
+        let sth =
+            SignedTreeHead::issue(&key(0x11), 7, 1_700_000_000_000, ContentId::of(b"kt-root"))
+                .det_cbor();
         let incl = InclusionProof {
             tree_size: 9,
             leaf_index: 4,
             leaf_hash: ContentId::of(b"leaf"),
-            audit_path: vec![ContentId::of(b"s0"), ContentId::of(b"s1"), ContentId::of(b"s2")],
+            audit_path: vec![
+                ContentId::of(b"s0"),
+                ContentId::of(b"s1"),
+                ContentId::of(b"s2"),
+            ],
         }
         .det_cbor();
         let cons = ConsistencyProof {
@@ -694,20 +757,37 @@ mod tests {
             for n in 0..valid.len() {
                 mutants.push(valid[..n].to_vec());
             }
-            for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8], vec![0xa1, 0x00, 0x00]] {
+            for junk in [
+                vec![0x00u8],
+                vec![0xff, 0xff],
+                vec![0x9f; 8],
+                vec![0xa1, 0x00, 0x00],
+            ] {
                 let mut m = valid.clone();
                 m.extend_from_slice(&junk);
                 mutants.push(m);
             }
             for m in &mutants {
                 if let Ok(o) = SignedTreeHead::from_det_cbor(m) {
-                    assert_eq!(&o.det_cbor(), m, "SignedTreeHead decoder accepted a non-canonical encoding");
+                    assert_eq!(
+                        &o.det_cbor(),
+                        m,
+                        "SignedTreeHead decoder accepted a non-canonical encoding"
+                    );
                 }
                 if let Ok(o) = InclusionProof::from_det_cbor(m) {
-                    assert_eq!(&o.det_cbor(), m, "InclusionProof decoder accepted a non-canonical encoding");
+                    assert_eq!(
+                        &o.det_cbor(),
+                        m,
+                        "InclusionProof decoder accepted a non-canonical encoding"
+                    );
                 }
                 if let Ok(o) = ConsistencyProof::from_det_cbor(m) {
-                    assert_eq!(&o.det_cbor(), m, "ConsistencyProof decoder accepted a non-canonical encoding");
+                    assert_eq!(
+                        &o.det_cbor(),
+                        m,
+                        "ConsistencyProof decoder accepted a non-canonical encoding"
+                    );
                 }
             }
         }
@@ -760,7 +840,10 @@ mod tests {
         }
         let root = t.root().unwrap();
         let mut p = proof_for(&t, 3, &leaf(3));
-        assert_eq!(p.verify_root(&ContentId::of(b"nope")), Err(KtError::ProofInvalid));
+        assert_eq!(
+            p.verify_root(&ContentId::of(b"nope")),
+            Err(KtError::ProofInvalid)
+        );
         p.audit_path[0] = ContentId::of(b"tampered sibling");
         let err = p.verify_root(&root).unwrap_err();
         assert_eq!(err, KtError::ProofInvalid);

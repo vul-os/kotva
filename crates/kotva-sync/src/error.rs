@@ -138,6 +138,9 @@ mod tests {
             SyncError::SnapshotStateUnavailable.name(),
             "ERR_SYNC_SNAPSHOT_STATE_UNAVAILABLE"
         );
-        assert_eq!(SyncError::SnapshotStateUnavailable.action(), Action::FailClosedBlock);
+        assert_eq!(
+            SyncError::SnapshotStateUnavailable.action(),
+            Action::FailClosedBlock
+        );
     }
 }

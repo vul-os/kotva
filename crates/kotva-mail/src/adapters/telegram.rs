@@ -69,7 +69,10 @@ impl LegacyAdapter for TelegramAdapter {
             // A MOTE body is native text (§8.2); mark it plainly so a legacy render is well-formed.
             mime: Some("text/plain; charset=utf-8".to_string()),
             // The one honest thing we can say about who sent this: the platform *asserts* it.
-            ext: vec![(RAIL_ORIGIN_EXT_KEY.to_string(), super::platform_asserted_cv("telegram", &msg.from))],
+            ext: vec![(
+                RAIL_ORIGIN_EXT_KEY.to_string(),
+                super::platform_asserted_cv("telegram", &msg.from),
+            )],
             ..Default::default()
         };
         Payload {
@@ -199,7 +202,11 @@ impl Message {
     #[must_use]
     pub fn to_rail_message(&self) -> RailMessage {
         RailMessage {
-            from: self.from.as_ref().map(|u| u.id.to_string()).unwrap_or_default(),
+            from: self
+                .from
+                .as_ref()
+                .map(|u| u.id.to_string())
+                .unwrap_or_default(),
             text: self.text.clone().unwrap_or_default(),
             opens_window: true,
         }
@@ -218,12 +225,20 @@ pub struct TelegramTransport<H: HttpPost> {
 impl<H: HttpPost> TelegramTransport<H> {
     /// Bind against the public Bot API host with the given bot token.
     pub fn new(http: H, token: impl Into<String>) -> Self {
-        Self { http, token: token.into(), base: BOT_API_BASE.to_string() }
+        Self {
+            http,
+            token: token.into(),
+            base: BOT_API_BASE.to_string(),
+        }
     }
 
     /// Bind against a custom base URL (a self-hosted Bot API server, or a test double).
     pub fn with_base(http: H, token: impl Into<String>, base: impl Into<String>) -> Self {
-        Self { http, token: token.into(), base: base.into() }
+        Self {
+            http,
+            token: token.into(),
+            base: base.into(),
+        }
     }
 
     /// The full method URL: `<base>/bot<token>/<method>`.
@@ -242,9 +257,9 @@ impl<H: HttpPost> TelegramTransport<H> {
         if parsed.ok {
             Ok(parsed.result.unwrap_or_default())
         } else {
-            Err(TransportError::Rejected(
-                parsed.description.unwrap_or_else(|| "getUpdates returned ok=false".to_string()),
-            ))
+            Err(TransportError::Rejected(parsed.description.unwrap_or_else(
+                || "getUpdates returned ok=false".to_string(),
+            )))
         }
     }
 }
@@ -254,7 +269,10 @@ impl<H: HttpPost> RailTransport for TelegramTransport<H> {
     /// response is surfaced as [`TransportError::Rejected`] with the platform's own `description`
     /// (a rate limit, a bot the user never started, …) — never silently swallowed.
     fn send(&self, send: RailSend) -> Result<(), TransportError> {
-        let req = SendMessage { chat_id: send.to, text: send.text };
+        let req = SendMessage {
+            chat_id: send.to,
+            text: send.text,
+        };
         let url = self.method_url("sendMessage");
         let resp = self.http.post_json(&url, &req.to_json())?;
         let parsed: ApiResponse<Message> = serde_json::from_str(&resp)
@@ -262,9 +280,9 @@ impl<H: HttpPost> RailTransport for TelegramTransport<H> {
         if parsed.ok {
             Ok(())
         } else {
-            Err(TransportError::Rejected(
-                parsed.description.unwrap_or_else(|| "sendMessage returned ok=false".to_string()),
-            ))
+            Err(TransportError::Rejected(parsed.description.unwrap_or_else(
+                || "sendMessage returned ok=false".to_string(),
+            )))
         }
     }
 }
@@ -283,16 +301,25 @@ mod tests {
 
     impl MockHttp {
         fn new(response: &str) -> Self {
-            Self { calls: RefCell::new(Vec::new()), response: response.to_string() }
+            Self {
+                calls: RefCell::new(Vec::new()),
+                response: response.to_string(),
+            }
         }
         fn last_call(&self) -> (String, String) {
-            self.calls.borrow().last().cloned().expect("a call was made")
+            self.calls
+                .borrow()
+                .last()
+                .cloned()
+                .expect("a call was made")
         }
     }
 
     impl HttpPost for MockHttp {
         fn post_json(&self, url: &str, body: &str) -> Result<String, TransportError> {
-            self.calls.borrow_mut().push((url.to_string(), body.to_string()));
+            self.calls
+                .borrow_mut()
+                .push((url.to_string(), body.to_string()));
             Ok(self.response.clone())
         }
     }
@@ -310,9 +337,15 @@ mod tests {
         // §26.4.2 — no outbound-cold path in EITHER direction.
         assert_eq!(p.inbound.initiation, InitiationClass::InboundTriggered);
         assert_eq!(p.outbound.initiation, InitiationClass::InboundTriggered);
-        assert!(!p.can_initiate_outbound_cold(), "Telegram must not initiate cold (§26.4.2)");
+        assert!(
+            !p.can_initiate_outbound_cold(),
+            "Telegram must not initiate cold (§26.4.2)"
+        );
         // §26.3 — outbound-persistent (works behind CGNAT via long-poll).
-        assert_eq!(p.inbound_transport, InboundTransportClass::OutboundPersistent);
+        assert_eq!(
+            p.inbound_transport,
+            InboundTransportClass::OutboundPersistent
+        );
         // §26.10 — free, both directions.
         assert_eq!(p.inbound.price, PriceShape::Free);
         assert_eq!(p.outbound.price, PriceShape::Free);
@@ -334,14 +367,20 @@ mod tests {
         // The body is the message text.
         assert_eq!(payload.body, b"hello from telegram");
         // The Telegram id is NOT the cryptographic sender.
-        assert!(payload.from.is_empty(), "a platform-asserted id must never masquerade as `from`");
+        assert!(
+            payload.from.is_empty(),
+            "a platform-asserted id must never masquerade as `from`"
+        );
 
         // The origin rides the ONE canonical platform-asserted ext entry (§26.5.1), read uniformly.
         let origin = crate::adapters::platform_asserted_origin(&payload)
             .expect("the platform-asserted origin must be present");
         assert_eq!(origin.rail, "telegram");
         assert_eq!(origin.claim, "123456789");
-        assert!(!origin.verifiable, "a platform-asserted claim is never verifiable (§26.5.1)");
+        assert!(
+            !origin.verifiable,
+            "a platform-asserted claim is never verifiable (§26.5.1)"
+        );
     }
 
     /// §26.4.2: an outbound-cold send on Telegram (no prior inbound, no open window) is a functional
@@ -363,7 +402,10 @@ mod tests {
         let transport = TelegramTransport::with_base(http, "123:ABC", "https://api.telegram.org");
 
         transport
-            .send(RailSend { to: "42".to_string(), text: "hi there".to_string() })
+            .send(RailSend {
+                to: "42".to_string(),
+                text: "hi there".to_string(),
+            })
             .expect("a well-formed ok=true response is a successful send");
 
         // Re-borrow the mock via the transport to inspect the recorded call.
@@ -384,7 +426,11 @@ mod tests {
     /// number — matching what the Bot API accepts.
     #[test]
     fn send_message_string_chat_id_serializes_as_string() {
-        let json = SendMessage { chat_id: "@somechannel".to_string(), text: "x".to_string() }.to_json();
+        let json = SendMessage {
+            chat_id: "@somechannel".to_string(),
+            text: "x".to_string(),
+        }
+        .to_json();
         let v: Value = serde_json::from_str(&json).unwrap();
         assert_eq!(v["chat_id"], serde_json::json!("@somechannel"));
     }
@@ -400,24 +446,35 @@ mod tests {
         let http = MockHttp::new(resp);
         let transport = TelegramTransport::new(http, "tok");
         let updates = transport
-            .get_updates(&GetUpdates { offset: Some(0), timeout: Some(30) })
+            .get_updates(&GetUpdates {
+                offset: Some(0),
+                timeout: Some(30),
+            })
             .expect("ok=true decodes");
         assert_eq!(updates.len(), 2);
         let m = updates[0].message.as_ref().unwrap().to_rail_message();
         assert_eq!(m.from, "777");
         assert_eq!(m.text, "hi");
         assert!(m.opens_window, "an inbound message opens the reply window");
-        assert!(updates[1].message.is_none(), "a non-message update is skipped");
+        assert!(
+            updates[1].message.is_none(),
+            "a non-message update is skipped"
+        );
     }
 
     /// A Bot API `ok:false` response surfaces as a `Rejected` transport error carrying the platform's
     /// own description — never silently swallowed.
     #[test]
     fn send_surfaces_bot_api_rejection() {
-        let http = MockHttp::new(r#"{"ok":false,"description":"Forbidden: bot can't initiate conversation with a user"}"#);
+        let http = MockHttp::new(
+            r#"{"ok":false,"description":"Forbidden: bot can't initiate conversation with a user"}"#,
+        );
         let transport = TelegramTransport::new(http, "tok");
         let err = transport
-            .send(RailSend { to: "42".to_string(), text: "hi".to_string() })
+            .send(RailSend {
+                to: "42".to_string(),
+                text: "hi".to_string(),
+            })
             .expect_err("ok=false is an error");
         match err {
             TransportError::Rejected(d) => assert!(d.contains("can't initiate")),

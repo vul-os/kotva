@@ -97,13 +97,20 @@ impl LegacyAdapter for SlackAdapter {
 /// that carries no such claim — the caller MUST NOT treat its absence as a *verified* sender either.
 #[must_use]
 pub fn platform_asserted_origin(headers: &Headers) -> Option<(String, String)> {
-    let entry = headers.ext.iter().find(|(k, _)| k == PLATFORM_ASSERTED_EXT_KEY)?;
-    let Cv::TextMap(fields) = &entry.1 else { return None };
+    let entry = headers
+        .ext
+        .iter()
+        .find(|(k, _)| k == PLATFORM_ASSERTED_EXT_KEY)?;
+    let Cv::TextMap(fields) = &entry.1 else {
+        return None;
+    };
     let get = |name: &str| {
-        fields.iter().find_map(|(k, v)| match (k.as_str() == name, v) {
-            (true, Cv::Text(s)) => Some(s.clone()),
-            _ => None,
-        })
+        fields
+            .iter()
+            .find_map(|(k, v)| match (k.as_str() == name, v) {
+                (true, Cv::Text(s)) => Some(s.clone()),
+                _ => None,
+            })
     };
     Some((get("rail")?, get("claim")?))
 }
@@ -208,7 +215,10 @@ impl<H: HttpPost> SlackTransport<H> {
 
 impl<H: HttpPost> RailTransport for SlackTransport<H> {
     fn send(&self, send: RailSend) -> Result<(), TransportError> {
-        let req = ChatPostMessageRequest { channel: send.to, text: send.text };
+        let req = ChatPostMessageRequest {
+            channel: send.to,
+            text: send.text,
+        };
         let body = serde_json::to_string(&req)
             .map_err(|e| TransportError::Rejected(format!("encode chat.postMessage: {e}")))?;
         let raw = self.http.post_json(CHAT_POST_MESSAGE_URL, &body)?;
@@ -218,7 +228,8 @@ impl<H: HttpPost> RailTransport for SlackTransport<H> {
             Ok(())
         } else {
             Err(TransportError::Rejected(
-                resp.error.unwrap_or_else(|| "slack: unknown error".to_string()),
+                resp.error
+                    .unwrap_or_else(|| "slack: unknown error".to_string()),
             ))
         }
     }
@@ -228,7 +239,7 @@ impl<H: HttpPost> RailTransport for SlackTransport<H> {
 mod tests {
     use super::*;
     use crate::adapters::{
-        InitiationClass, InboundTransportClass, OutboundDisposition, PriceShape, RailAuthenticity,
+        InboundTransportClass, InitiationClass, OutboundDisposition, PriceShape, RailAuthenticity,
     };
     use std::cell::RefCell;
 
@@ -245,7 +256,10 @@ mod tests {
         assert_eq!(p.outbound.initiation, InitiationClass::InboundTriggered);
         assert!(!p.can_initiate_outbound_cold());
         // Outbound-persistent inbound (Socket Mode) — works behind CGNAT.
-        assert_eq!(p.inbound_transport, InboundTransportClass::OutboundPersistent);
+        assert_eq!(
+            p.inbound_transport,
+            InboundTransportClass::OutboundPersistent
+        );
         // Free, both directions.
         assert_eq!(p.inbound.price, PriceShape::Free);
         assert_eq!(p.outbound.price, PriceShape::Free);
@@ -271,8 +285,14 @@ mod tests {
 
         // Honestly unverifiable: no identity key, no signature — the two ways this could otherwise
         // masquerade as a verified sender.
-        assert!(payload.from.is_empty(), "a Slack user id must not sit in `from` as a verified key");
-        assert!(payload.sig.is_empty(), "an unverifiable rail message must carry no signature");
+        assert!(
+            payload.from.is_empty(),
+            "a Slack user id must not sit in `from` as a verified key"
+        );
+        assert!(
+            payload.sig.is_empty(),
+            "an unverifiable rail message must carry no signature"
+        );
 
         // The origin rides the structurally-distinct platform-asserted ext entry (§26.5.1).
         let origin = platform_asserted_origin(&payload.headers)
@@ -313,10 +333,17 @@ mod tests {
     }
     impl MockHttp {
         fn ok() -> Self {
-            Self { response: r#"{"ok":true,"channel":"C0FEEDBAC","ts":"1700000000.000100"}"#.to_string(), last: RefCell::new(None) }
+            Self {
+                response: r#"{"ok":true,"channel":"C0FEEDBAC","ts":"1700000000.000100"}"#
+                    .to_string(),
+                last: RefCell::new(None),
+            }
         }
         fn err(reason: &str) -> Self {
-            Self { response: format!(r#"{{"ok":false,"error":"{reason}"}}"#), last: RefCell::new(None) }
+            Self {
+                response: format!(r#"{{"ok":false,"error":"{reason}"}}"#),
+                last: RefCell::new(None),
+            }
         }
     }
     impl HttpPost for MockHttp {
@@ -331,14 +358,29 @@ mod tests {
     fn mock_transport_formats_chat_post_message() {
         let http = MockHttp::ok();
         let tx = SlackTransport::new(http);
-        tx.send(RailSend { to: "C0FEEDBAC".to_string(), text: "deploy done".to_string() })
-            .expect("ok:true response must succeed");
+        tx.send(RailSend {
+            to: "C0FEEDBAC".to_string(),
+            text: "deploy done".to_string(),
+        })
+        .expect("ok:true response must succeed");
 
-        let (url, body) = tx.http.last.borrow().clone().expect("the transport must have POSTed");
+        let (url, body) = tx
+            .http
+            .last
+            .borrow()
+            .clone()
+            .expect("the transport must have POSTed");
         assert_eq!(url, CHAT_POST_MESSAGE_URL);
         // Parse the body back rather than string-match, so field order is not load-bearing.
-        let req: ChatPostMessageRequest = serde_json::from_str(&body).expect("body is a valid request");
-        assert_eq!(req, ChatPostMessageRequest { channel: "C0FEEDBAC".to_string(), text: "deploy done".to_string() });
+        let req: ChatPostMessageRequest =
+            serde_json::from_str(&body).expect("body is a valid request");
+        assert_eq!(
+            req,
+            ChatPostMessageRequest {
+                channel: "C0FEEDBAC".to_string(),
+                text: "deploy done".to_string()
+            }
+        );
     }
 
     /// A Slack `ok:false` response surfaces as a `Rejected` error carrying the platform's reason —
@@ -347,7 +389,10 @@ mod tests {
     fn mock_transport_surfaces_slack_error() {
         let tx = SlackTransport::new(MockHttp::err("not_in_channel"));
         let err = tx
-            .send(RailSend { to: "C0FEEDBAC".to_string(), text: "hi".to_string() })
+            .send(RailSend {
+                to: "C0FEEDBAC".to_string(),
+                text: "hi".to_string(),
+            })
             .expect_err("ok:false must be an error");
         assert_eq!(err, TransportError::Rejected("not_in_channel".to_string()));
     }
@@ -361,7 +406,10 @@ mod tests {
         let rm = cb.event.to_rail_message().expect("a user message projects");
         assert_eq!(rm.from, "U0A1B2C3D");
         assert_eq!(rm.text, "hi there");
-        assert!(rm.opens_window, "an inbound user message opens the reply window");
+        assert!(
+            rm.opens_window,
+            "an inbound user message opens the reply window"
+        );
 
         // A bot echo (our own outbound) must not loop back in.
         let echo = SlackMessageEvent {
@@ -373,6 +421,9 @@ mod tests {
             subtype: Some("bot_message".to_string()),
             ts: None,
         };
-        assert!(echo.to_rail_message().is_none(), "bot echoes must be filtered");
+        assert!(
+            echo.to_rail_message().is_none(),
+            "bot echoes must be filtered"
+        );
     }
 }

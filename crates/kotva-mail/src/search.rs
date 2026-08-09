@@ -79,25 +79,36 @@ fn parse_search_key_depth(toks: &[Token], depth: usize) -> Result<SearchKey, Par
         keys.push(key);
         rest = next;
     }
-    Ok(if keys.len() == 1 { keys.pop().unwrap() } else { SearchKey::And(keys) })
+    Ok(if keys.len() == 1 {
+        keys.pop().unwrap()
+    } else {
+        SearchKey::And(keys)
+    })
 }
 
 fn s(t: &Token) -> Result<String, ParseError> {
-    t.as_str().map(str::to_string).ok_or(ParseError::Syntax("expected search argument"))
+    t.as_str()
+        .map(str::to_string)
+        .ok_or(ParseError::Syntax("expected search argument"))
 }
 
 fn parse_one(toks: &[Token], depth: usize) -> Result<(SearchKey, &[Token]), ParseError> {
     // A NOT/OR operand keyword at the end of the program hands an EMPTY tail here; guard the index
     // (and every other `toks[0]`) so `SEARCH NOT` / `SEARCH OR ANSWERED` fail closed with BAD instead
     // of an index-out-of-bounds panic.
-    let head = toks.first().ok_or(ParseError::Syntax("missing search key"))?;
+    let head = toks
+        .first()
+        .ok_or(ParseError::Syntax("missing search key"))?;
     // A parenthesised sub-program — descend with depth+1 so nesting is bounded (MAX_SEARCH_DEPTH).
     if matches!(head, Token::LParen) {
         let end = close_paren(toks)?;
         let inner = parse_search_key_depth(&toks[1..end], depth + 1)?;
         return Ok((inner, &toks[end + 1..]));
     }
-    let kw = head.as_str().ok_or(ParseError::Syntax("bad search key"))?.to_ascii_uppercase();
+    let kw = head
+        .as_str()
+        .ok_or(ParseError::Syntax("bad search key"))?
+        .to_ascii_uppercase();
     let rest = &toks[1..];
 
     // Zero-argument keys.
@@ -230,7 +241,13 @@ pub struct SearchCtx<'a> {
 impl<'a> SearchCtx<'a> {
     /// Build a context for `msg` at sequence/uid coordinates.
     pub fn new(seq: u32, max_seq: u32, uid: u32, max_uid: u32, msg: &'a Message) -> SearchCtx<'a> {
-        SearchCtx { seq, max_seq, uid, max_uid, msg }
+        SearchCtx {
+            seq,
+            max_seq,
+            uid,
+            max_uid,
+            msg,
+        }
     }
 
     /// The memoized MIME parse (only touched by predicates that need headers/body/structure).
@@ -351,25 +368,40 @@ fn parse_imap_date(d: &str) -> Option<(i64, i64, i64)> {
 }
 
 fn month_num(m: &str) -> Option<i64> {
-    const MO: [&str; 12] =
-        ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
-    MO.iter().position(|x| x.eq_ignore_ascii_case(m)).map(|i| i as i64 + 1)
+    const MO: [&str; 12] = [
+        "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec",
+    ];
+    MO.iter()
+        .position(|x| x.eq_ignore_ascii_case(m))
+        .map(|i| i as i64 + 1)
 }
 
-fn cmp_internal_date(c: &SearchCtx, d: &str, f: impl Fn(&(i64, i64, i64), &(i64, i64, i64)) -> bool) -> bool {
+fn cmp_internal_date(
+    c: &SearchCtx,
+    d: &str,
+    f: impl Fn(&(i64, i64, i64), &(i64, i64, i64)) -> bool,
+) -> bool {
     match parse_imap_date(d) {
         Some(target) => f(&mime::ymd_from_ms(c.msg.internal_date), &target),
         None => false,
     }
 }
 
-fn cmp_sent_date(c: &SearchCtx, d: &str, f: impl Fn(&(i64, i64, i64), &(i64, i64, i64)) -> bool) -> bool {
+fn cmp_sent_date(
+    c: &SearchCtx,
+    d: &str,
+    f: impl Fn(&(i64, i64, i64), &(i64, i64, i64)) -> bool,
+) -> bool {
     let target = match parse_imap_date(d) {
         Some(t) => t,
         None => return false,
     };
     // Use the message's Date: header day if present; else fall back to internal date.
-    let sent = c.parsed().header("Date").and_then(parse_rfc5322_day).unwrap_or(mime::ymd_from_ms(c.msg.internal_date));
+    let sent = c
+        .parsed()
+        .header("Date")
+        .and_then(parse_rfc5322_day)
+        .unwrap_or(mime::ymd_from_ms(c.msg.internal_date));
     f(&sent, &target)
 }
 
@@ -414,7 +446,8 @@ mod tests {
 
     #[test]
     fn evaluates_against_message() {
-        let raw = b"From: Alice <alice@example.com>\r\nSubject: Weekly report\r\n\r\nthe body text\r\n";
+        let raw =
+            b"From: Alice <alice@example.com>\r\nSubject: Weekly report\r\n\r\nthe body text\r\n";
         let msg = Message::new(5, vec![Flag::Seen], 1_752_537_600_000, 3, raw.to_vec());
         let ctx = SearchCtx::new(1, 1, 5, 5, &msg);
         assert!(eval(&key("SEEN"), &ctx));
@@ -459,7 +492,10 @@ mod tests {
         assert!(eval(&subject_key("münchen"), &ctx));
         assert!(eval(&subject_key("grüße"), &ctx));
         assert!(eval(&SearchKey::From("алиса".into()), &ctx));
-        assert!(eval(&SearchKey::Header("Subject".into(), "münchen".into()), &ctx));
+        assert!(eval(
+            &SearchKey::Header("Subject".into(), "münchen".into()),
+            &ctx
+        ));
         // TEXT covers decoded headers too.
         assert!(eval(&SearchKey::Text("алиса".into()), &ctx));
         // The raw encoded spelling is NOT what users see; it no longer needs to match.

@@ -163,7 +163,10 @@ impl DeviceAttestation {
         if !self.key_protection.is_hardware() {
             return Err(AttestationError::AttestationInvalid);
         }
-        let evidence = self.evidence.as_deref().ok_or(AttestationError::AttestationInvalid)?;
+        let evidence = self
+            .evidence
+            .as_deref()
+            .ok_or(AttestationError::AttestationInvalid)?;
         if !verify_root(evidence, &self.device_key) {
             return Err(AttestationError::AttestationInvalid);
         }
@@ -216,7 +219,9 @@ mod tests {
             issued_at: now,
             expires: None,
         };
-        assert!(bare.evaluate(false, now, REATTEST_CADENCE_MS, false, |_, _| false).is_ok());
+        assert!(bare
+            .evaluate(false, now, REATTEST_CADENCE_MS, false, |_, _| false)
+            .is_ok());
     }
 
     #[test]
@@ -235,7 +240,9 @@ mod tests {
         let now = 1_700_000_000_000;
         let mut a = attested(now);
         a.key_protection = KeyProtection::Software;
-        let err = a.evaluate(true, now, REATTEST_CADENCE_MS, false, |_, _| true).unwrap_err();
+        let err = a
+            .evaluate(true, now, REATTEST_CADENCE_MS, false, |_, _| true)
+            .unwrap_err();
         assert_eq!(err, AttestationError::AttestationInvalid);
         assert_eq!(err.code(), 0x0116);
     }
@@ -266,12 +273,20 @@ mod tests {
         let now = 1_700_000_000_000;
         let a = attested(now);
         let later = now + REATTEST_CADENCE_MS + 1;
-        let err = a.evaluate(true, later, REATTEST_CADENCE_MS, false, |_, _| true).unwrap_err();
+        let err = a
+            .evaluate(true, later, REATTEST_CADENCE_MS, false, |_, _| true)
+            .unwrap_err();
         assert_eq!(err, AttestationError::AttestationExpired);
         assert_eq!(err.code(), 0x0118);
         // Exactly at the cadence bound is still fresh.
         assert!(a
-            .evaluate(true, now + REATTEST_CADENCE_MS, REATTEST_CADENCE_MS, false, |_, _| true)
+            .evaluate(
+                true,
+                now + REATTEST_CADENCE_MS,
+                REATTEST_CADENCE_MS,
+                false,
+                |_, _| true
+            )
             .is_ok());
     }
 

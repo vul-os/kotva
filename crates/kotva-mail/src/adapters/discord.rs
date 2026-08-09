@@ -34,9 +34,7 @@ use serde::{Deserialize, Serialize};
 use kotva_core::cbor::Cv;
 use kotva_core::mote::{Headers, Payload};
 
-use super::{
-    LegacyAdapter, RailMessage, RailProperties, RailSend, RailTransport, TransportError,
-};
+use super::{LegacyAdapter, RailMessage, RailProperties, RailSend, RailTransport, TransportError};
 
 /// The default Discord REST API base (versioned, §26.4 sanctioned API). Overridable for tests.
 pub const DISCORD_API_BASE: &str = "https://discord.com/api/v10";
@@ -228,7 +226,11 @@ pub struct DiscordTransport<H: HttpPost> {
 impl<H: HttpPost> DiscordTransport<H> {
     /// Bind a transport to an HTTP client and a **bot** token, against the default API base.
     pub fn new(http: H, bot_token: impl Into<String>) -> Self {
-        Self { http, bot_token: bot_token.into(), api_base: DISCORD_API_BASE.to_string() }
+        Self {
+            http,
+            bot_token: bot_token.into(),
+            api_base: DISCORD_API_BASE.to_string(),
+        }
     }
 
     /// Override the API base (for tests / self-hosted proxies). Not for production credentials.
@@ -269,8 +271,10 @@ impl<H: HttpPost> RailTransport for DiscordTransport<H> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adapters::{InitiationClass, InboundTransportClass, OutboundDisposition, PriceShape,
-        RailAuthenticity, Sanctioning};
+    use crate::adapters::{
+        InboundTransportClass, InitiationClass, OutboundDisposition, PriceShape, RailAuthenticity,
+        Sanctioning,
+    };
     use std::cell::RefCell;
 
     /// §26.4 (the Discord row) + §26.4.2: inbound-triggered in **both** directions, outbound-
@@ -285,9 +289,15 @@ mod tests {
         // §26.4.2: no outbound-cold path in either direction.
         assert_eq!(p.inbound.initiation, InitiationClass::InboundTriggered);
         assert_eq!(p.outbound.initiation, InitiationClass::InboundTriggered);
-        assert!(!p.can_initiate_outbound_cold(), "Discord cannot initiate cold (§26.4.2)");
+        assert!(
+            !p.can_initiate_outbound_cold(),
+            "Discord cannot initiate cold (§26.4.2)"
+        );
         // §26.4 row: outbound-persistent (Gateway WebSocket), free, sanctioned bot API.
-        assert_eq!(p.inbound_transport, InboundTransportClass::OutboundPersistent);
+        assert_eq!(
+            p.inbound_transport,
+            InboundTransportClass::OutboundPersistent
+        );
         assert_eq!(p.inbound.price, PriceShape::Free);
         assert_eq!(p.outbound.price, PriceShape::Free);
         assert_eq!(p.sanctioning, Sanctioning::SanctionedApi);
@@ -309,17 +319,24 @@ mod tests {
 
         // The body is the message text; the origin is NOT smuggled into the verified-sender slot.
         assert_eq!(mote.body, b"hello from discord");
-        assert!(mote.from.is_empty(), "the snowflake must not masquerade as a verified sender IK (§26.5)");
+        assert!(
+            mote.from.is_empty(),
+            "the snowflake must not masquerade as a verified sender IK (§26.5)"
+        );
 
         // The platform-asserted marker is present, structurally distinct, and honest.
         let origin = platform_asserted_origin(&mote).expect("platform-asserted origin present");
         assert_eq!(origin.rail, "discord");
         assert_eq!(origin.claim, "123456789012345678");
-        assert!(!origin.verifiable, "a platform-asserted claim is never verifiable (§26.5.1)");
+        assert!(
+            !origin.verifiable,
+            "a platform-asserted claim is never verifiable (§26.5.1)"
+        );
 
         // The marker survives a real wire CBOR round-trip (it rides in the signed Headers.ext).
         let wire = mote.det_cbor();
-        let decoded = Payload::from_det_cbor(&wire).expect("MOTE round-trips through canonical CBOR");
+        let decoded =
+            Payload::from_det_cbor(&wire).expect("MOTE round-trips through canonical CBOR");
         let origin2 = platform_asserted_origin(&decoded).expect("origin survives the wire");
         assert_eq!(origin, origin2);
     }
@@ -370,8 +387,14 @@ mod tests {
         reply: String,
     }
     impl HttpPost for MockHttp {
-        fn post_json(&self, url: &str, authorization: &str, body: &str) -> Result<String, TransportError> {
-            *self.last.borrow_mut() = Some((url.to_string(), authorization.to_string(), body.to_string()));
+        fn post_json(
+            &self,
+            url: &str,
+            authorization: &str,
+            body: &str,
+        ) -> Result<String, TransportError> {
+            *self.last.borrow_mut() =
+                Some((url.to_string(), authorization.to_string(), body.to_string()));
             Ok(self.reply.clone())
         }
     }
@@ -385,14 +408,21 @@ mod tests {
             ..Default::default()
         };
         let tx = DiscordTransport::new(http, "SECRET-BOT-TOKEN");
-        tx.send(RailSend { to: "555".to_string(), text: "hi".to_string() }).unwrap();
+        tx.send(RailSend {
+            to: "555".to_string(),
+            text: "hi".to_string(),
+        })
+        .unwrap();
 
         let http = &tx.http;
         let (url, auth, body) = http.last.borrow().clone().expect("a request was made");
         assert_eq!(url, "https://discord.com/api/v10/channels/555/messages");
         // §26.8.2 analogue: BOT scheme only, never a user token / self-bot.
         assert_eq!(auth, "Bot SECRET-BOT-TOKEN");
-        assert!(auth.starts_with("Bot "), "must use the bot authorization scheme");
+        assert!(
+            auth.starts_with("Bot "),
+            "must use the bot authorization scheme"
+        );
         // Exact create-message body.
         assert_eq!(body, r#"{"content":"hi"}"#);
     }
@@ -408,7 +438,10 @@ mod tests {
         }
         let tx = DiscordTransport::new(FailingHttp, "tok");
         assert_eq!(
-            tx.send(RailSend { to: "1".to_string(), text: "x".to_string() }),
+            tx.send(RailSend {
+                to: "1".to_string(),
+                text: "x".to_string()
+            }),
             Err(TransportError::Unreachable),
         );
     }

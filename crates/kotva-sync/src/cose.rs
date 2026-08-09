@@ -108,7 +108,11 @@ impl CoseSign1 {
             SVal::Bytes(b) => b.clone(),
             _ => return Err(SyncError::OpSigInvalid),
         };
-        Ok(CoseSign1 { protected, payload, signature })
+        Ok(CoseSign1 {
+            protected,
+            payload,
+            signature,
+        })
     }
 
     /// The `kid` (asserted signer key) and `alg` from the protected header.
@@ -157,7 +161,11 @@ pub fn sign_op(sk: &IdentityKey, op: &SyncOp) -> Result<CoseSign1, SyncError> {
     // The DS-tag rides in `external_aad` inside the Sig_structure, so the raw Ed25519 message is
     // the Sig_structure itself — no second, competing domain prefix.
     let signature = sk.sign_domain(&[], &preimage);
-    Ok(CoseSign1 { protected, payload, signature })
+    Ok(CoseSign1 {
+        protected,
+        payload,
+        signature,
+    })
 }
 
 /// Verify a `COSE_Sign1` and return the authentic [`SyncOp`] it carries (§4.1).
@@ -208,7 +216,11 @@ mod tests {
             target: "a".into(),
             field: Some("x".into()),
             value: Some(SVal::Text("v".into())),
-            hlc: Hlc { wall: 1_700_000_100_000, counter: 0, author: sk.public() },
+            hlc: Hlc {
+                wall: 1_700_000_100_000,
+                counter: 0,
+                author: sk.public(),
+            },
             observed: None,
             reference: None,
         }
@@ -254,7 +266,11 @@ mod tests {
         let foreign_aad = b"DMTAP-SYNC-v0/snapshot\x00";
         let preimage = sig_structure(&protected, foreign_aad, &payload);
         let signature = sk.sign_domain(&[], &preimage);
-        let cose = CoseSign1 { protected, payload, signature };
+        let cose = CoseSign1 {
+            protected,
+            payload,
+            signature,
+        };
         assert_eq!(verify_op(&cose), Err(SyncError::OpSigInvalid));
     }
 

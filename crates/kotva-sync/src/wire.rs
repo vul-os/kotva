@@ -79,9 +79,17 @@ impl Hlc {
             return Err(DetCborError::Malformed);
         };
         let counter = u32::try_from(counter).map_err(|_| DetCborError::Malformed)?;
-        let author = f.req(3)?.as_bytes().ok_or(DetCborError::Malformed)?.to_vec();
+        let author = f
+            .req(3)?
+            .as_bytes()
+            .ok_or(DetCborError::Malformed)?
+            .to_vec();
         f.deny_unknown()?;
-        Ok(Hlc { wall, counter, author })
+        Ok(Hlc {
+            wall,
+            counter,
+            author,
+        })
     }
 
     /// This HLC's canonical bytes.
@@ -126,13 +134,20 @@ pub struct AddTag {
 impl AddTag {
     /// Canonical map `{1: author, 2: hlc}`.
     pub fn to_sval(&self) -> SVal {
-        SVal::Map(vec![(1, SVal::Bytes(self.author.clone())), (2, self.hlc.to_sval())])
+        SVal::Map(vec![
+            (1, SVal::Bytes(self.author.clone())),
+            (2, self.hlc.to_sval()),
+        ])
     }
 
     /// Decode, denying unknown keys.
     pub fn from_sval(cv: SVal) -> Result<Self, DetCborError> {
         let mut f = Fields::new(cv)?;
-        let author = f.req(1)?.as_bytes().ok_or(DetCborError::Malformed)?.to_vec();
+        let author = f
+            .req(1)?
+            .as_bytes()
+            .ok_or(DetCborError::Malformed)?
+            .to_vec();
         let hlc = Hlc::from_sval(f.req(2)?)?;
         f.deny_unknown()?;
         Ok(AddTag { author, hlc })
@@ -163,7 +178,11 @@ impl OpRef {
     /// Decode, denying unknown keys.
     pub fn from_sval(cv: SVal) -> Result<Self, DetCborError> {
         let mut f = Fields::new(cv)?;
-        let target = f.req(1)?.as_text().ok_or(DetCborError::Malformed)?.to_owned();
+        let target = f
+            .req(1)?
+            .as_text()
+            .ok_or(DetCborError::Malformed)?
+            .to_owned();
         let hlc = match f.take(2) {
             Some(v) => Some(Hlc::from_sval(v)?),
             None => None,
@@ -224,8 +243,16 @@ impl SyncOp {
         let mut f = Fields::new(cv)?;
         let kind = u8::try_from(f.req(1)?.as_int().ok_or(DetCborError::Malformed)? as u64)
             .map_err(|_| DetCborError::Malformed)?;
-        let ns = f.req(2)?.as_text().ok_or(DetCborError::Malformed)?.to_owned();
-        let target = f.req(3)?.as_text().ok_or(DetCborError::Malformed)?.to_owned();
+        let ns = f
+            .req(2)?
+            .as_text()
+            .ok_or(DetCborError::Malformed)?
+            .to_owned();
+        let target = f
+            .req(3)?
+            .as_text()
+            .ok_or(DetCborError::Malformed)?
+            .to_owned();
         let field = match f.take(4) {
             Some(v) => Some(v.as_text().ok_or(DetCborError::Malformed)?.to_owned()),
             None => None,
@@ -238,7 +265,12 @@ impl SyncOp {
                     SVal::Array(a) => a,
                     _ => return Err(DetCborError::Malformed),
                 };
-                Some(items.into_iter().map(AddTag::from_sval).collect::<Result<Vec<_>, _>>()?)
+                Some(
+                    items
+                        .into_iter()
+                        .map(AddTag::from_sval)
+                        .collect::<Result<Vec<_>, _>>()?,
+                )
             }
             None => None,
         };
@@ -247,7 +279,16 @@ impl SyncOp {
             None => None,
         };
         f.deny_unknown()?;
-        Ok(SyncOp { kind, ns, target, field, value, hlc, observed, reference })
+        Ok(SyncOp {
+            kind,
+            ns,
+            target,
+            field,
+            value,
+            hlc,
+            observed,
+            reference,
+        })
     }
 
     /// This op's canonical bytes — the `COSE_Sign1` payload and the `op-id` preimage body.
@@ -303,7 +344,11 @@ mod tests {
             target: "a".into(),
             field: Some("x".into()),
             value: Some(SVal::Text("v".into())),
-            hlc: Hlc { wall: 1, counter: 2, author: author() },
+            hlc: Hlc {
+                wall: 1,
+                counter: 2,
+                author: author(),
+            },
             observed: None,
             reference: None,
         };
@@ -315,26 +360,57 @@ mod tests {
 
     #[test]
     fn hlc_total_order_is_wall_counter_author() {
-        let a = Hlc { wall: 1, counter: 0, author: vec![0xff] };
-        let b = Hlc { wall: 1, counter: 1, author: vec![0x00] };
+        let a = Hlc {
+            wall: 1,
+            counter: 0,
+            author: vec![0xff],
+        };
+        let b = Hlc {
+            wall: 1,
+            counter: 1,
+            author: vec![0x00],
+        };
         assert!(b > a, "counter outranks author");
-        let c = Hlc { wall: 2, counter: 0, author: vec![0x00] };
+        let c = Hlc {
+            wall: 2,
+            counter: 0,
+            author: vec![0x00],
+        };
         assert!(c > b, "wall outranks counter");
-        let d = Hlc { wall: 1, counter: 0, author: vec![0x01] };
+        let d = Hlc {
+            wall: 1,
+            counter: 0,
+            author: vec![0x01],
+        };
         assert!(a > d, "author is the final tiebreak");
     }
 
     #[test]
     fn observe_then_tick_sorts_after_every_seen_op() {
-        let mut clock = Hlc { wall: 10, counter: 0, author: author() };
-        let remote = Hlc { wall: 5, counter: 9, author: vec![0xbb; 32] };
+        let mut clock = Hlc {
+            wall: 10,
+            counter: 0,
+            author: author(),
+        };
+        let remote = Hlc {
+            wall: 5,
+            counter: 9,
+            author: vec![0xbb; 32],
+        };
         clock.observe(&remote);
         // A backwards remote wall must not drag the local clock back...
         assert_eq!(clock.wall, 10);
-        let ahead = Hlc { wall: 50, counter: 3, author: vec![0xbb; 32] };
+        let ahead = Hlc {
+            wall: 50,
+            counter: 3,
+            author: vec![0xbb; 32],
+        };
         clock.observe(&ahead);
         let next = clock.tick(0); // a stalled/backwards local wall clock
-        assert!(next > ahead, "next local tick must sort after every observed op");
+        assert!(
+            next > ahead,
+            "next local tick must sort after every observed op"
+        );
     }
 
     #[test]
@@ -346,7 +422,11 @@ mod tests {
             target: "a".into(),
             field: None,
             value: None,
-            hlc: Hlc { wall: 1, counter: 0, author: author() },
+            hlc: Hlc {
+                wall: 1,
+                counter: 0,
+                author: author(),
+            },
             observed: None,
             reference: None,
         }

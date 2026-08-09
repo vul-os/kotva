@@ -35,7 +35,10 @@ struct Lcg(u64);
 
 impl Lcg {
     fn next(&mut self) -> u64 {
-        self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        self.0 = self
+            .0
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         self.0 >> 11
     }
 
@@ -49,7 +52,11 @@ fn author(i: usize) -> Vec<u8> {
 }
 
 fn hlc(counter: u32, a: usize) -> Hlc {
-    Hlc { wall: WALL, counter, author: author(a) }
+    Hlc {
+        wall: WALL,
+        counter,
+        author: author(a),
+    }
 }
 
 /// Build a pseudo-random but **valid** op set covering all six CRDT types, with deliberate
@@ -115,9 +122,7 @@ fn generate(seed: u64, n: usize) -> Vec<SyncOp> {
                 kind: OP_DEATH,
                 ns: String::new(),
                 target,
-                field: Some(
-                    ["redact", "expires", "sensitive", "live"][rng.pick(4)].to_string(),
-                ),
+                field: Some(["redact", "expires", "sensitive", "live"][rng.pick(4)].to_string()),
                 value: None,
                 hlc: h,
                 observed: None,
@@ -141,7 +146,10 @@ fn generate(seed: u64, n: usize) -> Vec<SyncOp> {
                 value: Some(SVal::Text(format!("a{i}"))),
                 hlc: h,
                 observed: None,
-                reference: Some(OpRef { target: "line".into(), hlc: Some(head.clone()) }),
+                reference: Some(OpRef {
+                    target: "line".into(),
+                    hlc: Some(head.clone()),
+                }),
             },
             6 => SyncOp {
                 kind: OP_SEQ_REMOVE,
@@ -229,7 +237,11 @@ fn idempotent_reapplying_the_same_ops_changes_nothing() {
         for op in &refs {
             twice.ingest(op, NOW).unwrap();
         }
-        assert_eq!(observable(&twice), observable(&once), "replay must be a no-op (seed {seed})");
+        assert_eq!(
+            observable(&twice),
+            observable(&once),
+            "replay must be a no-op (seed {seed})"
+        );
     }
 }
 
@@ -253,8 +265,16 @@ fn associative_any_grouping_of_partial_states_merges_to_the_same_bytes() {
         let mut right = apply_all(a);
         right.merge(&bc);
 
-        assert_eq!(observable(&left), reference, "(A∪B)∪C diverged (seed {seed})");
-        assert_eq!(observable(&right), reference, "A∪(B∪C) diverged (seed {seed})");
+        assert_eq!(
+            observable(&left),
+            reference,
+            "(A∪B)∪C diverged (seed {seed})"
+        );
+        assert_eq!(
+            observable(&right),
+            reference,
+            "A∪(B∪C) diverged (seed {seed})"
+        );
     }
 }
 

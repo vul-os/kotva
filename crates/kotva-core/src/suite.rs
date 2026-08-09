@@ -164,7 +164,8 @@ impl Serialize for Suite {
 impl<'de> Deserialize<'de> for Suite {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let b = u8::deserialize(d)?;
-        Suite::from_u8(b).ok_or_else(|| serde::de::Error::custom(format!("unknown suite 0x{b:02x}")))
+        Suite::from_u8(b)
+            .ok_or_else(|| serde::de::Error::custom(format!("unknown suite 0x{b:02x}")))
     }
 }
 
@@ -270,7 +271,9 @@ pub struct SuiteRatchet {
 impl SuiteRatchet {
     /// A ratchet with no pinned contacts.
     pub fn new() -> Self {
-        SuiteRatchet { floors: BTreeMap::new() }
+        SuiteRatchet {
+            floors: BTreeMap::new(),
+        }
     }
 
     /// The current high-water-mark for `contact`, or `None` if never seen.
@@ -340,8 +343,14 @@ mod tests {
         assert_eq!(s.as_u8(), 0x04);
         // ... but nothing may be done under it: SLH-DSA-128s is not implemented here, so both
         // support predicates are false and every use fails closed rather than silently degrading.
-        assert!(!s.is_supported(), "0x04 must not claim Identity-layer support");
-        assert!(!s.mote_supported(), "0x04 must not claim MOTE-layer support");
+        assert!(
+            !s.is_supported(),
+            "0x04 must not claim Identity-layer support"
+        );
+        assert!(
+            !s.mote_supported(),
+            "0x04 must not claim MOTE-layer support"
+        );
     }
 
     #[test]
@@ -351,8 +360,14 @@ mod tests {
         assert_eq!(s, Suite::ReservedAeadGcm);
         assert_eq!(s.as_u8(), 0x03);
         // ... but is NOT implemented at either layer — every attempted use fails closed.
-        assert!(!s.is_supported(), "reserved 0x03 must not be Identity-supported");
-        assert!(!s.mote_supported(), "reserved 0x03 must not be MOTE-supported");
+        assert!(
+            !s.is_supported(),
+            "reserved 0x03 must not be Identity-supported"
+        );
+        assert!(
+            !s.mote_supported(),
+            "reserved 0x03 must not be MOTE-supported"
+        );
         // It round-trips through the CBOR suite decoder (a known id), unlike an unregistered byte.
         let mut buf = Vec::new();
         ciborium::into_writer(&3u8, &mut buf).unwrap();
@@ -367,8 +382,14 @@ mod tests {
         assert_eq!(s, Suite::ReservedHashSha3);
         assert_eq!(s.as_u8(), 0x05);
         // ... but is NOT implemented at either layer — every attempted use fails closed.
-        assert!(!s.is_supported(), "reserved 0x05 must not be Identity-supported");
-        assert!(!s.mote_supported(), "reserved 0x05 must not be MOTE-supported");
+        assert!(
+            !s.is_supported(),
+            "reserved 0x05 must not be Identity-supported"
+        );
+        assert!(
+            !s.mote_supported(),
+            "reserved 0x05 must not be MOTE-supported"
+        );
         // It round-trips through the CBOR suite decoder (a known id), unlike an unregistered byte.
         let mut buf = Vec::new();
         ciborium::into_writer(&5u8, &mut buf).unwrap();
@@ -411,7 +432,10 @@ mod tests {
     fn negotiate_picks_highest_common_suite() {
         // Both support both suites — pick the highest (PQ).
         assert_eq!(
-            negotiate_suite(&[Suite::Classical, Suite::PqHybrid], &[Suite::Classical, Suite::PqHybrid]),
+            negotiate_suite(
+                &[Suite::Classical, Suite::PqHybrid],
+                &[Suite::Classical, Suite::PqHybrid]
+            ),
             Ok(Suite::PqHybrid)
         );
         // Overlap is classical only (sender is PQ-capable, recipient classical-only) — pick classical.
@@ -456,7 +480,10 @@ mod tests {
         assert_eq!(err.code(), 0x020F);
         // The rejected downgrade MUST NOT ratchet the mark down.
         assert_eq!(r.high_water_mark(&peer), Some(Suite::PqHybrid));
-        assert_eq!(r.accept(&peer, Suite::Classical), Err(SuiteRatchetError::SuiteDowngrade));
+        assert_eq!(
+            r.accept(&peer, Suite::Classical),
+            Err(SuiteRatchetError::SuiteDowngrade)
+        );
         assert_eq!(r.high_water_mark(&peer), Some(Suite::PqHybrid));
     }
 
@@ -494,7 +521,11 @@ mod tests {
 
     /// Build a random subset of the three suites from a bitmask.
     fn subset(mask: u64) -> Vec<Suite> {
-        ALL.iter().enumerate().filter(|(i, _)| mask & (1 << i) != 0).map(|(_, s)| *s).collect()
+        ALL.iter()
+            .enumerate()
+            .filter(|(i, _)| mask & (1 << i) != 0)
+            .map(|(_, s)| *s)
+            .collect()
     }
 
     #[test]
@@ -504,11 +535,7 @@ mod tests {
             let s = subset(rng.next() % 8);
             let r = subset(rng.next() % 8);
             // The oracle: the greatest suite byte present in BOTH sets, if any.
-            let expected = s
-                .iter()
-                .filter(|x| r.contains(x))
-                .copied()
-                .max();
+            let expected = s.iter().filter(|x| r.contains(x)).copied().max();
             match (negotiate_suite(&s, &r), expected) {
                 (Ok(got), Some(want)) => {
                     assert_eq!(got, want, "must pick the highest common suite");
@@ -520,7 +547,9 @@ mod tests {
                     assert_eq!(e, SuiteNegotiationError::IntersectionEmpty);
                     assert_eq!(e.code(), 0x0102);
                 }
-                (got, exp) => panic!("negotiate disagreed with the intersection oracle: {got:?} vs {exp:?}"),
+                (got, exp) => {
+                    panic!("negotiate disagreed with the intersection oracle: {got:?} vs {exp:?}")
+                }
             }
             // Symmetry: the negotiated suite does not depend on argument order (both sets are sets).
             assert_eq!(

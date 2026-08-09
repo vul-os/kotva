@@ -14,7 +14,9 @@ pub fn imap_string(s: &str) -> String {
     if s.is_empty() {
         return "\"\"".to_string();
     }
-    let needs_literal = s.bytes().any(|b| b == b'\r' || b == b'\n' || b == 0 || b >= 0x80);
+    let needs_literal = s
+        .bytes()
+        .any(|b| b == b'\r' || b == b'\n' || b == 0 || b >= 0x80);
     if needs_literal {
         format!("{{{}}}\r\n{}", s.len(), s)
     } else {
@@ -37,9 +39,16 @@ pub fn envelope(p: &ParsedMessage) -> String {
     let subject = nstring(p.header("Subject"));
     let from = addr_list(&p.addresses("From"));
     // Sender / Reply-To default to From when their headers are absent (RFC 9051 §7.5.2).
-    let sender = if p.header("Sender").is_some() { addr_list(&p.addresses("Sender")) } else { from.clone() };
-    let reply_to =
-        if p.header("Reply-To").is_some() { addr_list(&p.addresses("Reply-To")) } else { from.clone() };
+    let sender = if p.header("Sender").is_some() {
+        addr_list(&p.addresses("Sender"))
+    } else {
+        from.clone()
+    };
+    let reply_to = if p.header("Reply-To").is_some() {
+        addr_list(&p.addresses("Reply-To"))
+    } else {
+        from.clone()
+    };
     let to = addr_list(&p.addresses("To"));
     let cc = addr_list(&p.addresses("Cc"));
     let bcc = addr_list(&p.addresses("Bcc"));
@@ -72,7 +81,11 @@ fn addr_list(addrs: &[mime::Address]) -> String {
 /// (md5/disposition/language/location) is appended — BODYSTRUCTURE includes it, bare BODY omits it.
 pub fn body_structure(part: &BodyPart, extensible: bool) -> String {
     match part {
-        BodyPart::Multipart { subtype, parts, params } => {
+        BodyPart::Multipart {
+            subtype,
+            parts,
+            params,
+        } => {
             let mut out = String::from("(");
             for p in parts {
                 out.push_str(&body_structure(p, extensible));
@@ -87,7 +100,16 @@ pub fn body_structure(part: &BodyPart, extensible: bool) -> String {
             out.push(')');
             out
         }
-        BodyPart::Single { mime_type, subtype, params, id, description, encoding, octets, lines } => {
+        BodyPart::Single {
+            mime_type,
+            subtype,
+            params,
+            id,
+            description,
+            encoding,
+            octets,
+            lines,
+        } => {
             let mut out = format!(
                 "({} {} {} {} {} {} {}",
                 imap_string(&mime_type.to_uppercase()),
@@ -119,7 +141,11 @@ fn param_list(params: &[(String, String)]) -> String {
         if i > 0 {
             out.push(' ');
         }
-        out.push_str(&format!("{} {}", imap_string(&k.to_uppercase()), imap_string(v)));
+        out.push_str(&format!(
+            "{} {}",
+            imap_string(&k.to_uppercase()),
+            imap_string(v)
+        ));
     }
     out.push(')');
     out
@@ -245,7 +271,10 @@ pub fn section_label(section: &Section) -> String {
 }
 
 fn join_path(p: &[u32]) -> String {
-    p.iter().map(|n| n.to_string()).collect::<Vec<_>>().join(".")
+    p.iter()
+        .map(|n| n.to_string())
+        .collect::<Vec<_>>()
+        .join(".")
 }
 
 /// Apply a `<start.count>` partial to a byte slice (RFC 9051 §6.4.5).
@@ -255,7 +284,11 @@ pub fn apply_partial(bytes: &[u8], partial: Option<(u32, u32)>) -> (Vec<u8>, Opt
         Some((start, count)) => {
             let start = start as usize;
             let end = (start + count as usize).min(bytes.len());
-            let slice = if start >= bytes.len() { &[][..] } else { &bytes[start..end] };
+            let slice = if start >= bytes.len() {
+                &[][..]
+            } else {
+                &bytes[start..end]
+            };
             (slice.to_vec(), Some(start as u32))
         }
     }
@@ -299,10 +332,19 @@ mod tests {
     #[test]
     fn section_extraction() {
         let raw = b"From: a@b\r\nSubject: S\r\n\r\nthe body\r\n";
-        assert_eq!(extract_section(raw, &Section::Text).as_ref(), b"the body\r\n");
+        assert_eq!(
+            extract_section(raw, &Section::Text).as_ref(),
+            b"the body\r\n"
+        );
         // [] and [HEADER]/[TEXT] must borrow the raw bytes (no allocation) so partial fetches slice.
-        assert!(matches!(extract_section(raw, &Section::Full), Cow::Borrowed(_)));
-        assert!(matches!(extract_section(raw, &Section::Text), Cow::Borrowed(_)));
+        assert!(matches!(
+            extract_section(raw, &Section::Full),
+            Cow::Borrowed(_)
+        ));
+        assert!(matches!(
+            extract_section(raw, &Section::Text),
+            Cow::Borrowed(_)
+        ));
         let hf = extract_section(raw, &Section::HeaderFields(vec!["Subject".into()])).into_owned();
         let s = String::from_utf8(hf).unwrap();
         assert!(s.contains("Subject: S"));

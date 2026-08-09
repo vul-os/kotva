@@ -20,7 +20,7 @@
 //! supersede-only, never deletion) and CAD-11 (no index is authoritative) are structural — this
 //! module simply defines no deletion operation, and treats indexes as derived data.
 
-use crate::cbor::{self, as_bytes, as_bool, as_text, as_u64, Cv, Fields};
+use crate::cbor::{self, as_bool, as_bytes, as_text, as_u64, Cv, Fields};
 use crate::id::ContentId;
 use crate::pubobj::PubError;
 
@@ -42,10 +42,14 @@ pub enum CadError {
     #[error("CAD-4: a glTF/mesh (format_id=3) format MUST NOT be canonical-source (§23.3.4)")]
     MeshCanonicalSource,
     /// CAD-5 (§23.3.4): a derived-rendition entry lacking `derived_from_format`.
-    #[error("CAD-5: every derived-rendition (role=2) format must carry derived_from_format (§23.3.4)")]
+    #[error(
+        "CAD-5: every derived-rendition (role=2) format must carry derived_from_format (§23.3.4)"
+    )]
     DerivedMissingProvenance,
     /// CAD-6 (§23.3.3): `units.length_unit` absent — MUST NOT be defaulted/inferred.
-    #[error("CAD-6: units.length_unit is required and MUST NOT be defaulted or inferred (§23.3.3)")]
+    #[error(
+        "CAD-6: units.length_unit is required and MUST NOT be defaulted or inferred (§23.3.3)"
+    )]
     MissingLengthUnit,
     /// CAD-7 (§23.3.1): `deprecated = true` without `deprecation_reason`.
     #[error("CAD-7: deprecated=true requires a deprecation_reason (§23.3.1)")]
@@ -54,7 +58,9 @@ pub enum CadError {
     #[error("CAD-9: assembly child ref_kind must be pin(1) or track(2) (§23.6.1)")]
     BadRefKind,
     /// CAD-10 (§23.6.3): a cycle in an assembly's resolved DAG.
-    #[error("CAD-10: cycle detected in the assembly DAG — abort the walk, never recurse (§23.6.3)")]
+    #[error(
+        "CAD-10: cycle detected in the assembly DAG — abort the walk, never recurse (§23.6.3)"
+    )]
     Cycle,
     /// A structural malformation (empty children, quantity < 1, wrong CBOR type, …).
     #[error("CAD structural: {0}")]
@@ -143,7 +149,11 @@ impl Units {
         let angle_unit = f.take(2).map(as_text).transpose()?;
         let mass_unit = f.take(3).map(as_text).transpose()?;
         // Unsigned application map (§23.3.1): ignore unrecognized keys, do NOT deny_unknown.
-        Ok(Units { length_unit, angle_unit, mass_unit })
+        Ok(Units {
+            length_unit,
+            angle_unit,
+            mass_unit,
+        })
     }
 }
 
@@ -189,7 +199,13 @@ impl ArtifactFormat {
         let format_version = f.take(5).map(as_text).transpose()?;
         // Unsigned application map (§23.3.1): ignore unrecognized keys, do NOT deny_unknown (forward
         // compatibility, matching Units/ArtifactMetadata). Non-canonical bytes are rejected upstream.
-        Ok(ArtifactFormat { format_id, manifest_root, role, derived_from_format, format_version })
+        Ok(ArtifactFormat {
+            format_id,
+            manifest_root,
+            role,
+            derived_from_format,
+            format_version,
+        })
     }
 }
 
@@ -232,11 +248,17 @@ impl ArtifactMetadata {
             (1u64, Cv::Text(self.name.clone())),
             (2, Cv::Text(self.description.clone())),
             (3, Cv::U64(self.artifact_kind)),
-            (4, Cv::Array(self.formats.iter().map(|f| f.to_cv()).collect())),
+            (
+                4,
+                Cv::Array(self.formats.iter().map(|f| f.to_cv()).collect()),
+            ),
             (5, self.units.to_cv()),
         ];
         if !self.tags.is_empty() {
-            m.push((6, Cv::Array(self.tags.iter().map(|t| Cv::Text(t.clone())).collect())));
+            m.push((
+                6,
+                Cv::Array(self.tags.iter().map(|t| Cv::Text(t.clone())).collect()),
+            ));
         }
         m.push((7, Cv::Text(self.license.clone())));
         if self.deprecated {
@@ -267,7 +289,10 @@ impl ArtifactMetadata {
             .collect::<Result<_, _>>()?;
         let units = Units::from_fields(f.req(5).map_err(CadError::Cbor)?)?;
         let tags = match f.take(6) {
-            Some(cv) => cbor::as_array(cv)?.into_iter().map(as_text).collect::<Result<_, _>>()?,
+            Some(cv) => cbor::as_array(cv)?
+                .into_iter()
+                .map(as_text)
+                .collect::<Result<_, _>>()?,
             None => Vec::new(),
         };
         // CAD-1: license (key 7) is REQUIRED for a profile artifact.
@@ -318,12 +343,20 @@ impl ArtifactMetadata {
         }
         // CAD-3: exactly one canonical-source (non-assembly) or structure (assembly).
         if self.artifact_kind == artifact_kind::ASSEMBLY {
-            let structures = self.formats.iter().filter(|f| f.role == role::STRUCTURE).count();
+            let structures = self
+                .formats
+                .iter()
+                .filter(|f| f.role == role::STRUCTURE)
+                .count();
             if structures != 1 {
                 return Err(CadError::CanonicalSourceCardinality);
             }
         } else {
-            let canonical = self.formats.iter().filter(|f| f.role == role::CANONICAL_SOURCE).count();
+            let canonical = self
+                .formats
+                .iter()
+                .filter(|f| f.role == role::CANONICAL_SOURCE)
+                .count();
             if canonical != 1 {
                 return Err(CadError::CanonicalSourceCardinality);
             }
@@ -383,13 +416,20 @@ impl AssemblyChild {
         let quantity = as_u64(f.req(3).map_err(CadError::Cbor)?)?;
         // §23.6.2: quantity MUST be ≥ 1 (a zero count is expressed by omitting the child).
         if quantity < 1 {
-            return Err(CadError::Structural("assembly child quantity must be >= 1 (§23.6.2)".into()));
+            return Err(CadError::Structural(
+                "assembly child quantity must be >= 1 (§23.6.2)".into(),
+            ));
         }
         let transform = f.take(4).map(as_bytes).transpose()?;
         // Unsigned, content-addressed map (§23.3.1): ignore unrecognized keys, do NOT deny_unknown —
         // forward compatibility, matching Units/ArtifactMetadata. Non-canonical *bytes* are still
         // rejected upstream by cbor::decode; an added key changes the content address, not identity.
-        Ok(AssemblyChild { ref_kind, reference, quantity, transform })
+        Ok(AssemblyChild {
+            ref_kind,
+            reference,
+            quantity,
+            transform,
+        })
     }
 }
 
@@ -404,7 +444,10 @@ pub struct AssemblyStructure {
 impl AssemblyStructure {
     /// Encode to the deterministic CBOR bytes of the public blob (§23.6.2).
     pub fn det_cbor(&self) -> Vec<u8> {
-        cbor::encode(&Cv::Map(vec![(1, Cv::Array(self.children.iter().map(|c| c.to_cv()).collect()))]))
+        cbor::encode(&Cv::Map(vec![(
+            1,
+            Cv::Array(self.children.iter().map(|c| c.to_cv()).collect()),
+        )]))
     }
 
     /// Decode (§23.6.2). Enforces CAD-9 (valid `ref_kind`) and the ≥1-children / ≥1-quantity
@@ -417,7 +460,9 @@ impl AssemblyStructure {
             .collect::<Result<_, _>>()?;
         // §23.6.2: an assembly with zero children is malformed (use a part-kind artifact instead).
         if children.is_empty() {
-            return Err(CadError::Structural("assembly must have >= 1 child (§23.6.2)".into()));
+            return Err(CadError::Structural(
+                "assembly must have >= 1 child (§23.6.2)".into(),
+            ));
         }
         // Unsigned, content-addressed map (§23.3.1): ignore unrecognized top-level keys, do NOT
         // deny_unknown (forward compatibility). Non-canonical bytes are rejected upstream by
@@ -507,7 +552,11 @@ mod tests {
     use crate::pubobj::check_supersede;
 
     fn sample_units() -> Units {
-        Units { length_unit: "mm".into(), angle_unit: None, mass_unit: None }
+        Units {
+            length_unit: "mm".into(),
+            angle_unit: None,
+            mass_unit: None,
+        }
     }
 
     fn part_with(formats: Vec<ArtifactFormat>, kind: u64) -> ArtifactMetadata {
@@ -526,12 +575,21 @@ mod tests {
     }
 
     fn fmt(format_id: u64, role: u64, derived: Option<ContentId>) -> ArtifactFormat {
-        ArtifactFormat { format_id, manifest_root: ContentId::of(&[format_id as u8, role as u8]), role, derived_from_format: derived, format_version: None }
+        ArtifactFormat {
+            format_id,
+            manifest_root: ContentId::of(&[format_id as u8, role as u8]),
+            role,
+            derived_from_format: derived,
+            format_version: None,
+        }
     }
 
     #[test]
     fn valid_part_roundtrips_and_validates() {
-        let md = part_with(vec![fmt(format_id::NATIVE, role::CANONICAL_SOURCE, None)], artifact_kind::PART);
+        let md = part_with(
+            vec![fmt(format_id::NATIVE, role::CANONICAL_SOURCE, None)],
+            artifact_kind::PART,
+        );
         md.validate().expect("valid part");
         let bytes = md.det_cbor();
         let back = ArtifactMetadata::parse_and_validate(&bytes).expect("roundtrip+validate");
@@ -542,12 +600,21 @@ mod tests {
     #[test]
     fn cad1_missing_license_rejected() {
         // Build a metadata map WITHOUT key 7 and confirm decode raises MissingLicense.
-        let md = part_with(vec![fmt(format_id::NATIVE, role::CANONICAL_SOURCE, None)], artifact_kind::PART);
+        let md = part_with(
+            vec![fmt(format_id::NATIVE, role::CANONICAL_SOURCE, None)],
+            artifact_kind::PART,
+        );
         let cv = cbor::decode(&md.det_cbor()).unwrap();
-        let mut pairs = match cv { Cv::Map(p) => p, _ => panic!() };
+        let mut pairs = match cv {
+            Cv::Map(p) => p,
+            _ => panic!(),
+        };
         pairs.retain(|(k, _)| *k != 7);
         let bytes = cbor::encode(&Cv::Map(pairs));
-        assert_eq!(ArtifactMetadata::from_det_cbor(&bytes), Err(CadError::MissingLicense));
+        assert_eq!(
+            ArtifactMetadata::from_det_cbor(&bytes),
+            Err(CadError::MissingLicense)
+        );
     }
 
     #[test]
@@ -560,18 +627,27 @@ mod tests {
     fn cad3_ambiguous_canonical_and_assembly_missing_structure() {
         // Two canonical-source entries → ambiguous.
         let two = part_with(
-            vec![fmt(format_id::NATIVE, role::CANONICAL_SOURCE, None), fmt(format_id::STEP, role::CANONICAL_SOURCE, None)],
+            vec![
+                fmt(format_id::NATIVE, role::CANONICAL_SOURCE, None),
+                fmt(format_id::STEP, role::CANONICAL_SOURCE, None),
+            ],
             artifact_kind::PART,
         );
         assert_eq!(two.validate(), Err(CadError::CanonicalSourceCardinality));
         // Assembly with no structure entry → malformed.
-        let asm = part_with(vec![fmt(format_id::NATIVE, role::CANONICAL_SOURCE, None)], artifact_kind::ASSEMBLY);
+        let asm = part_with(
+            vec![fmt(format_id::NATIVE, role::CANONICAL_SOURCE, None)],
+            artifact_kind::ASSEMBLY,
+        );
         assert_eq!(asm.validate(), Err(CadError::CanonicalSourceCardinality));
     }
 
     #[test]
     fn cad4_mesh_canonical_source_rejected() {
-        let md = part_with(vec![fmt(format_id::GLTF_MESH, role::CANONICAL_SOURCE, None)], artifact_kind::PART);
+        let md = part_with(
+            vec![fmt(format_id::GLTF_MESH, role::CANONICAL_SOURCE, None)],
+            artifact_kind::PART,
+        );
         assert_eq!(md.validate(), Err(CadError::MeshCanonicalSource));
     }
 
@@ -591,12 +667,18 @@ mod tests {
     fn cad6_missing_length_unit_rejected() {
         // Units map without key 1.
         let bytes = cbor::encode(&Cv::Map(vec![(2, Cv::Text("rad".into()))]));
-        assert_eq!(Units::from_fields(cbor::decode(&bytes).unwrap()), Err(CadError::MissingLengthUnit));
+        assert_eq!(
+            Units::from_fields(cbor::decode(&bytes).unwrap()),
+            Err(CadError::MissingLengthUnit)
+        );
     }
 
     #[test]
     fn cad7_deprecated_without_reason_rejected() {
-        let mut md = part_with(vec![fmt(format_id::NATIVE, role::CANONICAL_SOURCE, None)], artifact_kind::PART);
+        let mut md = part_with(
+            vec![fmt(format_id::NATIVE, role::CANONICAL_SOURCE, None)],
+            artifact_kind::PART,
+        );
         md.deprecated = true;
         md.deprecation_reason = None;
         assert_eq!(md.validate(), Err(CadError::DeprecatedMissingReason));
@@ -616,12 +698,18 @@ mod tests {
     #[test]
     fn cad9_bad_ref_kind_rejected() {
         // ref_kind = 3 (neither pin nor track).
-        let bad = cbor::encode(&Cv::Map(vec![(1, Cv::Array(vec![Cv::Map(vec![
-            (1, Cv::U64(3)),
-            (2, Cv::Bytes(ContentId::of(b"x").as_bytes().to_vec())),
-            (3, Cv::U64(1)),
-        ])]))]));
-        assert_eq!(AssemblyStructure::from_det_cbor(&bad), Err(CadError::BadRefKind));
+        let bad = cbor::encode(&Cv::Map(vec![(
+            1,
+            Cv::Array(vec![Cv::Map(vec![
+                (1, Cv::U64(3)),
+                (2, Cv::Bytes(ContentId::of(b"x").as_bytes().to_vec())),
+                (3, Cv::U64(1)),
+            ])]),
+        )]));
+        assert_eq!(
+            AssemblyStructure::from_det_cbor(&bad),
+            Err(CadError::BadRefKind)
+        );
     }
 
     #[test]
@@ -630,8 +718,22 @@ mod tests {
         // tracks back to A. Walking A must abort at the cycle, never recurse indefinitely.
         let a = ContentId::of(b"assembly-A");
         let b = ContentId::of(b"assembly-B");
-        let struct_a = AssemblyStructure { children: vec![AssemblyChild { ref_kind: ref_kind::TRACK, reference: b.clone(), quantity: 2, transform: None }] };
-        let struct_b = AssemblyStructure { children: vec![AssemblyChild { ref_kind: ref_kind::TRACK, reference: a.clone(), quantity: 1, transform: None }] };
+        let struct_a = AssemblyStructure {
+            children: vec![AssemblyChild {
+                ref_kind: ref_kind::TRACK,
+                reference: b.clone(),
+                quantity: 2,
+                transform: None,
+            }],
+        };
+        let struct_b = AssemblyStructure {
+            children: vec![AssemblyChild {
+                ref_kind: ref_kind::TRACK,
+                reference: a.clone(),
+                quantity: 1,
+                transform: None,
+            }],
+        };
         let (sa, sb) = (struct_a.clone(), struct_b.clone());
         let resolve = move |r: &ContentId| -> Option<AssemblyStructure> {
             if r == &a {
@@ -649,10 +751,22 @@ mod tests {
         // A valid acyclic BOM: A → [bolt x4, plate x1]; quantities multiply.
         let bolt = ContentId::of(b"bolt-m3");
         let plate = ContentId::of(b"plate");
-        let valid = AssemblyStructure { children: vec![
-            AssemblyChild { ref_kind: ref_kind::PIN, reference: bolt.clone(), quantity: 4, transform: None },
-            AssemblyChild { ref_kind: ref_kind::PIN, reference: plate.clone(), quantity: 1, transform: None },
-        ] };
+        let valid = AssemblyStructure {
+            children: vec![
+                AssemblyChild {
+                    ref_kind: ref_kind::PIN,
+                    reference: bolt.clone(),
+                    quantity: 4,
+                    transform: None,
+                },
+                AssemblyChild {
+                    ref_kind: ref_kind::PIN,
+                    reference: plate.clone(),
+                    quantity: 1,
+                    transform: None,
+                },
+            ],
+        };
         let bom = walk_bom(&valid, &|_r: &ContentId| None).expect("acyclic BOM walks");
         assert_eq!(bom.get(bolt.as_bytes()), Some(&4));
         assert_eq!(bom.get(plate.as_bytes()), Some(&1));
@@ -663,10 +777,30 @@ mod tests {
         // outer → sub (x3) ; sub → bolt (x4)  ⇒  bolt effective = 12.
         let sub_id = ContentId::of(b"sub-assembly");
         let bolt = ContentId::of(b"bolt");
-        let sub = AssemblyStructure { children: vec![AssemblyChild { ref_kind: ref_kind::PIN, reference: bolt.clone(), quantity: 4, transform: None }] };
-        let outer = AssemblyStructure { children: vec![AssemblyChild { ref_kind: ref_kind::PIN, reference: sub_id.clone(), quantity: 3, transform: None }] };
+        let sub = AssemblyStructure {
+            children: vec![AssemblyChild {
+                ref_kind: ref_kind::PIN,
+                reference: bolt.clone(),
+                quantity: 4,
+                transform: None,
+            }],
+        };
+        let outer = AssemblyStructure {
+            children: vec![AssemblyChild {
+                ref_kind: ref_kind::PIN,
+                reference: sub_id.clone(),
+                quantity: 3,
+                transform: None,
+            }],
+        };
         let sub2 = sub.clone();
-        let resolve = |r: &ContentId| -> Option<AssemblyStructure> { if r == &sub_id { Some(sub2.clone()) } else { None } };
+        let resolve = |r: &ContentId| -> Option<AssemblyStructure> {
+            if r == &sub_id {
+                Some(sub2.clone())
+            } else {
+                None
+            }
+        };
         let bom = walk_bom(&outer, &resolve).unwrap();
         assert_eq!(bom.get(bolt.as_bytes()), Some(&12));
     }
@@ -683,12 +817,25 @@ mod tests {
         // test locks is the property that DOES hold universally: from_det_cbor must never PANIC on
         // arbitrary adversarial input. Covers ArtifactMetadata (nested ArtifactFormat list) and
         // AssemblyStructure (children with pin/track ref_kinds and an optional transform).
-        let md = part_with(vec![fmt(format_id::NATIVE, role::CANONICAL_SOURCE, None)], artifact_kind::PART)
-            .det_cbor();
+        let md = part_with(
+            vec![fmt(format_id::NATIVE, role::CANONICAL_SOURCE, None)],
+            artifact_kind::PART,
+        )
+        .det_cbor();
         let asm = AssemblyStructure {
             children: vec![
-                AssemblyChild { ref_kind: ref_kind::PIN, reference: ContentId::of(b"child-a"), quantity: 2, transform: None },
-                AssemblyChild { ref_kind: ref_kind::TRACK, reference: ContentId::of(b"child-b"), quantity: 5, transform: Some(vec![0xde, 0xad]) },
+                AssemblyChild {
+                    ref_kind: ref_kind::PIN,
+                    reference: ContentId::of(b"child-a"),
+                    quantity: 2,
+                    transform: None,
+                },
+                AssemblyChild {
+                    ref_kind: ref_kind::TRACK,
+                    reference: ContentId::of(b"child-b"),
+                    quantity: 5,
+                    transform: Some(vec![0xde, 0xad]),
+                },
             ],
         }
         .det_cbor();
@@ -705,7 +852,12 @@ mod tests {
             for n in 0..valid.len() {
                 mutants.push(valid[..n].to_vec());
             }
-            for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8], vec![0xa1, 0x00, 0x00]] {
+            for junk in [
+                vec![0x00u8],
+                vec![0xff, 0xff],
+                vec![0x9f; 8],
+                vec![0xa1, 0x00, 0x00],
+            ] {
                 let mut m = valid.clone();
                 m.extend_from_slice(&junk);
                 mutants.push(m);
@@ -718,6 +870,9 @@ mod tests {
         }
         // The canonical fixtures still decode to the original value.
         assert_eq!(ArtifactMetadata::from_det_cbor(&md).unwrap().det_cbor(), md);
-        assert_eq!(AssemblyStructure::from_det_cbor(&asm).unwrap().det_cbor(), asm);
+        assert_eq!(
+            AssemblyStructure::from_det_cbor(&asm).unwrap().det_cbor(),
+            asm
+        );
     }
 }

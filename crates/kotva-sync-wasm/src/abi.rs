@@ -133,7 +133,9 @@ fn handoff(body: String) -> u64 {
 fn respond(req: &[u8]) -> String {
     let parsed: Result<Value, _> = serde_json::from_slice(req);
     let Ok(v) = parsed else {
-        return err_response(&crate::err::binding_err_message("request is not valid JSON"));
+        return err_response(&crate::err::binding_err_message(
+            "request is not valid JSON",
+        ));
     };
     let name = v.get("fn").and_then(Value::as_str).unwrap_or("");
     let empty = Vec::new();
@@ -207,7 +209,8 @@ fn with_clock<R>(h: u32, f: impl FnOnce(&mut HlcClock) -> R) -> Result<R, BErr> 
 // -------------------------------------------------------------------------------------------
 
 fn arg<'a>(args: &'a [Value], i: usize) -> Result<&'a Value, BErr> {
-    args.get(i).ok_or_else(|| crate::err::binding_err(format!("missing argument {i}")))
+    args.get(i)
+        .ok_or_else(|| crate::err::binding_err(format!("missing argument {i}")))
 }
 
 fn s_arg(args: &[Value], i: usize) -> Result<String, BErr> {
@@ -246,7 +249,9 @@ fn f_arg(args: &[Value], i: usize) -> Result<f64, BErr> {
 fn h_arg(args: &[Value], i: usize) -> Result<u32, BErr> {
     let n = f_arg(args, i)?;
     if n < 0.0 || n.fract() != 0.0 {
-        return Err(crate::err::binding_err(format!("argument {i} is not a handle")));
+        return Err(crate::err::binding_err(format!(
+            "argument {i} is not a handle"
+        )));
     }
     Ok(n as u32)
 }
@@ -335,7 +340,9 @@ fn dispatch(name: &str, a: &[Value]) -> Result<Value, BErr> {
         }
         "engine.ingest_ambient_authenticated" => {
             let (b, ms) = (b_arg(a, 1)?, f_arg(a, 2)?);
-            Value::Bool(with_engine(h_arg(a, 0)?, |e| e.ingest_ambient_authenticated(&b, ms))??)
+            Value::Bool(with_engine(h_arg(a, 0)?, |e| {
+                e.ingest_ambient_authenticated(&b, ms)
+            })??)
         }
         "engine.has_op" => {
             let id = b_arg(a, 1)?;
@@ -347,7 +354,10 @@ fn dispatch(name: &str, a: &[Value]) -> Result<Value, BErr> {
             let src = h_arg(a, 1)?;
             let other = ENGINES
                 .with(|s| {
-                    s.borrow().get(src as usize).and_then(Option::as_ref).map(SyncEngine::snapshot_clone)
+                    s.borrow()
+                        .get(src as usize)
+                        .and_then(Option::as_ref)
+                        .map(SyncEngine::snapshot_clone)
                 })
                 .ok_or_else(|| bad_handle("engine"))?;
             with_engine(h_arg(a, 0)?, |e| e.merge(&other))?;
@@ -378,7 +388,9 @@ fn dispatch(name: &str, a: &[Value]) -> Result<Value, BErr> {
         "engine.set_members" => stringed(with_engine(h_arg(a, 0)?, |e| e.set_members())??),
         "engine.set_surviving_tags" => {
             let (t, v) = (s_arg(a, 1)?, s_arg(a, 2)?);
-            stringed(with_engine(h_arg(a, 0)?, |e| e.set_surviving_tags(&t, &v))??)
+            stringed(with_engine(h_arg(a, 0)?, |e| {
+                e.set_surviving_tags(&t, &v)
+            })??)
         }
         "engine.counter_total" => {
             let (t, f) = (s_arg(a, 1)?, s_arg(a, 2)?);
@@ -417,9 +429,11 @@ fn dispatch(name: &str, a: &[Value]) -> Result<Value, BErr> {
         // --- the §6.1.2 snapshot body (an op set, not a state document) ---
         "snapshot_body_decode" => stringed(crate::snapshot_body_decode(&b_arg(a, 0)?)?),
         "snapshot_body_encode" => hexed(crate::snapshot_body_encode(&s_arg(a, 0)?)?),
-        "snapshot_body_fold" => {
-            hexed(crate::snapshot_body_fold(&b_arg(a, 0)?, &s_arg(a, 1)?, f_arg(a, 2)?)?)
-        }
+        "snapshot_body_fold" => hexed(crate::snapshot_body_fold(
+            &b_arg(a, 0)?,
+            &s_arg(a, 1)?,
+            f_arg(a, 2)?,
+        )?),
         "snapshot_body_verify_root" => hexed(crate::snapshot_body_verify_root(
             &b_arg(a, 0)?,
             &b_arg(a, 1)?,
@@ -460,16 +474,20 @@ fn dispatch(name: &str, a: &[Value]) -> Result<Value, BErr> {
             crate::fastjoin_check_covers(&b_arg(a, 0)?, &s_arg(a, 1)?)?;
             Value::Null
         }
-        "fastjoin_covers_carries_floor_author_mark" => {
-            Value::Bool(crate::fastjoin_covers_carries_floor_author_mark(&b_arg(a, 0)?)?)
-        }
-        "fastjoin_naive_covers_lacks_floor_rejected" => {
-            Value::Bool(crate::fastjoin_naive_covers_lacks_floor_rejected(&b_arg(a, 0)?)?)
-        }
+        "fastjoin_covers_carries_floor_author_mark" => Value::Bool(
+            crate::fastjoin_covers_carries_floor_author_mark(&b_arg(a, 0)?)?,
+        ),
+        "fastjoin_naive_covers_lacks_floor_rejected" => Value::Bool(
+            crate::fastjoin_naive_covers_lacks_floor_rejected(&b_arg(a, 0)?)?,
+        ),
 
         // --- reconciliation (§5.3) ---
         "fingerprint" => stringed(crate::fingerprint(&s_arg(a, 0)?)?),
-        "summarize" => stringed(crate::summarize(&s_arg(a, 0)?, &s_arg(a, 1)?, &s_arg(a, 2)?)?),
+        "summarize" => stringed(crate::summarize(
+            &s_arg(a, 0)?,
+            &s_arg(a, 1)?,
+            &s_arg(a, 2)?,
+        )?),
         "reconcile" => stringed(crate::reconcile(
             &s_arg(a, 0)?,
             &s_arg(a, 1)?,
@@ -496,7 +514,9 @@ fn dispatch(name: &str, a: &[Value]) -> Result<Value, BErr> {
         "stability_cut" => stringed(crate::stability_cut(&s_arg(a, 0)?)?),
 
         other => {
-            return Err(crate::err::binding_err(format!("no such entry point `{other}`")));
+            return Err(crate::err::binding_err(format!(
+                "no such entry point `{other}`"
+            )));
         }
     })
 }
@@ -626,7 +646,9 @@ mod tests {
 
     #[test]
     fn a_handle_round_trips_through_the_slab() {
-        let h = call(r#"{"fn":"engine.new","a":[]}"#)["ok"].as_u64().expect("a handle");
+        let h = call(r#"{"fn":"engine.new","a":[]}"#)["ok"]
+            .as_u64()
+            .expect("a handle");
         let root = call(&format!(r#"{{"fn":"engine.state_root","a":[{h}]}}"#))["ok"]
             .as_str()
             .expect("a root")
@@ -642,9 +664,13 @@ mod tests {
 
     #[test]
     fn a_closed_slot_is_reused_rather_than_leaked() {
-        let a = call(r#"{"fn":"engine.new","a":[]}"#)["ok"].as_u64().unwrap();
+        let a = call(r#"{"fn":"engine.new","a":[]}"#)["ok"]
+            .as_u64()
+            .unwrap();
         call(&format!(r#"{{"fn":"engine.close","a":[{a}]}}"#));
-        let b = call(r#"{"fn":"engine.new","a":[]}"#)["ok"].as_u64().unwrap();
+        let b = call(r#"{"fn":"engine.new","a":[]}"#)["ok"]
+            .as_u64()
+            .unwrap();
         assert_eq!(a, b, "a long-lived instance must not grow the slab forever");
         call(&format!(r#"{{"fn":"engine.close","a":[{b}]}}"#));
     }
@@ -655,7 +681,14 @@ mod tests {
         // guard over its exports; this one covers the dispatch table, which is what the Go binding
         // can actually reach. Signing stays detached: preimage out, signature in.
         for name in ENTRY_POINTS {
-            for banned in ["seed", "secret", "private", "_sk", "sign_op", "sign_snapshot"] {
+            for banned in [
+                "seed",
+                "secret",
+                "private",
+                "_sk",
+                "sign_op",
+                "sign_snapshot",
+            ] {
                 assert!(
                     !name.contains(banned),
                     "`{name}` looks like a raw-key entry point; signing is detached by design"

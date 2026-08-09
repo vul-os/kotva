@@ -302,7 +302,10 @@ pub(crate) fn validate_topic_label(label: &str) -> Result<(), PubError> {
     if label.len() > TOPIC_LABEL_MAX_BYTES {
         return Err(PubError::Cbor(cbor::CborError::TypeMismatch));
     }
-    if label.chars().any(|c| matches!(c, '\u{0000}'..='\u{001F}' | '/' | '\u{007F}')) {
+    if label
+        .chars()
+        .any(|c| matches!(c, '\u{0000}'..='\u{001F}' | '/' | '\u{007F}'))
+    {
         return Err(PubError::Cbor(cbor::CborError::TypeMismatch));
     }
     // Rule 1 (§25.3.4, UAX #15): reject a label that is not already NFC. `is_nfc` is a pure
@@ -338,7 +341,13 @@ impl PubManifest {
     /// Build a manifest from an ordered plaintext-chunk-hash list, computing `id` = the §22.2.2 root.
     pub fn new(size: u64, chunk_sz: u32, chunks: Vec<ContentId>, suite: Suite) -> Self {
         let id = pub_manifest_root(&chunks);
-        PubManifest { id, size, chunk_sz, chunks, suite }
+        PubManifest {
+            id,
+            size,
+            chunk_sz,
+            chunks,
+            suite,
+        }
     }
 
     fn to_cv(&self) -> Cv {
@@ -347,7 +356,15 @@ impl PubManifest {
             (1, Cv::Bytes(self.id.as_bytes().to_vec())),
             (2, Cv::U64(self.size)),
             (3, Cv::U64(self.chunk_sz as u64)),
-            (4, Cv::Array(self.chunks.iter().map(|c| Cv::Bytes(c.as_bytes().to_vec())).collect())),
+            (
+                4,
+                Cv::Array(
+                    self.chunks
+                        .iter()
+                        .map(|c| Cv::Bytes(c.as_bytes().to_vec()))
+                        .collect(),
+                ),
+            ),
             (6, Cv::U64(self.suite.as_u8() as u64)),
         ])
     }
@@ -395,7 +412,13 @@ impl PubManifest {
         }
         let suite = pub_suite(f.req(6)?)?;
         f.deny_unknown()?;
-        Ok(PubManifest { id, size, chunk_sz, chunks, suite })
+        Ok(PubManifest {
+            id,
+            size,
+            chunk_sz,
+            chunks,
+            suite,
+        })
     }
 }
 
@@ -431,7 +454,15 @@ impl PubAnnounce {
             (1u64, Cv::U64(self.v as u64)),
             (2, Cv::U64(self.suite.as_u8() as u64)),
             (3, Cv::Bytes(self.publisher.clone())),
-            (4, Cv::Array(self.roots.iter().map(|r| Cv::Bytes(r.as_bytes().to_vec())).collect())),
+            (
+                4,
+                Cv::Array(
+                    self.roots
+                        .iter()
+                        .map(|r| Cv::Bytes(r.as_bytes().to_vec()))
+                        .collect(),
+                ),
+            ),
             (5, Cv::TextMap(self.meta.clone())),
         ];
         if let Some(s) = &self.supersedes {
@@ -486,8 +517,13 @@ impl PubAnnounce {
         if &self.announce_id() != fetched_by {
             return Err(PubError::AnnounceIdMismatch);
         }
-        verify_domain(&self.signer, PUB_ANNOUNCE_DS, &self.signing_preimage(), &self.sig)
-            .map_err(|_| PubError::AnnounceSigInvalid)?;
+        verify_domain(
+            &self.signer,
+            PUB_ANNOUNCE_DS,
+            &self.signing_preimage(),
+            &self.sig,
+        )
+        .map_err(|_| PubError::AnnounceSigInvalid)?;
         // §22.3.3 step 4: signer authorized by pub. The direct case (`signer == pub`, IK signs
         // directly). For an operational signer, the caller must present a DeviceCert
         // (`verify_with_cert`); a bare announce whose signer ≠ pub without one is rejected.
@@ -511,8 +547,13 @@ impl PubAnnounce {
         if &self.announce_id() != fetched_by {
             return Err(PubError::AnnounceIdMismatch);
         }
-        verify_domain(&self.signer, PUB_ANNOUNCE_DS, &self.signing_preimage(), &self.sig)
-            .map_err(|_| PubError::AnnounceSigInvalid)?;
+        verify_domain(
+            &self.signer,
+            PUB_ANNOUNCE_DS,
+            &self.signing_preimage(),
+            &self.sig,
+        )
+        .map_err(|_| PubError::AnnounceSigInvalid)?;
         if self.signer == self.publisher {
             return Ok(());
         }
@@ -550,7 +591,17 @@ impl PubAnnounce {
         let signer = as_bytes(f.req(8)?)?;
         let sig = as_bytes(f.req(9)?)?;
         f.deny_unknown()?;
-        Ok(PubAnnounce { v, suite, publisher, roots, meta, supersedes, ts, signer, sig })
+        Ok(PubAnnounce {
+            v,
+            suite,
+            publisher,
+            roots,
+            meta,
+            supersedes,
+            ts,
+            signer,
+            sig,
+        })
     }
 }
 
@@ -633,7 +684,10 @@ pub struct FeedEntry {
 
 impl FeedEntry {
     fn to_cv(&self) -> Cv {
-        let mut m = vec![(1u64, Cv::U64(self.seq)), (2, Cv::Bytes(self.announce.as_bytes().to_vec()))];
+        let mut m = vec![
+            (1u64, Cv::U64(self.seq)),
+            (2, Cv::Bytes(self.announce.as_bytes().to_vec())),
+        ];
         if let Some(p) = &self.prev {
             m.push((3, Cv::Bytes(p.as_bytes().to_vec())));
         }
@@ -668,7 +722,12 @@ impl FeedEntry {
             (n, None) if n != 0 => return Err(PubError::FeedChainBroken), // non-genesis MUST carry prev
             _ => {}
         }
-        Ok(FeedEntry { seq, announce, prev, ts })
+        Ok(FeedEntry {
+            seq,
+            announce,
+            prev,
+            ts,
+        })
     }
 }
 
@@ -773,8 +832,13 @@ impl FeedHead {
         if self.v != PUB_V0 || !self.suite.is_supported() {
             return Err(PubError::UnsupportedVersion);
         }
-        verify_domain(&self.signer, PUB_FEED_DS, &self.signing_preimage(), &self.sig)
-            .map_err(|_| PubError::FeedSigInvalid)?;
+        verify_domain(
+            &self.signer,
+            PUB_FEED_DS,
+            &self.signing_preimage(),
+            &self.sig,
+        )
+        .map_err(|_| PubError::FeedSigInvalid)?;
         if self.signer != self.publisher {
             return Err(PubError::FeedSigInvalid);
         }
@@ -786,8 +850,13 @@ impl FeedHead {
         if self.v != PUB_V0 || !self.suite.is_supported() {
             return Err(PubError::UnsupportedVersion);
         }
-        verify_domain(&self.signer, PUB_FEED_DS, &self.signing_preimage(), &self.sig)
-            .map_err(|_| PubError::FeedSigInvalid)?;
+        verify_domain(
+            &self.signer,
+            PUB_FEED_DS,
+            &self.signing_preimage(),
+            &self.sig,
+        )
+        .map_err(|_| PubError::FeedSigInvalid)?;
         if self.signer == self.publisher {
             return Ok(());
         }
@@ -830,7 +899,17 @@ impl FeedHead {
             None => String::new(),
         };
         f.deny_unknown()?;
-        Ok(FeedHead { v, suite, publisher, seq, tip, ts, signer, sig, topic })
+        Ok(FeedHead {
+            v,
+            suite,
+            publisher,
+            seq,
+            tip,
+            ts,
+            signer,
+            sig,
+            topic,
+        })
     }
 }
 
@@ -918,7 +997,12 @@ pub struct FeedFollower {
 impl FeedFollower {
     /// A follower on first contact with `publisher` (no retained tip).
     pub fn new(publisher: Vec<u8>) -> Self {
-        FeedFollower { publisher, last_seq: None, last_tip: None, accepted: Default::default() }
+        FeedFollower {
+            publisher,
+            last_seq: None,
+            last_tip: None,
+            accepted: Default::default(),
+        }
     }
 
     /// The highest `seq` accepted so far, if any.
@@ -1023,7 +1107,10 @@ mod tests {
     /// well-formed in between. The same gap existed on `Subscription` (§25) and is fixed with it.
     #[test]
     fn a_known_but_unsupported_suite_is_refused_at_decode() {
-        assert!(!Suite::PqHybrid.is_supported(), "premise: this build cannot verify PqHybrid");
+        assert!(
+            !Suite::PqHybrid.is_supported(),
+            "premise: this build cannot verify PqHybrid"
+        );
         let k = IdentityKey::generate();
 
         let mut a = PubAnnounce {
@@ -1055,7 +1142,10 @@ mod tests {
             topic: String::new(),
         };
         h.sign(&k);
-        assert_eq!(FeedHead::from_det_cbor(&h.det_cbor()).unwrap_err(), PubError::UnsupportedVersion);
+        assert_eq!(
+            FeedHead::from_det_cbor(&h.det_cbor()).unwrap_err(),
+            PubError::UnsupportedVersion
+        );
     }
 
     #[test]
@@ -1097,7 +1187,11 @@ mod tests {
         let manifest_bytes = PubManifest::new(
             3 * 1024 * 1024,
             1024 * 1024,
-            vec![ContentId::of(b"c0"), ContentId::of(b"c1"), ContentId::of(b"c2")],
+            vec![
+                ContentId::of(b"c0"),
+                ContentId::of(b"c1"),
+                ContentId::of(b"c2"),
+            ],
             Suite::Classical,
         )
         .det_cbor();
@@ -1114,26 +1208,54 @@ mod tests {
             for n in 0..valid.len() {
                 mutants.push(valid[..n].to_vec());
             }
-            for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8], vec![0xa1, 0x00, 0x00]] {
+            for junk in [
+                vec![0x00u8],
+                vec![0xff, 0xff],
+                vec![0x9f; 8],
+                vec![0xa1, 0x00, 0x00],
+            ] {
                 let mut m = valid.clone();
                 m.extend_from_slice(&junk);
                 mutants.push(m);
             }
             for m in &mutants {
                 if let Ok(o) = PubAnnounce::from_det_cbor(m) {
-                    assert_eq!(&o.det_cbor(), m, "PubAnnounce decoder accepted a non-canonical encoding");
+                    assert_eq!(
+                        &o.det_cbor(),
+                        m,
+                        "PubAnnounce decoder accepted a non-canonical encoding"
+                    );
                 }
                 if let Ok(o) = FeedHead::from_det_cbor(m) {
-                    assert_eq!(&o.det_cbor(), m, "FeedHead decoder accepted a non-canonical encoding");
+                    assert_eq!(
+                        &o.det_cbor(),
+                        m,
+                        "FeedHead decoder accepted a non-canonical encoding"
+                    );
                 }
                 if let Ok(o) = PubManifest::from_det_cbor(m) {
-                    assert_eq!(&o.det_cbor(), m, "PubManifest decoder accepted a non-canonical encoding");
+                    assert_eq!(
+                        &o.det_cbor(),
+                        m,
+                        "PubManifest decoder accepted a non-canonical encoding"
+                    );
                 }
             }
         }
-        assert_eq!(PubAnnounce::from_det_cbor(&ann_bytes).unwrap().det_cbor(), ann_bytes);
-        assert_eq!(FeedHead::from_det_cbor(&head_bytes).unwrap().det_cbor(), head_bytes);
-        assert_eq!(PubManifest::from_det_cbor(&manifest_bytes).unwrap().det_cbor(), manifest_bytes);
+        assert_eq!(
+            PubAnnounce::from_det_cbor(&ann_bytes).unwrap().det_cbor(),
+            ann_bytes
+        );
+        assert_eq!(
+            FeedHead::from_det_cbor(&head_bytes).unwrap().det_cbor(),
+            head_bytes
+        );
+        assert_eq!(
+            PubManifest::from_det_cbor(&manifest_bytes)
+                .unwrap()
+                .det_cbor(),
+            manifest_bytes
+        );
     }
 
     use super::*;
@@ -1156,9 +1278,15 @@ mod tests {
     fn kat_manifest_single_chunk() {
         let pt = cid("646d7461702d7075623a206f6e65207075626c6973686564206368756e6b").0;
         let h0 = chunk_hash(&pt);
-        assert_eq!(hexs(h0.as_bytes()), "1e458cd8409c3b46d1e59eebedaab232ae9054e51d2cc01e3a0ef7447017301eaf");
+        assert_eq!(
+            hexs(h0.as_bytes()),
+            "1e458cd8409c3b46d1e59eebedaab232ae9054e51d2cc01e3a0ef7447017301eaf"
+        );
         let root = pub_manifest_root(&[h0]);
-        assert_eq!(hexs(root.as_bytes()), "1ea74194f80ea2c6c6d52f8de31300613f75341413f10fda061c063c660989db7e");
+        assert_eq!(
+            hexs(root.as_bytes()),
+            "1ea74194f80ea2c6c6d52f8de31300613f75341413f10fda061c063c660989db7e"
+        );
     }
 
     #[test]
@@ -1169,9 +1297,15 @@ mod tests {
             cid("1e609e5ba5844b77afa5f9c6852f0675cf490b0f0ee6a9bcd9d52985e126d40e78"),
         ];
         let pub_root = pub_manifest_root(&chunks);
-        assert_eq!(hexs(pub_root.as_bytes()), "1ebc3469f4fea824d224a14b01f8da10bb2a326a4c577585342f255cd93ea64bb5");
+        assert_eq!(
+            hexs(pub_root.as_bytes()),
+            "1ebc3469f4fea824d224a14b01f8da10bb2a326a4c577585342f255cd93ea64bb5"
+        );
         let sealed = sealed_style_root(&chunks);
-        assert_eq!(hexs(sealed.as_bytes()), "1efbcedd64dffb0196ff9c49e13bc9d3e10ba16296273bc96e0a08fa71cb2ed700");
+        assert_eq!(
+            hexs(sealed.as_bytes()),
+            "1efbcedd64dffb0196ff9c49e13bc9d3e10ba16296273bc96e0a08fa71cb2ed700"
+        );
         // §22.2.3: the DS-tag alone makes the two roots differ over an identical chunk list.
         assert_ne!(pub_root, sealed);
     }
@@ -1180,12 +1314,19 @@ mod tests {
     fn kat_manifest_key5_forbidden_rejected() {
         // The pub_manifest_single_chunk manifest with a forbidden key 5 (32 zero bytes) inserted.
         let bytes = cid("a60158211ea74194f80ea2c6c6d52f8de31300613f75341413f10fda061c063c660989db7e02181e03190400048158211e458cd8409c3b46d1e59eebedaab232ae9054e51d2cc01e3a0ef7447017301eaf05582000000000000000000000000000000000000000000000000000000000000000000601").0;
-        assert_eq!(PubManifest::from_det_cbor(&bytes), Err(PubError::ManifestKeyPresent));
+        assert_eq!(
+            PubManifest::from_det_cbor(&bytes),
+            Err(PubError::ManifestKeyPresent)
+        );
         // The valid manifest (keys 1,2,3,4,6) decodes and self-verifies.
         let valid = cid("a50158211ea74194f80ea2c6c6d52f8de31300613f75341413f10fda061c063c660989db7e02181e03190400048158211e458cd8409c3b46d1e59eebedaab232ae9054e51d2cc01e3a0ef7447017301eaf0601").0;
         let m = PubManifest::from_det_cbor(&valid).expect("valid PubManifest decodes");
         m.verify().expect("valid PubManifest self-verifies");
-        assert_eq!(m.det_cbor(), valid, "re-encode is byte-identical (canonical)");
+        assert_eq!(
+            m.det_cbor(),
+            valid,
+            "re-encode is byte-identical (canonical)"
+        );
     }
 
     #[test]
@@ -1216,7 +1357,10 @@ mod tests {
             "4e2ac80c0ac66668b4efdb058dc1c4c92ffad16f0db73e84118f6c9b7baeb10f0194daad7cff28669e0a9efbccd20057126abb929c69576853e779162cec1202"
         );
         let id = a.announce_id();
-        assert_eq!(hexs(id.as_bytes()), "1e88e7539fa0eb355e49a9f18406a13c26c2657c47002fcb538b8684476a38337f");
+        assert_eq!(
+            hexs(id.as_bytes()),
+            "1e88e7539fa0eb355e49a9f18406a13c26c2657c47002fcb538b8684476a38337f"
+        );
         // Full verify against the derived id.
         a.verify(&id).expect("announce verifies");
         // A one-byte mutation of the fetched-by address is rejected (0x0905): the recomputed
@@ -1230,12 +1374,18 @@ mod tests {
         let sk_b = IdentityKey::from_seed(&[0xBBu8; 32]);
         let mut bad = a.clone();
         bad.sig = sk_b.sign_domain(PUB_ANNOUNCE_DS, &bad.signing_preimage());
-        assert_eq!(bad.verify(&bad.announce_id()), Err(PubError::AnnounceSigInvalid));
+        assert_eq!(
+            bad.verify(&bad.announce_id()),
+            Err(PubError::AnnounceSigInvalid)
+        );
         // An announce whose `signer` is not authorized by `pub` (and no DeviceCert) is 0x0904.
         let mut mism = a.clone();
         mism.signer = sk_b.public();
         mism.sig = sk_b.sign_domain(PUB_ANNOUNCE_DS, &mism.signing_preimage());
-        assert_eq!(mism.verify(&mism.announce_id()), Err(PubError::AnnounceSigInvalid));
+        assert_eq!(
+            mism.verify(&mism.announce_id()),
+            Err(PubError::AnnounceSigInvalid)
+        );
     }
 
     #[test]
@@ -1243,7 +1393,10 @@ mod tests {
         let pk_a = IdentityKey::from_seed(&[0xAAu8; 32]).public();
         let pk_b = IdentityKey::from_seed(&[0xBBu8; 32]).public();
         assert_eq!(check_supersede(&pk_a, &pk_a), Ok(()));
-        assert_eq!(check_supersede(&pk_a, &pk_b), Err(PubError::SupersedeInvalid));
+        assert_eq!(
+            check_supersede(&pk_a, &pk_b),
+            Err(PubError::SupersedeInvalid)
+        );
     }
 
     #[test]
@@ -1254,9 +1407,18 @@ mod tests {
         let e0 = FeedEntry::from_det_cbor(&entry0).unwrap();
         let e1 = FeedEntry::from_det_cbor(&entry1).unwrap();
         let e2 = FeedEntry::from_det_cbor(&entry2).unwrap();
-        assert_eq!(hexs(e0.entry_id().as_bytes()), "1e285cd94e439ba81e16c202cc62fd3c2064664597e6acd793849ae7ad4772afdc");
-        assert_eq!(hexs(e1.entry_id().as_bytes()), "1e9981ab3edde575757958c949a8feecffd493492feba97c84973f97f3349c89e7");
-        assert_eq!(hexs(e2.entry_id().as_bytes()), "1e274e1734af848fcac69cab72e3ed8b71cae912db8b184989c7ee99d4eb94e97b");
+        assert_eq!(
+            hexs(e0.entry_id().as_bytes()),
+            "1e285cd94e439ba81e16c202cc62fd3c2064664597e6acd793849ae7ad4772afdc"
+        );
+        assert_eq!(
+            hexs(e1.entry_id().as_bytes()),
+            "1e9981ab3edde575757958c949a8feecffd493492feba97c84973f97f3349c89e7"
+        );
+        assert_eq!(
+            hexs(e2.entry_id().as_bytes()),
+            "1e274e1734af848fcac69cab72e3ed8b71cae912db8b184989c7ee99d4eb94e97b"
+        );
         verify_feed_chain(&[e0, e1, e2]).expect("valid prev-chain");
     }
 
@@ -1264,10 +1426,16 @@ mod tests {
     fn kat_feed_entry_malformed_genesis_and_nongenesis() {
         // Genesis (seq=0) carrying prev → CHAIN_BROKEN.
         let genesis_with_prev = cid("a401000258211e88e7539fa0eb355e49a9f18406a13c26c2657c47002fcb538b8684476a38337f0358211e285cd94e439ba81e16c202cc62fd3c2064664597e6acd793849ae7ad4772afdc041b0000018bcfe62b50").0;
-        assert_eq!(FeedEntry::from_det_cbor(&genesis_with_prev), Err(PubError::FeedChainBroken));
+        assert_eq!(
+            FeedEntry::from_det_cbor(&genesis_with_prev),
+            Err(PubError::FeedChainBroken)
+        );
         // Non-genesis (seq=1) missing prev → CHAIN_BROKEN.
         let nongenesis_no_prev = cid("a301010258211e0b173b023168f223c1ce0f2b9fa5610365387c6ff7acb20d45a76e3a4c4dc8e3041b0000018bcfe62f38").0;
-        assert_eq!(FeedEntry::from_det_cbor(&nongenesis_no_prev), Err(PubError::FeedChainBroken));
+        assert_eq!(
+            FeedEntry::from_det_cbor(&nongenesis_no_prev),
+            Err(PubError::FeedChainBroken)
+        );
     }
 
     #[test]
@@ -1306,16 +1474,30 @@ mod tests {
         let tip1 = cid("1e9981ab3edde575757958c949a8feecffd493492feba97c84973f97f3349c89e7");
         // seq=0 presented after accepting seq=1 → rollback.
         assert_eq!(
-            check_anti_rollback(1, Some(&tip1), 0, &cid("1e285cd94e439ba81e16c202cc62fd3c2064664597e6acd793849ae7ad4772afdc")),
+            check_anti_rollback(
+                1,
+                Some(&tip1),
+                0,
+                &cid("1e285cd94e439ba81e16c202cc62fd3c2064664597e6acd793849ae7ad4772afdc")
+            ),
             Err(PubError::FeedRollback)
         );
         // equal seq, identical tip → idempotent accept.
-        assert_eq!(check_anti_rollback(1, Some(&tip1), 1, &tip1), Ok(RollbackDecision::AcceptIdempotent));
+        assert_eq!(
+            check_anti_rollback(1, Some(&tip1), 1, &tip1),
+            Ok(RollbackDecision::AcceptIdempotent)
+        );
         // equal seq, different tip → equivocation (CHAIN_BROKEN), never rollback.
         let alt = cid("1e24b7f5c8891b690e1f438cba3990f80a6481fa4a8a1c40fba232a17c13dcfd8b");
-        assert_eq!(check_anti_rollback(1, Some(&tip1), 1, &alt), Err(PubError::FeedChainBroken));
+        assert_eq!(
+            check_anti_rollback(1, Some(&tip1), 1, &alt),
+            Err(PubError::FeedChainBroken)
+        );
         // higher seq → accept new.
-        assert_eq!(check_anti_rollback(1, Some(&tip1), 2, &alt), Ok(RollbackDecision::AcceptNew));
+        assert_eq!(
+            check_anti_rollback(1, Some(&tip1), 2, &alt),
+            Ok(RollbackDecision::AcceptNew)
+        );
     }
 
     #[test]
@@ -1334,7 +1516,10 @@ mod tests {
             signer: pk,
             sig: vec![0u8; 64],
         };
-        assert_eq!(PubAnnounce::from_det_cbor(&a.det_cbor()), Err(PubError::UnsupportedVersion));
+        assert_eq!(
+            PubAnnounce::from_det_cbor(&a.det_cbor()),
+            Err(PubError::UnsupportedVersion)
+        );
     }
 
     // ── Property tests (mirroring the rigor of dmtap-clustersync/src/crdt.rs) ─────────────────
@@ -1345,9 +1530,15 @@ mod tests {
         let b = ContentId::of(b"beta");
         let c = ContentId::of(b"gamma");
         // Deterministic.
-        assert_eq!(pub_manifest_root(&[a.clone(), b.clone(), c.clone()]), pub_manifest_root(&[a.clone(), b.clone(), c.clone()]));
+        assert_eq!(
+            pub_manifest_root(&[a.clone(), b.clone(), c.clone()]),
+            pub_manifest_root(&[a.clone(), b.clone(), c.clone()])
+        );
         // Order-sensitive (a Merkle tree over an ordered list).
-        assert_ne!(pub_manifest_root(&[a.clone(), b.clone()]), pub_manifest_root(&[b.clone(), a.clone()]));
+        assert_ne!(
+            pub_manifest_root(&[a.clone(), b.clone()]),
+            pub_manifest_root(&[b.clone(), a.clone()])
+        );
         // Single-chunk root = leaf(h0), and always differs from the raw chunk hash.
         assert_ne!(pub_manifest_root(std::slice::from_ref(&a)), a);
     }
@@ -1356,8 +1547,14 @@ mod tests {
     fn prop_public_and_sealed_roots_always_differ() {
         // Over many random-ish chunk lists, the DS-tag guarantees no sealed↔public collision.
         for n in 1..=16usize {
-            let chunks: Vec<ContentId> = (0..n).map(|i| ContentId::of(format!("chunk-{i}").as_bytes())).collect();
-            assert_ne!(pub_manifest_root(&chunks), sealed_style_root(&chunks), "n={n}");
+            let chunks: Vec<ContentId> = (0..n)
+                .map(|i| ContentId::of(format!("chunk-{i}").as_bytes()))
+                .collect();
+            assert_ne!(
+                pub_manifest_root(&chunks),
+                sealed_style_root(&chunks),
+                "n={n}"
+            );
         }
     }
 
@@ -1372,7 +1569,11 @@ mod tests {
                 publisher: pk.clone(),
                 roots: vec![ContentId::of(&[i]), ContentId::of(&[i, i])],
                 meta: vec![("title".into(), Cv::Text(format!("rev{i}")))],
-                supersedes: if i > 0 { Some(ContentId::of(&[i - 1])) } else { None },
+                supersedes: if i > 0 {
+                    Some(ContentId::of(&[i - 1]))
+                } else {
+                    None
+                },
                 ts: 1700000000000 + i as u64,
                 signer: pk.clone(),
                 sig: Vec::new(),
@@ -1395,8 +1596,17 @@ mod tests {
         let mut entries: Vec<FeedEntry> = Vec::new();
         for seq in 0..4u64 {
             let announce = ContentId::of(format!("ann-{seq}").as_bytes());
-            let prev = if seq == 0 { None } else { Some(entries[seq as usize - 1].entry_id()) };
-            entries.push(FeedEntry { seq, announce, prev, ts: 1000 + seq });
+            let prev = if seq == 0 {
+                None
+            } else {
+                Some(entries[seq as usize - 1].entry_id())
+            };
+            entries.push(FeedEntry {
+                seq,
+                announce,
+                prev,
+                ts: 1000 + seq,
+            });
         }
         verify_feed_chain(&entries).expect("valid chain");
         // Break the prev link of entry 2.
@@ -1424,8 +1634,17 @@ mod tests {
         let mut entries: Vec<FeedEntry> = Vec::new();
         for seq in 0..n {
             let announce = ContentId::of(format!("{salt}-ann-{seq}").as_bytes());
-            let prev = if seq == 0 { None } else { Some(entries[seq as usize - 1].entry_id()) };
-            entries.push(FeedEntry { seq, announce, prev, ts: 1000 + seq });
+            let prev = if seq == 0 {
+                None
+            } else {
+                Some(entries[seq as usize - 1].entry_id())
+            };
+            entries.push(FeedEntry {
+                seq,
+                announce,
+                prev,
+                ts: 1000 + seq,
+            });
         }
         let last = entries.last().expect("non-empty");
         let mut head = FeedHead {
@@ -1448,16 +1667,27 @@ mod tests {
         let sk = IdentityKey::from_seed(&[0x11u8; 32]);
         let mut f = FeedFollower::new(sk.public());
         let (honest, honest_head) = feed_of(&sk, 3, "honest");
-        assert_eq!(f.accept(&honest_head, &honest), Ok(RollbackDecision::AcceptNew));
+        assert_eq!(
+            f.accept(&honest_head, &honest),
+            Ok(RollbackDecision::AcceptNew)
+        );
 
         // The publisher now presents a FORK: same seq (2), validly signed, but a different tip.
         let (forked, forked_head) = feed_of(&sk, 3, "forked");
         assert_ne!(forked_head.tip, honest_head.tip);
         assert_eq!(forked_head.seq, honest_head.seq);
-        forked_head.verify().expect("the fork is genuinely signed — only the tip betrays it");
-        let err = f.accept(&forked_head, &forked).expect_err("a fork MUST NOT be accepted");
+        forked_head
+            .verify()
+            .expect("the fork is genuinely signed — only the tip betrays it");
+        let err = f
+            .accept(&forked_head, &forked)
+            .expect_err("a fork MUST NOT be accepted");
         assert_eq!(err, PubError::FeedChainBroken);
-        assert_eq!(err.code(), 0x0908, "equivocation is CHAIN_BROKEN, never ROLLBACK 0x0907");
+        assert_eq!(
+            err.code(),
+            0x0908,
+            "equivocation is CHAIN_BROKEN, never ROLLBACK 0x0907"
+        );
         // The rejected fetch left the follower on the honest tip.
         assert_eq!(f.last_tip(), Some(&honest_head.tip));
     }
@@ -1474,14 +1704,21 @@ mod tests {
         let (b, b_head) = feed_of(&sk, 4, "B"); // internally perfect, strictly higher seq
         verify_feed_chain(&b).expect("the rewritten history is internally consistent");
         verify_feed_chain_to_head(&b, &b_head).expect("and correctly bound to its own head");
-        assert!(b_head.seq > a_head.seq, "an advance, so seq-only logic would accept");
+        assert!(
+            b_head.seq > a_head.seq,
+            "an advance, so seq-only logic would accept"
+        );
         assert_ne!(b[1].entry_id(), a[1].entry_id(), "but seq=1 was rewritten");
         assert_eq!(
             f.accept(&b_head, &b),
             Err(PubError::FeedChainBroken),
             "a rewrite of an accepted position MUST be caught even when the head advances"
         );
-        assert_eq!(f.last_seq(), Some(1), "state unchanged by the rejected fetch");
+        assert_eq!(
+            f.last_seq(),
+            Some(1),
+            "state unchanged by the rejected fetch"
+        );
     }
 
     #[test]
@@ -1492,7 +1729,10 @@ mod tests {
         let (a, a_head) = feed_of(&sk, 3, "A");
         let (b, _b_head) = feed_of(&sk, 3, "B");
         verify_feed_chain(&b).expect("B chains internally — verify_feed_chain ALONE is not enough");
-        assert_eq!(verify_feed_chain_to_head(&b, &a_head), Err(PubError::FeedChainBroken));
+        assert_eq!(
+            verify_feed_chain_to_head(&b, &a_head),
+            Err(PubError::FeedChainBroken)
+        );
         assert_eq!(verify_feed_chain_to_head(&a, &a_head), Ok(()));
 
         let mut f = FeedFollower::new(sk.public());
@@ -1500,8 +1740,14 @@ mod tests {
         assert_eq!(f.last_seq(), None, "nothing committed");
 
         // A range that stops short of the head's seq is equally unbound.
-        assert_eq!(verify_feed_chain_to_head(&a[..2], &a_head), Err(PubError::FeedChainBroken));
-        assert_eq!(verify_feed_chain_to_head(&[], &a_head), Err(PubError::FeedChainBroken));
+        assert_eq!(
+            verify_feed_chain_to_head(&a[..2], &a_head),
+            Err(PubError::FeedChainBroken)
+        );
+        assert_eq!(
+            verify_feed_chain_to_head(&[], &a_head),
+            Err(PubError::FeedChainBroken)
+        );
     }
 
     #[test]
@@ -1539,14 +1785,22 @@ mod tests {
 
         // A stale-but-honest head from the SAME history: rollback (0x0907), not a fork.
         let (short, short_head) = feed_of(&sk, 3, "R");
-        let err = f.accept(&short_head, &short).expect_err("a lower seq MUST NOT be accepted");
+        let err = f
+            .accept(&short_head, &short)
+            .expect_err("a lower seq MUST NOT be accepted");
         assert_eq!(err, PubError::FeedRollback);
         assert_eq!(err.code(), 0x0907);
         assert_eq!(f.last_seq(), Some(4), "the higher tip is retained");
 
         // Re-fetching the identical head is a no-op, not an error — with or without entries.
-        assert_eq!(f.accept(&full_head, &full), Ok(RollbackDecision::AcceptIdempotent));
-        assert_eq!(f.accept(&full_head, &[]), Ok(RollbackDecision::AcceptIdempotent));
+        assert_eq!(
+            f.accept(&full_head, &full),
+            Ok(RollbackDecision::AcceptIdempotent)
+        );
+        assert_eq!(
+            f.accept(&full_head, &[]),
+            Ok(RollbackDecision::AcceptIdempotent)
+        );
     }
 
     #[test]
@@ -1639,7 +1893,9 @@ mod tests {
         let sk = IdentityKey::from_seed(&[0xA1u8; 32]);
         let head = topic_head(&sk, "news");
         // Take a valid encoding and hand-craft an explicit-empty-topic variant of it.
-        let Cv::Map(mut pairs) = cbor::decode(&head.det_cbor()).unwrap() else { panic!("map") };
+        let Cv::Map(mut pairs) = cbor::decode(&head.det_cbor()).unwrap() else {
+            panic!("map")
+        };
         pairs.retain(|(k, _)| *k != 64);
         pairs.push((64, Cv::Text(String::new())));
         let bytes = cbor::encode(&Cv::Map(pairs));
@@ -1675,10 +1931,16 @@ mod tests {
         // MUST be rejected (not normalised), else it shadows the NFC-spelled topic and splits the
         // feed. Enforced end-to-end through the decode path.
         let non_nfc = topic_head(&sk, "cafe\u{0301}");
-        assert!(FeedHead::from_det_cbor(&non_nfc.det_cbor()).is_err(), "NFD topic label must be rejected");
+        assert!(
+            FeedHead::from_det_cbor(&non_nfc.det_cbor()).is_err(),
+            "NFD topic label must be rejected"
+        );
         // The NFC spelling of the same topic (precomposed U+00E9) decodes fine.
         let nfc = topic_head(&sk, "caf\u{00e9}");
-        assert!(FeedHead::from_det_cbor(&nfc.det_cbor()).is_ok(), "NFC topic label accepted");
+        assert!(
+            FeedHead::from_det_cbor(&nfc.det_cbor()).is_ok(),
+            "NFC topic label accepted"
+        );
     }
 
     /// Unknown keys ≥ 64 OTHER than 64 itself remain rejected on a signed `FeedHead` — §25.3.1
@@ -1687,7 +1949,9 @@ mod tests {
     fn feed_head_unrecognized_extension_key_still_rejected() {
         let sk = IdentityKey::from_seed(&[0xA3u8; 32]);
         let head = topic_head(&sk, "news");
-        let Cv::Map(mut pairs) = cbor::decode(&head.det_cbor()).unwrap() else { panic!("map") };
+        let Cv::Map(mut pairs) = cbor::decode(&head.det_cbor()).unwrap() else {
+            panic!("map")
+        };
         pairs.push((65, Cv::U64(1)));
         let bytes = cbor::encode(&Cv::Map(pairs));
         assert!(FeedHead::from_det_cbor(&bytes).is_err());

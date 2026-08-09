@@ -42,23 +42,31 @@ pub enum CapabilityError {
     /// A child grant exceeds what its parent granted — the attenuation invariant is violated
     /// (§18.7.3: each link MUST be same-or-narrower `resource`, same/narrower `ability`, caveats
     /// only added/tightened).
-    #[error("attenuation invariant violated — a child grant exceeds its parent \
-             (ERR_CAPABILITY_DELEGATION_INVALID, 0x0508)")]
+    #[error(
+        "attenuation invariant violated — a child grant exceeds its parent \
+             (ERR_CAPABILITY_DELEGATION_INVALID, 0x0508)"
+    )]
     AttenuationViolation,
     /// A chain link is discontinuous: `prnt` is not the parent's content-address, `iss` ≠ the
     /// parent's `aud`, or the walk did not terminate at a token rooted at its `iss` (§18.7.3).
-    #[error("broken delegation chain — prnt/iss/aud discontinuity or unrooted chain \
-             (ERR_CAPABILITY_DELEGATION_INVALID, 0x0508)")]
+    #[error(
+        "broken delegation chain — prnt/iss/aud discontinuity or unrooted chain \
+             (ERR_CAPABILITY_DELEGATION_INVALID, 0x0508)"
+    )]
     BrokenChain,
     /// A child's `[nbf, exp)` validity window is not nested within its parent's — a delegated
     /// grant that outlives (or predates) its delegator's authority (§18.7.3, fail closed).
-    #[error("capability window not nested within parent — child nbf < parent nbf or exp > parent \
-             exp (ERR_CAPABILITY_DELEGATION_INVALID, 0x0508)")]
+    #[error(
+        "capability window not nested within parent — child nbf < parent nbf or exp > parent \
+             exp (ERR_CAPABILITY_DELEGATION_INVALID, 0x0508)"
+    )]
     WindowNotNested,
     /// The chain's root issuer is not the caller-supplied trust anchor — a chain rooted at an
     /// untrusted key (§18.7.3 verification step 2, fail closed).
-    #[error("capability chain root is not the trusted anchor \
-             (ERR_CAPABILITY_DELEGATION_INVALID, 0x0508)")]
+    #[error(
+        "capability chain root is not the trusted anchor \
+             (ERR_CAPABILITY_DELEGATION_INVALID, 0x0508)"
+    )]
     UntrustedRoot,
     /// Invocation clock is before `nbf` — the token is not yet valid (§18.7.3 step 3).
     #[error("capability not yet valid — now < nbf (ERR_CAPABILITY_DELEGATION_INVALID, 0x0508)")]
@@ -71,8 +79,10 @@ pub enum CapabilityError {
     Revoked,
     /// A `caps_version` older-than-or-equal-to the last accepted from that peer — a stale replay
     /// (§10.2).
-    #[error("capability announcement rollback — caps_version ≤ last accepted \
-             (ERR_CAPABILITY_ANNOUNCE_ROLLBACK, 0x030A)")]
+    #[error(
+        "capability announcement rollback — caps_version ≤ last accepted \
+             (ERR_CAPABILITY_ANNOUNCE_ROLLBACK, 0x030A)"
+    )]
     AnnounceRollback,
 }
 
@@ -104,7 +114,10 @@ fn suite_from_cv(cv: Cv) -> Result<Suite, CborError> {
 /// held is **not** covered — the widening the invariant forbids.
 fn scope_covers(parent: &str, child: &str) -> bool {
     parent == child
-        || child.strip_prefix(parent).map(|rest| rest.starts_with('/')).unwrap_or(false)
+        || child
+            .strip_prefix(parent)
+            .map(|rest| rest.starts_with('/'))
+            .unwrap_or(false)
 }
 
 /// Caveats may only be **added or tightened**, never removed (§18.7.3). A child is a valid
@@ -121,7 +134,9 @@ fn caveats_tightened(parent: Option<&Cv>, child: Option<&Cv>) -> bool {
         Some(_) => return false,
         None => return parent_pairs.is_empty(),
     };
-    parent_pairs.iter().all(|(k, v)| child_pairs.iter().any(|(ck, cv)| ck == k && cv == v))
+    parent_pairs
+        .iter()
+        .all(|(k, v)| child_pairs.iter().any(|(ck, cv)| ck == k && cv == v))
 }
 
 /// The attenuation invariant for one `(parent, child)` capability pair (§18.7.3): the child's
@@ -139,9 +154,9 @@ fn capability_covers(parent: &Capability, child: &Capability) -> bool {
 /// verbatim (as a canonical [`Cv::TextMap`]) so the enclosing token's signature reproduces.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Capability {
-    pub resource: String,        // key 1 — e.g. "mailbox:calendar"
-    pub ability: String,         // key 2 — the verb, e.g. "read"
-    pub caveats: Option<Cv>,     // key 3 — Cv::TextMap of attenuating conditions; None ⇒ absent
+    pub resource: String,    // key 1 — e.g. "mailbox:calendar"
+    pub ability: String,     // key 2 — the verb, e.g. "read"
+    pub caveats: Option<Cv>, // key 3 — Cv::TextMap of attenuating conditions; None ⇒ absent
 }
 
 impl Capability {
@@ -170,7 +185,11 @@ impl Capability {
             None => None,
         };
         f.deny_unknown()?;
-        Ok(Capability { resource, ability, caveats })
+        Ok(Capability {
+            resource,
+            ability,
+            caveats,
+        })
     }
 }
 
@@ -180,15 +199,15 @@ impl Capability {
 /// `prnt` chains it to a parent whose `aud` MUST equal this token's `iss`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CapabilityToken {
-    pub suite: Suite,             // key 1
-    pub iss: Vec<u8>,             // key 2 — issuer (delegator) key
-    pub aud: Vec<u8>,             // key 3 — audience (delegatee) key
-    pub caps: Vec<Capability>,    // key 4 — granted capabilities (≥ 1)
-    pub nbf: u64,                 // key 5 — not-before (ms epoch)
-    pub exp: u64,                 // key 6 — expiry (ms epoch); MUST be present
-    pub nonce: Vec<u8>,           // key 7 — uniqueness / anti-replay salt
-    pub prnt: Option<ContentId>,  // key 8 — content-addr of the PARENT token; absent ⇒ rooted at iss
-    pub sig: Vec<u8>,             // key 9 — §18.9.14, over det_cbor(token ∖ {9}) under iss
+    pub suite: Suite,            // key 1
+    pub iss: Vec<u8>,            // key 2 — issuer (delegator) key
+    pub aud: Vec<u8>,            // key 3 — audience (delegatee) key
+    pub caps: Vec<Capability>,   // key 4 — granted capabilities (≥ 1)
+    pub nbf: u64,                // key 5 — not-before (ms epoch)
+    pub exp: u64,                // key 6 — expiry (ms epoch); MUST be present
+    pub nonce: Vec<u8>,          // key 7 — uniqueness / anti-replay salt
+    pub prnt: Option<ContentId>, // key 8 — content-addr of the PARENT token; absent ⇒ rooted at iss
+    pub sig: Vec<u8>,            // key 9 — §18.9.14, over det_cbor(token ∖ {9}) under iss
 }
 
 impl CapabilityToken {
@@ -199,7 +218,10 @@ impl CapabilityToken {
             (1u64, Cv::U64(self.suite.as_u8() as u64)),
             (2, Cv::Bytes(self.iss.clone())),
             (3, Cv::Bytes(self.aud.clone())),
-            (4, Cv::Array(self.caps.iter().map(Capability::to_cv).collect())),
+            (
+                4,
+                Cv::Array(self.caps.iter().map(Capability::to_cv).collect()),
+            ),
             (5, Cv::U64(self.nbf)),
             (6, Cv::U64(self.exp)),
             (7, Cv::Bytes(self.nonce.clone())),
@@ -243,7 +265,17 @@ impl CapabilityToken {
         let prnt = f.take(8).map(as_bytes).transpose()?.map(ContentId);
         let sig = as_bytes(f.req(9)?)?;
         f.deny_unknown()?;
-        Ok(CapabilityToken { suite, iss, aud, caps, nbf, exp, nonce, prnt, sig })
+        Ok(CapabilityToken {
+            suite,
+            iss,
+            aud,
+            caps,
+            nbf,
+            exp,
+            nonce,
+            prnt,
+            sig,
+        })
     }
 
     /// Mint (sign) a token with the issuer key (§18.9.14); `iss` is set from the signer.
@@ -367,7 +399,11 @@ impl CapabilityToken {
     ///   chain-link id it wishes checked.
     ///
     /// The token's own signature is verified first (`0x0508` on failure).
-    pub fn verify_at(&self, now: TimestampMs, revocations: &[ContentId]) -> Result<(), CapabilityError> {
+    pub fn verify_at(
+        &self,
+        now: TimestampMs,
+        revocations: &[ContentId],
+    ) -> Result<(), CapabilityError> {
         self.verify().map_err(|_| CapabilityError::BadSignature)?;
         if now < self.nbf {
             return Err(CapabilityError::NotYetValid);
@@ -388,11 +424,11 @@ impl CapabilityToken {
 /// `iss` (or an ancestor issuer in its chain).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CapabilityRevocation {
-    pub suite: Suite,      // key 1
-    pub iss: Vec<u8>,      // key 2 — the revoker (token's iss or an ancestor)
-    pub token: ContentId,  // key 3 — content-addr of the revoked CapabilityToken
-    pub ts: TimestampMs,   // key 4 — revocation time
-    pub sig: Vec<u8>,      // key 5 — §18.9.14, over det_cbor(revocation ∖ {5}) under iss
+    pub suite: Suite,     // key 1
+    pub iss: Vec<u8>,     // key 2 — the revoker (token's iss or an ancestor)
+    pub token: ContentId, // key 3 — content-addr of the revoked CapabilityToken
+    pub ts: TimestampMs,  // key 4 — revocation time
+    pub sig: Vec<u8>,     // key 5 — §18.9.14, over det_cbor(revocation ∖ {5}) under iss
 }
 
 impl CapabilityRevocation {
@@ -428,7 +464,13 @@ impl CapabilityRevocation {
         let ts = as_u64(f.req(4)?)?;
         let sig = as_bytes(f.req(5)?)?;
         f.deny_unknown()?;
-        Ok(CapabilityRevocation { suite, iss, token, ts, sig })
+        Ok(CapabilityRevocation {
+            suite,
+            iss,
+            token,
+            ts,
+            sig,
+        })
     }
 
     /// Sign a revocation with the issuer key (§18.9.14); `iss` is set from the signer.
@@ -456,7 +498,12 @@ impl CapabilityRevocation {
         if !self.suite.is_supported() {
             return Err(IdentityError::UnsupportedSuite(self.suite.as_u8()));
         }
-        verify_domain(&self.iss, CAP_REVOCATION_DS, &self.signing_body(), &self.sig)
+        verify_domain(
+            &self.iss,
+            CAP_REVOCATION_DS,
+            &self.signing_body(),
+            &self.sig,
+        )
     }
 
     /// [`verify`](Self::verify) **plus revoker authorization** (§18.7.3): the revocation's `iss`
@@ -498,7 +545,10 @@ impl CapabilityAnnouncement {
             (1u64, Cv::U64(self.suite.as_u8() as u64)),
             (2, Cv::Bytes(self.iss.clone())),
             (3, Cv::U64(self.caps_version)),
-            (4, Cv::Array(self.caps.iter().map(Capability::to_cv).collect())),
+            (
+                4,
+                Cv::Array(self.caps.iter().map(Capability::to_cv).collect()),
+            ),
             (5, Cv::U64(self.ts)),
         ];
         if include_sig {
@@ -530,7 +580,14 @@ impl CapabilityAnnouncement {
         let ts = as_u64(f.req(5)?)?;
         let sig = as_bytes(f.req(6)?)?;
         f.deny_unknown()?;
-        Ok(CapabilityAnnouncement { suite, iss, caps_version, caps, ts, sig })
+        Ok(CapabilityAnnouncement {
+            suite,
+            iss,
+            caps_version,
+            caps,
+            ts,
+            sig,
+        })
     }
 
     /// Mint (sign) an announcement with the announcing peer's key (§18.9.14); `iss` is set from the
@@ -576,7 +633,9 @@ pub struct CapsVersionTracker {
 impl CapsVersionTracker {
     /// A tracker with no peers seen.
     pub fn new() -> Self {
-        CapsVersionTracker { seen: BTreeMap::new() }
+        CapsVersionTracker {
+            seen: BTreeMap::new(),
+        }
     }
 
     /// The highest `caps_version` accepted from `peer`, or `None` if none seen.
@@ -613,9 +672,16 @@ mod tests {
             Capability {
                 resource: "mailbox:calendar".into(),
                 ability: "read".into(),
-                caveats: Some(Cv::TextMap(vec![("before".into(), Cv::U64(1_800_000_000_000))])),
+                caveats: Some(Cv::TextMap(vec![(
+                    "before".into(),
+                    Cv::U64(1_800_000_000_000),
+                )])),
             },
-            Capability { resource: "domain:abc.com/members".into(), ability: "directory/write".into(), caveats: None },
+            Capability {
+                resource: "domain:abc.com/members".into(),
+                ability: "directory/write".into(),
+                caveats: None,
+            },
         ]
     }
 
@@ -633,7 +699,10 @@ mod tests {
         assert!(t.verify().is_ok());
         let bytes = t.det_cbor();
         assert_eq!(bytes[0] & 0xe0, 0xa0, "token is a CBOR map");
-        assert_eq!(bytes[1], 0x01, "first key is integer 1 (suite), not a text key");
+        assert_eq!(
+            bytes[1], 0x01,
+            "first key is integer 1 (suite), not a text key"
+        );
         let back = CapabilityToken::from_det_cbor(&bytes).unwrap();
         assert_eq!(t, back);
         assert_eq!(bytes, back.det_cbor());
@@ -643,7 +712,13 @@ mod tests {
     #[test]
     fn tampered_token_fails_signature() {
         let mut t = CapabilityToken::issue(
-            &key(0x11), key(0x22).public(), sample_caps(), 1, 2, b"n".to_vec(), None,
+            &key(0x11),
+            key(0x22).public(),
+            sample_caps(),
+            1,
+            2,
+            b"n".to_vec(),
+            None,
         );
         t.exp = 3; // signed field changed
         assert_eq!(t.verify(), Err(IdentityError::BadSignature));
@@ -652,17 +727,30 @@ mod tests {
     #[test]
     fn empty_caps_fails_closed() {
         let mut t = CapabilityToken::issue(
-            &key(0x11), key(0x22).public(), sample_caps(), 1, 2, b"n".to_vec(), None,
+            &key(0x11),
+            key(0x22).public(),
+            sample_caps(),
+            1,
+            2,
+            b"n".to_vec(),
+            None,
         );
         t.caps.clear();
         t.sig.clear();
         let bytes = t.det_cbor();
-        assert_eq!(CapabilityToken::from_det_cbor(&bytes), Err(CborError::TypeMismatch));
+        assert_eq!(
+            CapabilityToken::from_det_cbor(&bytes),
+            Err(CborError::TypeMismatch)
+        );
     }
 
     #[test]
     fn revocation_signs_verifies_and_round_trips() {
-        let r = CapabilityRevocation::issue(&key(0x11), ContentId::of(b"revoked-token"), 1_700_000_000_000);
+        let r = CapabilityRevocation::issue(
+            &key(0x11),
+            ContentId::of(b"revoked-token"),
+            1_700_000_000_000,
+        );
         assert!(r.verify().is_ok());
         let bytes = r.det_cbor();
         let back = CapabilityRevocation::from_det_cbor(&bytes).unwrap();
@@ -672,7 +760,11 @@ mod tests {
     }
 
     fn cap(resource: &str, ability: &str) -> Capability {
-        Capability { resource: resource.into(), ability: ability.into(), caveats: None }
+        Capability {
+            resource: resource.into(),
+            ability: ability.into(),
+            caveats: None,
+        }
     }
 
     // A rooted parent (prnt=None) delegating `caps`, and a child rooted at the parent.
@@ -686,7 +778,11 @@ mod tests {
         let mid_k = key(0x22);
         let leaf_aud = key(0x33).public();
         // root grants directory (broad); child narrows to directory/write (a sub-scope).
-        let parent = rooted(&root_k, mid_k.public(), vec![cap("domain:abc.com/members", "directory")]);
+        let parent = rooted(
+            &root_k,
+            mid_k.public(),
+            vec![cap("domain:abc.com/members", "directory")],
+        );
         let child = CapabilityToken::issue(
             &mid_k,
             leaf_aud,
@@ -705,7 +801,11 @@ mod tests {
         let mid_k = key(0x22);
         let leaf_aud = key(0x33).public();
         // Parent valid [1000, 9000). Child claims [1000, 20000) — outliving its delegator.
-        let parent = rooted(&root_k, mid_k.public(), vec![cap("mailbox:calendar", "read")]);
+        let parent = rooted(
+            &root_k,
+            mid_k.public(),
+            vec![cap("mailbox:calendar", "read")],
+        );
         let child = CapabilityToken::issue(
             &mid_k,
             leaf_aud,
@@ -715,7 +815,10 @@ mod tests {
             b"child-nonce".to_vec(),
             Some(parent.content_id()),
         );
-        assert_eq!(child.verify_chain(&[parent]), Err(CapabilityError::WindowNotNested));
+        assert_eq!(
+            child.verify_chain(&[parent]),
+            Err(CapabilityError::WindowNotNested)
+        );
     }
 
     #[test]
@@ -723,7 +826,11 @@ mod tests {
         let root_k = key(0x11);
         let mid_k = key(0x22);
         let leaf_aud = key(0x33).public();
-        let parent = rooted(&root_k, mid_k.public(), vec![cap("mailbox:calendar", "read")]);
+        let parent = rooted(
+            &root_k,
+            mid_k.public(),
+            vec![cap("mailbox:calendar", "read")],
+        );
         let child = CapabilityToken::issue(
             &mid_k,
             leaf_aud,
@@ -741,14 +848,20 @@ mod tests {
             Err(CapabilityError::UntrustedRoot)
         );
         // The genuine root key is accepted.
-        assert!(child.verify_chain_rooted(&[parent], &root_k.public()).is_ok());
+        assert!(child
+            .verify_chain_rooted(&[parent], &root_k.public())
+            .is_ok());
     }
 
     #[test]
     fn revocation_requires_authorized_revoker() {
         let issuer = key(0x11);
         let stranger = key(0x77);
-        let token = rooted(&issuer, key(0x22).public(), vec![cap("mailbox:calendar", "read")]);
+        let token = rooted(
+            &issuer,
+            key(0x22).public(),
+            vec![cap("mailbox:calendar", "read")],
+        );
         // A stranger signs a syntactically valid revocation of someone else's token.
         let rev = CapabilityRevocation::issue(&stranger, token.content_id(), 100);
         // Bare verify() passes (signature is authentic) — that is exactly the trap.
@@ -766,7 +879,11 @@ mod tests {
         let mid_k = key(0x22);
         let leaf_aud = key(0x33).public();
         // parent grants only "read"; child tries to grant "write" — a privilege escalation.
-        let parent = rooted(&root_k, mid_k.public(), vec![cap("mailbox:calendar", "read")]);
+        let parent = rooted(
+            &root_k,
+            mid_k.public(),
+            vec![cap("mailbox:calendar", "read")],
+        );
         let child = CapabilityToken::issue(
             &mid_k,
             leaf_aud,
@@ -787,7 +904,11 @@ mod tests {
         let mid_k = key(0x22);
         let other = key(0x44); // NOT the parent
         let leaf_aud = key(0x33).public();
-        let parent = rooted(&root_k, mid_k.public(), vec![cap("mailbox:calendar", "read")]);
+        let parent = rooted(
+            &root_k,
+            mid_k.public(),
+            vec![cap("mailbox:calendar", "read")],
+        );
         // Child names a wrong prnt (points at `other`, not `parent`).
         let child = CapabilityToken::issue(
             &mid_k,
@@ -796,9 +917,19 @@ mod tests {
             1_000,
             9_000,
             b"child-nonce".to_vec(),
-            Some(rooted(&other, mid_k.public(), vec![cap("mailbox:calendar", "read")]).content_id()),
+            Some(
+                rooted(
+                    &other,
+                    mid_k.public(),
+                    vec![cap("mailbox:calendar", "read")],
+                )
+                .content_id(),
+            ),
         );
-        assert_eq!(child.verify_chain(&[parent]), Err(CapabilityError::BrokenChain));
+        assert_eq!(
+            child.verify_chain(&[parent]),
+            Err(CapabilityError::BrokenChain)
+        );
     }
 
     #[test]
@@ -855,7 +986,11 @@ mod tests {
         }
         for m in &mutants {
             if let Ok(o) = CapabilityAnnouncement::from_det_cbor(m) {
-                assert_eq!(&o.det_cbor(), m, "announcement decoder accepted a non-canonical encoding");
+                assert_eq!(
+                    &o.det_cbor(),
+                    m,
+                    "announcement decoder accepted a non-canonical encoding"
+                );
             }
         }
     }
@@ -866,7 +1001,10 @@ mod tests {
         let a1 = CapabilityAnnouncement::issue(&peer, 5, vec![cap("ext:mls", "support")], 10);
         let a2 = CapabilityAnnouncement::issue(&peer, 7, vec![cap("ext:mls", "support")], 20);
         // Round-trip.
-        assert_eq!(CapabilityAnnouncement::from_det_cbor(&a1.det_cbor()).unwrap(), a1);
+        assert_eq!(
+            CapabilityAnnouncement::from_det_cbor(&a1.det_cbor()).unwrap(),
+            a1
+        );
 
         let mut tr = CapsVersionTracker::new();
         assert!(tr.accept(&a2).is_ok());

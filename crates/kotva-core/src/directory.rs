@@ -93,7 +93,10 @@ impl DirEntry {
             (4, Cv::Text(self.custody.as_str().into())),
         ];
         if let Some(r) = &self.roles {
-            m.push((5, Cv::Array(r.iter().map(|x| Cv::Text(x.clone())).collect())));
+            m.push((
+                5,
+                Cv::Array(r.iter().map(|x| Cv::Text(x.clone())).collect()),
+            ));
         }
         m.push((6, Cv::U64(self.added)));
         Cv::Map(m)
@@ -106,27 +109,39 @@ impl DirEntry {
         let id = ContentId(as_bytes(f.req(3)?)?);
         let custody = Custody::from_str(&as_text(f.req(4)?)?)?;
         let roles = match f.take(5) {
-            Some(c) => Some(as_array(c)?.into_iter().map(as_text).collect::<Result<_, _>>()?),
+            Some(c) => Some(
+                as_array(c)?
+                    .into_iter()
+                    .map(as_text)
+                    .collect::<Result<_, _>>()?,
+            ),
             None => None,
         };
         let added = as_u64(f.req(6)?)?;
         f.deny_unknown()?;
-        Ok(DirEntry { name, ik, id, custody, roles, added })
+        Ok(DirEntry {
+            name,
+            ik,
+            id,
+            custody,
+            roles,
+            added,
+        })
     }
 }
 
 /// The signed, versioned org directory (spec §3.10.3, §18.4.7), signed by the domain authority.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DomainDirectory {
-    pub suite: Suite,           // key 1
-    pub domain: String,         // key 2 — "abc.com"
-    pub authority: Vec<u8>,     // key 3 — domain authority IK (threshold-held)
-    pub version: u64,           // key 4 — monotonic; reject ≤ last pinned
-    pub visibility: Visibility, // key 5
-    pub entries: Vec<DirEntry>, // key 6 — MAY be empty
+    pub suite: Suite,            // key 1
+    pub domain: String,          // key 2 — "abc.com"
+    pub authority: Vec<u8>,      // key 3 — domain authority IK (threshold-held)
+    pub version: u64,            // key 4 — monotonic; reject ≤ last pinned
+    pub visibility: Visibility,  // key 5
+    pub entries: Vec<DirEntry>,  // key 6 — MAY be empty
     pub prev: Option<ContentId>, // key 7 — hash chain (KT-logged)
-    pub ts: TimestampMs,        // key 8
-    pub sig: Vec<u8>,           // key 9 — §18.9.3
+    pub ts: TimestampMs,         // key 8
+    pub sig: Vec<u8>,            // key 9 — §18.9.3
 }
 
 impl DomainDirectory {
@@ -139,7 +154,10 @@ impl DomainDirectory {
             (3, Cv::Bytes(self.authority.clone())),
             (4, Cv::U64(self.version)),
             (5, Cv::Text(self.visibility.as_str().into())),
-            (6, Cv::Array(self.entries.iter().map(DirEntry::to_cv).collect())),
+            (
+                6,
+                Cv::Array(self.entries.iter().map(DirEntry::to_cv).collect()),
+            ),
         ];
         if let Some(p) = &self.prev {
             m.push((7, Cv::Bytes(p.as_bytes().to_vec())));
@@ -177,7 +195,17 @@ impl DomainDirectory {
         let ts = as_u64(f.req(8)?)?;
         let sig = as_bytes(f.req(9)?)?;
         f.deny_unknown()?;
-        Ok(DomainDirectory { suite, domain, authority, version, visibility, entries, prev, ts, sig })
+        Ok(DomainDirectory {
+            suite,
+            domain,
+            authority,
+            version,
+            visibility,
+            entries,
+            prev,
+            ts,
+            sig,
+        })
     }
 
     /// Sign a directory with the authority `IK` (§18.9.3); `authority` is set from the signer.
@@ -217,7 +245,12 @@ impl DomainDirectory {
         if !self.suite.is_supported() {
             return Err(IdentityError::UnsupportedSuite(self.suite.as_u8()));
         }
-        verify_domain(&self.authority, DOMAIN_DIRECTORY_DS, &self.signing_body(), &self.sig)
+        verify_domain(
+            &self.authority,
+            DOMAIN_DIRECTORY_DS,
+            &self.signing_body(),
+            &self.sig,
+        )
     }
 
     /// Verify the directory against a caller-**pinned** domain authority (spec §3.10.1, §3.10.3),
@@ -234,7 +267,8 @@ impl DomainDirectory {
     /// (`0x0113`) — "not validly signed by the domain's pinned authority key".
     pub fn verify_pinned(&self, pinned_authority: &[u8]) -> Result<(), DomainDirectoryError> {
         // Self-consistency: validly signed by its own embedded authority (§18.9.3).
-        self.verify().map_err(|_| DomainDirectoryError::SigInvalid)?;
+        self.verify()
+            .map_err(|_| DomainDirectoryError::SigInvalid)?;
         // Pinned-authority: the embedded authority MUST be exactly the caller's pin (§3.10.1).
         if self.authority.as_slice() != pinned_authority {
             return Err(DomainDirectoryError::AuthorityMismatch);
@@ -299,7 +333,12 @@ mod tests {
             7,
             Visibility::Public,
             vec![
-                entry("alice@abc.com", 0x22, Custody::Sovereign, Some(vec!["admin".into()])),
+                entry(
+                    "alice@abc.com",
+                    0x22,
+                    Custody::Sovereign,
+                    Some(vec!["admin".into()]),
+                ),
                 entry("bob@abc.com", 0x33, Custody::OrgManaged, None),
             ],
             None,
@@ -308,7 +347,10 @@ mod tests {
         assert!(dir.verify().is_ok());
         let bytes = dir.det_cbor();
         assert_eq!(bytes[0] & 0xe0, 0xa0, "directory is a CBOR map");
-        assert_eq!(bytes[1], 0x01, "first key is integer 1 (suite), not a text key");
+        assert_eq!(
+            bytes[1], 0x01,
+            "first key is integer 1 (suite), not a text key"
+        );
         let back = DomainDirectory::from_det_cbor(&bytes).unwrap();
         assert_eq!(dir, back);
         assert_eq!(bytes, back.det_cbor());
@@ -326,7 +368,8 @@ mod tests {
             None,
             1,
         );
-        dir.entries.push(entry("evil@abc.com", 0x44, Custody::Sovereign, None));
+        dir.entries
+            .push(entry("evil@abc.com", 0x44, Custody::Sovereign, None));
         assert_eq!(dir.verify(), Err(IdentityError::BadSignature));
     }
 
@@ -350,7 +393,7 @@ mod tests {
     fn verify_pinned_rejects_non_pinned_authority_fail_closed() {
         let attacker = key(0x99);
         let pinned = key(0x11); // the authority the member actually pinned
-        // A directory the attacker validly signs with THEIR OWN authority key: self-consistent…
+                                // A directory the attacker validly signs with THEIR OWN authority key: self-consistent…
         let forged = DomainDirectory::issue(
             &attacker,
             "abc.com",
@@ -360,7 +403,10 @@ mod tests {
             None,
             1_700_000_000_000,
         );
-        assert!(forged.verify().is_ok(), "forged directory is internally self-consistent");
+        assert!(
+            forged.verify().is_ok(),
+            "forged directory is internally self-consistent"
+        );
         // …but it is NOT signed by the pinned authority — fail closed 0x0113.
         let err = forged.verify_pinned(&pinned.public()).unwrap_err();
         assert_eq!(err, DomainDirectoryError::AuthorityMismatch);
@@ -404,7 +450,12 @@ mod tests {
             9,
             Visibility::Public,
             vec![
-                entry("alice@abc.com", 0x22, Custody::Sovereign, Some(vec!["admin".into()])),
+                entry(
+                    "alice@abc.com",
+                    0x22,
+                    Custody::Sovereign,
+                    Some(vec!["admin".into()]),
+                ),
                 entry("bob@abc.com", 0x33, Custody::OrgManaged, None),
             ],
             Some(ContentId::of(b"prev-directory")),
@@ -425,14 +476,23 @@ mod tests {
             mutants.push(valid[..n].to_vec());
         }
         // Trailing junk (a canonical decoder must reject unconsumed bytes / extra items).
-        for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8], vec![0xa1, 0x00, 0x00]] {
+        for junk in [
+            vec![0x00u8],
+            vec![0xff, 0xff],
+            vec![0x9f; 8],
+            vec![0xa1, 0x00, 0x00],
+        ] {
             let mut m = valid.clone();
             m.extend_from_slice(&junk);
             mutants.push(m);
         }
         for m in &mutants {
             if let Ok(o) = DomainDirectory::from_det_cbor(m) {
-                assert_eq!(&o.det_cbor(), m, "directory decoder accepted a non-canonical encoding");
+                assert_eq!(
+                    &o.det_cbor(),
+                    m,
+                    "directory decoder accepted a non-canonical encoding"
+                );
             }
         }
         // The unmutated bytes still round-trip exactly (guards against an over-eager reject above).

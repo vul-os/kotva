@@ -74,7 +74,9 @@
 //! media.md` and disagrees with it, the spec governs (§10.4) and the disagreement is fixed here,
 //! not carried forward — see the `dmtap-envoir` change log for what changed and why.
 
-use crate::cbor::{self, as_array, as_bool, as_bytes, as_text, as_u32, as_u64, as_u8, CborError, Cv, Fields};
+use crate::cbor::{
+    self, as_array, as_bool, as_bytes, as_text, as_u32, as_u64, as_u8, CborError, Cv, Fields,
+};
 use crate::suite::Suite;
 
 /// Message kind for a sealed [`RtcSignal`] (§27.4.1, §21.16 extension range). Registered as the
@@ -141,7 +143,9 @@ pub enum RtcError {
     /// check that makes "an unencrypted screen track" unreachable — see [`sdp_scan`].
     /// `ERR_RTC_SFRAME_REQUIRED` (`0x0417`, FAIL_CLOSED_BLOCK, §27.5.2/§27.6.5/§27.12) — protection
     /// ratchets up only, never down, never silently.
-    #[error("media section `{0}` is offered over a non-SRTP profile (ERR_RTC_SFRAME_REQUIRED, 0x0417)")]
+    #[error(
+        "media section `{0}` is offered over a non-SRTP profile (ERR_RTC_SFRAME_REQUIRED, 0x0417)"
+    )]
     UnprotectedMedia(String),
 
     /// Admitting this load would exceed a published [`RtcCapacity`] (or, for a mesh peer, the
@@ -242,7 +246,10 @@ impl SignalType {
     /// Whether this type carries `sdp` (key 4) — i.e. whether it can add, remove, or re-purpose a
     /// media track (§27.4.1's field table: MUST **iff** `type ∈ {offer, pranswer, answer}`).
     pub fn carries_sdp(self) -> bool {
-        matches!(self, SignalType::Offer | SignalType::Pranswer | SignalType::Answer)
+        matches!(
+            self,
+            SignalType::Offer | SignalType::Pranswer | SignalType::Answer
+        )
     }
 }
 
@@ -312,7 +319,9 @@ impl Topology {
         match b {
             1 => Ok(Topology::Mesh),
             2 => Ok(Topology::Sfu),
-            _ => Err(RtcError::Malformed("topology is neither 1 (mesh) nor 2 (SFU)")),
+            _ => Err(RtcError::Malformed(
+                "topology is neither 1 (mesh) nor 2 (SFU)",
+            )),
         }
     }
 
@@ -345,7 +354,10 @@ pub struct IceCandidate {
 
 impl IceCandidate {
     fn to_cv(&self) -> Cv {
-        let mut m = vec![(1u64, Cv::Text(self.candidate.clone())), (2, Cv::Text(self.mid.clone()))];
+        let mut m = vec![
+            (1u64, Cv::Text(self.candidate.clone())),
+            (2, Cv::Text(self.mid.clone())),
+        ];
         if let Some(u) = &self.ufrag {
             m.push((3, Cv::Text(u.clone())));
         }
@@ -359,7 +371,11 @@ impl IceCandidate {
         let ufrag = f.take(3).map(as_text).transpose()?;
         // Unrecognized keys are ignored, not rejected — see RtcSignal's forward-compatibility
         // note; this nested object shares that rule (§27.4.1).
-        Ok(IceCandidate { candidate, mid, ufrag })
+        Ok(IceCandidate {
+            candidate,
+            mid,
+            ufrag,
+        })
     }
 }
 
@@ -550,13 +566,21 @@ impl RtcSignal {
         };
         let mls_epoch = f.take(6).map(as_u64).transpose()?;
         let reason = f.take(7).map(as_u8).transpose()?.map(ByeReason::from_u8);
-        let topology = f.take(8).map(as_u8).transpose()?.map(Topology::from_u8).transpose()?;
+        let topology = f
+            .take(8)
+            .map(as_u8)
+            .transpose()?
+            .map(Topology::from_u8)
+            .transpose()?;
         let sfu = f.take(9).map(as_bytes).transpose()?;
         let sfu_suite = f
             .take(10)
             .map(as_u8)
             .transpose()?
-            .map(|b| Suite::from_u8(b).ok_or(RtcError::Malformed("sfu_suite names an unregistered suite")))
+            .map(|b| {
+                Suite::from_u8(b)
+                    .ok_or(RtcError::Malformed("sfu_suite names an unregistered suite"))
+            })
             .transpose()?;
 
         // §27.4.1: unrecognized keys are ignored — not rejected, not preserved. This object has no
@@ -564,7 +588,18 @@ impl RtcSignal {
         // to protect, unlike `Headers.ext` or a signed object's `>= 64` extension range.
         let _ = f.into_pairs();
 
-        Ok(RtcSignal { call_id, typ, seq, sdp, candidates, mls_epoch, reason, topology, sfu, sfu_suite })
+        Ok(RtcSignal {
+            call_id,
+            typ,
+            seq,
+            sdp,
+            candidates,
+            mls_epoch,
+            reason,
+            topology,
+            sfu,
+            sfu_suite,
+        })
     }
 
     /// Structural validation against the §27.4.1 CDDL: `call_id` length, and **exact**
@@ -599,22 +634,36 @@ impl RtcSignal {
             (Some(cs), true) if cs.is_empty() => {
                 return Err(RtcError::Malformed("candidates is present but empty"))
             }
-            (Some(_), false) => return Err(RtcError::Malformed("candidates present on a non-candidate type")),
-            (None, true) => return Err(RtcError::Malformed("candidates missing on a candidate signal")),
+            (Some(_), false) => {
+                return Err(RtcError::Malformed(
+                    "candidates present on a non-candidate type",
+                ))
+            }
+            (None, true) => {
+                return Err(RtcError::Malformed(
+                    "candidates missing on a candidate signal",
+                ))
+            }
             _ => {}
         }
         if self.reason.is_some() != (t == SignalType::Bye) {
-            return Err(RtcError::Malformed("reason presence disagrees with type (MUST iff bye)"));
+            return Err(RtcError::Malformed(
+                "reason presence disagrees with type (MUST iff bye)",
+            ));
         }
         let sfu_topology_ok = match self.topology {
             Some(Topology::Sfu) => self.sfu.is_some(),
             _ => self.sfu.is_none(),
         };
         if !sfu_topology_ok {
-            return Err(RtcError::Malformed("sfu presence disagrees with topology (MUST iff SFU)"));
+            return Err(RtcError::Malformed(
+                "sfu presence disagrees with topology (MUST iff SFU)",
+            ));
         }
         if self.sfu_suite.is_some() != self.sfu.is_some() {
-            return Err(RtcError::Malformed("sfu_suite presence disagrees with sfu (MUST iff key 9 present)"));
+            return Err(RtcError::Malformed(
+                "sfu_suite presence disagrees with sfu (MUST iff key 9 present)",
+            ));
         }
         Ok(())
     }
@@ -722,7 +771,8 @@ impl TrackDescriptor {
     /// being wrong about an honest peer is some unused capacity, and the cost of being wrong about
     /// a hostile one is a saturated uplink.
     pub fn budget_bitrate_bps(&self) -> u64 {
-        self.floor_bitrate_bps().max(self.declared_bitrate_bps.unwrap_or(0))
+        self.floor_bitrate_bps()
+            .max(self.declared_bitrate_bps.unwrap_or(0))
     }
 
     /// The conservative per-kind minimum charge. §27.13 item 6 states the spec recommends no
@@ -794,9 +844,15 @@ pub fn sdp_scan(sdp: &str) -> Result<Vec<TrackDescriptor>, RtcError> {
             "m" => {
                 // m=<media> <port> <proto> <fmt>...
                 let mut parts = value.split(' ').filter(|s| !s.is_empty());
-                let media = parts.next().ok_or(RtcError::SdpMalformed("m= line has no media field"))?;
-                let _port = parts.next().ok_or(RtcError::SdpMalformed("m= line has no port field"))?;
-                let proto = parts.next().ok_or(RtcError::SdpMalformed("m= line has no proto field"))?;
+                let media = parts
+                    .next()
+                    .ok_or(RtcError::SdpMalformed("m= line has no media field"))?;
+                let _port = parts
+                    .next()
+                    .ok_or(RtcError::SdpMalformed("m= line has no port field"))?;
+                let proto = parts
+                    .next()
+                    .ok_or(RtcError::SdpMalformed("m= line has no proto field"))?;
 
                 if !proto_is_protected(proto) {
                     return Err(RtcError::UnprotectedMedia(media.to_string()));
@@ -918,7 +974,9 @@ pub struct ParticipantProfile {
 impl ParticipantProfile {
     /// One audio track — a voice call.
     pub fn audio_only() -> Self {
-        ParticipantProfile { tracks: vec![track(MediaKind::Audio, TrackPurpose::Main)] }
+        ParticipantProfile {
+            tracks: vec![track(MediaKind::Audio, TrackPurpose::Main)],
+        }
     }
 
     /// One audio + one camera track — the ordinary video call.
@@ -997,7 +1055,11 @@ impl MediaCapacity {
         // single-core device still reports a coherent, honest, minimal capability.
         let max_tracks = cpu_cores.saturating_mul(TRACKS_PER_CORE).max(2);
 
-        MediaCapacity { max_tracks, max_send_bitrate_bps, max_recv_bitrate_bps }
+        MediaCapacity {
+            max_tracks,
+            max_send_bitrate_bps,
+            max_recv_bitrate_bps,
+        }
     }
 
     /// How many participants a **full mesh** call can have, for a given per-participant mix.
@@ -1058,7 +1120,12 @@ impl MediaCapacity {
         self.admit(current, incoming, self.max_send_bitrate_bps)
     }
 
-    fn admit(&self, current: MediaLoad, incoming: MediaLoad, bitrate_ceiling: u64) -> Result<(), RtcError> {
+    fn admit(
+        &self,
+        current: MediaLoad,
+        incoming: MediaLoad,
+        bitrate_ceiling: u64,
+    ) -> Result<(), RtcError> {
         let total = current.plus(incoming);
         if total.tracks > self.max_tracks || total.bitrate_bps > bitrate_ceiling {
             return Err(RtcError::CapacityExceeded);
@@ -1137,14 +1204,18 @@ impl CapacityAdvert {
                     .max_tracks_per_participant
                     .checked_div(per_peer.tracks)
                     .unwrap_or(u32::MAX);
-                let by_aggregate_tracks =
-                    cap.max_tracks.checked_div(per_peer.tracks).unwrap_or(u32::MAX);
+                let by_aggregate_tracks = cap
+                    .max_tracks
+                    .checked_div(per_peer.tracks)
+                    .unwrap_or(u32::MAX);
                 let by_aggregate_bps = cap
                     .max_aggregate_bps
                     .checked_div(per_peer.bitrate_bps)
                     .map(clamp_u32)
                     .unwrap_or(u32::MAX);
-                by_tracks_per_participant.min(by_aggregate_tracks).min(by_aggregate_bps)
+                by_tracks_per_participant
+                    .min(by_aggregate_tracks)
+                    .min(by_aggregate_bps)
             }
         }
     }
@@ -1238,7 +1309,12 @@ impl RtcCapacity {
     /// and `advisory_max_participants` never enter this decision. Callers MUST invoke this on
     /// **every** `offer`, not only on join (RTC-16), because renegotiation is how a track — a
     /// screen share among them — is added.
-    pub fn admit(&self, current: MediaLoad, incoming: MediaLoad, per_participant: MediaLoad) -> Result<(), RtcError> {
+    pub fn admit(
+        &self,
+        current: MediaLoad,
+        incoming: MediaLoad,
+        per_participant: MediaLoad,
+    ) -> Result<(), RtcError> {
         let total = current.plus(incoming);
         if total.tracks > self.max_tracks
             || total.bitrate_bps > self.max_aggregate_bps
@@ -1289,12 +1365,22 @@ mod capacity_tests {
                 (4, Cv::U64(1_000)),
                 (6, Cv::Bool(false)),
             ]);
-            assert!(RtcCapacity::decode(&cbor::encode(&m)).is_err(), "key {key} overflow must reject");
+            assert!(
+                RtcCapacity::decode(&cbor::encode(&m)).is_err(),
+                "key {key} overflow must reject"
+            );
         }
         let advisory = Cv::Map(vec![
-            (1, Cv::U64(10)), (2, Cv::U64(1_000)), (3, Cv::U64(2)), (4, Cv::U64(1_000)),
-            (5, Cv::U64(over)), (6, Cv::Bool(false)),
+            (1, Cv::U64(10)),
+            (2, Cv::U64(1_000)),
+            (3, Cv::U64(2)),
+            (4, Cv::U64(1_000)),
+            (5, Cv::U64(over)),
+            (6, Cv::Bool(false)),
         ]);
-        assert!(RtcCapacity::decode(&cbor::encode(&advisory)).is_err(), "advisory overflow must reject");
+        assert!(
+            RtcCapacity::decode(&cbor::encode(&advisory)).is_err(),
+            "advisory overflow must reject"
+        );
     }
 }

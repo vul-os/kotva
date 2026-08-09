@@ -56,7 +56,9 @@ pub enum PushError {
     /// A `WakePing` carries any field beyond the opaque sealed token (key `1`), or its opened
     /// plaintext decodes to structured content — a wake must be content-free and sender-blind
     /// (`ERR_WAKEPING_CONTENT_PRESENT` `0x0313`, FAIL_CLOSED_BLOCK, §18.5.6).
-    #[error("wake ping carries content beyond the sealed token (ERR_WAKEPING_CONTENT_PRESENT 0x0313)")]
+    #[error(
+        "wake ping carries content beyond the sealed token (ERR_WAKEPING_CONTENT_PRESENT 0x0313)"
+    )]
     WakePingContentPresent,
     /// The wake token's `aes128gcm` AEAD failed to open under the subscription's
     /// `push_key`/`auth_secret` — a forged or unauthenticated wake (`ERR_WAKEPING_AUTH_FAILED`
@@ -208,8 +210,13 @@ impl PushSubscription {
     /// `DeviceCert` under the owner's `Identity` (§1.2) before acting on the subscription; that
     /// cross-object check is outside this object and is also `0x0312` when it fails (§18.9.15).
     pub fn verify(&self) -> Result<(), PushError> {
-        verify_domain(&self.device_key, PUSH_SUBSCRIPTION_DS, &self.signing_body(), &self.sig)
-            .map_err(|_| PushError::PushSubscriptionSigInvalid)
+        verify_domain(
+            &self.device_key,
+            PUSH_SUBSCRIPTION_DS,
+            &self.signing_body(),
+            &self.sig,
+        )
+        .map_err(|_| PushError::PushSubscriptionSigInvalid)
     }
 }
 
@@ -289,7 +296,11 @@ impl WakePing {
     /// (`0x0316`, DROP_SILENT). On success the recovered nonce is reserved and returned. The
     /// ordering matters: an *unauthenticated* wake never reserves a nonce (it can't be opened), and
     /// only a genuinely-authenticated, content-free wake can consume replay budget.
-    pub fn open_dedup<F>(&self, opener: F, replay: &mut WakeReplayCache) -> Result<Vec<u8>, PushError>
+    pub fn open_dedup<F>(
+        &self,
+        opener: F,
+        replay: &mut WakeReplayCache,
+    ) -> Result<Vec<u8>, PushError>
     where
         F: FnOnce(&[u8]) -> Option<Vec<u8>>,
     {
@@ -392,22 +403,43 @@ mod tests {
             for n in 0..valid.len() {
                 mutants.push(valid[..n].to_vec());
             }
-            for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8], vec![0xa1, 0x00, 0x00]] {
+            for junk in [
+                vec![0x00u8],
+                vec![0xff, 0xff],
+                vec![0x9f; 8],
+                vec![0xa1, 0x00, 0x00],
+            ] {
                 let mut m = valid.clone();
                 m.extend_from_slice(&junk);
                 mutants.push(m);
             }
             for m in &mutants {
                 if let Ok(o) = PushSubscription::from_det_cbor(m) {
-                    assert_eq!(&o.det_cbor(), m, "PushSubscription decoder accepted a non-canonical encoding");
+                    assert_eq!(
+                        &o.det_cbor(),
+                        m,
+                        "PushSubscription decoder accepted a non-canonical encoding"
+                    );
                 }
                 if let Ok(o) = WakePing::from_det_cbor(m) {
-                    assert_eq!(&o.det_cbor(), m, "WakePing decoder accepted a non-canonical encoding");
+                    assert_eq!(
+                        &o.det_cbor(),
+                        m,
+                        "WakePing decoder accepted a non-canonical encoding"
+                    );
                 }
             }
         }
-        assert_eq!(PushSubscription::from_det_cbor(&sub_bytes).unwrap().det_cbor(), sub_bytes);
-        assert_eq!(WakePing::from_det_cbor(&ping_bytes).unwrap().det_cbor(), ping_bytes);
+        assert_eq!(
+            PushSubscription::from_det_cbor(&sub_bytes)
+                .unwrap()
+                .det_cbor(),
+            sub_bytes
+        );
+        assert_eq!(
+            WakePing::from_det_cbor(&ping_bytes).unwrap().det_cbor(),
+            ping_bytes
+        );
     }
 
     #[test]
@@ -527,12 +559,16 @@ mod tests {
         let w = WakePing::new(vec![0xde, 0xad, 0xbe, 0xef]); // ciphertext (opener returns the nonce)
 
         // First wake: opener authenticates and yields the fresh nonce → accepted + reserved.
-        let got = w.open_dedup(|_| Some(nonce.clone()), &mut cache).expect("fresh wake accepted");
+        let got = w
+            .open_dedup(|_| Some(nonce.clone()), &mut cache)
+            .expect("fresh wake accepted");
         assert_eq!(got, nonce);
         assert_eq!(cache.len(), 1);
 
         // Relay replays the SAME ciphertext → same recovered nonce → dropped as a replay (0x0316).
-        let err = w.open_dedup(|_| Some(nonce.clone()), &mut cache).unwrap_err();
+        let err = w
+            .open_dedup(|_| Some(nonce.clone()), &mut cache)
+            .unwrap_err();
         assert_eq!(err, PushError::WakePingReplay);
         assert_eq!(err.code(), 0x0316);
         assert_eq!(cache.len(), 1, "a rejected replay does not grow the cache");
@@ -553,11 +589,14 @@ mod tests {
         }
         assert_eq!(cache.len(), 3);
         // The bare predicate agrees.
-        assert!(wake_is_replay(&{
-            let mut s = std::collections::BTreeSet::new();
-            s.insert(vec![7u8; 16]);
-            s
-        }, &[7u8; 16]));
+        assert!(wake_is_replay(
+            &{
+                let mut s = std::collections::BTreeSet::new();
+                s.insert(vec![7u8; 16]);
+                s
+            },
+            &[7u8; 16]
+        ));
     }
 
     #[test]

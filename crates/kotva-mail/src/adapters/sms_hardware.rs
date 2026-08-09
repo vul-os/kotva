@@ -16,7 +16,8 @@ use kotva_core::mote::{Headers, Payload};
 
 use super::{
     platform_asserted_cv, platform_asserted_origin, LegacyAdapter, PlatformAsserted, RailMessage,
-    RailProperties, RailSend, RailTransport, TransportError, PLATFORM_ASSERTED_EXT_KEY, SMS_HARDWARE,
+    RailProperties, RailSend, RailTransport, TransportError, PLATFORM_ASSERTED_EXT_KEY,
+    SMS_HARDWARE,
 };
 
 /// The rail label carried in the platform-asserted origin (§26.5.1). `"sms"` — the transport, not
@@ -102,7 +103,10 @@ mod tests {
         let p = SmsHardwareAdapter.properties();
         assert_eq!(p.inbound.initiation, InitiationClass::FreelyInitiating);
         assert_eq!(p.outbound.initiation, InitiationClass::FreelyInitiating);
-        assert!(p.can_initiate_outbound_cold(), "SMS can reach a stranger cold (§26.4)");
+        assert!(
+            p.can_initiate_outbound_cold(),
+            "SMS can reach a stranger cold (§26.4)"
+        );
         assert_eq!(p.sanctioning, Sanctioning::NativeStandard);
         assert!(p.permits_mode(DeploymentMode::Node) && p.permits_mode(DeploymentMode::Gateway));
     }
@@ -117,11 +121,17 @@ mod tests {
         };
         let mote = SmsHardwareAdapter.inbound_to_mote(&msg);
         assert_eq!(mote.body, b"hello over sms");
-        assert!(mote.from.is_empty(), "an SMS number must never masquerade as a verified sender IK");
+        assert!(
+            mote.from.is_empty(),
+            "an SMS number must never masquerade as a verified sender IK"
+        );
         let origin = sms_origin(&mote).expect("carrier-asserted origin present");
         assert_eq!(origin.rail, "sms");
         assert_eq!(origin.claim, "+27821234567");
-        assert!(!origin.verifiable, "an SMS sender id is unverifiable (§26.5)");
+        assert!(
+            !origin.verifiable,
+            "an SMS sender id is unverifiable (§26.5)"
+        );
         // Survives the canonical wire round-trip.
         let back = Payload::from_det_cbor(&mote.det_cbor()).unwrap();
         assert_eq!(sms_origin(&back), Some(origin));
@@ -150,17 +160,35 @@ mod tests {
                 if self.fail {
                     return Err(TransportError::Unreachable);
                 }
-                self.sent.borrow_mut().push((to.to_string(), text.to_string()));
+                self.sent
+                    .borrow_mut()
+                    .push((to.to_string(), text.to_string()));
                 Ok(())
             }
         }
-        let ok = SmsHardwareTransport::new(MockModem { sent: RefCell::new(vec![]), fail: false });
-        ok.send(RailSend { to: "+27821234567".to_string(), text: "hi".to_string() }).unwrap();
-        assert_eq!(ok.modem.sent.borrow().as_slice(), &[("+27821234567".to_string(), "hi".to_string())]);
-
-        let bad = SmsHardwareTransport::new(MockModem { sent: RefCell::new(vec![]), fail: true });
+        let ok = SmsHardwareTransport::new(MockModem {
+            sent: RefCell::new(vec![]),
+            fail: false,
+        });
+        ok.send(RailSend {
+            to: "+27821234567".to_string(),
+            text: "hi".to_string(),
+        })
+        .unwrap();
         assert_eq!(
-            bad.send(RailSend { to: "x".to_string(), text: "y".to_string() }),
+            ok.modem.sent.borrow().as_slice(),
+            &[("+27821234567".to_string(), "hi".to_string())]
+        );
+
+        let bad = SmsHardwareTransport::new(MockModem {
+            sent: RefCell::new(vec![]),
+            fail: true,
+        });
+        assert_eq!(
+            bad.send(RailSend {
+                to: "x".to_string(),
+                text: "y".to_string()
+            }),
             Err(TransportError::Unreachable)
         );
     }

@@ -58,8 +58,10 @@ pub mod err;
 mod jsonval;
 
 use err::{binding_err, BErr, IntoJs};
-use jsonval::{addtag_to_json, hex, hlc_from_json, hlc_to_json, op_from_json, op_to_json,
-    sval_from_json, sval_to_json, unhex};
+use jsonval::{
+    addtag_to_json, hex, hlc_from_json, hlc_to_json, op_from_json, op_to_json, sval_from_json,
+    sval_to_json, unhex,
+};
 
 /// The substrate version this binding speaks, and the crate it wraps.
 #[cfg_attr(feature = "js", wasm_bindgen)]
@@ -92,7 +94,9 @@ fn ops_from_json(v: &Value) -> Result<Vec<SyncOp>, BErr> {
 
 fn now(ms: f64) -> Result<u64, BErr> {
     if !ms.is_finite() || ms < 0.0 {
-        return Err(binding_err("receiver_now_ms must be a non-negative finite number"));
+        return Err(binding_err(
+            "receiver_now_ms must be a non-negative finite number",
+        ));
     }
     Ok(ms as u64)
 }
@@ -173,7 +177,13 @@ impl HlcClock {
     /// A clock for `author` (a 32-byte Ed25519 public key), starting at zero.
     #[cfg_attr(feature = "js", wasm_bindgen(constructor))]
     pub fn new(author: &[u8]) -> HlcClock {
-        HlcClock { inner: Hlc { wall: 0, counter: 0, author: author.to_vec() } }
+        HlcClock {
+            inner: Hlc {
+                wall: 0,
+                counter: 0,
+                author: author.to_vec(),
+            },
+        }
     }
 
     /// Advance and return the next timestamp for a locally-minted op.
@@ -338,7 +348,9 @@ impl SyncEngine {
     /// blocking and `--all-features`, and it failed on `dead_code` immediately.
     #[cfg(all(feature = "abi", not(feature = "js")))]
     pub(crate) fn snapshot_clone(&self) -> SyncEngine {
-        SyncEngine { state: self.state.clone() }
+        SyncEngine {
+            state: self.state.clone(),
+        }
     }
 }
 
@@ -347,7 +359,9 @@ impl SyncEngine {
     /// An empty replica.
     #[cfg_attr(feature = "js", wasm_bindgen(constructor))]
     pub fn new() -> SyncEngine {
-        SyncEngine { state: SyncState::new() }
+        SyncEngine {
+            state: SyncState::new(),
+        }
     }
 
     /// **The network ingest path.** Verify a `COSE_Sign1` envelope, then validate and apply the op
@@ -355,11 +369,7 @@ impl SyncEngine {
     ///
     /// Signature (`0x0A02`), structure/causality (`0x0A03`) and skew (`0x0A05`) are all checked
     /// **before** state is touched, so a refused op leaves the replica exactly as it was.
-    pub fn ingest_signed(
-        &mut self,
-        cose_bytes: &[u8],
-        receiver_now_ms: f64,
-    ) -> Result<bool, BErr> {
+    pub fn ingest_signed(&mut self, cose_bytes: &[u8], receiver_now_ms: f64) -> Result<bool, BErr> {
         let op = cose::verify_op_bytes(cose_bytes).js()?;
         self.state.ingest(&op, now(receiver_now_ms)?).js()
     }
@@ -417,7 +427,13 @@ impl SyncEngine {
             .rga
             .iter()
             .map(|(t, atoms)| {
-                Ok(json!([t, atoms.iter().map(sval_to_json).collect::<Result<Vec<_>, String>>()?]))
+                Ok(json!([
+                    t,
+                    atoms
+                        .iter()
+                        .map(sval_to_json)
+                        .collect::<Result<Vec<_>, String>>()?
+                ]))
             })
             .collect::<Result<Vec<_>, String>>()
             .js()?;
@@ -527,7 +543,9 @@ impl SyncEngine {
     /// tombstones (§4.7 keeps them until the §6.2 stability cut) and `values` is the visible
     /// sequence.
     pub fn sequence(&self, target: &str) -> Result<String, BErr> {
-        let Some(seq) = self.state.sequences.get(target) else { return Ok("null".into()) };
+        let Some(seq) = self.state.sequences.get(target) else {
+            return Ok("null".into());
+        };
         let atoms = seq
             .order()
             .iter()
@@ -543,8 +561,12 @@ impl SyncEngine {
             })
             .collect::<Result<Vec<_>, String>>()
             .js()?;
-        let values =
-            seq.values().iter().map(sval_to_json).collect::<Result<Vec<_>, String>>().js()?;
+        let values = seq
+            .values()
+            .iter()
+            .map(sval_to_json)
+            .collect::<Result<Vec<_>, String>>()
+            .js()?;
         Ok(out(json!({ "values": values, "atoms": atoms })))
     }
 
@@ -579,7 +601,9 @@ impl SyncEngine {
 /// address against a `Snapshot.root` before adopting it.
 #[cfg_attr(feature = "js", wasm_bindgen)]
 pub fn observable_state_root(state_cbor: &[u8]) -> Vec<u8> {
-    dmtap_sync::ds_hash(dmtap_sync::DS_SNAPSHOT_STATE, state_cbor).as_bytes().to_vec()
+    dmtap_sync::ds_hash(dmtap_sync::DS_SNAPSHOT_STATE, state_cbor)
+        .as_bytes()
+        .to_vec()
 }
 
 /// Encode a §6.1.1 observable state from its JSON projection (the shape
@@ -629,7 +653,9 @@ pub fn decode_observable_state(bytes: &[u8]) -> Result<String, BErr> {
         pn.push(json!([
             txt(&t[0]),
             txt(&t[1]),
-            t[2].as_int().ok_or_else(|| binding_err("PN total is not an integer"))?.to_string()
+            t[2].as_int()
+                .ok_or_else(|| binding_err("PN total is not an integer"))?
+                .to_string()
         ]));
     }
     let mut death = Vec::new();
@@ -658,10 +684,15 @@ pub fn decode_observable_state(bytes: &[u8]) -> Result<String, BErr> {
 
 fn observable_from_json(v: &Value) -> Result<ObservableState, String> {
     let arr = |k: &str| -> Result<Vec<Value>, String> {
-        Ok(v.get(k).and_then(Value::as_array).cloned().unwrap_or_default())
+        Ok(v.get(k)
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default())
     };
     let txt = |e: &Value| -> Result<String, String> {
-        e.as_str().map(str::to_owned).ok_or_else(|| "expected a string".to_owned())
+        e.as_str()
+            .map(str::to_owned)
+            .ok_or_else(|| "expected a string".to_owned())
     };
     let tup = |e: &Value, n: usize| -> Result<Vec<Value>, String> {
         e.as_array()
@@ -676,13 +707,16 @@ fn observable_from_json(v: &Value) -> Result<ObservableState, String> {
     }
     for e in arr("lww")? {
         let t = tup(&e, 3)?;
-        st.lww.push((txt(&t[0])?, txt(&t[1])?, sval_from_json(&t[2])?));
+        st.lww
+            .push((txt(&t[0])?, txt(&t[1])?, sval_from_json(&t[2])?));
     }
     for e in arr("pn")? {
         let t = tup(&e, 3)?;
         // Carried as a decimal STRING: the §4.6 total is an i128 and JS numbers are not.
         let total: i128 = match &t[2] {
-            Value::String(s) => s.parse().map_err(|_| format!("PN total `{s}` is not an integer"))?,
+            Value::String(s) => s
+                .parse()
+                .map_err(|_| format!("PN total `{s}` is not an integer"))?,
             Value::Number(n) => n.as_i64().ok_or("PN total is not an integer")? as i128,
             _ => return Err("PN total must be a decimal string".into()),
         };
@@ -731,20 +765,33 @@ fn snapshot_json(s: &Snapshot) -> Value {
 }
 
 fn snapshot_from_json(v: &Value) -> Result<Snapshot, String> {
-    let covers_entries = v.get("covers").and_then(Value::as_array).ok_or("missing `covers`")?;
+    let covers_entries = v
+        .get("covers")
+        .and_then(Value::as_array)
+        .ok_or("missing `covers`")?;
     let mut covers = VersionVector::new();
     for e in covers_entries {
-        covers.observe(&hlc_from_json(e.get("hlc").ok_or("covers entry without `hlc`")?)?);
+        covers.observe(&hlc_from_json(
+            e.get("hlc").ok_or("covers entry without `hlc`")?,
+        )?);
     }
     let hexf = |k: &str| -> Result<Vec<u8>, String> {
-        unhex(v.get(k).and_then(Value::as_str).ok_or(format!("missing `{k}`"))?)
+        unhex(
+            v.get(k)
+                .and_then(Value::as_str)
+                .ok_or(format!("missing `{k}`"))?,
+        )
     };
     Ok(Snapshot {
         v: u8::try_from(v.get("v").and_then(Value::as_u64).unwrap_or(0))
             .map_err(|_| "`v` exceeds u8")?,
         suite: u8::try_from(v.get("suite").and_then(Value::as_u64).unwrap_or(1))
             .map_err(|_| "`suite` exceeds u8")?,
-        ns: v.get("ns").and_then(Value::as_str).unwrap_or_default().to_owned(),
+        ns: v
+            .get("ns")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_owned(),
         covers,
         root: ContentId(hexf("root")?),
         ts: v.get("ts").and_then(Value::as_u64).ok_or("missing `ts`")?,
@@ -780,10 +827,7 @@ pub fn snapshot_signing_input(snapshot_json_no_sig: &str) -> Result<String, BErr
 /// Assemble the signed snapshot wire bytes from its JSON and a detached signature. As with ops,
 /// the signature is **verified before the bytes are returned**.
 #[cfg_attr(feature = "js", wasm_bindgen)]
-pub fn snapshot_assemble(
-    snapshot_json_no_sig: &str,
-    signature: &[u8],
-) -> Result<Vec<u8>, BErr> {
+pub fn snapshot_assemble(snapshot_json_no_sig: &str, signature: &[u8]) -> Result<Vec<u8>, BErr> {
     let mut s = snapshot_from_json(&parse(snapshot_json_no_sig)?).js()?;
     s.sig = signature.to_vec();
     s.verify_sig().js()?;
@@ -811,13 +855,26 @@ pub fn fastjoin_decode(bytes: &[u8]) -> Result<String, BErr> {
 pub fn fastjoin_encode(fastjoin_json: &str) -> Result<Vec<u8>, BErr> {
     let v = parse(fastjoin_json)?;
     let state = match v.get("state").filter(|s| !s.is_null()) {
-        Some(s) => Some(unhex(s.as_str().ok_or_else(|| binding_err("`state` is not hex"))?).js()?),
+        Some(s) => Some(
+            unhex(
+                s.as_str()
+                    .ok_or_else(|| binding_err("`state` is not hex"))?,
+            )
+            .js()?,
+        ),
         None => None,
     };
     let fj = FastJoin {
-        snapshot: snapshot_from_json(v.get("snapshot").ok_or_else(|| binding_err("missing `snapshot`"))?)
-            .js()?,
-        floor: hlc_from_json(v.get("floor").ok_or_else(|| binding_err("missing `floor`"))?).js()?,
+        snapshot: snapshot_from_json(
+            v.get("snapshot")
+                .ok_or_else(|| binding_err("missing `snapshot`"))?,
+        )
+        .js()?,
+        floor: hlc_from_json(
+            v.get("floor")
+                .ok_or_else(|| binding_err("missing `floor`"))?,
+        )
+        .js()?,
         state,
     };
     Ok(fj.det_cbor())
@@ -867,7 +924,11 @@ pub fn snapshot_body_encode(members_hex_json: &str) -> Result<Vec<u8>, BErr> {
 /// [`snapshot_body_verify_root`] instead: folding without checking the result against
 /// `Snapshot.root` is exactly the unverified adoption §5.2.1 step 3 forbids.
 #[cfg_attr(feature = "js", wasm_bindgen)]
-pub fn snapshot_body_fold(body_bytes: &[u8], ns: &str, receiver_now_ms: f64) -> Result<Vec<u8>, BErr> {
+pub fn snapshot_body_fold(
+    body_bytes: &[u8],
+    ns: &str,
+    receiver_now_ms: f64,
+) -> Result<Vec<u8>, BErr> {
     let body = dmtap_sync::SnapshotBody::from_det_cbor(body_bytes).js()?;
     let scope = if ns.is_empty() { None } else { Some(ns) };
     let state = body.fold(scope, now(receiver_now_ms)?).js()?;
@@ -909,14 +970,22 @@ pub fn snapshot_body_verify_root(
 #[cfg_attr(feature = "js", wasm_bindgen)]
 pub fn caller_is_below_floor(snapshot_bytes: &[u8], vector_json: &str) -> Result<bool, BErr> {
     let snapshot = Snapshot::from_det_cbor(snapshot_bytes).js()?;
-    Ok(dmtap_sync::caller_is_below_floor(&snapshot, &version_vector_from_json(&parse(vector_json)?).js()?))
+    Ok(dmtap_sync::caller_is_below_floor(
+        &snapshot,
+        &version_vector_from_json(&parse(vector_json)?).js()?,
+    ))
 }
 
 /// The content address a fast-join's body must be fetched from (`GET /sync/state/<root>`) — what
 /// the host needs before it can call [`fastjoin_adopt`].
 #[cfg_attr(feature = "js", wasm_bindgen)]
 pub fn fastjoin_state_address(fastjoin_bytes: &[u8]) -> Result<Vec<u8>, BErr> {
-    Ok(FastJoin::from_det_cbor(fastjoin_bytes).js()?.snapshot.root.as_bytes().to_vec())
+    Ok(FastJoin::from_det_cbor(fastjoin_bytes)
+        .js()?
+        .snapshot
+        .root
+        .as_bytes()
+        .to_vec())
 }
 
 /// The §5.2.1 caller-side sequence, steps 1–3: verify the snapshot, check it closes the gap, and
@@ -966,8 +1035,15 @@ pub fn fastjoin_adopt(
         .iter()
         .map(|e| unhex(e.as_str().unwrap_or_default()).map_err(binding_err))
         .collect::<Result<_, _>>()?;
-    let adopted =
-        fj.adopt(&caller, &subscribed, &admitted, now(receiver_now_ms)?, |_| fetched_body).js()?;
+    let adopted = fj
+        .adopt(
+            &caller,
+            &subscribed,
+            &admitted,
+            now(receiver_now_ms)?,
+            |_| fetched_body,
+        )
+        .js()?;
     Ok(adopted.observable.det_cbor())
 }
 
@@ -987,9 +1063,7 @@ pub fn fastjoin_check_progress(
 ) -> Result<(), BErr> {
     let fj = FastJoin::from_det_cbor(fastjoin_bytes).js()?;
     let prev = match (previous_root, previous_covers_json) {
-        (Some(r), Some(c)) => {
-            Some((ContentId(r), version_vector_from_json(&parse(&c)?).js()?))
-        }
+        (Some(r), Some(c)) => Some((ContentId(r), version_vector_from_json(&parse(&c)?).js()?)),
         _ => None,
     };
     fj.check_progress(prev.as_ref().map(|(r, c)| (r, c))).js()
@@ -1035,10 +1109,7 @@ pub fn fastjoin_adopt_after(
 /// There is deliberately **no** floor-vs-`covers` comparison in here — see
 /// [`fastjoin_naive_covers_lacks_floor_rejected`] for the predicate that was removed and why.
 #[cfg_attr(feature = "js", wasm_bindgen)]
-pub fn fastjoin_check_covers(
-    fastjoin_bytes: &[u8],
-    caller_vector_json: &str,
-) -> Result<(), BErr> {
+pub fn fastjoin_check_covers(fastjoin_bytes: &[u8], caller_vector_json: &str) -> Result<(), BErr> {
     let fj = FastJoin::from_det_cbor(fastjoin_bytes).js()?;
     let caller = version_vector_from_json(&parse(caller_vector_json)?).js()?;
     dmtap_sync::check_covers_closes_gap(&fj.snapshot, &fj.floor, &caller).js()
@@ -1053,7 +1124,10 @@ pub fn fastjoin_check_covers(
 #[cfg_attr(feature = "js", wasm_bindgen)]
 pub fn fastjoin_covers_carries_floor_author_mark(fastjoin_bytes: &[u8]) -> Result<bool, BErr> {
     let fj = FastJoin::from_det_cbor(fastjoin_bytes).js()?;
-    Ok(dmtap_sync::covers_carries_mark_for_floor_author(&fj.snapshot, &fj.floor))
+    Ok(dmtap_sync::covers_carries_mark_for_floor_author(
+        &fj.snapshot,
+        &fj.floor,
+    ))
 }
 
 /// The **rejected** naive predicate `covers.lacks(floor)`, exposed *only* so the cross-surface trace
@@ -1071,7 +1145,10 @@ pub fn fastjoin_naive_covers_lacks_floor_rejected(fastjoin_bytes: &[u8]) -> Resu
 
 fn version_vector_from_json(v: &Value) -> Result<VersionVector, String> {
     let mut vv = VersionVector::new();
-    for e in v.as_array().ok_or("expected a JSON array of {author, hlc} marks")? {
+    for e in v
+        .as_array()
+        .ok_or("expected a JSON array of {author, hlc} marks")?
+    {
         vv.observe(&hlc_from_json(e.get("hlc").ok_or("mark without `hlc`")?)?);
     }
     Ok(vv)
@@ -1086,13 +1163,19 @@ fn entries_from_json(v: &Value) -> Result<Vec<OpEntry>, BErr> {
         .ok_or_else(|| binding_err("expected a JSON array of {hlc, id} entries"))?
         .iter()
         .map(|e| {
-            let hlc = hlc_from_json(e.get("hlc").ok_or_else(|| binding_err("entry without `hlc`"))?)
-                .map_err(binding_err)?;
+            let hlc = hlc_from_json(
+                e.get("hlc")
+                    .ok_or_else(|| binding_err("entry without `hlc`"))?,
+            )
+            .map_err(binding_err)?;
             let id = e
                 .get("id")
                 .and_then(Value::as_str)
                 .ok_or_else(|| binding_err("entry without `id`"))?;
-            Ok(OpEntry { hlc, id: ContentId(unhex(id).map_err(binding_err)?) })
+            Ok(OpEntry {
+                hlc,
+                id: ContentId(unhex(id).map_err(binding_err)?),
+            })
         })
         .collect()
 }
@@ -1281,14 +1364,21 @@ mod tests {
             "the binding must reproduce SYNC-OP-01's frozen bytes"
         );
         let back = decode_op(&bytes).expect("decode");
-        assert_eq!(encode_op(&back).expect("re-encode"), bytes, "JSON round-trip changed bytes");
+        assert_eq!(
+            encode_op(&back).expect("re-encode"),
+            bytes,
+            "JSON round-trip changed bytes"
+        );
     }
 
     #[test]
     fn tagged_values_do_not_collapse_text_and_bytes() {
         let as_text = encode_value(r#"{"tstr":"ab"}"#).unwrap();
         let as_bytes = encode_value(r#"{"bstr":"6162"}"#).unwrap();
-        assert_ne!(as_text, as_bytes, "a tstr and a bstr must never share an encoding");
+        assert_ne!(
+            as_text, as_bytes,
+            "a tstr and a bstr must never share an encoding"
+        );
     }
 
     #[test]

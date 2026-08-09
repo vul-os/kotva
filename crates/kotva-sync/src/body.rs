@@ -120,7 +120,9 @@ impl SnapshotBody {
     /// (`0x0A03`).
     pub fn from_det_cbor(bytes: &[u8]) -> Result<Self, SyncError> {
         let cv = decode(bytes).map_err(|_| SyncError::OpInvalid)?;
-        let SVal::Array(items) = cv else { return Err(SyncError::OpInvalid) };
+        let SVal::Array(items) = cv else {
+            return Err(SyncError::OpInvalid);
+        };
         let mut members = Vec::with_capacity(items.len());
         for item in items {
             // A `bstr`-wrapped member is the C-06 non-conformant framing: refused, not unwrapped.
@@ -303,8 +305,11 @@ pub fn retention_set(state: &SyncState, ops: &[&SyncOp]) -> BTreeSet<Vec<u8>> {
     let mut rga_keep: BTreeMap<String, BTreeSet<Hlc>> = BTreeMap::new();
     for (target, seq) in &state.sequences {
         let mut keep: BTreeSet<Hlc> = BTreeSet::new();
-        let mut frontier: Vec<Hlc> =
-            seq.atom_ids().into_iter().filter(|id| !seq.is_tombstoned(id)).collect();
+        let mut frontier: Vec<Hlc> = seq
+            .atom_ids()
+            .into_iter()
+            .filter(|id| !seq.is_tombstoned(id))
+            .collect();
         while let Some(id) = frontier.pop() {
             if !keep.insert(id.clone()) {
                 continue;
@@ -322,10 +327,9 @@ pub fn retention_set(state: &SyncState, ops: &[&SyncOp]) -> BTreeSet<Vec<u8>> {
     let mut out = BTreeSet::new();
     for op in ops {
         let retained = match op.kind {
-            OP_LWW_SET => op
-                .field
-                .as_ref()
-                .is_some_and(|f| lww_winners.contains(&(op.target.clone(), f.clone(), op.hlc.clone()))),
+            OP_LWW_SET => op.field.as_ref().is_some_and(|f| {
+                lww_winners.contains(&(op.target.clone(), f.clone(), op.hlc.clone()))
+            }),
             OP_DEATH => death_winners.contains(&(op.target.clone(), op.hlc.clone())),
             OP_SET_ADD => surviving_adds.contains(&(op.target.clone(), op.hlc.clone())),
             // A `set-remove` is never retained: the adds it cancelled are dropped with it, and an
@@ -334,9 +338,9 @@ pub fn retention_set(state: &SyncState, ops: &[&SyncOp]) -> BTreeSet<Vec<u8>> {
             // tombstone.
             OP_COUNTER => true,
             OP_TREE_MOVE => tree_winners.get(&op.target).is_some_and(|h| *h == op.hlc),
-            OP_SEQ_INSERT => {
-                rga_keep.get(&op.target).is_some_and(|keep| keep.contains(&op.hlc))
-            }
+            OP_SEQ_INSERT => rga_keep
+                .get(&op.target)
+                .is_some_and(|keep| keep.contains(&op.hlc)),
             OP_SEQ_REMOVE => op
                 .reference
                 .as_ref()
@@ -344,7 +348,9 @@ pub fn retention_set(state: &SyncState, ops: &[&SyncOp]) -> BTreeSet<Vec<u8>> {
                 .is_some_and(|id| {
                     // Retained iff the atom it tombstones is itself retained (as an origin): the
                     // fold must show that atom dead, or the recomputed root differs (note 2).
-                    rga_keep.get(&op.target).is_some_and(|keep| keep.contains(id))
+                    rga_keep
+                        .get(&op.target)
+                        .is_some_and(|keep| keep.contains(id))
                 }),
             _ => false,
         };
@@ -369,7 +375,11 @@ mod tests {
     }
 
     fn hlc(counter: u32, sk: &IdentityKey) -> Hlc {
-        Hlc { wall: 1_700_000_100_000, counter, author: sk.public() }
+        Hlc {
+            wall: 1_700_000_100_000,
+            counter,
+            author: sk.public(),
+        }
     }
 
     fn op(kind: u8, target: &str, sk: &IdentityKey, counter: u32) -> SyncOp {
@@ -409,7 +419,10 @@ mod tests {
         let mut later = op(OP_LWW_SET, "doc1", &b, 3);
         later.field = Some("title".into());
         later.value = Some(SVal::Text("q".into()));
-        assert!(later.hlc < incumbent.hlc, "the vector's whole point: after `covers`, below the HLC");
+        assert!(
+            later.hlc < incumbent.hlc,
+            "the vector's whole point: after `covers`, below the HLC"
+        );
         folded.ingest(&later, NOW).unwrap();
 
         assert_eq!(
@@ -427,7 +440,10 @@ mod tests {
         // apply the same op. It wins, because there is nothing to be less than.
         let mut projection = SyncState::new();
         projection.ingest(&later, NOW).unwrap();
-        assert_eq!(projection.lww.get("doc1", "title"), Some(&SVal::Text("q".into())));
+        assert_eq!(
+            projection.lww.get("doc1", "title"),
+            Some(&SVal::Text("q".into()))
+        );
         assert_ne!(
             state_root(&projection).as_bytes(),
             root.as_bytes(),
@@ -446,7 +462,9 @@ mod tests {
         let wire = body.det_cbor();
         assert_eq!(SnapshotBody::from_det_cbor(&wire).unwrap(), body);
         let state = body.fold(None, NOW).unwrap();
-        assert!(body.verify_against_root(&state_root(&state), None, NOW).is_ok());
+        assert!(body
+            .verify_against_root(&state_root(&state), None, NOW)
+            .is_ok());
         assert_eq!(
             body.verify_against_root(&ContentId(vec![0u8; 33]), None, NOW),
             Err(SyncError::SnapshotRootMismatch)
@@ -462,7 +480,10 @@ mod tests {
         set.value = Some(SVal::Text("n".into()));
         let (_, bytes) = signed(&a, &set);
         let wrong = encode(&SVal::Array(vec![SVal::Bytes(bytes)]));
-        assert_eq!(SnapshotBody::from_det_cbor(&wrong), Err(SyncError::OpSigInvalid));
+        assert_eq!(
+            SnapshotBody::from_det_cbor(&wrong),
+            Err(SyncError::OpSigInvalid)
+        );
     }
 
     /// The retention set, exercised across every kind at once, and proved by the only test that
@@ -489,7 +510,10 @@ mod tests {
         journal.push(signed(&a, &add_dead));
         let mut rm = op(OP_SET_REMOVE, "tags", &a, 12);
         rm.value = Some(SVal::Text("drop".into()));
-        rm.observed = Some(vec![AddTag { author: a.public(), hlc: add_dead.hlc.clone() }]);
+        rm.observed = Some(vec![AddTag {
+            author: a.public(),
+            hlc: add_dead.hlc.clone(),
+        }]);
         journal.push(signed(&a, &rm));
         // Death: a certificate on a different object.
         let mut death = op(OP_DEATH, "rec1", &b, 3);
@@ -509,20 +533,32 @@ mod tests {
         journal.push(signed(&a, &head));
         let mut mid = op(OP_SEQ_INSERT, "line1", &a, 31);
         mid.value = Some(SVal::Text("m".into()));
-        mid.reference = Some(OpRef { target: "line1".into(), hlc: Some(head.hlc.clone()) });
+        mid.reference = Some(OpRef {
+            target: "line1".into(),
+            hlc: Some(head.hlc.clone()),
+        });
         journal.push(signed(&a, &mid));
         let mut tail = op(OP_SEQ_INSERT, "line1", &a, 32);
         tail.value = Some(SVal::Text("t".into()));
-        tail.reference = Some(OpRef { target: "line1".into(), hlc: Some(mid.hlc.clone()) });
+        tail.reference = Some(OpRef {
+            target: "line1".into(),
+            hlc: Some(mid.hlc.clone()),
+        });
         journal.push(signed(&a, &tail));
         let mut kill_mid = op(OP_SEQ_REMOVE, "line1", &a, 33);
-        kill_mid.reference = Some(OpRef { target: "line1".into(), hlc: Some(mid.hlc.clone()) });
+        kill_mid.reference = Some(OpRef {
+            target: "line1".into(),
+            hlc: Some(mid.hlc.clone()),
+        });
         journal.push(signed(&a, &kill_mid));
         // Tree: a superseded move and its winner.
         for (counter, parent) in [(40u32, "root-a"), (41, "root-b")] {
             let mut o = op(OP_TREE_MOVE, "node1", &a, counter);
             o.field = Some("k".into());
-            o.reference = Some(OpRef { target: parent.into(), hlc: None });
+            o.reference = Some(OpRef {
+                target: parent.into(),
+                hlc: None,
+            });
             journal.push(signed(&a, &o));
         }
 
@@ -530,38 +566,55 @@ mod tests {
         for (o, _) in &journal {
             full.ingest(o, NOW).unwrap();
         }
-        let body = SnapshotBody::compact(
-            &full,
-            journal.iter().map(|(o, c)| (o, c.as_slice())),
-            NOW,
-        )
-        .expect("compaction must fold back to the same root");
+        let body =
+            SnapshotBody::compact(&full, journal.iter().map(|(o, c)| (o, c.as_slice())), NOW)
+                .expect("compaction must fold back to the same root");
 
         // It is genuinely a COMPACTION — the superseded LWW write, the cancelled add and its
         // remove are gone.
-        assert!(body.len() < journal.len(), "nothing was dropped: {} of {}", body.len(), journal.len());
+        assert!(
+            body.len() < journal.len(),
+            "nothing was dropped: {} of {}",
+            body.len(),
+            journal.len()
+        );
         // And the tombstoned-but-load-bearing RGA atom survived, with its tombstone.
         let kept: BTreeSet<Vec<u8>> = body
             .members()
             .iter()
             .map(|m| cose::verify_op(m).unwrap().op_id().as_bytes().to_vec())
             .collect();
-        assert!(kept.iter().any(|k| k == mid.op_id().as_bytes()), "tombstoned left-origin dropped");
-        assert!(kept.iter().any(|k| k == kill_mid.op_id().as_bytes()), "its tombstone dropped");
-        assert!(!kept.iter().any(|k| k == rm.op_id().as_bytes()), "a cancelling remove was retained");
+        assert!(
+            kept.iter().any(|k| k == mid.op_id().as_bytes()),
+            "tombstoned left-origin dropped"
+        );
+        assert!(
+            kept.iter().any(|k| k == kill_mid.op_id().as_bytes()),
+            "its tombstone dropped"
+        );
+        assert!(
+            !kept.iter().any(|k| k == rm.op_id().as_bytes()),
+            "a cancelling remove was retained"
+        );
 
         // The proof: fold-then-recompute against the full journal's root.
         let adopted = body
             .verify_against_root(&state_root(&full), Some(""), NOW)
             .expect("the compacted body must reproduce the root");
-        assert_eq!(adopted.observable.det_cbor(), ObservableState::of(&full).det_cbor());
+        assert_eq!(
+            adopted.observable.det_cbor(),
+            ObservableState::of(&full).det_cbor()
+        );
 
         // And the sequence still converges for a replica that fast-joined from the body: an insert
         // whose origin is the tombstoned atom resolves rather than stranding.
         let mut joined = adopted.state;
         let mut after = op(OP_SEQ_INSERT, "line1", &b, 50);
         after.value = Some(SVal::Text("z".into()));
-        after.reference = Some(OpRef { target: "line1".into(), hlc: Some(mid.hlc.clone()) });
+        after.reference = Some(OpRef {
+            target: "line1".into(),
+            hlc: Some(mid.hlc.clone()),
+        });
         joined.ingest(&after, NOW).unwrap();
         assert!(
             joined.sequences["line1"].has(&after.hlc),

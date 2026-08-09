@@ -98,7 +98,10 @@ impl LocationRecord {
         let mut m = vec![
             (1u64, Cv::Bytes(self.ik.clone())),
             (2, Cv::Bytes(self.peer_id.clone())),
-            (3, Cv::Array(self.addrs.iter().map(|a| Cv::Text(a.clone())).collect())),
+            (
+                3,
+                Cv::Array(self.addrs.iter().map(|a| Cv::Text(a.clone())).collect()),
+            ),
             (4, Cv::U64(self.seq)),
             (5, Cv::U64(self.ttl)),
             (6, Cv::U64(self.ts)),
@@ -137,7 +140,16 @@ impl LocationRecord {
         let sig = as_bytes(f.req(7)?)?;
         let substrate = f.take(8).map(as_u8).transpose()?;
         f.deny_unknown()?;
-        Ok(LocationRecord { ik, peer_id, addrs, seq, ttl, ts, sig, substrate })
+        Ok(LocationRecord {
+            ik,
+            peer_id,
+            addrs,
+            seq,
+            ttl,
+            ts,
+            sig,
+            substrate,
+        })
     }
 
     /// Issue (sign) a record with the publisher's `IK` (§18.9.9); `ik` is set from the signer.
@@ -175,7 +187,12 @@ impl LocationRecord {
     /// [`LocationTracker::accept`] (rollback) and [`Self::check_fresh`] (TTL) — a validly-signed
     /// record is exactly what an eclipsing attacker replays (§4.2 CAUTION).
     pub fn verify(&self) -> Result<(), IdentityError> {
-        verify_domain(&self.ik, LOCATION_RECORD_DS, &self.signing_body(), &self.sig)
+        verify_domain(
+            &self.ik,
+            LOCATION_RECORD_DS,
+            &self.signing_body(),
+            &self.sig,
+        )
     }
 
     /// TTL freshness (§4.2, §16.2), failing closed with [`LocationError::Expired`].
@@ -234,9 +251,7 @@ impl LocationRecord {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum LocationError {
     /// Signature fails to validate under the claimed key — discard the record.
-    #[error(
-        "location record signature is invalid (ERR_LOCATION_SIG_INVALID, §21.5 0x0301)"
-    )]
+    #[error("location record signature is invalid (ERR_LOCATION_SIG_INVALID, §21.5 0x0301)")]
     SigInvalid,
     /// `seq` is older-or-equal to a record already seen for this key — a rollback/censorship
     /// replay. Retain the newer cached record.
@@ -366,7 +381,10 @@ mod tests {
         LocationRecord::issue(
             ik,
             b"peer-id-bytes".to_vec(),
-            vec!["/ip4/198.51.100.7/tcp/4001".into(), "/ip4/198.51.100.7/udp/4001/quic-v1".into()],
+            vec![
+                "/ip4/198.51.100.7/tcp/4001".into(),
+                "/ip4/198.51.100.7/udp/4001/quic-v1".into(),
+            ],
             seq,
             DEFAULT_TTL_SECS,
             NOW,
@@ -415,14 +433,23 @@ mod tests {
         for n in 0..valid.len() {
             mutants.push(valid[..n].to_vec());
         }
-        for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8], vec![0xa1, 0x00, 0x00]] {
+        for junk in [
+            vec![0x00u8],
+            vec![0xff, 0xff],
+            vec![0x9f; 8],
+            vec![0xa1, 0x00, 0x00],
+        ] {
             let mut m = valid.clone();
             m.extend_from_slice(&junk);
             mutants.push(m);
         }
         for m in &mutants {
             if let Ok(o) = LocationRecord::from_det_cbor(m) {
-                assert_eq!(&o.det_cbor(), m, "location decoder accepted a non-canonical encoding");
+                assert_eq!(
+                    &o.det_cbor(),
+                    m,
+                    "location decoder accepted a non-canonical encoding"
+                );
             }
         }
         assert_eq!(LocationRecord::from_det_cbor(&valid).unwrap(), r);
@@ -465,7 +492,10 @@ mod tests {
         // Stripping the tag downgrades the record to the libp2p default — it must not verify.
         let mut stripped = r.clone();
         stripped.substrate = None;
-        assert!(stripped.verify().is_err(), "substrate tag must be signature-covered");
+        assert!(
+            stripped.verify().is_err(),
+            "substrate tag must be signature-covered"
+        );
     }
 
     #[test]
@@ -473,7 +503,11 @@ mod tests {
         let ik = key();
         let k = LocationRecord::dht_key(&ik.public());
         assert_eq!(k, ContentId::of(&ik.public()).0);
-        assert_eq!(k.len(), 33, "1-byte multihash prefix + 32-byte BLAKE3 digest");
+        assert_eq!(
+            k.len(),
+            33,
+            "1-byte multihash prefix + 32-byte BLAKE3 digest"
+        );
         assert_eq!(k[0], crate::id::MH_BLAKE3_256);
     }
 
@@ -482,8 +516,12 @@ mod tests {
         let r = rec(&key(), 1);
         // Live just before expiry, dead exactly at it (fail-closed at the boundary).
         let expiry = NOW + DEFAULT_TTL_SECS * 1_000;
-        r.check_fresh(expiry - 1, SKEW).expect("live one ms before expiry");
-        assert_eq!(r.check_fresh(expiry, SKEW).unwrap_err(), LocationError::Expired);
+        r.check_fresh(expiry - 1, SKEW)
+            .expect("live one ms before expiry");
+        assert_eq!(
+            r.check_fresh(expiry, SKEW).unwrap_err(),
+            LocationError::Expired
+        );
         // Had the unit conversion been missed, the record would still look live here.
         assert_eq!(r.check_fresh(NOW + DEFAULT_TTL_SECS + 1, SKEW), Ok(()));
     }
@@ -494,12 +532,16 @@ mod tests {
         let mut r = rec(&ik, 1);
         r.ts = NOW + SKEW + 1;
         r.sig = ik.sign_domain(LOCATION_RECORD_DS, &r.signing_body());
-        assert_eq!(r.check_fresh(NOW, SKEW).unwrap_err(), LocationError::Expired);
+        assert_eq!(
+            r.check_fresh(NOW, SKEW).unwrap_err(),
+            LocationError::Expired
+        );
 
         // Within skew it is accepted — clocks genuinely do disagree by a little.
         r.ts = NOW + SKEW - 1;
         r.sig = ik.sign_domain(LOCATION_RECORD_DS, &r.signing_body());
-        r.check_fresh(NOW, SKEW).expect("tolerates a small forward skew");
+        r.check_fresh(NOW, SKEW)
+            .expect("tolerates a small forward skew");
     }
 
     #[test]
@@ -525,20 +567,30 @@ mod tests {
         let mut t = LocationTracker::new();
 
         let newer = rec(&ik, 9);
-        t.admit(&newer, NOW, SKEW, SUPPORTED).expect("first record accepted");
+        t.admit(&newer, NOW, SKEW, SUPPORTED)
+            .expect("first record accepted");
         assert_eq!(t.highest_seq(&ik.public()), Some(9));
 
         // The classic eclipse move: serve an OLDER but perfectly-signed record.
         let older = rec(&ik, 4);
-        older.verify().expect("the stale record's signature is genuinely valid");
-        assert_eq!(t.admit(&older, NOW, SKEW, SUPPORTED).unwrap_err(), LocationError::Stale);
+        older
+            .verify()
+            .expect("the stale record's signature is genuinely valid");
+        assert_eq!(
+            t.admit(&older, NOW, SKEW, SUPPORTED).unwrap_err(),
+            LocationError::Stale
+        );
 
         // Equal seq is rejected too ("older-or-equal", §4.2).
-        assert_eq!(t.admit(&rec(&ik, 9), NOW, SKEW, SUPPORTED).unwrap_err(), LocationError::Stale);
+        assert_eq!(
+            t.admit(&rec(&ik, 9), NOW, SKEW, SUPPORTED).unwrap_err(),
+            LocationError::Stale
+        );
 
         // The high-water mark is unmoved, so the newer record is what stays cached.
         assert_eq!(t.highest_seq(&ik.public()), Some(9));
-        t.admit(&rec(&ik, 10), NOW, SKEW, SUPPORTED).expect("strictly newer is accepted");
+        t.admit(&rec(&ik, 10), NOW, SKEW, SUPPORTED)
+            .expect("strictly newer is accepted");
     }
 
     #[test]
@@ -551,10 +603,18 @@ mod tests {
         // space and lock out every genuine future record.
         let mut forged = rec(&ik, u64::MAX);
         forged.sig = vec![0u8; 64];
-        assert_eq!(t.admit(&forged, NOW, SKEW, SUPPORTED).unwrap_err(), LocationError::SigInvalid);
-        assert_eq!(t.highest_seq(&ik.public()), Some(3), "high-water mark must not move");
+        assert_eq!(
+            t.admit(&forged, NOW, SKEW, SUPPORTED).unwrap_err(),
+            LocationError::SigInvalid
+        );
+        assert_eq!(
+            t.highest_seq(&ik.public()),
+            Some(3),
+            "high-water mark must not move"
+        );
 
-        t.admit(&rec(&ik, 4), NOW, SKEW, SUPPORTED).expect("genuine successor still accepted");
+        t.admit(&rec(&ik, 4), NOW, SKEW, SUPPORTED)
+            .expect("genuine successor still accepted");
     }
 
     #[test]
@@ -564,7 +624,10 @@ mod tests {
         t.admit(&rec(&ik, 3), NOW, SKEW, SUPPORTED).unwrap();
 
         let later = NOW + DEFAULT_TTL_SECS * 1_000;
-        assert_eq!(t.admit(&rec(&ik, 99), later, SKEW, SUPPORTED).unwrap_err(), LocationError::Expired);
+        assert_eq!(
+            t.admit(&rec(&ik, 99), later, SKEW, SUPPORTED).unwrap_err(),
+            LocationError::Expired
+        );
         assert_eq!(t.highest_seq(&ik.public()), Some(3));
     }
 
@@ -581,7 +644,9 @@ mod tests {
         let mut reopened = LocationTracker::from_high_water_marks(marks);
         assert_eq!(reopened.highest_seq(&ik.public()), Some(12));
         assert_eq!(
-            reopened.admit(&rec(&ik, 5), NOW, SKEW, SUPPORTED).unwrap_err(),
+            reopened
+                .admit(&rec(&ik, 5), NOW, SKEW, SUPPORTED)
+                .unwrap_err(),
             LocationError::Stale
         );
     }
@@ -590,7 +655,11 @@ mod tests {
     fn high_water_marks_keep_the_higher_seq_on_duplicate_keys() {
         let ik = key().public();
         let t = LocationTracker::from_high_water_marks(vec![(ik.clone(), 9), (ik.clone(), 4)]);
-        assert_eq!(t.highest_seq(&ik), Some(9), "must not regress to the last-written value");
+        assert_eq!(
+            t.highest_seq(&ik),
+            Some(9),
+            "must not regress to the last-written value"
+        );
     }
 
     #[test]
@@ -600,7 +669,8 @@ mod tests {
         let due = NOW + DEFAULT_REPUBLISH_SECS * 1_000;
         assert!(r.needs_republish(due, DEFAULT_REPUBLISH_SECS));
         // The whole point of the cadence: republish falls due while the record is still live.
-        r.check_fresh(due, SKEW).expect("still live when republish falls due");
+        r.check_fresh(due, SKEW)
+            .expect("still live when republish falls due");
     }
 
     #[test]
@@ -610,7 +680,8 @@ mod tests {
         let r = LocationRecord::issue(&ik, b"pid".to_vec(), vec![], 1, DEFAULT_TTL_SECS, NOW, None);
         let back = LocationRecord::from_det_cbor(&r.det_cbor()).expect("decodes");
         assert!(back.addrs.is_empty());
-        back.validate(NOW, SKEW, SUPPORTED).expect("valid, just not directly dialable");
+        back.validate(NOW, SKEW, SUPPORTED)
+            .expect("valid, just not directly dialable");
     }
 
     #[test]
@@ -628,17 +699,24 @@ mod tests {
     #[test]
     fn unknown_map_keys_are_rejected() {
         let r = rec(&key(), 1);
-        let Cv::Map(mut m) = r.to_cv(true) else { unreachable!() };
+        let Cv::Map(mut m) = r.to_cv(true) else {
+            unreachable!()
+        };
         m.push((99, Cv::U64(1)));
         let bytes = cbor::encode(&Cv::Map(m));
-        assert!(LocationRecord::from_det_cbor(&bytes).is_err(), "deny_unknown must fail closed");
+        assert!(
+            LocationRecord::from_det_cbor(&bytes).is_err(),
+            "deny_unknown must fail closed"
+        );
     }
 
     #[test]
     fn every_required_field_is_required() {
         let r = rec(&key(), 1);
         for missing in 1..=7u64 {
-            let Cv::Map(m) = r.to_cv(true) else { unreachable!() };
+            let Cv::Map(m) = r.to_cv(true) else {
+                unreachable!()
+            };
             let kept: Vec<_> = m.into_iter().filter(|(k, _)| *k != missing).collect();
             let bytes = cbor::encode(&Cv::Map(kept));
             assert!(

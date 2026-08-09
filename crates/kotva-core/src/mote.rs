@@ -21,11 +21,11 @@
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use hpke::{
-    aead::ChaCha20Poly1305, kdf::HkdfSha256, kem::X25519HkdfSha256, Deserializable, Kem as KemTrait,
-    OpModeR, OpModeS, Serializable,
-};
 use hkdf::Hkdf;
+use hpke::{
+    aead::ChaCha20Poly1305, kdf::HkdfSha256, kem::X25519HkdfSha256, Deserializable,
+    Kem as KemTrait, OpModeR, OpModeS, Serializable,
+};
 use rand_core::OsRng;
 use sha2::Sha256;
 use x25519_dalek::{PublicKey as XPublicKey, StaticSecret};
@@ -76,8 +76,10 @@ pub enum MoteError {
     /// **received** envelope's `kind`/`ts`/`to`; a `Payload.sig` that authenticates the payload but
     /// is **not bound to this envelope's context** is rejected here rather than accepted
     /// (`ERR_ENVELOPE_CONTEXT_MISMATCH`, `0x0211`, §21.4). DROP_SILENT.
-    #[error("envelope kind/ts/to do not match the context bound in Payload.sig \
-             (ERR_ENVELOPE_CONTEXT_MISMATCH, 0x0211)")]
+    #[error(
+        "envelope kind/ts/to do not match the context bound in Payload.sig \
+             (ERR_ENVELOPE_CONTEXT_MISMATCH, 0x0211)"
+    )]
     EnvelopeContextMismatch,
     /// The accepted `challenge` was a **vouch**, but `Payload.from` is not the `VouchToken.subject`
     /// it names — a lifted vouch (`ERR_VOUCH_SUBJECT_MISMATCH`, `0x0126`, §2.7 step 8(b2), §9.2a).
@@ -94,8 +96,10 @@ pub enum MoteError {
     /// VDF/PoW/stamp entirely) at zero cost. Binding the vouch to the subject it names is the only
     /// check that closes this, and it necessarily lands here, after decryption, because `from` is
     /// not visible before it.
-    #[error("Payload.from is not the vouch's subject — lifted vouch \
-             (ERR_VOUCH_SUBJECT_MISMATCH, 0x0126)")]
+    #[error(
+        "Payload.from is not the vouch's subject — lifted vouch \
+             (ERR_VOUCH_SUBJECT_MISMATCH, 0x0126)"
+    )]
     VouchSubjectMismatch,
     #[error("payload decryption failed")]
     DecryptFailed,
@@ -616,7 +620,11 @@ impl KeyPackageRef {
         let suite = suite_from_cv(f.req(2)?)?;
         let loc = f.take(3).map(as_text).transpose()?;
         f.deny_unknown()?;
-        Ok(KeyPackageRef { reference, suite, loc })
+        Ok(KeyPackageRef {
+            reference,
+            suite,
+            loc,
+        })
     }
 }
 
@@ -654,16 +662,16 @@ pub fn blinded_tag(shared_secret: &[u8], epoch_day: u64) -> Vec<u8> {
 /// [`Envelope::to_cv`]; serde is deliberately **not** derived (text keys are not the wire form).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Envelope {
-    pub v: u8,                          // key 1  — format version (0)
-    pub suite: Suite,                   // key 2  — algorithm suite (§1.1)
-    pub id: ContentId,                  // key 3  — content address of `ciphertext` (§2.2)
-    pub to: DeliveryTag,                // key 4  — routing target (§18.3.2)
-    pub epoch: Option<Vec<u8>>,         // key 5  — MLS epoch / group-context ref, if group (§5)
-    pub ts: TimestampMs,                // key 6  — sender timestamp (ms epoch)
-    pub kind: Kind,                     // key 7  — message kind (§2.3)
-    pub keypkg: Option<KeyPackageRef>,  // key 8  — present iff this initiates an MLS session (§5.3)
+    pub v: u8,                                // key 1  — format version (0)
+    pub suite: Suite,                         // key 2  — algorithm suite (§1.1)
+    pub id: ContentId,                        // key 3  — content address of `ciphertext` (§2.2)
+    pub to: DeliveryTag,                      // key 4  — routing target (§18.3.2)
+    pub epoch: Option<Vec<u8>>, // key 5  — MLS epoch / group-context ref, if group (§5)
+    pub ts: TimestampMs,        // key 6  — sender timestamp (ms epoch)
+    pub kind: Kind,             // key 7  — message kind (§2.3)
+    pub keypkg: Option<KeyPackageRef>, // key 8  — present iff this initiates an MLS session (§5.3)
     pub challenge: Option<ChallengeResponse>, // key 9 — anti-abuse proof for cold senders (§2.2b)
-    pub ciphertext: Vec<u8>,            // key 10 — HPKE-sealed Payload (§2.4)
+    pub ciphertext: Vec<u8>,    // key 10 — HPKE-sealed Payload (§2.4)
     /// Key 11 — detached signature by an EPHEMERAL per-message key over the §18.9.1 preimage.
     pub sender_sig: Option<Vec<u8>>,
     /// Key 12 (`sender_key`, §18.3.1) — the ephemeral public key that verifies `sender_sig`.
@@ -751,12 +759,12 @@ impl Envelope {
 /// The end-to-end-encrypted payload (spec §2.4, §18.3.5), sealed into `Envelope.ciphertext`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Payload {
-    pub from: Vec<u8>,           // key 1 — sender IK (sealed sender)
-    pub sig: Vec<u8>,            // key 2 — IK/device sig over the payload hash (§18.9.2)
-    pub headers: Headers,        // key 3
-    pub body: Vec<u8>,           // key 4 — Body (encoded as a CBOR byte string, §18.3.6)
-    pub refs: Vec<ContentId>,    // key 5 — threading refs
-    pub attach: Vec<Attachment>, // key 6
+    pub from: Vec<u8>,                // key 1 — sender IK (sealed sender)
+    pub sig: Vec<u8>,                 // key 2 — IK/device sig over the payload hash (§18.9.2)
+    pub headers: Headers,             // key 3
+    pub body: Vec<u8>,                // key 4 — Body (encoded as a CBOR byte string, §18.3.6)
+    pub refs: Vec<ContentId>,         // key 5 — threading refs
+    pub attach: Vec<Attachment>,      // key 6
     pub expires: Option<TimestampMs>, // key 7
 }
 
@@ -773,9 +781,17 @@ impl Payload {
         m.push((4, Cv::Bytes(self.body.clone())));
         m.push((
             5,
-            Cv::Array(self.refs.iter().map(|r| Cv::Bytes(r.as_bytes().to_vec())).collect()),
+            Cv::Array(
+                self.refs
+                    .iter()
+                    .map(|r| Cv::Bytes(r.as_bytes().to_vec()))
+                    .collect(),
+            ),
         ));
-        m.push((6, Cv::Array(self.attach.iter().map(Attachment::to_cv).collect())));
+        m.push((
+            6,
+            Cv::Array(self.attach.iter().map(Attachment::to_cv).collect()),
+        ));
         if let Some(e) = self.expires {
             m.push((7, Cv::U64(e)));
         }
@@ -823,7 +839,15 @@ impl Payload {
             .collect::<Result<_, _>>()?;
         let expires = f.take(7).map(as_u64).transpose()?;
         f.deny_unknown()?;
-        Ok(Payload { from, sig, headers, body, refs, attach, expires })
+        Ok(Payload {
+            from,
+            sig,
+            headers,
+            body,
+            refs,
+            attach,
+            expires,
+        })
     }
 }
 
@@ -859,7 +883,10 @@ impl Headers {
         if let Some(mm) = &self.mime {
             m.push((3, Cv::Text(mm.clone())));
         }
-        m.push((4, Cv::Array(self.cc.iter().map(|k| Cv::Bytes(k.clone())).collect())));
+        m.push((
+            4,
+            Cv::Array(self.cc.iter().map(|k| Cv::Bytes(k.clone())).collect()),
+        ));
         // Both are OPTIONAL and omitted when absent, so a Headers carrying neither encodes exactly
         // as it did before these keys existed — the existing vectors are unaffected.
         if !self.ext.is_empty() {
@@ -898,17 +925,24 @@ impl Headers {
         };
         let sensitive = f.take(6).map(as_bool).transpose()?;
         f.deny_unknown()?;
-        Ok(Headers { thread, subject, mime, cc, ext, sensitive })
+        Ok(Headers {
+            thread,
+            subject,
+            mime,
+            cc,
+            ext,
+            sensitive,
+        })
     }
 }
 
 /// An attachment (spec §2.5, §18.3.7). Small → inline; large → content-addressed manifest (§5.5).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Attachment {
-    pub name: String,                 // key 1
-    pub mime: String,                 // key 2
-    pub size: u64,                    // key 3
-    pub inline: Option<Vec<u8>>,      // key 4 — mutually exclusive with `manifest`
+    pub name: String,                  // key 1
+    pub mime: String,                  // key 2
+    pub size: u64,                     // key 3
+    pub inline: Option<Vec<u8>>,       // key 4 — mutually exclusive with `manifest`
     pub manifest: Option<ManifestRef>, // key 5 — mutually exclusive with `inline`
     /// Key 6 — per-file content key. It lives HERE, inside the sealed MOTE — never inside the
     /// swarm-distributed `Manifest` object (§5.5/§18.3.8): a manifest is a content-addressed
@@ -942,7 +976,14 @@ impl Attachment {
         let manifest = f.take(5).map(ManifestRef::from_cv).transpose()?;
         let key = as_bytes(f.req(6)?)?;
         f.deny_unknown()?;
-        Ok(Attachment { name, mime, size, inline, manifest, key })
+        Ok(Attachment {
+            name,
+            mime,
+            size,
+            inline,
+            manifest,
+            key,
+        })
     }
 
     /// Fail-closed enforcement that this attachment's declared delivery mechanism matches its size
@@ -1021,7 +1062,12 @@ impl ManifestRef {
         let chunks = as_u32(f.req(3)?)?;
         let durability = f.take(4).map(Durability::from_cv).transpose()?;
         f.deny_unknown()?;
-        Ok(ManifestRef { id, size, chunks, durability })
+        Ok(ManifestRef {
+            id,
+            size,
+            chunks,
+            durability,
+        })
     }
 
     /// Fail-closed durability validation of this reference against its size tier (§5.5.2, §18.3.7).
@@ -1061,7 +1107,12 @@ impl Manifest {
             (3, Cv::U64(self.chunk_sz as u64)),
             (
                 4,
-                Cv::Array(self.chunks.iter().map(|c| Cv::Bytes(c.as_bytes().to_vec())).collect()),
+                Cv::Array(
+                    self.chunks
+                        .iter()
+                        .map(|c| Cv::Bytes(c.as_bytes().to_vec()))
+                        .collect(),
+                ),
             ),
             (6, Cv::U64(self.suite.as_u8() as u64)),
         ])
@@ -1112,7 +1163,13 @@ impl Manifest {
         }
         let suite = suite_from_cv(f.req(6)?)?;
         f.deny_unknown()?;
-        Ok(Manifest { id, size, chunk_sz, chunks, suite })
+        Ok(Manifest {
+            id,
+            size,
+            chunk_sz,
+            chunks,
+            suite,
+        })
     }
 }
 
@@ -1284,12 +1341,22 @@ pub struct Durability {
 impl Durability {
     /// A best-effort origin-hold contract (the honest default residual, §6.6 item 10).
     pub fn origin_hold() -> Self {
-        Durability { class: DurabilityClass::OriginHold, retention: None, replicas: None, holder_hint: None }
+        Durability {
+            class: DurabilityClass::OriginHold,
+            retention: None,
+            replicas: None,
+            holder_hint: None,
+        }
     }
 
     /// A recipient-pinned contract (durable at the recipient).
     pub fn recipient_pinned() -> Self {
-        Durability { class: DurabilityClass::RecipientPinned, retention: None, replicas: None, holder_hint: None }
+        Durability {
+            class: DurabilityClass::RecipientPinned,
+            retention: None,
+            replicas: None,
+            holder_hint: None,
+        }
     }
 
     /// A cluster-replicated contract holding `replicas` copies (§5.5.2; `replicas` MUST be ≥ 1).
@@ -1339,7 +1406,12 @@ impl Durability {
         let replicas = f.take(3).map(as_u32).transpose()?;
         let holder_hint = f.take(4).map(as_text).transpose()?;
         f.deny_unknown()?;
-        Ok(Durability { class, retention, replicas, holder_hint })
+        Ok(Durability {
+            class,
+            retention,
+            replicas,
+            holder_hint,
+        })
     }
 
     /// Decode a durability descriptor from its canonical CBOR (§18.3.7), failing closed on any
@@ -1469,9 +1541,19 @@ pub fn spool_admit(used: u64, incoming: u64, cap: u64) -> Result<(), MoteError> 
 /// Abstraction over payload sealing so the suite can be swapped (classical HPKE now, PQ later).
 pub trait PayloadSeal {
     /// Seal `plaintext` to `recipient_pub`, authenticating `aad`.
-    fn seal(&self, recipient_pub: &[u8], aad: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, MoteError>;
+    fn seal(
+        &self,
+        recipient_pub: &[u8],
+        aad: &[u8],
+        plaintext: &[u8],
+    ) -> Result<Vec<u8>, MoteError>;
     /// Open a sealed payload with `recipient_secret`, checking `aad`.
-    fn open(&self, recipient_secret: &[u8], aad: &[u8], sealed: &[u8]) -> Result<Vec<u8>, MoteError>;
+    fn open(
+        &self,
+        recipient_secret: &[u8],
+        aad: &[u8],
+        sealed: &[u8],
+    ) -> Result<Vec<u8>, MoteError>;
 }
 
 /// The suite-`0x01` sealer: HPKE base-mode, DHKEM(X25519)/HKDF-SHA256/ChaCha20-Poly1305
@@ -1481,8 +1563,14 @@ pub struct Hpke;
 type HKem = X25519HkdfSha256;
 
 impl PayloadSeal for Hpke {
-    fn seal(&self, recipient_pub: &[u8], aad: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, MoteError> {
-        let pk = <HKem as KemTrait>::PublicKey::from_bytes(recipient_pub).map_err(|_| MoteError::BadKey)?;
+    fn seal(
+        &self,
+        recipient_pub: &[u8],
+        aad: &[u8],
+        plaintext: &[u8],
+    ) -> Result<Vec<u8>, MoteError> {
+        let pk = <HKem as KemTrait>::PublicKey::from_bytes(recipient_pub)
+            .map_err(|_| MoteError::BadKey)?;
         let (enc, ct) = hpke::single_shot_seal::<ChaCha20Poly1305, HkdfSha256, HKem, _>(
             &OpModeS::Base,
             &pk,
@@ -1501,7 +1589,12 @@ impl PayloadSeal for Hpke {
         Ok(out)
     }
 
-    fn open(&self, recipient_secret: &[u8], aad: &[u8], sealed: &[u8]) -> Result<Vec<u8>, MoteError> {
+    fn open(
+        &self,
+        recipient_secret: &[u8],
+        aad: &[u8],
+        sealed: &[u8],
+    ) -> Result<Vec<u8>, MoteError> {
         if sealed.len() < 2 {
             return Err(MoteError::DecryptFailed);
         }
@@ -1511,8 +1604,10 @@ impl PayloadSeal for Hpke {
         }
         let enc = &sealed[2..2 + enc_len];
         let ct = &sealed[2 + enc_len..];
-        let sk = <HKem as KemTrait>::PrivateKey::from_bytes(recipient_secret).map_err(|_| MoteError::BadKey)?;
-        let encapped = <HKem as KemTrait>::EncappedKey::from_bytes(enc).map_err(|_| MoteError::DecryptFailed)?;
+        let sk = <HKem as KemTrait>::PrivateKey::from_bytes(recipient_secret)
+            .map_err(|_| MoteError::BadKey)?;
+        let encapped = <HKem as KemTrait>::EncappedKey::from_bytes(enc)
+            .map_err(|_| MoteError::DecryptFailed)?;
         hpke::single_shot_open::<ChaCha20Poly1305, HkdfSha256, HKem>(
             &OpModeR::Base,
             &sk,
@@ -1536,7 +1631,10 @@ impl SealKeypair {
     pub fn generate() -> Self {
         let secret = StaticSecret::random_from_rng(OsRng);
         let public = XPublicKey::from(&secret);
-        SealKeypair { secret: secret.to_bytes(), public: public.to_bytes() }
+        SealKeypair {
+            secret: secret.to_bytes(),
+            public: public.to_bytes(),
+        }
     }
     pub fn public(&self) -> &[u8; 32] {
         &self.public
@@ -1678,7 +1776,9 @@ fn verify_sig_for_suite(
     sig: &[u8],
 ) -> Result<(), MoteError> {
     match suite {
-        Suite::Classical => verify_domain(pk, domain, msg, sig).map_err(|_| MoteError::BadSignature),
+        Suite::Classical => {
+            verify_domain(pk, domain, msg, sig).map_err(|_| MoteError::BadSignature)
+        }
         Suite::PqHybrid => {
             // Composite preimage: u8(suite) ‖ body (§18.9.1/§18.9.2), non-separable AND-composition.
             let pre = suite_preimage(suite, msg);
@@ -1837,7 +1937,8 @@ pub fn build_mote_hybrid(
     };
     let authed = sender_authed_bytes(&env);
     // Composite sender_sig preimage: u8(suite) ‖ body (§18.9.1 composite form).
-    env.sender_sig = Some(ephemeral_hybrid.sign_domain(ENVELOPE_SENDER_DS, &suite_preimage(suite, &authed)));
+    env.sender_sig =
+        Some(ephemeral_hybrid.sign_domain(ENVELOPE_SENDER_DS, &suite_preimage(suite, &authed)));
     Ok(env)
 }
 
@@ -1940,8 +2041,14 @@ pub fn validate(
     let ph = payload_hash(&payload, env.kind, env.ts, &to_cbor);
     if verify_sig_for_suite(env.suite, &payload.from, PAYLOAD_SIG_DS, &ph, &payload.sig).is_err() {
         let ph_unbound = payload_hash_unbound(&payload);
-        if verify_sig_for_suite(env.suite, &payload.from, PAYLOAD_SIG_DS, &ph_unbound, &payload.sig)
-            .is_ok()
+        if verify_sig_for_suite(
+            env.suite,
+            &payload.from,
+            PAYLOAD_SIG_DS,
+            &ph_unbound,
+            &payload.sig,
+        )
+        .is_ok()
         {
             // Valid Payload.sig, but it binds none of this envelope's kind/ts/to context.
             return Err(MoteError::EnvelopeContextMismatch);
@@ -2013,8 +2120,15 @@ mod tests {
         let seal = SealKeypair::generate();
         let mut draft = MoteDraft::new(kind, 1_700_000_000_000, b"hello dmtap".to_vec());
         draft.headers.subject = Some("hi".into());
-        let env =
-            build_mote(&Hpke, &sender, &eph, &recipient.public(), seal.public(), draft).unwrap();
+        let env = build_mote(
+            &Hpke,
+            &sender,
+            &eph,
+            &recipient.public(),
+            seal.public(),
+            draft,
+        )
+        .unwrap();
         (env, recipient, seal)
     }
 
@@ -2031,7 +2145,11 @@ mod tests {
             id: ContentId::of(b"manifest-root"),
             size: 3 * 1024 * 1024,
             chunk_sz: 1024 * 1024,
-            chunks: vec![ContentId::of(b"c0"), ContentId::of(b"c1"), ContentId::of(b"c2")],
+            chunks: vec![
+                ContentId::of(b"c0"),
+                ContentId::of(b"c1"),
+                ContentId::of(b"c2"),
+            ],
             suite: Suite::Classical,
         }
         .det_cbor();
@@ -2048,22 +2166,41 @@ mod tests {
             for n in 0..valid.len() {
                 mutants.push(valid[..n].to_vec());
             }
-            for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0x9f; 8], vec![0xa1, 0x00, 0x00]] {
+            for junk in [
+                vec![0x00u8],
+                vec![0xff, 0xff],
+                vec![0x9f; 8],
+                vec![0xa1, 0x00, 0x00],
+            ] {
                 let mut m = valid.clone();
                 m.extend_from_slice(&junk);
                 mutants.push(m);
             }
             for m in &mutants {
                 if let Ok(o) = Envelope::from_det_cbor(m) {
-                    assert_eq!(&o.det_cbor(), m, "Envelope decoder accepted a non-canonical encoding");
+                    assert_eq!(
+                        &o.det_cbor(),
+                        m,
+                        "Envelope decoder accepted a non-canonical encoding"
+                    );
                 }
                 if let Ok(o) = Manifest::from_det_cbor(m) {
-                    assert_eq!(&o.det_cbor(), m, "Manifest decoder accepted a non-canonical encoding");
+                    assert_eq!(
+                        &o.det_cbor(),
+                        m,
+                        "Manifest decoder accepted a non-canonical encoding"
+                    );
                 }
             }
         }
-        assert_eq!(Envelope::from_det_cbor(&env_bytes).unwrap().det_cbor(), env_bytes);
-        assert_eq!(Manifest::from_det_cbor(&manifest_bytes).unwrap().det_cbor(), manifest_bytes);
+        assert_eq!(
+            Envelope::from_det_cbor(&env_bytes).unwrap().det_cbor(),
+            env_bytes
+        );
+        assert_eq!(
+            Manifest::from_det_cbor(&manifest_bytes).unwrap().det_cbor(),
+            manifest_bytes
+        );
     }
 
     #[test]
@@ -2073,8 +2210,15 @@ mod tests {
         // First byte MUST be a CBOR map head, and the first key MUST be integer 1 (not a text key).
         assert_eq!(buf[0] & 0xe0, 0xa0, "top-level object is a CBOR map");
         let back = Envelope::from_det_cbor(&buf).unwrap();
-        assert_eq!(env, back, "envelope must survive a canonical CBOR round-trip byte-for-byte");
-        assert_eq!(env.det_cbor(), back.det_cbor(), "re-encode is byte-identical");
+        assert_eq!(
+            env, back,
+            "envelope must survive a canonical CBOR round-trip byte-for-byte"
+        );
+        assert_eq!(
+            env.det_cbor(),
+            back.det_cbor(),
+            "re-encode is byte-identical"
+        );
     }
 
     #[test]
@@ -2083,7 +2227,10 @@ mod tests {
         let buf = env.det_cbor();
         // map head, then key 1 encoded as the single byte 0x01 (a small unsigned integer),
         // then value = version 0 (0x00). A text-keyed encoding would start with a 0x6x string head.
-        assert_eq!(buf[1], 0x01, "first map key is integer 1 (v), not a text key");
+        assert_eq!(
+            buf[1], 0x01,
+            "first map key is integer 1 (v), not a text key"
+        );
         assert_eq!(buf[2], 0x00, "v = 0");
     }
 
@@ -2158,10 +2305,11 @@ mod tests {
     /// rejected as `EnvelopeContextMismatch`, not accepted — even though decryption succeeds.
     #[test]
     fn unbound_context_payload_sig_is_context_mismatch() {
-        let (env, recipient, seal) = manual_env_with_payload_sig(Kind::Mail, |sk, p, _k, _t, _to| {
-            // Sign only the payload body — the OLD preimage, binding no envelope context.
-            sk.sign_domain(PAYLOAD_SIG_DS, &payload_hash_unbound(p))
-        });
+        let (env, recipient, seal) =
+            manual_env_with_payload_sig(Kind::Mail, |sk, p, _k, _t, _to| {
+                // Sign only the payload body — the OLD preimage, binding no envelope context.
+                sk.sign_domain(PAYLOAD_SIG_DS, &payload_hash_unbound(p))
+            });
         let ctx = RecipientCtx {
             our_ik: &recipient.public(),
             seal_secret: seal.secret(),
@@ -2177,15 +2325,19 @@ mod tests {
     /// the recompute at step 8 uses the received envelope's context.
     #[test]
     fn context_bound_payload_sig_validates() {
-        let (env, recipient, seal) = manual_env_with_payload_sig(Kind::Chat, |sk, p, k, t, to_cbor| {
-            sk.sign_domain(PAYLOAD_SIG_DS, &payload_hash(p, k, t, to_cbor))
-        });
+        let (env, recipient, seal) =
+            manual_env_with_payload_sig(Kind::Chat, |sk, p, k, t, to_cbor| {
+                sk.sign_domain(PAYLOAD_SIG_DS, &payload_hash(p, k, t, to_cbor))
+            });
         let ctx = RecipientCtx {
             our_ik: &recipient.public(),
             seal_secret: seal.secret(),
             sender_is_known: true,
         };
-        assert!(matches!(validate(&Hpke, &env, &ctx), Ok(Outcome::Accepted(_))));
+        assert!(matches!(
+            validate(&Hpke, &env, &ctx),
+            Ok(Outcome::Accepted(_))
+        ));
     }
 
     /// A genuinely corrupt `Payload.sig` (random bytes over the correct context) stays
@@ -2193,11 +2345,12 @@ mod tests {
     /// forged/garbled signature distinct from a context mismatch (`0x0211`).
     #[test]
     fn tampered_payload_sig_bytes_stay_bad_signature() {
-        let (env, recipient, seal) = manual_env_with_payload_sig(Kind::Mail, |sk, p, k, t, to_cbor| {
-            let mut sig = sk.sign_domain(PAYLOAD_SIG_DS, &payload_hash(p, k, t, to_cbor));
-            sig[0] ^= 0xff; // corrupt AFTER signing over the correct context
-            sig
-        });
+        let (env, recipient, seal) =
+            manual_env_with_payload_sig(Kind::Mail, |sk, p, k, t, to_cbor| {
+                let mut sig = sk.sign_domain(PAYLOAD_SIG_DS, &payload_hash(p, k, t, to_cbor));
+                sig[0] ^= 0xff; // corrupt AFTER signing over the correct context
+                sig
+            });
         let ctx = RecipientCtx {
             our_ik: &recipient.public(),
             seal_secret: seal.secret(),
@@ -2215,12 +2368,13 @@ mod tests {
         let (mut env, recipient, seal) = round(Kind::Mail);
         env.kind = Kind::Chat; // relabel mail→chat after signing+sealing
         env.id = ContentId::of(&env.ciphertext); // keep step 2 valid (ciphertext untouched)
-        // Re-mint sender_sig under a FRESH ephemeral key over the altered context — the ephemeral
-        // key is anyone-can-mint, so §2.7 step 3 passes; the payload AEAD (which binds kind/ts/to)
-        // then rejects the object at step 7. Set the key first, then sign over the new context.
+                                                 // Re-mint sender_sig under a FRESH ephemeral key over the altered context — the ephemeral
+                                                 // key is anyone-can-mint, so §2.7 step 3 passes; the payload AEAD (which binds kind/ts/to)
+                                                 // then rejects the object at step 7. Set the key first, then sign over the new context.
         let attacker_eph = IdentityKey::from_seed(&[9u8; 32]);
         env.sender_eph = Some(attacker_eph.public());
-        env.sender_sig = Some(attacker_eph.sign_domain(ENVELOPE_SENDER_DS, &sender_authed_bytes(&env)));
+        env.sender_sig =
+            Some(attacker_eph.sign_domain(ENVELOPE_SENDER_DS, &sender_authed_bytes(&env)));
         let ctx = RecipientCtx {
             our_ik: &recipient.public(),
             seal_secret: seal.secret(),
@@ -2240,9 +2394,15 @@ mod tests {
         let seal = HybridKemKeypair::generate();
         let mut draft = MoteDraft::new(Kind::Mail, 1_700_000_000_000, b"pq hello".to_vec());
         draft.headers.subject = Some("pq".into());
-        let env =
-            build_mote_hybrid(&HybridSeal, &sender, &eph, &recipient_ik, seal.public(), draft)
-                .unwrap();
+        let env = build_mote_hybrid(
+            &HybridSeal,
+            &sender,
+            &eph,
+            &recipient_ik,
+            seal.public(),
+            draft,
+        )
+        .unwrap();
         (env, recipient_ik, seal)
     }
 
@@ -2258,8 +2418,13 @@ mod tests {
         let sig = env.sender_sig.clone().unwrap();
         let body = sender_authed_bytes(&env);
         // Correct composite preimage (u8(suite) ‖ body) verifies.
-        verify_hybrid_domain(&eph, ENVELOPE_SENDER_DS, &suite_preimage(env.suite, &body), &sig)
-            .expect("composite sender_sig must verify over the suite-byte-prefixed preimage");
+        verify_hybrid_domain(
+            &eph,
+            ENVELOPE_SENDER_DS,
+            &suite_preimage(env.suite, &body),
+            &sig,
+        )
+        .expect("composite sender_sig must verify over the suite-byte-prefixed preimage");
         // The suite-less bare body (the §18.9.1 single-component 0x01 form) MUST NOT verify — else
         // the composite is separable and a 0x01 signature would be accepted under 0x02.
         assert!(
@@ -2310,7 +2475,10 @@ mod tests {
             seal_secret: seal.secret(),
             sender_is_known: true,
         };
-        assert_eq!(validate(&HybridSeal, &env, &ctx), Err(MoteError::BadSignature));
+        assert_eq!(
+            validate(&HybridSeal, &env, &ctx),
+            Err(MoteError::BadSignature)
+        );
     }
 
     #[test]
@@ -2327,7 +2495,10 @@ mod tests {
             seal_secret: seal.secret(),
             sender_is_known: true,
         };
-        assert_eq!(validate(&HybridSeal, &env, &ctx), Err(MoteError::BadSignature));
+        assert_eq!(
+            validate(&HybridSeal, &env, &ctx),
+            Err(MoteError::BadSignature)
+        );
     }
 
     #[test]
@@ -2341,7 +2512,10 @@ mod tests {
             sender_is_known: true,
         };
         // Decapsulation yields a different shared secret ⇒ AEAD auth fails ⇒ DecryptFailed.
-        assert_eq!(validate(&HybridSeal, &env, &ctx), Err(MoteError::DecryptFailed));
+        assert_eq!(
+            validate(&HybridSeal, &env, &ctx),
+            Err(MoteError::DecryptFailed)
+        );
     }
 
     #[test]
@@ -2353,7 +2527,10 @@ mod tests {
             seal_secret: seal.secret(),
             sender_is_known: true,
         };
-        assert_eq!(validate(&Hpke, &env, &ctx), Err(MoteError::BadContentAddress));
+        assert_eq!(
+            validate(&Hpke, &env, &ctx),
+            Err(MoteError::BadContentAddress)
+        );
     }
 
     #[test]
@@ -2390,8 +2567,8 @@ mod tests {
         let (mut env, recipient, seal) = round(Kind::Mail);
         env.sender_sig = None; // strip key 11 — a truncation attack, survives CBOR round-trip
         env.sender_eph = None; // and key 12 (the ephemeral key it verifies under)
-        // Content address still matches (attacker did not touch the ciphertext), so step 2 passes;
-        // the object is genuine except for the missing signature.
+                               // Content address still matches (attacker did not touch the ciphertext), so step 2 passes;
+                               // the object is genuine except for the missing signature.
         assert!(env.id.verify(&env.ciphertext));
         let ctx = RecipientCtx {
             our_ik: &recipient.public(),
@@ -2407,7 +2584,10 @@ mod tests {
         // And the mirror: ephemeral key stripped but signature present ⇒ MissingSenderKey.
         let (mut env3, _r3, _s3) = round(Kind::Mail);
         env3.sender_eph = None;
-        assert_eq!(validate(&Hpke, &env3, &ctx), Err(MoteError::MissingSenderKey));
+        assert_eq!(
+            validate(&Hpke, &env3, &ctx),
+            Err(MoteError::MissingSenderKey)
+        );
     }
 
     /// M2: a canonical manifest CBOR with an empty `chunks` list (key 4 = []) must be rejected at
@@ -2423,7 +2603,10 @@ mod tests {
             suite: Suite::Classical,
         };
         let bytes = m.det_cbor();
-        assert_eq!(Manifest::from_det_cbor(&bytes), Err(CborError::ManifestEmptyChunks));
+        assert_eq!(
+            Manifest::from_det_cbor(&bytes),
+            Err(CborError::ManifestEmptyChunks)
+        );
     }
 
     /// §21.20 / §21.21 (DMTAP-FWDCOMPAT-01/02): an unrecognized `Headers.ext` key is IGNORED —
@@ -2444,7 +2627,10 @@ mod tests {
             mime: None,
             cc: vec![],
             ext: vec![
-                ("x-vendor-hint".into(), Cv::Text("something-we-do-not-know".into())),
+                (
+                    "x-vendor-hint".into(),
+                    Cv::Text("something-we-do-not-know".into()),
+                ),
                 ("futureparam".into(), Cv::U64(7)),
             ],
             sensitive: None,
@@ -2459,7 +2645,10 @@ mod tests {
         let mut want = h.ext.clone();
         got.sort_by(|a, b| a.0.cmp(&b.0));
         want.sort_by(|a, b| a.0.cmp(&b.0));
-        assert_eq!(got, want, "every unknown ext entry must survive decode, unmodified");
+        assert_eq!(
+            got, want,
+            "every unknown ext entry must survive decode, unmodified"
+        );
         assert_eq!(
             cbor::encode(&round.to_cv()),
             cbor::encode(&h.to_cv()),
@@ -2490,10 +2679,23 @@ mod tests {
     /// this fails, every signature over a legacy Headers has silently changed.
     #[test]
     fn absent_ext_and_sensitive_do_not_change_the_encoding() {
-        let h = Headers { thread: None, subject: Some("s".into()), mime: None, cc: vec![], ext: vec![], sensitive: None };
-        let Cv::Map(pairs) = h.to_cv() else { panic!("not a map") };
+        let h = Headers {
+            thread: None,
+            subject: Some("s".into()),
+            mime: None,
+            cc: vec![],
+            ext: vec![],
+            sensitive: None,
+        };
+        let Cv::Map(pairs) = h.to_cv() else {
+            panic!("not a map")
+        };
         let keys: Vec<u64> = pairs.iter().map(|(k, _)| *k).collect();
-        assert_eq!(keys, vec![2, 4], "only the fields actually set may be emitted");
+        assert_eq!(
+            keys,
+            vec![2, 4],
+            "only the fields actually set may be emitted"
+        );
     }
 
     /// The asymmetry is deliberate: "ignore what you do not know" applies to the EXTENSION
@@ -2501,8 +2703,17 @@ mod tests {
     /// still refused (§18.1.1, and DMTAP-CBOR-12 asserts it for signed objects generally).
     #[test]
     fn an_unknown_top_level_headers_key_is_still_rejected() {
-        let h = Headers { thread: None, subject: None, mime: None, cc: vec![], ext: vec![], sensitive: None };
-        let Cv::Map(mut pairs) = h.to_cv() else { panic!("not a map") };
+        let h = Headers {
+            thread: None,
+            subject: None,
+            mime: None,
+            cc: vec![],
+            ext: vec![],
+            sensitive: None,
+        };
+        let Cv::Map(mut pairs) = h.to_cv() else {
+            panic!("not a map")
+        };
         pairs.push((99, Cv::U64(1)));
         assert!(Headers::from_cv(Cv::Map(pairs)).is_err());
     }
@@ -2515,7 +2726,10 @@ mod tests {
             seal_secret: seal.secret(),
             sender_is_known: false, // cold sender, draft had no challenge
         };
-        assert!(matches!(validate(&Hpke, &env, &ctx).unwrap(), Outcome::Deferred));
+        assert!(matches!(
+            validate(&Hpke, &env, &ctx).unwrap(),
+            Outcome::Deferred
+        ));
     }
 
     /// §2.7 step 8(b2) / §9.2a (`ERR_VOUCH_SUBJECT_MISMATCH`, `0x0126`): a LIFTED vouch is unusable
@@ -2568,7 +2782,10 @@ mod tests {
         // (a) presented by its named subject — accepted.
         let honest = build(&subject);
         assert!(
-            matches!(validate(&Hpke, &honest, &ctx).unwrap(), Outcome::Accepted(_)),
+            matches!(
+                validate(&Hpke, &honest, &ctx).unwrap(),
+                Outcome::Accepted(_)
+            ),
             "the subject a vouch names must be admitted by it"
         );
 
@@ -2598,14 +2815,24 @@ mod tests {
             solution: vec![4, 5, 6],
             difficulty: 20,
         }));
-        let env =
-            build_mote(&Hpke, &sender, &eph, &recipient.public(), seal.public(), draft).unwrap();
+        let env = build_mote(
+            &Hpke,
+            &sender,
+            &eph,
+            &recipient.public(),
+            seal.public(),
+            draft,
+        )
+        .unwrap();
         let ctx = RecipientCtx {
             our_ik: &recipient.public(),
             seal_secret: seal.secret(),
             sender_is_known: false,
         };
-        assert!(matches!(validate(&Hpke, &env, &ctx).unwrap(), Outcome::Accepted(_)));
+        assert!(matches!(
+            validate(&Hpke, &env, &ctx).unwrap(),
+            Outcome::Accepted(_)
+        ));
     }
 
     /// Build a MOTE from a *specific* sender identity (so a per-contact ratchet keyed on
@@ -2633,7 +2860,10 @@ mod tests {
             validate_pinned(&Hpke, &env, &ctx, Some(&mut ratchet)).unwrap(),
             Outcome::Accepted(_)
         ));
-        assert_eq!(ratchet.high_water_mark(&sender.public()), Some(Suite::Classical));
+        assert_eq!(
+            ratchet.high_water_mark(&sender.public()),
+            Some(Suite::Classical)
+        );
     }
 
     #[test]
@@ -2651,10 +2881,16 @@ mod tests {
         // mark stays put (accepting an equal suite ratchets to the same value, never down).
         let a = mote_from(&sender, &recipient.public(), seal.public());
         assert!(validate_pinned(&Hpke, &a, &ctx, Some(&mut ratchet)).is_ok());
-        assert_eq!(ratchet.high_water_mark(&sender.public()), Some(Suite::Classical));
+        assert_eq!(
+            ratchet.high_water_mark(&sender.public()),
+            Some(Suite::Classical)
+        );
         let b = mote_from(&sender, &recipient.public(), seal.public());
         assert!(validate_pinned(&Hpke, &b, &ctx, Some(&mut ratchet)).is_ok());
-        assert_eq!(ratchet.high_water_mark(&sender.public()), Some(Suite::Classical));
+        assert_eq!(
+            ratchet.high_water_mark(&sender.public()),
+            Some(Suite::Classical)
+        );
     }
 
     #[test]
@@ -2679,7 +2915,10 @@ mod tests {
         assert_eq!(err, ValidateError::Suite(SuiteRatchetError::SuiteDowngrade));
         assert_eq!(err.code(), Some(0x020F));
         // Rejected downgrade MUST NOT ratchet the mark down.
-        assert_eq!(ratchet.high_water_mark(&sender.public()), Some(Suite::PqHybrid));
+        assert_eq!(
+            ratchet.high_water_mark(&sender.public()),
+            Some(Suite::PqHybrid)
+        );
     }
 
     #[test]
@@ -2695,7 +2934,10 @@ mod tests {
             seal_secret: seal.secret(),
             sender_is_known: true,
         };
-        assert!(matches!(validate(&Hpke, &env, &ctx).unwrap(), Outcome::Accepted(_)));
+        assert!(matches!(
+            validate(&Hpke, &env, &ctx).unwrap(),
+            Outcome::Accepted(_)
+        ));
         assert!(matches!(
             validate_pinned(&Hpke, &env, &ctx, None).unwrap(),
             Outcome::Accepted(_)
@@ -2734,7 +2976,10 @@ mod tests {
     #[test]
     fn tier_enforce_allows_equal_or_stronger() {
         // Equal tiers are always fine.
-        assert_eq!(tier_enforce(Tier::Private, Tier::Private), Ok(Tier::Private));
+        assert_eq!(
+            tier_enforce(Tier::Private, Tier::Private),
+            Ok(Tier::Private)
+        );
         assert_eq!(tier_enforce(Tier::Fast, Tier::Fast), Ok(Tier::Fast));
         // A stronger offer than required is accepted (over-delivering privacy is never a downgrade).
         assert_eq!(tier_enforce(Tier::Fast, Tier::Private), Ok(Tier::Private));
@@ -2758,26 +3003,48 @@ mod tests {
         // §18.3.7, §19 (the 64 KiB is the padded-MOTE *top bucket rung*, not the content cap). A
         // regression to 64 KiB would let a 60 KiB file ride inline, pushing the padded MOTE above
         // the top Sphinx bucket and off the opt-in `private` mixnet (§16.4, CHANGELOG 64→48).
-        assert_eq!(INLINE_TIER_MAX, 48 * 1024, "spec fixes the inline content cap at 48 KiB");
+        assert_eq!(
+            INLINE_TIER_MAX,
+            48 * 1024,
+            "spec fixes the inline content cap at 48 KiB"
+        );
         // Inline: ≤ 48 KiB (each side of the boundary).
         assert_eq!(DeliveryTier::classify(0), DeliveryTier::Inline);
-        assert_eq!(DeliveryTier::classify(INLINE_TIER_MAX), DeliveryTier::Inline); // 48 KiB exact
-        assert_eq!(DeliveryTier::classify(INLINE_TIER_MAX + 1), DeliveryTier::Attached);
+        assert_eq!(
+            DeliveryTier::classify(INLINE_TIER_MAX),
+            DeliveryTier::Inline
+        ); // 48 KiB exact
+        assert_eq!(
+            DeliveryTier::classify(INLINE_TIER_MAX + 1),
+            DeliveryTier::Attached
+        );
         // A 60 KiB file (> 48 KiB) is Attached, never Inline — the exact §5.5.1/§16.4 invariant.
         assert_eq!(DeliveryTier::classify(60 * 1024), DeliveryTier::Attached);
         assert_eq!(file_tier(60 * 1024), FileTier::Normal); // and its §16.4 privacy sub-tier
-        // Attached: > 48 KiB, ≤ 25 MiB (each side of the boundary).
-        assert_eq!(DeliveryTier::classify(ATTACHED_TIER_MAX), DeliveryTier::Attached); // 25 MiB exact
-        assert_eq!(DeliveryTier::classify(ATTACHED_TIER_MAX + 1), DeliveryTier::Referenced);
+                                                            // Attached: > 48 KiB, ≤ 25 MiB (each side of the boundary).
+        assert_eq!(
+            DeliveryTier::classify(ATTACHED_TIER_MAX),
+            DeliveryTier::Attached
+        ); // 25 MiB exact
+        assert_eq!(
+            DeliveryTier::classify(ATTACHED_TIER_MAX + 1),
+            DeliveryTier::Referenced
+        );
         // Referenced: > 25 MiB (any size).
-        assert_eq!(DeliveryTier::classify(100 * 1024 * 1024), DeliveryTier::Referenced);
+        assert_eq!(
+            DeliveryTier::classify(100 * 1024 * 1024),
+            DeliveryTier::Referenced
+        );
     }
 
     #[test]
     fn delivery_tier_is_orthogonal_to_file_tier() {
         // A 25 MiB file is Attached (durability axis) but Large (privacy axis) — the two axes are
         // independent (§5.5.1): push-vs-pull governs durability, mixnet-vs-bulk governs privacy.
-        assert_eq!(DeliveryTier::classify(ATTACHED_TIER_MAX), DeliveryTier::Attached);
+        assert_eq!(
+            DeliveryTier::classify(ATTACHED_TIER_MAX),
+            DeliveryTier::Attached
+        );
         assert_eq!(file_tier(ATTACHED_TIER_MAX), FileTier::Large);
     }
 
@@ -2801,7 +3068,10 @@ mod tests {
             // Integer-keyed canonical map (first key is integer 1, not a text key).
             assert_eq!(bytes[0] & 0xe0, 0xa0, "durability is a CBOR map");
             let back = Durability::from_det_cbor(&bytes).unwrap();
-            assert_eq!(back, d, "durability must survive a canonical CBOR round-trip");
+            assert_eq!(
+                back, d,
+                "durability must survive a canonical CBOR round-trip"
+            );
             assert_eq!(back.det_cbor(), bytes, "re-encode byte-identical");
         }
     }
@@ -2821,17 +3091,35 @@ mod tests {
     fn durability_class_invariants_fail_closed() {
         // cluster-replicated (2) with replicas absent or < 1 → invalid.
         assert_eq!(
-            Durability { class: DurabilityClass::ClusterReplicated, retention: None, replicas: None, holder_hint: None }.validate(),
+            Durability {
+                class: DurabilityClass::ClusterReplicated,
+                retention: None,
+                replicas: None,
+                holder_hint: None
+            }
+            .validate(),
             Err(MoteError::FileManifestInvalid)
         );
         assert_eq!(
-            Durability { class: DurabilityClass::ClusterReplicated, retention: None, replicas: Some(0), holder_hint: None }.validate(),
+            Durability {
+                class: DurabilityClass::ClusterReplicated,
+                retention: None,
+                replicas: Some(0),
+                holder_hint: None
+            }
+            .validate(),
             Err(MoteError::FileManifestInvalid)
         );
         assert!(Durability::cluster_replicated(1).validate().is_ok());
         // pinned (3) with no retention → invalid; with a term → ok.
         assert_eq!(
-            Durability { class: DurabilityClass::Pinned, retention: None, replicas: None, holder_hint: None }.validate(),
+            Durability {
+                class: DurabilityClass::Pinned,
+                retention: None,
+                replicas: None,
+                holder_hint: None
+            }
+            .validate(),
             Err(MoteError::FileManifestInvalid)
         );
         assert!(Durability::pinned(1_900_000_000).validate().is_ok());
@@ -2843,7 +3131,12 @@ mod tests {
     // --- DMTAP-FILE-06: Referenced ManifestRef durability validation ----------------------------
 
     fn mref(size: u64, durability: Option<Durability>) -> ManifestRef {
-        ManifestRef { id: ContentId::of(b"root"), size, chunks: 1, durability }
+        ManifestRef {
+            id: ContentId::of(b"root"),
+            size,
+            chunks: 1,
+            durability,
+        }
     }
 
     #[test]
@@ -2854,9 +3147,24 @@ mod tests {
         assert_eq!(r.validate_durability().unwrap_err().code(), Some(0x080A));
         // …and the malformed-contract variants (unknown class / replicas<1 / no retention).
         for bad in [
-            Durability { class: DurabilityClass::Unknown(99), retention: None, replicas: None, holder_hint: None },
-            Durability { class: DurabilityClass::ClusterReplicated, retention: None, replicas: Some(0), holder_hint: None },
-            Durability { class: DurabilityClass::Pinned, retention: None, replicas: None, holder_hint: None },
+            Durability {
+                class: DurabilityClass::Unknown(99),
+                retention: None,
+                replicas: None,
+                holder_hint: None,
+            },
+            Durability {
+                class: DurabilityClass::ClusterReplicated,
+                retention: None,
+                replicas: Some(0),
+                holder_hint: None,
+            },
+            Durability {
+                class: DurabilityClass::Pinned,
+                retention: None,
+                replicas: None,
+                holder_hint: None,
+            },
         ] {
             let r = mref(ATTACHED_TIER_MAX + 1, Some(bad));
             assert_eq!(r.validate_durability(), Err(MoteError::FileManifestInvalid));
@@ -2871,7 +3179,9 @@ mod tests {
             Durability::cluster_replicated(2),
             Durability::pinned(1_900_000_000),
         ] {
-            assert!(mref(ATTACHED_TIER_MAX + 1, Some(good)).validate_durability().is_ok());
+            assert!(mref(ATTACHED_TIER_MAX + 1, Some(good))
+                .validate_durability()
+                .is_ok());
         }
     }
 
@@ -2881,8 +3191,16 @@ mod tests {
         assert!(mref(1024, None).validate_durability().is_ok());
         assert!(mref(ATTACHED_TIER_MAX, None).validate_durability().is_ok());
         // …but a present-yet-malformed descriptor is still rejected even below the Referenced tier.
-        let bad = Durability { class: DurabilityClass::Pinned, retention: None, replicas: None, holder_hint: None };
-        assert_eq!(mref(1024, Some(bad)).validate_durability(), Err(MoteError::FileManifestInvalid));
+        let bad = Durability {
+            class: DurabilityClass::Pinned,
+            retention: None,
+            replicas: None,
+            holder_hint: None,
+        };
+        assert_eq!(
+            mref(1024, Some(bad)).validate_durability(),
+            Err(MoteError::FileManifestInvalid)
+        );
     }
 
     #[test]
@@ -2897,9 +3215,15 @@ mod tests {
             (2, Cv::U64(4096)),
             (3, Cv::U64(1)),
         ]));
-        assert_eq!(encoded, expected, "absent durability ⇒ byte-identical legacy encoding");
+        assert_eq!(
+            encoded, expected,
+            "absent durability ⇒ byte-identical legacy encoding"
+        );
         // And with durability present, key 4 appears and round-trips through Attachment.
-        let r2 = mref(ATTACHED_TIER_MAX + 1, Some(Durability::cluster_replicated(3)));
+        let r2 = mref(
+            ATTACHED_TIER_MAX + 1,
+            Some(Durability::cluster_replicated(3)),
+        );
         let att = Attachment {
             name: "big.bin".into(),
             mime: "application/octet-stream".into(),
@@ -2909,13 +3233,23 @@ mod tests {
             key: vec![0u8; 32],
         };
         let back = Attachment::from_cv(att.to_cv()).unwrap();
-        assert_eq!(back.manifest.unwrap().durability, Some(Durability::cluster_replicated(3)));
+        assert_eq!(
+            back.manifest.unwrap().durability,
+            Some(Durability::cluster_replicated(3))
+        );
     }
 
     // --- Size-tier enforcement at construction (§5.5.1) -----------------------------------------
 
     fn attach_inline(size: u64, bytes: Vec<u8>) -> Attachment {
-        Attachment { name: "f".into(), mime: "text/plain".into(), size, inline: Some(bytes), manifest: None, key: vec![0u8; 32] }
+        Attachment {
+            name: "f".into(),
+            mime: "text/plain".into(),
+            size,
+            inline: Some(bytes),
+            manifest: None,
+            key: vec![0u8; 32],
+        }
     }
     fn attach_manifest(size: u64, durability: Option<Durability>) -> Attachment {
         Attachment {
@@ -2930,11 +3264,17 @@ mod tests {
 
     #[test]
     fn tier_check_accepts_well_formed_attachments() {
-        assert!(attach_inline(5, b"hello".to_vec()).check_delivery_tier().is_ok());
-        assert!(attach_manifest(4 * 1024 * 1024, None).check_delivery_tier().is_ok()); // Attached
-        assert!(attach_manifest(ATTACHED_TIER_MAX + 1, Some(Durability::origin_hold()))
+        assert!(attach_inline(5, b"hello".to_vec())
             .check_delivery_tier()
-            .is_ok()); // Referenced + durability
+            .is_ok());
+        assert!(attach_manifest(4 * 1024 * 1024, None)
+            .check_delivery_tier()
+            .is_ok()); // Attached
+        assert!(
+            attach_manifest(ATTACHED_TIER_MAX + 1, Some(Durability::origin_hold()))
+                .check_delivery_tier()
+                .is_ok()
+        ); // Referenced + durability
     }
 
     #[test]
@@ -2948,25 +3288,51 @@ mod tests {
     #[test]
     fn tier_check_rejects_size_lying_and_wrong_mechanism() {
         // inline bytes length disagreeing with declared size.
-        assert_eq!(attach_inline(10, b"short".to_vec()).check_delivery_tier(), Err(MoteError::SizeTierViolation));
+        assert_eq!(
+            attach_inline(10, b"short".to_vec()).check_delivery_tier(),
+            Err(MoteError::SizeTierViolation)
+        );
         // manifest reference for an inline-sized (≤ 64 KiB) file — belongs inline.
-        assert_eq!(attach_manifest(1024, None).check_delivery_tier(), Err(MoteError::SizeTierViolation));
+        assert_eq!(
+            attach_manifest(1024, None).check_delivery_tier(),
+            Err(MoteError::SizeTierViolation)
+        );
         // both inline AND manifest present (§18.3.7 requires exactly one).
         let both = Attachment {
-            name: "f".into(), mime: "x".into(), size: 5, inline: Some(b"hello".to_vec()),
-            manifest: Some(mref(5, None)), key: vec![0u8; 32],
+            name: "f".into(),
+            mime: "x".into(),
+            size: 5,
+            inline: Some(b"hello".to_vec()),
+            manifest: Some(mref(5, None)),
+            key: vec![0u8; 32],
         };
-        assert_eq!(both.check_delivery_tier(), Err(MoteError::SizeTierViolation));
+        assert_eq!(
+            both.check_delivery_tier(),
+            Err(MoteError::SizeTierViolation)
+        );
         // neither present.
-        let neither = Attachment { name: "f".into(), mime: "x".into(), size: 5, inline: None, manifest: None, key: vec![] };
-        assert_eq!(neither.check_delivery_tier(), Err(MoteError::SizeTierViolation));
+        let neither = Attachment {
+            name: "f".into(),
+            mime: "x".into(),
+            size: 5,
+            inline: None,
+            manifest: None,
+            key: vec![],
+        };
+        assert_eq!(
+            neither.check_delivery_tier(),
+            Err(MoteError::SizeTierViolation)
+        );
     }
 
     #[test]
     fn tier_check_referenced_without_durability_is_file_manifest_invalid() {
         // A Referenced-tier manifest attachment missing durability surfaces the file-level 0x080A.
         let att = attach_manifest(ATTACHED_TIER_MAX + 1, None);
-        assert_eq!(att.check_delivery_tier(), Err(MoteError::FileManifestInvalid));
+        assert_eq!(
+            att.check_delivery_tier(),
+            Err(MoteError::FileManifestInvalid)
+        );
     }
 
     #[test]
@@ -2977,18 +3343,45 @@ mod tests {
         let recipient = IdentityKey::generate();
         let seal = SealKeypair::generate();
         let mut draft = MoteDraft::new(Kind::Mail, 1, b"body".to_vec());
-        draft.attach = vec![attach_inline(INLINE_TIER_MAX + 1, vec![0u8; (INLINE_TIER_MAX + 1) as usize])];
+        draft.attach = vec![attach_inline(
+            INLINE_TIER_MAX + 1,
+            vec![0u8; (INLINE_TIER_MAX + 1) as usize],
+        )];
         assert_eq!(
-            build_mote(&Hpke, &sender, &eph, &recipient.public(), seal.public(), draft),
+            build_mote(
+                &Hpke,
+                &sender,
+                &eph,
+                &recipient.public(),
+                seal.public(),
+                draft
+            ),
             Err(MoteError::SizeTierViolation)
         );
         // A well-formed Referenced attachment (with durability) builds and validates end-to-end.
         let mut draft = MoteDraft::new(Kind::Mail, 1, b"body".to_vec());
-        draft.attach = vec![attach_manifest(ATTACHED_TIER_MAX + 1, Some(Durability::cluster_replicated(3)))];
-        let env = build_mote(&Hpke, &sender, &eph, &recipient.public(), seal.public(), draft)
-            .expect("well-formed Referenced attachment must build");
-        let ctx = RecipientCtx { our_ik: &recipient.public(), seal_secret: seal.secret(), sender_is_known: true };
-        assert!(matches!(validate(&Hpke, &env, &ctx).unwrap(), Outcome::Accepted(_)));
+        draft.attach = vec![attach_manifest(
+            ATTACHED_TIER_MAX + 1,
+            Some(Durability::cluster_replicated(3)),
+        )];
+        let env = build_mote(
+            &Hpke,
+            &sender,
+            &eph,
+            &recipient.public(),
+            seal.public(),
+            draft,
+        )
+        .expect("well-formed Referenced attachment must build");
+        let ctx = RecipientCtx {
+            our_ik: &recipient.public(),
+            seal_secret: seal.secret(),
+            sender_is_known: true,
+        };
+        assert!(matches!(
+            validate(&Hpke, &env, &ctx).unwrap(),
+            Outcome::Accepted(_)
+        ));
     }
 
     // --- DMTAP-FILE-07: inbound spool cap (§5.5.5) ----------------------------------------------
@@ -3010,7 +3403,10 @@ mod tests {
         assert_eq!(spool.admit(1), Err(MoteError::SpoolOverflow));
         // The pure helper agrees, incl. saturating on an arithmetic overflow.
         assert!(spool_admit(0, 10 * 1024, 10 * 1024).is_ok());
-        assert_eq!(spool_admit(1, u64::MAX, u64::MAX), Err(MoteError::SpoolOverflow));
+        assert_eq!(
+            spool_admit(1, u64::MAX, u64::MAX),
+            Err(MoteError::SpoolOverflow)
+        );
     }
 
     // --- DMTAP-FILE-08: pinned(term) retention expiry (§5.5.4) ----------------------------------
@@ -3023,12 +3419,22 @@ mod tests {
         let err = d.check_retention(1_000).unwrap_err();
         assert_eq!(err, MoteError::FileRetentionExpired);
         assert_eq!(err.code(), Some(0x080B));
-        assert_eq!(d.check_retention(2_000), Err(MoteError::FileRetentionExpired));
+        assert_eq!(
+            d.check_retention(2_000),
+            Err(MoteError::FileRetentionExpired)
+        );
         // Non-pinned classes never expire on a retention check; an indefinite pin (no term) never
         // expires either.
         assert!(Durability::origin_hold().check_retention(u64::MAX).is_ok());
-        assert!(Durability::cluster_replicated(3).check_retention(u64::MAX).is_ok());
-        let indefinite = Durability { class: DurabilityClass::Pinned, retention: None, replicas: None, holder_hint: None };
+        assert!(Durability::cluster_replicated(3)
+            .check_retention(u64::MAX)
+            .is_ok());
+        let indefinite = Durability {
+            class: DurabilityClass::Pinned,
+            retention: None,
+            replicas: None,
+            holder_hint: None,
+        };
         assert!(indefinite.check_retention(u64::MAX).is_ok());
     }
 
@@ -3061,10 +3467,17 @@ mod tests {
         let id_a = chunk_content_id(&ct_a);
         let id_b = chunk_content_id(&ct_b);
         assert_eq!(id_a, ContentId::of(&ct_a), "id is over ciphertext bytes");
-        assert_ne!(id_a, id_b, "same plaintext, different keys ⇒ different ciphertext chunk ids");
+        assert_ne!(
+            id_a, id_b,
+            "same plaintext, different keys ⇒ different ciphertext chunk ids"
+        );
         // Feeding the plaintext would (wrongly) collide — proving the addressing input matters.
         assert_eq!(chunk_content_id(&plaintext), chunk_content_id(&plaintext));
-        assert_ne!(id_a, chunk_content_id(&plaintext), "ciphertext id ≠ plaintext id");
+        assert_ne!(
+            id_a,
+            chunk_content_id(&plaintext),
+            "ciphertext id ≠ plaintext id"
+        );
 
         // And the Manifest Merkle root over the ciphertext-derived chunk ids differs per key.
         let manifest_for = |chunk_id: ContentId| Manifest {
@@ -3108,7 +3521,11 @@ mod tests {
             id: ContentId::of(b"manifest-root"),
             size: 3 * 1024 * 1024,
             chunk_sz: 1024 * 1024,
-            chunks: vec![ContentId::of(b"c0"), ContentId::of(b"c1"), ContentId::of(b"c2")],
+            chunks: vec![
+                ContentId::of(b"c0"),
+                ContentId::of(b"c1"),
+                ContentId::of(b"c2"),
+            ],
             suite: Suite::Classical,
         };
         let bytes = m.det_cbor();
@@ -3122,7 +3539,10 @@ mod tests {
             (1, Cv::Bytes(ContentId::of(b"root").as_bytes().to_vec())),
             (2, Cv::U64(1024)),
             (3, Cv::U64(1024)),
-            (4, Cv::Array(vec![Cv::Bytes(ContentId::of(b"c0").as_bytes().to_vec())])),
+            (
+                4,
+                Cv::Array(vec![Cv::Bytes(ContentId::of(b"c0").as_bytes().to_vec())]),
+            ),
             (5, Cv::Bytes(vec![0u8; 32])), // FORBIDDEN
             (6, Cv::U64(0x01)),
         ]);
@@ -3142,7 +3562,10 @@ mod tests {
         };
         f.push((63, Cv::U64(1))); // an unknown (reserved-range) key
         let bytes = cbor::encode(&Cv::Map(f));
-        assert_eq!(Envelope::from_det_cbor(&bytes), Err(CborError::UnknownKey(63)));
+        assert_eq!(
+            Envelope::from_det_cbor(&bytes),
+            Err(CborError::UnknownKey(63))
+        );
     }
 
     #[test]
@@ -3179,7 +3602,10 @@ mod tests {
             }),
         ] {
             let bytes = c.det_cbor();
-            assert_eq!(ChallengeResponse::from_cv(cbor::decode(&bytes).unwrap()).unwrap(), c);
+            assert_eq!(
+                ChallengeResponse::from_cv(cbor::decode(&bytes).unwrap()).unwrap(),
+                c
+            );
         }
     }
 
@@ -3199,8 +3625,17 @@ mod tests {
     }
 
     const KINDS: [Kind; 11] = [
-        Kind::Mail, Kind::Chat, Kind::Reaction, Kind::Edit, Kind::Redact, Kind::FileOffer,
-        Kind::GroupEvent, Kind::Receipt, Kind::Presence, Kind::Identity, Kind::System,
+        Kind::Mail,
+        Kind::Chat,
+        Kind::Reaction,
+        Kind::Edit,
+        Kind::Redact,
+        Kind::FileOffer,
+        Kind::GroupEvent,
+        Kind::Receipt,
+        Kind::Presence,
+        Kind::Identity,
+        Kind::System,
     ];
 
     /// Re-mint the envelope's `sender_sig` with a FRESH ephemeral (anyone-can-mint, §2.2) over the
@@ -3245,18 +3680,25 @@ mod tests {
                 }
                 other => panic!("a well-formed MOTE must be Accepted, got {other:?}"),
             }
-            assert_eq!(Envelope::from_det_cbor(&env.det_cbor()).unwrap(), env, "canonical round-trip");
+            assert_eq!(
+                Envelope::from_det_cbor(&env.det_cbor()).unwrap(),
+                env,
+                "canonical round-trip"
+            );
 
             // (a) Mutate `kind` to a DIFFERENT kind, re-mint sender_sig over the new context. The
             //     payload AEAD binds kind (aad_bytes) ⇒ decryption fails closed; never Accepted.
             {
                 let mut m = env.clone();
-                m.kind = KINDS[(kind_idx + 1 + (rng.next() as usize % (KINDS.len() - 1))) % KINDS.len()];
+                m.kind =
+                    KINDS[(kind_idx + 1 + (rng.next() as usize % (KINDS.len() - 1))) % KINDS.len()];
                 assert_ne!(m.kind, env.kind);
                 remint_sender_sig(&mut m, rng.next() as u8);
                 m.id = ContentId::of(&m.ciphertext); // ciphertext untouched — id still valid
-                assert!(!matches!(validate(&Hpke, &m, &ctx()), Ok(Outcome::Accepted(_))),
-                    "a rewritten kind must never be Accepted (S2 / AEAD)");
+                assert!(
+                    !matches!(validate(&Hpke, &m, &ctx()), Ok(Outcome::Accepted(_))),
+                    "a rewritten kind must never be Accepted (S2 / AEAD)"
+                );
             }
 
             // (b) Mutate `ts` to a different value; AAD binds ts ⇒ fail closed.
@@ -3265,8 +3707,10 @@ mod tests {
                 m.ts ^= rng.next() | 1; // XOR with an odd value ⇒ guaranteed different, no overflow
                 assert_ne!(m.ts, env.ts);
                 remint_sender_sig(&mut m, rng.next() as u8);
-                assert!(!matches!(validate(&Hpke, &m, &ctx()), Ok(Outcome::Accepted(_))),
-                    "a rewritten ts must never be Accepted (S2 / AEAD)");
+                assert!(
+                    !matches!(validate(&Hpke, &m, &ctx()), Ok(Outcome::Accepted(_))),
+                    "a rewritten ts must never be Accepted (S2 / AEAD)"
+                );
             }
 
             // (c) Mutate `to` to a different routing key; step 4 (NotForUs) / AAD ⇒ fail closed.
@@ -3274,8 +3718,10 @@ mod tests {
                 let mut m = env.clone();
                 m.to = DeliveryTag::Key(vec![(rng.next() as u8) ^ 0x11; 32]);
                 remint_sender_sig(&mut m, rng.next() as u8);
-                assert!(!matches!(validate(&Hpke, &m, &ctx()), Ok(Outcome::Accepted(_))),
-                    "a rewritten routing target must never be Accepted");
+                assert!(
+                    !matches!(validate(&Hpke, &m, &ctx()), Ok(Outcome::Accepted(_))),
+                    "a rewritten routing target must never be Accepted"
+                );
             }
 
             // (d) Flip a ciphertext byte, re-address id and re-mint sig ⇒ AEAD open fails closed.
@@ -3301,16 +3747,36 @@ mod tests {
             let (env_ok, r_ok, s_ok) = manual_env_with_payload_sig(kind, |sk, p, k, t, to| {
                 sk.sign_domain(PAYLOAD_SIG_DS, &payload_hash(p, k, t, to))
             });
-            assert!(matches!(
-                validate(&Hpke, &env_ok, &RecipientCtx { our_ik: &r_ok.public(), seal_secret: s_ok.secret(), sender_is_known: true }),
-                Ok(Outcome::Accepted(_))
-            ), "context-bound Payload.sig must validate");
+            assert!(
+                matches!(
+                    validate(
+                        &Hpke,
+                        &env_ok,
+                        &RecipientCtx {
+                            our_ik: &r_ok.public(),
+                            seal_secret: s_ok.secret(),
+                            sender_is_known: true
+                        }
+                    ),
+                    Ok(Outcome::Accepted(_))
+                ),
+                "context-bound Payload.sig must validate"
+            );
 
-            let (env_bad, r_bad, s_bad) = manual_env_with_payload_sig(kind, |sk, p, _k, _t, _to| {
-                sk.sign_domain(PAYLOAD_SIG_DS, &payload_hash_unbound(p))
-            });
+            let (env_bad, r_bad, s_bad) =
+                manual_env_with_payload_sig(kind, |sk, p, _k, _t, _to| {
+                    sk.sign_domain(PAYLOAD_SIG_DS, &payload_hash_unbound(p))
+                });
             assert_eq!(
-                validate(&Hpke, &env_bad, &RecipientCtx { our_ik: &r_bad.public(), seal_secret: s_bad.secret(), sender_is_known: true }),
+                validate(
+                    &Hpke,
+                    &env_bad,
+                    &RecipientCtx {
+                        our_ik: &r_bad.public(),
+                        seal_secret: s_bad.secret(),
+                        sender_is_known: true
+                    }
+                ),
                 Err(MoteError::EnvelopeContextMismatch),
                 "an unbound-context Payload.sig must be rejected 0x0211"
             );
@@ -3325,8 +3791,15 @@ mod tests {
         let mut rng = Rng(0x0202_0202);
         for _ in 0..8 {
             let (mut env, recipient_ik, seal) = round_hybrid();
-            let ctx = RecipientCtx { our_ik: &recipient_ik, seal_secret: seal.secret(), sender_is_known: true };
-            assert!(matches!(validate(&HybridSeal, &env, &ctx), Ok(Outcome::Accepted(_))));
+            let ctx = RecipientCtx {
+                our_ik: &recipient_ik,
+                seal_secret: seal.secret(),
+                sender_is_known: true,
+            };
+            assert!(matches!(
+                validate(&HybridSeal, &env, &ctx),
+                Ok(Outcome::Accepted(_))
+            ));
             assert_eq!(Envelope::from_det_cbor(&env.det_cbor()).unwrap(), env);
 
             // Rewrite the kind and re-mint the envelope sender_sig with a fresh HYBRID ephemeral.
@@ -3337,8 +3810,10 @@ mod tests {
             env.sender_sig = Some(e.sign_domain(ENVELOPE_SENDER_DS, &sender_authed_bytes(&env)));
             env.id = ContentId::of(&env.ciphertext);
             let _ = &mut rng;
-            assert!(!matches!(validate(&HybridSeal, &env, &ctx), Ok(Outcome::Accepted(_))),
-                "a rewritten kind on a hybrid MOTE must never be Accepted");
+            assert!(
+                !matches!(validate(&HybridSeal, &env, &ctx), Ok(Outcome::Accepted(_))),
+                "a rewritten kind on a hybrid MOTE must never be Accepted"
+            );
         }
     }
 }

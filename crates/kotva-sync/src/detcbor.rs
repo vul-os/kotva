@@ -287,9 +287,7 @@ fn encode_into(v: &SVal, out: &mut Vec<u8>) {
             // Keys are sorted by their ENCODED bytes (RFC 8949 §4.2.1): for byte strings of the
             // same length — which author keys always are — that is plain lexicographic order.
             let mut sorted: Vec<&(Vec<u8>, SVal)> = entries.iter().collect();
-            sorted.sort_by(|(a, _), (b, _)| {
-                (a.len(), a.as_slice()).cmp(&(b.len(), b.as_slice()))
-            });
+            sorted.sort_by(|(a, _), (b, _)| (a.len(), a.as_slice()).cmp(&(b.len(), b.as_slice())));
             put_head(out, 5, sorted.len() as u64);
             for (k, val) in sorted {
                 put_head(out, 2, k.len() as u64);
@@ -421,7 +419,9 @@ impl<'a> Parser<'a> {
                 let n = usize::try_from(arg).map_err(|_| DetCborError::Malformed)?;
                 let s = self.take(n)?;
                 Ok(SVal::Text(
-                    std::str::from_utf8(s).map_err(|_| DetCborError::InvalidUtf8)?.to_owned(),
+                    std::str::from_utf8(s)
+                        .map_err(|_| DetCborError::InvalidUtf8)?
+                        .to_owned(),
                 ))
             }
             4 => {
@@ -574,17 +574,32 @@ mod tests {
     #[test]
     fn rejects_non_canonical_and_forbidden_encodings() {
         assert_eq!(decode(&[0x18, 0x01]), Err(DetCborError::NonShortestForm));
-        assert_eq!(decode(&[0x19, 0x00, 0x01]), Err(DetCborError::NonShortestForm));
+        assert_eq!(
+            decode(&[0x19, 0x00, 0x01]),
+            Err(DetCborError::NonShortestForm)
+        );
         assert_eq!(decode(&[0x5f, 0xff]), Err(DetCborError::IndefiniteLength));
         assert_eq!(decode(&[0xf6]), Err(DetCborError::UnsupportedType)); // null
-        assert_eq!(decode(&[0xfb, 0, 0, 0, 0, 0, 0, 0, 0]), Err(DetCborError::UnsupportedType));
+        assert_eq!(
+            decode(&[0xfb, 0, 0, 0, 0, 0, 0, 0, 0]),
+            Err(DetCborError::UnsupportedType)
+        );
         assert_eq!(decode(&[0xc0, 0x01]), Err(DetCborError::UnsupportedType)); // tag
-        // unsorted map keys {4:0, 1:0}
-        assert_eq!(decode(&[0xa2, 0x04, 0x00, 0x01, 0x00]), Err(DetCborError::UnsortedKeys));
+                                                                               // unsorted map keys {4:0, 1:0}
+        assert_eq!(
+            decode(&[0xa2, 0x04, 0x00, 0x01, 0x00]),
+            Err(DetCborError::UnsortedKeys)
+        );
         // duplicate map keys
-        assert_eq!(decode(&[0xa2, 0x01, 0x00, 0x01, 0x00]), Err(DetCborError::UnsortedKeys));
+        assert_eq!(
+            decode(&[0xa2, 0x01, 0x00, 0x01, 0x00]),
+            Err(DetCborError::UnsortedKeys)
+        );
         // a text key is now a legal map key (C-08), but a map MIXING key majors never is
-        assert_eq!(decode(&[0xa1, 0x61, 0x61, 0x00]).unwrap(), SVal::TextMap(vec![("a".into(), SVal::Uint(0))]));
+        assert_eq!(
+            decode(&[0xa1, 0x61, 0x61, 0x00]).unwrap(),
+            SVal::TextMap(vec![("a".into(), SVal::Uint(0))])
+        );
         assert_eq!(
             decode(&[0xa2, 0x00, 0x00, 0x61, 0x61, 0x00]),
             Err(DetCborError::MixedKeyTypes)
@@ -640,8 +655,10 @@ mod tests {
         assert!(!SVal::Map(vec![(1, SVal::Uint(1))]).is_ext_value());
         assert!(!SVal::BytesMap(vec![(vec![1], SVal::Uint(1))]).is_ext_value());
         // RECURSIVE: an integer-keyed map nested at depth 2 is caught, not waved through
-        assert!(!SVal::TextMap(vec![("meta".into(), SVal::Map(vec![(1, SVal::Uint(0))]))])
-            .is_ext_value());
+        assert!(
+            !SVal::TextMap(vec![("meta".into(), SVal::Map(vec![(1, SVal::Uint(0))]))])
+                .is_ext_value()
+        );
         assert!(!SVal::Array(vec![SVal::Map(vec![(1, SVal::Uint(0))])]).is_ext_value());
     }
 
@@ -650,14 +667,21 @@ mod tests {
     #[test]
     fn text_keyed_maps_canonicalize_by_encoded_key_bytes() {
         let built = SVal::TextMap(vec![
-            ("meta".into(), SVal::TextMap(vec![("z".into(), SVal::Bytes(vec![1, 2]))])),
+            (
+                "meta".into(),
+                SVal::TextMap(vec![("z".into(), SVal::Bytes(vec![1, 2]))]),
+            ),
             ("x".into(), SVal::Uint(10)),
             ("id".into(), SVal::Text("shape-a".into())),
             ("locked".into(), SVal::Bool(false)),
-            ("pts".into(), SVal::Array(vec![SVal::Uint(1), SVal::int(-2)])),
+            (
+                "pts".into(),
+                SVal::Array(vec![SVal::Uint(1), SVal::int(-2)]),
+            ),
         ]);
         // The exact accept-case bytes frozen by `SYNC-VAL-01` (`tstr_map_nested`).
-        let want = "a561780a6269646773686170652d6163707473820121646d657461a1617a420102666c6f636b6564f4";
+        let want =
+            "a561780a6269646773686170652d6163707473820121646d657461a1617a420102666c6f636b6564f4";
         assert_eq!(hex(&encode(&built)), want);
         // Round-trip: decoding yields the entries in canonical (sorted) order, which re-encodes to
         // the identical bytes. Entry-vector equality is construction-order-sensitive by design —
@@ -666,6 +690,9 @@ mod tests {
     }
 
     fn unhex(s: &str) -> Vec<u8> {
-        (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap()).collect()
+        (0..s.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
+            .collect()
     }
 }

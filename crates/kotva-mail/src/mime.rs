@@ -63,7 +63,11 @@ impl ParsedMessage {
     pub fn parse(raw: &[u8]) -> ParsedMessage {
         let (headers, body) = split_headers(raw);
         let structure = parse_structure(&headers, body);
-        ParsedMessage { headers, body: body.to_vec(), structure }
+        ParsedMessage {
+            headers,
+            body: body.to_vec(),
+            structure,
+        }
     }
 
     /// First header value (case-insensitive), header-unfolded.
@@ -76,7 +80,9 @@ impl ParsedMessage {
 
     /// Parse an address-bearing header (From/To/Cc/…) into ENVELOPE addresses.
     pub fn addresses(&self, name: &str) -> Vec<Address> {
-        self.header(name).map(parse_address_list).unwrap_or_default()
+        self.header(name)
+            .map(parse_address_list)
+            .unwrap_or_default()
     }
 }
 
@@ -183,11 +189,18 @@ pub fn parse_content_type(v: &str) -> (String, String, Vec<(String, String)>) {
             }
         }
     }
-    (mt.trim().to_ascii_lowercase(), st.trim().to_ascii_lowercase(), params)
+    (
+        mt.trim().to_ascii_lowercase(),
+        st.trim().to_ascii_lowercase(),
+        params,
+    )
 }
 
 fn header_val<'a>(headers: &'a [(String, String)], name: &str) -> Option<&'a str> {
-    headers.iter().find(|(k, _)| k.eq_ignore_ascii_case(name)).map(|(_, v)| v.as_str())
+    headers
+        .iter()
+        .find(|(k, _)| k.eq_ignore_ascii_case(name))
+        .map(|(_, v)| v.as_str())
 }
 
 /// Maximum MIME nesting depth. `parse_structure` recurses once per `multipart/*` level, so an
@@ -242,7 +255,10 @@ fn parse_structure_depth(
     let description = header_val(headers, "Content-Description").map(str::to_string);
 
     if mt == "multipart" && depth < MAX_MIME_DEPTH {
-        let boundary = params.iter().find(|(k, _)| k == "boundary").map(|(_, v)| v.clone());
+        let boundary = params
+            .iter()
+            .find(|(k, _)| k == "boundary")
+            .map(|(_, v)| v.clone());
         let parts = match boundary {
             Some(b) => {
                 // Cap TOTAL parts across the whole tree (shared &mut budget), not per-level: nested
@@ -260,7 +276,11 @@ fn parse_structure_depth(
             }
             None => Vec::new(),
         };
-        BodyPart::Multipart { subtype: st, parts, params }
+        BodyPart::Multipart {
+            subtype: st,
+            parts,
+            params,
+        }
     } else {
         let octets = body.len();
         let lines = if mt == "text" { count_lines(body) } else { 0 };
@@ -335,7 +355,10 @@ fn split_multipart<'a>(body: &'a [u8], boundary: &str, scan: &mut usize) -> Vec<
         let end = w[1];
         // Trim the CRLF that follows the opening delimiter and precedes the next.
         let seg = &text[start..end];
-        let seg = seg.strip_prefix(b"\r\n").or_else(|| seg.strip_prefix(b"\n")).unwrap_or(seg);
+        let seg = seg
+            .strip_prefix(b"\r\n")
+            .or_else(|| seg.strip_prefix(b"\n"))
+            .unwrap_or(seg);
         segments.push(seg);
     }
     segments
@@ -349,11 +372,18 @@ pub fn part_segments(raw: &[u8]) -> Vec<Vec<u8>> {
     if mt != "multipart" {
         return Vec::new();
     }
-    match params.iter().find(|(k, _)| k == "boundary").map(|(_, v)| v.clone()) {
+    match params
+        .iter()
+        .find(|(k, _)| k == "boundary")
+        .map(|(_, v)| v.clone())
+    {
         // A fresh scan budget per FETCH bounds this single (un-memoized) request's split cost.
         Some(b) => {
             let mut scan = MAX_MIME_SCAN;
-            split_multipart(body, &b, &mut scan).into_iter().map(|s| s.to_vec()).collect()
+            split_multipart(body, &b, &mut scan)
+                .into_iter()
+                .map(|s| s.to_vec())
+                .collect()
         }
         None => Vec::new(),
     }
@@ -459,18 +489,18 @@ pub fn strip_trust_boundary_headers(raw_headers: &[u8]) -> Vec<u8> {
             dropping = match content.iter().position(|&b| b == b':') {
                 Some(colon) => {
                     seen_header = true; // a real `name:` line — subsequent WSP lines fold onto it
-                    // Match the field name the SAME lenient way `parse_header_block` does. RFC 5322
-                    // forbids WSP before the colon, but the parser (and most MUAs/verifiers) accept
-                    // it via `line[..colon].trim()`. If this denylist did NOT trim, a hostile sender
-                    // could smuggle `Authentication-Results :dkim=pass header.d=trusted.com` (one
-                    // space/tab before the colon) past the strip — the name would be
-                    // `"Authentication-Results "` and match nothing — yet a downstream trimming
-                    // consumer would read a passing trust-boundary verdict the gateway never
-                    // computed, riding byte-for-byte into a gateway-signed wrap (§7.2c). A denylist
-                    // MUST NOT match more strictly than the consumer normalizes.
-                    // Trim leading AND trailing linear whitespace, exactly as parse_header_block's
-                    // `line[..colon].trim()` — a leading-WSP first line reaches here (it is parsed as
-                    // a header, not a continuation), and its name carries the leading WSP.
+                                        // Match the field name the SAME lenient way `parse_header_block` does. RFC 5322
+                                        // forbids WSP before the colon, but the parser (and most MUAs/verifiers) accept
+                                        // it via `line[..colon].trim()`. If this denylist did NOT trim, a hostile sender
+                                        // could smuggle `Authentication-Results :dkim=pass header.d=trusted.com` (one
+                                        // space/tab before the colon) past the strip — the name would be
+                                        // `"Authentication-Results "` and match nothing — yet a downstream trimming
+                                        // consumer would read a passing trust-boundary verdict the gateway never
+                                        // computed, riding byte-for-byte into a gateway-signed wrap (§7.2c). A denylist
+                                        // MUST NOT match more strictly than the consumer normalizes.
+                                        // Trim leading AND trailing linear whitespace, exactly as parse_header_block's
+                                        // `line[..colon].trim()` — a leading-WSP first line reaches here (it is parsed as
+                                        // a header, not a continuation), and its name carries the leading WSP.
                     let raw_name = &content[..colon];
                     // Drop the line if its name matches a trust-boundary header under EITHER decode
                     // the consumer could apply — UTF-8 OR Latin-1 (`b as char`) — after `str::trim()`.
@@ -488,7 +518,9 @@ pub fn strip_trust_boundary_headers(raw_headers: &[u8]) -> Vec<u8> {
                     // unlikely, and harmless. Emitted bytes stay byte-exact; this is only drop/keep.
                     let is_trust_name = |decoded: &str| {
                         let n = decoded.trim();
-                        TRUST_BOUNDARY_HEADERS.iter().any(|h| n.eq_ignore_ascii_case(h))
+                        TRUST_BOUNDARY_HEADERS
+                            .iter()
+                            .any(|h| n.eq_ignore_ascii_case(h))
                     };
                     let latin1_name: String = raw_name.iter().map(|&b| b as char).collect();
                     is_trust_name(&String::from_utf8_lossy(raw_name)) || is_trust_name(&latin1_name)
@@ -594,7 +626,14 @@ fn parse_one_address(raw: &str) -> Address {
         (Some(lt), Some(gt)) if gt > lt => {
             let name = raw[..lt].trim().trim_matches('"').trim();
             let addr = raw[lt + 1..gt].trim();
-            (if name.is_empty() { None } else { Some(name.to_string()) }, addr.to_string())
+            (
+                if name.is_empty() {
+                    None
+                } else {
+                    Some(name.to_string())
+                },
+                addr.to_string(),
+            )
         }
         _ => (None, raw.trim().to_string()),
     };
@@ -603,7 +642,12 @@ fn parse_one_address(raw: &str) -> Address {
         None if addr.is_empty() => (None, None),
         None => (Some(addr), None),
     };
-    Address { name, adl: None, mailbox, host }
+    Address {
+        name,
+        adl: None,
+        mailbox,
+        host,
+    }
 }
 
 // --- RFC 2047 encoded-words + charsets + transfer encodings --------------------------------
@@ -686,9 +730,10 @@ fn qp_decode(body: &[u8]) -> Vec<u8> {
             i += 3;
         } else if body[i + 1..].starts_with(b"\n") {
             i += 2;
-        } else if let (Some(h), Some(l)) =
-            (body.get(i + 1).and_then(hex_val), body.get(i + 2).and_then(hex_val))
-        {
+        } else if let (Some(h), Some(l)) = (
+            body.get(i + 1).and_then(hex_val),
+            body.get(i + 2).and_then(hex_val),
+        ) {
             out.push((h << 4) | l);
             i += 3;
         } else {
@@ -826,8 +871,11 @@ pub fn decoded_body_text(p: &ParsedMessage) -> (String, bool) {
     let encoding = p.header("Content-Transfer-Encoding").unwrap_or("7bit");
     let raw = decode_transfer_encoding(&p.body, encoding);
     let (_, _, params) = content_type(&p.headers);
-    let charset =
-        params.iter().find(|(k, _)| k == "charset").map(|(_, v)| v.as_str()).unwrap_or("");
+    let charset = params
+        .iter()
+        .find(|(k, _)| k == "charset")
+        .map(|(_, v)| v.as_str())
+        .unwrap_or("");
     decode_charset(&raw, charset)
 }
 
@@ -876,11 +924,13 @@ pub fn encode_display_name(name: &str) -> String {
     if atom_safe {
         name.to_string()
     } else {
-        let escaped: String =
-            name.chars().flat_map(|c| match c {
+        let escaped: String = name
+            .chars()
+            .flat_map(|c| match c {
                 '"' | '\\' => vec!['\\', c],
                 _ => vec![c],
-            }).collect();
+            })
+            .collect();
         format!("\"{escaped}\"")
     }
 }
@@ -891,7 +941,10 @@ fn is_wire_safe_ascii(v: &str) -> bool {
 }
 
 fn encode_one_word(chunk: &str) -> String {
-    format!("=?UTF-8?B?{}?=", crate::util::base64_encode(chunk.as_bytes()))
+    format!(
+        "=?UTF-8?B?{}?=",
+        crate::util::base64_encode(chunk.as_bytes())
+    )
 }
 
 // --- Rendering a MOTE payload into RFC 5322 ------------------------------------------------
@@ -926,7 +979,11 @@ pub fn render_rfc5322(payload: &Payload, ts: TimestampMs) -> Vec<u8> {
     let from = address_for_key(&payload.from);
     let subject = sanitize_header_value(payload.headers.subject.as_deref().unwrap_or(""));
     let mime = sanitize_header_value(
-        payload.headers.mime.as_deref().unwrap_or("text/plain; charset=utf-8"),
+        payload
+            .headers
+            .mime
+            .as_deref()
+            .unwrap_or("text/plain; charset=utf-8"),
     );
     let date = format_rfc5322_date(ts);
     // A deterministic Message-ID from the content, so threading is stable across a re-render.
@@ -990,8 +1047,9 @@ pub fn format_rfc5322_date(ms: TimestampMs) -> String {
     let (y, mon, d) = civil_from_days(days);
     let wd = weekday_from_days(days);
     const WK: [&str; 7] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    const MO: [&str; 12] =
-        ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const MO: [&str; 12] = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
     format!(
         "{}, {:02} {} {:04} {:02}:{:02}:{:02} +0000",
         WK[wd],
@@ -1011,9 +1069,18 @@ pub fn format_internal_date(ms: TimestampMs) -> String {
     let rem = secs.rem_euclid(86400);
     let (h, mi, s) = (rem / 3600, (rem % 3600) / 60, rem % 60);
     let (y, mon, d) = ymd_from_ms(ms);
-    const MO: [&str; 12] =
-        ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    format!("{:02}-{}-{:04} {:02}:{:02}:{:02} +0000", d, MO[(mon - 1) as usize], y, h, mi, s)
+    const MO: [&str; 12] = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    format!(
+        "{:02}-{}-{:04} {:02}:{:02}:{:02} +0000",
+        d,
+        MO[(mon - 1) as usize],
+        y,
+        h,
+        mi,
+        s
+    )
 }
 
 /// (year, month, day) in UTC for a Unix-ms timestamp — used by IMAP SEARCH date keys.
@@ -1098,14 +1165,19 @@ mod tests {
         let raw = format!("Content-Type: multipart/mixed; boundary=\"{boundary}\"\r\n\r\n{body}");
         let p = ParsedMessage::parse(raw.as_bytes());
         if let BodyPart::Multipart { parts, .. } = &p.structure {
-            assert!(parts.is_empty(), "an over-length boundary must produce no parts");
+            assert!(
+                parts.is_empty(),
+                "an over-length boundary must produce no parts"
+            );
         }
         // A normal (in-range) multipart still splits correctly.
         let ok = ParsedMessage::parse(
             b"Content-Type: multipart/mixed; boundary=B\r\n\r\n--B\r\nContent-Type: text/plain\r\n\r\nhi\r\n--B--\r\n",
         );
         match ok.structure {
-            BodyPart::Multipart { parts, .. } => assert_eq!(parts.len(), 1, "normal multipart still splits"),
+            BodyPart::Multipart { parts, .. } => {
+                assert_eq!(parts.len(), 1, "normal multipart still splits")
+            }
             _ => panic!("expected multipart"),
         }
     }
@@ -1149,7 +1221,11 @@ mod tests {
         }
         let (mt, st, params) = parse_content_type(&v);
         assert_eq!((mt.as_str(), st.as_str()), ("text", "plain"));
-        assert!(params.len() <= MAX_MIME_PARAMS, "param count must be bounded, got {}", params.len());
+        assert!(
+            params.len() <= MAX_MIME_PARAMS,
+            "param count must be bounded, got {}",
+            params.len()
+        );
         // A normal Content-Type still parses its params.
         let (_, _, ok) = parse_content_type("multipart/mixed; boundary=\"x\"; charset=utf-8");
         assert_eq!(ok.len(), 2);
@@ -1162,7 +1238,11 @@ mod tests {
         // per-FETCH ENVELOPE and per Email/get. Capped at MAX_ADDRESSES.
         let huge = vec!["a@b"; MAX_ADDRESSES * 2].join(",");
         let addrs = parse_address_list(&huge);
-        assert!(addrs.len() <= MAX_ADDRESSES, "address count must be bounded, got {}", addrs.len());
+        assert!(
+            addrs.len() <= MAX_ADDRESSES,
+            "address count must be bounded, got {}",
+            addrs.len()
+        );
         // A normal short list still parses fully.
         let ok = parse_address_list("Alice <a@x.example>, bob@y.example");
         assert_eq!(ok.len(), 2, "normal address list still parses");
@@ -1178,11 +1258,18 @@ mod tests {
             block.extend_from_slice(b"a:b\n");
         }
         let hdrs = parse_header_block(&block);
-        assert!(hdrs.len() <= MAX_HEADER_LINES, "header count must be bounded, got {}", hdrs.len());
+        assert!(
+            hdrs.len() <= MAX_HEADER_LINES,
+            "header count must be bounded, got {}",
+            hdrs.len()
+        );
         // A normal small header block still parses fully (with folded-continuation handling intact).
         let ok = parse_header_block(b"Subject: Hi\r\nFrom: a@b\r\n\tfolded\r\n");
         assert_eq!(ok.len(), 2, "normal headers still parse");
-        assert!(ok[1].1.contains("folded"), "continuation still folds onto the previous value");
+        assert!(
+            ok[1].1.contains("folded"),
+            "continuation still folds onto the previous value"
+        );
     }
 
     #[test]
@@ -1196,7 +1283,11 @@ mod tests {
             raw.extend_from_slice(b"--b\n");
         }
         let segs = part_segments(&raw);
-        assert!(segs.len() <= MAX_MIME_PARTS, "part_segments must be bounded, got {}", segs.len());
+        assert!(
+            segs.len() <= MAX_MIME_PARTS,
+            "part_segments must be bounded, got {}",
+            segs.len()
+        );
     }
 
     #[test]
@@ -1208,8 +1299,14 @@ mod tests {
         // downstream (NBSP trimmed → matched). Checking BOTH decodes now drops the smuggle line.
         let raw = b"Authentication-Results: \xFF\r\nAuthentication-Results\xC2\xA0: dkim=pass header.d=paypal.com\r\nX-Keep: 1\r\n";
         let s = String::from_utf8_lossy(&strip_trust_boundary_headers(raw)).to_ascii_lowercase();
-        assert!(!s.contains("dkim=pass"), "post-strip UTF-8-flip smuggle survived: {s}");
-        assert!(s.contains("x-keep: 1"), "an unrelated header must still carry through");
+        assert!(
+            !s.contains("dkim=pass"),
+            "post-strip UTF-8-flip smuggle survived: {s}"
+        );
+        assert!(
+            s.contains("x-keep: 1"),
+            "an unrelated header must still carry through"
+        );
     }
 
     #[test]
@@ -1229,7 +1326,8 @@ mod tests {
         for d in 0..DEPTH {
             let boundary = format!("{}{}", "-".repeat(68), d % 10); // 69-char near-miss boundary (≤70)
             let mut wrapped =
-                format!("Content-Type: multipart/mixed; boundary=\"{boundary}\"\r\n\r\n").into_bytes();
+                format!("Content-Type: multipart/mixed; boundary=\"{boundary}\"\r\n\r\n")
+                    .into_bytes();
             wrapped.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
             wrapped.extend_from_slice(&inner);
             wrapped.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
@@ -1273,7 +1371,9 @@ mod tests {
         const DEPTH: usize = 50_000;
         let mut msg = String::with_capacity(DEPTH * 96);
         for i in 0..DEPTH {
-            msg.push_str(&format!("Content-Type: multipart/mixed; boundary=b{i}\r\n\r\n--b{i}\r\n"));
+            msg.push_str(&format!(
+                "Content-Type: multipart/mixed; boundary=b{i}\r\n\r\n--b{i}\r\n"
+            ));
         }
         msg.push_str("Content-Type: text/plain\r\n\r\nhi");
         for i in (0..DEPTH).rev() {
@@ -1281,7 +1381,10 @@ mod tests {
         }
         // Must return (bounded descent), never SIGSEGV.
         let parsed = ParsedMessage::parse(msg.as_bytes());
-        assert!(matches!(parsed.structure, BodyPart::Multipart { .. }), "top level is multipart");
+        assert!(
+            matches!(parsed.structure, BodyPart::Multipart { .. }),
+            "top level is multipart"
+        );
     }
 
     #[test]
@@ -1289,7 +1392,12 @@ mod tests {
         let raw = b"Content-Type: text/plain; charset=utf-8\r\n\r\nhello\nworld\n";
         let p = ParsedMessage::parse(raw);
         match p.structure {
-            BodyPart::Single { mime_type, subtype, lines, .. } => {
+            BodyPart::Single {
+                mime_type,
+                subtype,
+                lines,
+                ..
+            } => {
                 assert_eq!((mime_type.as_str(), subtype.as_str()), ("text", "plain"));
                 assert_eq!(lines, 2);
             }
@@ -1325,7 +1433,10 @@ mod tests {
         let payload = Payload {
             from: ik.public(),
             sig: vec![],
-            headers: Headers { subject: Some("Hello".into()), ..Default::default() },
+            headers: Headers {
+                subject: Some("Hello".into()),
+                ..Default::default()
+            },
             body: b"Hi there".to_vec(),
             refs: vec![],
             attach: vec![],
@@ -1372,7 +1483,9 @@ See above.\r\n";
             .map(|(_, v)| v.clone());
         match carried {
             Some(kotva_core::cbor::Cv::Bytes(b)) => assert_eq!(b, orig_headers),
-            other => panic!("expected RAW_HEADERS_EXT_KEY to carry the raw header bytes, got {other:?}"),
+            other => {
+                panic!("expected RAW_HEADERS_EXT_KEY to carry the raw header bytes, got {other:?}")
+            }
         }
         assert_eq!(draft.body, orig_body);
 
@@ -1433,7 +1546,10 @@ body text\r\n";
         assert_eq!(decoded.headers, payload.headers);
 
         let rendered = render_rfc5322(&decoded, 42);
-        assert_eq!(rendered, raw, "the ext-map carriage must survive a real CBOR round trip");
+        assert_eq!(
+            rendered, raw,
+            "the ext-map carriage must survive a real CBOR round trip"
+        );
     }
 
     /// §7.2c: trust-boundary headers (`Authentication-Results`, `ARC-*`) are stripped BEFORE they
@@ -1461,10 +1577,15 @@ body\r\n";
         let rendered = render_rfc5322(&payload, 42);
         let rendered_str = String::from_utf8_lossy(&rendered);
         assert!(
-            !rendered_str.to_ascii_lowercase().contains("authentication-results"),
+            !rendered_str
+                .to_ascii_lowercase()
+                .contains("authentication-results"),
             "a forged Authentication-Results must not survive into the byte-exact carriage"
         );
-        assert!(rendered_str.contains("X-Custom: v1"), "non-trust-boundary headers still carry through");
+        assert!(
+            rendered_str.contains("X-Custom: v1"),
+            "non-trust-boundary headers still carry through"
+        );
     }
 
     #[test]
@@ -1500,13 +1621,17 @@ body\r\n";
             &b"\x85Authentication-Results: mx; dkim=pass header.d=paypal.com\r\nX-Keep: 1\r\n"[..],
             &b"ARC-Seal\xA0: i=1; a=rsa-sha256; cv=none\r\nX-Keep: 1\r\n"[..],
         ] {
-            let s = String::from_utf8_lossy(&strip_trust_boundary_headers(raw)).to_ascii_lowercase();
+            let s =
+                String::from_utf8_lossy(&strip_trust_boundary_headers(raw)).to_ascii_lowercase();
             assert!(
                 !s.contains("dkim=pass") && !s.contains("cv=none"),
                 "WSP-before-colon trust-boundary header survived the strip: {}",
                 String::from_utf8_lossy(raw)
             );
-            assert!(s.contains("x-keep: 1"), "a non-trust-boundary header must still carry through");
+            assert!(
+                s.contains("x-keep: 1"),
+                "a non-trust-boundary header must still carry through"
+            );
         }
         // A field whose name merely has a trust-boundary name as a prefix is NOT stripped (the trim
         // only removes trailing WSP, never a name suffix).
@@ -1539,7 +1664,10 @@ body\r\n";
         // fixed line terminators — i.e. no "\r\nBcc:" / "\r\n\r\n" smuggled in via a header value.
         let (hdr_bytes, body) = header_and_body(&raw);
         let hdr = String::from_utf8_lossy(&hdr_bytes);
-        assert!(!hdr.contains("\r\nBcc:"), "Subject must not inject a sibling header: {hdr:?}");
+        assert!(
+            !hdr.contains("\r\nBcc:"),
+            "Subject must not inject a sibling header: {hdr:?}"
+        );
         assert!(
             !hdr.contains("\r\nX-Injected"),
             "Content-Type must not inject a sibling header: {hdr:?}"
@@ -1581,7 +1709,10 @@ body\r\n";
 
     #[test]
     fn decodes_q_encoded_words() {
-        assert_eq!(decode_encoded_words("=?UTF-8?Q?Hello_World?="), "Hello World");
+        assert_eq!(
+            decode_encoded_words("=?UTF-8?Q?Hello_World?="),
+            "Hello World"
+        );
         assert_eq!(
             decode_encoded_words("=?ISO-8859-1?Q?Gr=FC=DFe_aus_M=FCnchen?="),
             "Grüße aus München"
@@ -1598,10 +1729,7 @@ body\r\n";
             decode_encoded_words("=?UTF-8?B?44GT44KT?= =?UTF-8?B?44Gr44Gh44Gv?="),
             "こんにちは"
         );
-        assert_eq!(
-            decode_encoded_words("=?UTF-8?Q?a?= \t =?UTF-8?Q?b?="),
-            "ab"
-        );
+        assert_eq!(decode_encoded_words("=?UTF-8?Q?a?= \t =?UTF-8?Q?b?="), "ab");
         assert_eq!(decode_encoded_words("=?UTF-8?Q?a?==?UTF-8?Q?b?="), "ab");
     }
 
@@ -1641,7 +1769,11 @@ body\r\n";
             let encoded = encode_header_value(subject);
             // Every physical line obeys the RFC 5322 78-char SHOULD (incl. the header name).
             for line in format!("Subject: {encoded}").split("\r\n") {
-                assert!(line.len() <= 78, "overlong fold line ({}): {line}", line.len());
+                assert!(
+                    line.len() <= 78,
+                    "overlong fold line ({}): {line}",
+                    line.len()
+                );
             }
             // Full stack: render as a header, parse (unfold), decode → identical text.
             let raw = format!("Subject: {encoded}\r\n\r\nx");
@@ -1652,7 +1784,10 @@ body\r\n";
 
     #[test]
     fn encode_header_leaves_ascii_untouched() {
-        assert_eq!(encode_header_value("Weekly report [v2] (final)"), "Weekly report [v2] (final)");
+        assert_eq!(
+            encode_header_value("Weekly report [v2] (final)"),
+            "Weekly report [v2] (final)"
+        );
     }
 
     #[test]
@@ -1675,7 +1810,10 @@ body\r\n";
         let payload = Payload {
             from: ik.public(),
             sig: vec![],
-            headers: Headers { subject: Some("Привет, мир".into()), ..Default::default() },
+            headers: Headers {
+                subject: Some("Привет, мир".into()),
+                ..Default::default()
+            },
             body: b"hi".to_vec(),
             refs: vec![],
             attach: vec![],
@@ -1684,44 +1822,93 @@ body\r\n";
         let raw = render_rfc5322(&payload, 1_752_000_000_000);
         let (hdr, _) = header_and_body(&raw);
         // The wire header block must be pure ASCII — strict MTAs mangle/reject raw 8-bit headers.
-        assert!(hdr.is_ascii(), "raw 8-bit bytes leaked into headers: {:?}", String::from_utf8_lossy(&hdr));
+        assert!(
+            hdr.is_ascii(),
+            "raw 8-bit bytes leaked into headers: {:?}",
+            String::from_utf8_lossy(&hdr)
+        );
         let p = ParsedMessage::parse(&raw);
-        assert_eq!(decode_encoded_words(p.header("Subject").unwrap()), "Привет, мир");
+        assert_eq!(
+            decode_encoded_words(p.header("Subject").unwrap()),
+            "Привет, мир"
+        );
     }
 
     #[test]
     fn decode_charset_matrix() {
         // Latin-1 is decoded exactly, never flagged.
-        assert_eq!(decode_charset(b"caf\xe9", "ISO-8859-1"), ("café".to_string(), false));
-        assert_eq!(decode_charset(b"caf\xe9", "latin1"), ("café".to_string(), false));
+        assert_eq!(
+            decode_charset(b"caf\xe9", "ISO-8859-1"),
+            ("café".to_string(), false)
+        );
+        assert_eq!(
+            decode_charset(b"caf\xe9", "latin1"),
+            ("café".to_string(), false)
+        );
         // Valid UTF-8 (also when the charset param is absent).
-        assert_eq!(decode_charset("día".as_bytes(), "utf-8"), ("día".to_string(), false));
-        assert_eq!(decode_charset("día".as_bytes(), ""), ("día".to_string(), false));
+        assert_eq!(
+            decode_charset("día".as_bytes(), "utf-8"),
+            ("día".to_string(), false)
+        );
+        assert_eq!(
+            decode_charset("día".as_bytes(), ""),
+            ("día".to_string(), false)
+        );
         // Invalid UTF-8 under a utf-8 label: lossy + flagged.
         let (s, problem) = decode_charset(b"a\xff b", "utf-8");
         assert!(problem && s.contains('\u{FFFD}'));
         // 8-bit under a us-ascii label is a lie: Latin-1 fallback + flagged.
-        assert_eq!(decode_charset(b"caf\xe9", "us-ascii"), ("café".to_string(), true));
+        assert_eq!(
+            decode_charset(b"caf\xe9", "us-ascii"),
+            ("café".to_string(), true)
+        );
         // Unimplemented charset, ASCII content: faithful, unflagged (every charset is an ASCII
         // superset in practice).
-        assert_eq!(decode_charset(b"hello", "gb18030"), ("hello".to_string(), false));
+        assert_eq!(
+            decode_charset(b"hello", "gb18030"),
+            ("hello".to_string(), false)
+        );
         // Unimplemented charset, 8-bit content: honestly flagged.
         let (_, problem) = decode_charset(b"\xc4\xe3\xba\xc3", "gb18030");
-        assert!(problem, "GB18030 8-bit content must be flagged as an encoding problem");
+        assert!(
+            problem,
+            "GB18030 8-bit content must be flagged as an encoding problem"
+        );
     }
 
     #[test]
     fn decodes_transfer_encodings() {
-        assert_eq!(decode_transfer_encoding(b"aGVsbG8gd29ybGQ=", "base64"), b"hello world");
+        assert_eq!(
+            decode_transfer_encoding(b"aGVsbG8gd29ybGQ=", "base64"),
+            b"hello world"
+        );
         // base64 with folded lines (whitespace) still decodes.
-        assert_eq!(decode_transfer_encoding(b"aGVs\r\nbG8=", "BASE64"), b"hello");
+        assert_eq!(
+            decode_transfer_encoding(b"aGVs\r\nbG8=", "BASE64"),
+            b"hello"
+        );
         // Malformed base64 falls back to the raw bytes — never lost, never a panic.
-        assert_eq!(decode_transfer_encoding(b"!!not-base64!!", "base64"), b"!!not-base64!!");
+        assert_eq!(
+            decode_transfer_encoding(b"!!not-base64!!", "base64"),
+            b"!!not-base64!!"
+        );
         // Quoted-printable: hex escapes + soft line breaks; malformed escapes verbatim.
-        assert_eq!(decode_transfer_encoding(b"Gr=C3=BC=C3=9Fe", "quoted-printable"), "Grüße".as_bytes());
-        assert_eq!(decode_transfer_encoding(b"foo=\r\nbar", "quoted-printable"), b"foobar");
-        assert_eq!(decode_transfer_encoding(b"foo=\nbar", "quoted-printable"), b"foobar");
-        assert_eq!(decode_transfer_encoding(b"a=Zb", "quoted-printable"), b"a=Zb");
+        assert_eq!(
+            decode_transfer_encoding(b"Gr=C3=BC=C3=9Fe", "quoted-printable"),
+            "Grüße".as_bytes()
+        );
+        assert_eq!(
+            decode_transfer_encoding(b"foo=\r\nbar", "quoted-printable"),
+            b"foobar"
+        );
+        assert_eq!(
+            decode_transfer_encoding(b"foo=\nbar", "quoted-printable"),
+            b"foobar"
+        );
+        assert_eq!(
+            decode_transfer_encoding(b"a=Zb", "quoted-printable"),
+            b"a=Zb"
+        );
         // Identity encodings pass through byte-exact.
         assert_eq!(decode_transfer_encoding(b"caf\xe9", "8bit"), b"caf\xe9");
     }

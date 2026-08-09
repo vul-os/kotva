@@ -111,7 +111,10 @@ pub struct CallerPolicy {
 
 impl Default for CallerPolicy {
     fn default() -> Self {
-        CallerPolicy { seen: BTreeSet::new(), tolerance_ms: SKEW_TOLERANCE_MS }
+        CallerPolicy {
+            seen: BTreeSet::new(),
+            tolerance_ms: SKEW_TOLERANCE_MS,
+        }
     }
 }
 
@@ -221,7 +224,10 @@ mod tests {
     fn lenient_tolerance_override() {
         let now = 1_000_000u64;
         let pol = CallerPolicy::new().with_tolerance_ms(10_000_000);
-        assert!(pol.check_skew(now + 5_000_000, now).is_ok(), "known-contact leniency");
+        assert!(
+            pol.check_skew(now + 5_000_000, now).is_ok(),
+            "known-contact leniency"
+        );
     }
 
     #[test]
@@ -247,7 +253,10 @@ mod tests {
 
         assert!(repin_allowed(None, &pinned), "first contact TOFU-pins");
         assert!(repin_allowed(Some(&pinned), &same), "same key re-pins fine");
-        assert!(!repin_allowed(Some(&pinned), &other), "different key refused");
+        assert!(
+            !repin_allowed(Some(&pinned), &other),
+            "different key refused"
+        );
 
         let pol = CallerPolicy::new();
         assert!(pol.check_repin(None, &pinned).is_ok());

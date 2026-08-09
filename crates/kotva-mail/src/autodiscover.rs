@@ -64,16 +64,44 @@ impl SrvRecord {
 /// advertise implicit-TLS submission on 465.
 pub fn srv_records(cfg: &HostConfig) -> Vec<SrvRecord> {
     vec![
-        SrvRecord { service: "_imaps._tcp".into(), priority: 0, weight: 1, port: cfg.imaps_port, target: cfg.host.clone() },
-        SrvRecord { service: "_submissions._tcp".into(), priority: 0, weight: 1, port: cfg.submission_port, target: cfg.host.clone() },
-        SrvRecord { service: "_pop3s._tcp".into(), priority: 10, weight: 1, port: cfg.pop3s_port, target: cfg.host.clone() },
-        SrvRecord { service: "_jmap._tcp".into(), priority: 0, weight: 1, port: 443, target: cfg.host.clone() },
+        SrvRecord {
+            service: "_imaps._tcp".into(),
+            priority: 0,
+            weight: 1,
+            port: cfg.imaps_port,
+            target: cfg.host.clone(),
+        },
+        SrvRecord {
+            service: "_submissions._tcp".into(),
+            priority: 0,
+            weight: 1,
+            port: cfg.submission_port,
+            target: cfg.host.clone(),
+        },
+        SrvRecord {
+            service: "_pop3s._tcp".into(),
+            priority: 10,
+            weight: 1,
+            port: cfg.pop3s_port,
+            target: cfg.host.clone(),
+        },
+        SrvRecord {
+            service: "_jmap._tcp".into(),
+            priority: 0,
+            weight: 1,
+            port: 443,
+            target: cfg.host.clone(),
+        },
     ]
 }
 
 /// Render the SRV record set as zone-file lines.
 pub fn srv_zone(cfg: &HostConfig) -> String {
-    srv_records(cfg).iter().map(|r| r.zone_line(&cfg.domain)).collect::<Vec<_>>().join("\n")
+    srv_records(cfg)
+        .iter()
+        .map(|r| r.zone_line(&cfg.domain))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Thunderbird / Mozilla autoconfig XML (`config-v1.1`), served at
@@ -304,9 +332,15 @@ mod tests {
         assert!(imap.contains("\"Port\":993"), "{imap}");
         assert!(imap.contains("\"Server\":\"mail.dmtap.local\""));
         let smtp = microsoft_autodiscover_v2(&cfg(), "smtp");
-        assert!(smtp.contains("\"Protocol\":\"SMTP\"") && smtp.contains("\"Port\":465"), "{smtp}");
+        assert!(
+            smtp.contains("\"Protocol\":\"SMTP\"") && smtp.contains("\"Port\":465"),
+            "{smtp}"
+        );
         let v1 = microsoft_autodiscover_v2(&cfg(), "AutodiscoverV1");
-        assert!(v1.contains("autodiscover.dmtap.local/autodiscover/autodiscover.xml"), "{v1}");
+        assert!(
+            v1.contains("autodiscover.dmtap.local/autodiscover/autodiscover.xml"),
+            "{v1}"
+        );
     }
 
     #[test]

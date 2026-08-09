@@ -128,7 +128,13 @@ pub struct Message {
 
 impl Message {
     /// Construct a stored message with an explicit create-modseq (used by [`Mailbox::append`]).
-    pub fn new(uid: Uid, flags: Vec<Flag>, internal_date: TimestampMs, modseq: ModSeq, raw: Vec<u8>) -> Message {
+    pub fn new(
+        uid: Uid,
+        flags: Vec<Flag>,
+        internal_date: TimestampMs,
+        modseq: ModSeq,
+        raw: Vec<u8>,
+    ) -> Message {
         Message {
             uid,
             flags,
@@ -167,7 +173,8 @@ impl Message {
     /// The memoized MIME parse (parses once, then returns the cached structure). This is what the
     /// IMAP FETCH/SEARCH hot paths use so a 10k-message mailbox is never re-parsed per request.
     pub fn parsed_cached(&self) -> &mime::ParsedMessage {
-        self.parsed_cache.get_or_init(|| mime::ParsedMessage::parse(&self.raw))
+        self.parsed_cache
+            .get_or_init(|| mime::ParsedMessage::parse(&self.raw))
     }
 }
 
@@ -210,11 +217,17 @@ impl Mailbox {
     }
 
     pub fn recent(&self) -> usize {
-        self.messages.iter().filter(|m| m.has_flag(&Flag::Recent)).count()
+        self.messages
+            .iter()
+            .filter(|m| m.has_flag(&Flag::Recent))
+            .count()
     }
 
     pub fn unseen(&self) -> usize {
-        self.messages.iter().filter(|m| !m.has_flag(&Flag::Seen)).count()
+        self.messages
+            .iter()
+            .filter(|m| !m.has_flag(&Flag::Seen))
+            .count()
     }
 
     /// The highest UID in use (`*` in a UID sequence-set). `O(1)` — messages are UID-sorted.
@@ -224,7 +237,10 @@ impl Mailbox {
 
     /// Sequence number (1-based) of the first unseen message, per SELECT's `[UNSEEN n]`.
     pub fn first_unseen_seq(&self) -> Option<usize> {
-        self.messages.iter().position(|m| !m.has_flag(&Flag::Seen)).map(|i| i + 1)
+        self.messages
+            .iter()
+            .position(|m| !m.has_flag(&Flag::Seen))
+            .map(|i| i + 1)
     }
 
     /// Append a fully-formed message, assigning the next UID and bumping modseq (UIDPLUS data).
@@ -232,7 +248,13 @@ impl Mailbox {
         let uid = self.uid_next;
         self.uid_next += 1;
         self.highest_modseq += 1;
-        self.messages.push(Message::new(uid, flags, internal_date, self.highest_modseq, raw));
+        self.messages.push(Message::new(
+            uid,
+            flags,
+            internal_date,
+            self.highest_modseq,
+            raw,
+        ));
         uid
     }
 
@@ -265,8 +287,12 @@ impl Mailbox {
 
     /// UIDs expunged since `modseq` (for QRESYNC VANISHED (EARLIER) resync), ascending.
     pub fn vanished_since(&self, modseq: ModSeq) -> Vec<Uid> {
-        let mut v: Vec<Uid> =
-            self.expunged.iter().filter(|(_, ms)| *ms > modseq).map(|(u, _)| *u).collect();
+        let mut v: Vec<Uid> = self
+            .expunged
+            .iter()
+            .filter(|(_, ms)| *ms > modseq)
+            .map(|(u, _)| *u)
+            .collect();
         v.sort_unstable();
         v
     }
@@ -385,7 +411,14 @@ pub trait MailStore {
                 }
             }
         }
-        Some(JmapChanges { old_state: since.to_string(), new_state, created, updated, destroyed, has_more: false })
+        Some(JmapChanges {
+            old_state: since.to_string(),
+            new_state,
+            created,
+            updated,
+            destroyed,
+            has_more: false,
+        })
     }
 }
 
@@ -477,7 +510,11 @@ impl Default for MemoryStore {
 impl MemoryStore {
     /// A store pre-populated with INBOX and the SPECIAL-USE folders (spec §8 auto-mapping).
     pub fn new() -> Self {
-        let mut s = MemoryStore { mailboxes: BTreeMap::new(), order: Vec::new(), next_uid_validity: 1 };
+        let mut s = MemoryStore {
+            mailboxes: BTreeMap::new(),
+            order: Vec::new(),
+            next_uid_validity: 1,
+        };
         s.insert_fresh(Mailbox::new("INBOX", Some(SpecialUse::Inbox)));
         s.insert_fresh(Mailbox::new("Sent", Some(SpecialUse::Sent)));
         s.insert_fresh(Mailbox::new("Drafts", Some(SpecialUse::Drafts)));
@@ -489,7 +526,11 @@ impl MemoryStore {
 
     /// An empty store with only INBOX (for tests that want a minimal layout).
     pub fn empty() -> Self {
-        let mut s = MemoryStore { mailboxes: BTreeMap::new(), order: Vec::new(), next_uid_validity: 1 };
+        let mut s = MemoryStore {
+            mailboxes: BTreeMap::new(),
+            order: Vec::new(),
+            next_uid_validity: 1,
+        };
         s.insert_fresh(Mailbox::new("INBOX", Some(SpecialUse::Inbox)));
         s
     }
@@ -521,12 +562,7 @@ impl MemoryStore {
     /// [`Delivery::Ephemeral`], because §6.7 asks for an ephemeral *view*, not for the message to be
     /// discarded: "held in memory for an ephemeral view and dropped, never written to the durable
     /// MOTE store".
-    pub fn deliver_mote(
-        &mut self,
-        payload: &Payload,
-        mailbox: &str,
-        ts: TimestampMs,
-    ) -> Delivery {
+    pub fn deliver_mote(&mut self, payload: &Payload, mailbox: &str, ts: TimestampMs) -> Delivery {
         let raw = mime::render_rfc5322(payload, ts);
         // Check BEFORE touching the mailbox. Honoring the flag is cooperative (§6.6 item 8) — a
         // compromised recipient can still copy what it can read — but a conformant one must not
@@ -596,7 +632,10 @@ impl MailStore for MemoryStore {
         if self.mailboxes.contains_key(to) {
             return Err(StoreError::AlreadyExists);
         }
-        let mut mb = self.mailboxes.remove(from).ok_or(StoreError::NoSuchMailbox)?;
+        let mut mb = self
+            .mailboxes
+            .remove(from)
+            .ok_or(StoreError::NoSuchMailbox)?;
         mb.name = to.to_string();
         for n in self.order.iter_mut() {
             if n == from {
@@ -656,7 +695,9 @@ mod tests {
         assert_eq!(s.mailbox("INBOX").unwrap().exists(), 1);
 
         // sensitive = Some(false) is an explicit "not sensitive" and must behave like absent.
-        assert!(s.deliver_mote(&mk(Some(false)), "INBOX", 1_700_000_000_000).is_stored());
+        assert!(s
+            .deliver_mote(&mk(Some(false)), "INBOX", 1_700_000_000_000)
+            .is_stored());
         assert_eq!(s.mailbox("INBOX").unwrap().exists(), 2);
 
         // The flag itself: rendered, not retained.
@@ -681,7 +722,9 @@ mod tests {
     #[test]
     fn append_assigns_uids_and_modseq() {
         let mut s = MemoryStore::empty();
-        let u1 = s.deliver_raw("INBOX", b"a".to_vec(), vec![Flag::Recent], 0).unwrap();
+        let u1 = s
+            .deliver_raw("INBOX", b"a".to_vec(), vec![Flag::Recent], 0)
+            .unwrap();
         let u2 = s.deliver_raw("INBOX", b"b".to_vec(), vec![], 0).unwrap();
         assert_eq!((u1, u2), (1, 2));
         let mb = s.mailbox("INBOX").unwrap();
@@ -702,7 +745,12 @@ mod tests {
 
     #[test]
     fn flag_parse_round_trip() {
-        for f in [Flag::Seen, Flag::Answered, Flag::Deleted, Flag::Keyword("$Label".into())] {
+        for f in [
+            Flag::Seen,
+            Flag::Answered,
+            Flag::Deleted,
+            Flag::Keyword("$Label".into()),
+        ] {
             assert_eq!(Flag::parse(&f.imap()), f);
         }
         // System flags are case-insensitive.
@@ -724,7 +772,10 @@ mod tests {
         s.delete("Work").unwrap();
         s.create("Work").unwrap();
         let uv2 = s.mailbox("Work").unwrap().uid_validity;
-        assert!(uv2 > uv1, "recreated mailbox must advertise a strictly larger UIDVALIDITY ({uv1} -> {uv2})");
+        assert!(
+            uv2 > uv1,
+            "recreated mailbox must advertise a strictly larger UIDVALIDITY ({uv1} -> {uv2})"
+        );
         // UID assignment restarts at 1, so without the bump a client would conflate the two messages.
         s.deliver_raw("Work", b"different".to_vec(), vec![], 0);
         assert_eq!(s.mailbox("Work").unwrap().max_uid(), 1);

@@ -44,7 +44,9 @@ pub enum IdentityError {
     BadEncoding(#[from] CborError),
     /// §1.4 rule 2 (`ERR_RECOVERY_THRESHOLD_INVALID`, `0x010C`): some kind of factor can ROTATE
     /// the policy more cheaply than it can RECOVER — the stolen-factor lockout the rule forbids.
-    #[error("rotate_threshold is weaker than recover_threshold for some factor kind (§1.4 rule 2)")]
+    #[error(
+        "rotate_threshold is weaker than recover_threshold for some factor kind (§1.4 rule 2)"
+    )]
     RecoveryThresholdInvalid,
 }
 
@@ -73,12 +75,16 @@ pub struct IdentityKey {
 impl IdentityKey {
     /// Generate a fresh `IK` from the OS CSPRNG.
     pub fn generate() -> Self {
-        IdentityKey { signing: SigningKey::generate(&mut OsRng) }
+        IdentityKey {
+            signing: SigningKey::generate(&mut OsRng),
+        }
     }
 
     /// Reconstruct from a 32-byte Ed25519 seed.
     pub fn from_seed(seed: &[u8; 32]) -> Self {
-        IdentityKey { signing: SigningKey::from_bytes(seed) }
+        IdentityKey {
+            signing: SigningKey::from_bytes(seed),
+        }
     }
 
     /// The public half — the stable DMTAP address key correspondents pin (§1.2).
@@ -103,7 +109,12 @@ impl IdentityKey {
 
 /// Verify an Ed25519 signature produced with [`IdentityKey::sign_domain`] under public key
 /// `pk`. Fails closed on any malformed key/signature or a bad signature.
-pub fn verify_domain(pk: &[u8], domain: &[u8], msg: &[u8], sig: &[u8]) -> Result<(), IdentityError> {
+pub fn verify_domain(
+    pk: &[u8],
+    domain: &[u8],
+    msg: &[u8],
+    sig: &[u8],
+) -> Result<(), IdentityError> {
     let vk = verifying_key(pk)?;
     let sig = signature(sig)?;
     let mut m = Vec::with_capacity(domain.len() + msg.len());
@@ -111,7 +122,8 @@ pub fn verify_domain(pk: &[u8], domain: &[u8], msg: &[u8], sig: &[u8]) -> Result
     m.extend_from_slice(msg);
     // `verify_strict` (RFC 8032 §5.1.7 cofactorless verification, rejecting non-canonical /
     // small-order `A`) — defense-in-depth against Ed25519 signature malleability. Fail closed.
-    vk.verify_strict(&m, &sig).map_err(|_| IdentityError::BadSignature)
+    vk.verify_strict(&m, &sig)
+        .map_err(|_| IdentityError::BadSignature)
 }
 
 /// Decode a `suite` field (a `u8`), failing closed on any unknown byte (§18.1.4).
@@ -174,21 +186,28 @@ impl Cap {
 /// Locates and pins the identity's whole published KeyPackage bundle (spec §18.4.3).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct KeyPackageBundleRef {
-    pub loc: String,               // key 1 — mesh/relay locator
-    pub id: ContentId,             // key 2 — content address of the bundle
+    pub loc: String,                // key 1 — mesh/relay locator
+    pub id: ContentId,              // key 2 — content address of the bundle
     pub suites: Option<Vec<Suite>>, // key 3 — suites the bundle advertises
 }
 
 impl KeyPackageBundleRef {
     /// A minimal bundle ref (locator + content address, no advertised-suite list).
     pub fn new(loc: impl Into<String>, id: ContentId) -> Self {
-        KeyPackageBundleRef { loc: loc.into(), id, suites: None }
+        KeyPackageBundleRef {
+            loc: loc.into(),
+            id,
+            suites: None,
+        }
     }
 
     fn to_cv(&self) -> Cv {
         let mut m = vec![(1u64, Cv::Text(self.loc.clone())), (2, hash_cv(&self.id))];
         if let Some(s) = &self.suites {
-            m.push((3, Cv::Array(s.iter().map(|x| Cv::U64(x.as_u8() as u64)).collect())));
+            m.push((
+                3,
+                Cv::Array(s.iter().map(|x| Cv::U64(x.as_u8() as u64)).collect()),
+            ));
         }
         Cv::Map(m)
     }
@@ -214,13 +233,13 @@ impl KeyPackageBundleRef {
 /// A per-device signing subkey, signed by the root identity key (spec §1.2, §18.4.2).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DeviceCert {
-    pub suite: Suite,        // key 1
-    pub ik: Vec<u8>,         // key 2 — root identity public key
-    pub device_key: Vec<u8>, // key 3 — device signing public key
-    pub label: String,       // key 4 — "phone", "home-box", ...
-    pub created: TimestampMs, // key 5
+    pub suite: Suite,                 // key 1
+    pub ik: Vec<u8>,                  // key 2 — root identity public key
+    pub device_key: Vec<u8>,          // key 3 — device signing public key
+    pub label: String,                // key 4 — "phone", "home-box", ...
+    pub created: TimestampMs,         // key 5
     pub expires: Option<TimestampMs>, // key 6
-    pub caps: Vec<Cap>,      // key 7 — capability strings
+    pub caps: Vec<Cap>,               // key 7 — capability strings
     #[serde(default)]
     pub sig: Vec<u8>, // key 8 — IK over det_cbor(cert ∖ {8}) (§18.9.3)
 }
@@ -241,7 +260,15 @@ impl DeviceCert {
         if let Some(e) = self.expires {
             m.push((6, Cv::U64(e)));
         }
-        m.push((7, Cv::Array(self.caps.iter().map(|c| Cv::Text(c.as_str().into())).collect())));
+        m.push((
+            7,
+            Cv::Array(
+                self.caps
+                    .iter()
+                    .map(|c| Cv::Text(c.as_str().into()))
+                    .collect(),
+            ),
+        ));
         if include_sig {
             m.push((8, Cv::Bytes(self.sig.clone())));
         }
@@ -278,7 +305,16 @@ impl DeviceCert {
             .collect::<Result<_, _>>()?;
         let sig = as_bytes(f.req(8)?)?;
         f.deny_unknown()?;
-        Ok(DeviceCert { suite, ik, device_key, label, created, expires, caps, sig })
+        Ok(DeviceCert {
+            suite,
+            ik,
+            device_key,
+            label,
+            created,
+            expires,
+            caps,
+            sig,
+        })
     }
 
     /// Issue a device cert: `IK` signs the (suite, ik, device_key, label, …) tuple (§18.9.3).
@@ -321,18 +357,18 @@ impl DeviceCert {
 /// public key; `sig` carries one signature per suite (multi-suite, §1.3).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Identity {
-    pub suites: Vec<Suite>,          // key 1 — supported suites, preference-ordered (a set)
-    pub iks: BTreeMap<u8, Vec<u8>>,  // key 2 — identity public key per suite
-    pub version: u64,                // key 3 — monotonically increasing
-    pub devices: Vec<DeviceCert>,    // key 4
+    pub suites: Vec<Suite>, // key 1 — supported suites, preference-ordered (a set)
+    pub iks: BTreeMap<u8, Vec<u8>>, // key 2 — identity public key per suite
+    pub version: u64,       // key 3 — monotonically increasing
+    pub devices: Vec<DeviceCert>, // key 4
     pub keypkgs: KeyPackageBundleRef, // key 5 — current KeyPackage bundle (§18.4.3)
-    pub recovery: ContentId,         // key 6 — hash of the current RecoveryPolicy (§1.4)
-    pub names: Vec<String>,          // key 7 — canonical human name(s) (§3)
-    pub prev: Option<ContentId>,     // key 8 — hash of the previous Identity version (hash chain)
-    pub ts: TimestampMs,             // key 9
+    pub recovery: ContentId, // key 6 — hash of the current RecoveryPolicy (§1.4)
+    pub names: Vec<String>, // key 7 — canonical human name(s) (§3)
+    pub prev: Option<ContentId>, // key 8 — hash of the previous Identity version (hash chain)
+    pub ts: TimestampMs,    // key 9
     #[serde(default)]
     pub sig: Vec<Vec<u8>>, // key 10 — one sig per suite in `suites`, plus one under iks[anchor_suite]
-                           // appended when anchor_suite ∉ suites (§18.4.1, §1.2.0)
+    // appended when anchor_suite ∉ suites (§18.4.1, §1.2.0)
     /// Key 12 (MUST) — the suite governing `IK` and the `Identity`-root signature (§1.2.0). MAY
     /// differ from every operational suite in `suites`; `iks` MUST hold its entry. When it is
     /// **not** one of `suites`, `sig` carries an additional anchor signature under
@@ -357,7 +393,15 @@ impl Identity {
     /// signing body (the same body is signed once per suite in `suites`).
     fn to_cv(&self, include_sig: bool) -> Cv {
         let mut m = vec![
-            (1u64, Cv::Array(self.suites.iter().map(|s| Cv::U64(s.as_u8() as u64)).collect())),
+            (
+                1u64,
+                Cv::Array(
+                    self.suites
+                        .iter()
+                        .map(|s| Cv::U64(s.as_u8() as u64))
+                        .collect(),
+                ),
+            ),
             (
                 2,
                 Cv::Map(
@@ -368,24 +412,41 @@ impl Identity {
                 ),
             ),
             (3, Cv::U64(self.version)),
-            (4, Cv::Array(self.devices.iter().map(|d| d.to_cv(true)).collect())),
+            (
+                4,
+                Cv::Array(self.devices.iter().map(|d| d.to_cv(true)).collect()),
+            ),
             (5, self.keypkgs.to_cv()),
             (6, hash_cv(&self.recovery)),
-            (7, Cv::Array(self.names.iter().map(|n| Cv::Text(n.clone())).collect())),
+            (
+                7,
+                Cv::Array(self.names.iter().map(|n| Cv::Text(n.clone())).collect()),
+            ),
         ];
         if let Some(p) = &self.prev {
             m.push((8, hash_cv(p)));
         }
         m.push((9, Cv::U64(self.ts)));
         if include_sig {
-            m.push((10, Cv::Array(self.sig.iter().map(|s| Cv::Bytes(s.clone())).collect())));
+            m.push((
+                10,
+                Cv::Array(self.sig.iter().map(|s| Cv::Bytes(s.clone())).collect()),
+            ));
         }
         // Keys 12/13 are part of the signed body (the preimage is `Identity ∖ {10}`, §18.9.3), so
         // they are emitted regardless of `include_sig`. The encoder sorts map keys, so pushing them
         // after key 10 is fine — key 10 still precedes 12/13 in the canonical wire form.
         m.push((12, Cv::U64(self.anchor_suite.as_u8() as u64)));
         if !self.classical_retired.is_empty() {
-            m.push((13, Cv::Array(self.classical_retired.iter().map(|b| Cv::U64(*b as u64)).collect())));
+            m.push((
+                13,
+                Cv::Array(
+                    self.classical_retired
+                        .iter()
+                        .map(|b| Cv::U64(*b as u64))
+                        .collect(),
+                ),
+            ));
         }
         Cv::Map(m)
     }
@@ -599,13 +660,17 @@ impl Identity {
         // no stray entries are permitted (a second key at an undeclared suite is a second key-name
         // surface, §18.9.17).
         if !self.iks.contains_key(&self.anchor_suite.as_u8()) {
-            return Err(IdentityError::Malformed("iks lacks an entry for anchor_suite"));
+            return Err(IdentityError::Malformed(
+                "iks lacks an entry for anchor_suite",
+            ));
         }
         for k in self.iks.keys() {
-            let declared = self.suites.iter().any(|s| s.as_u8() == *k)
-                || *k == self.anchor_suite.as_u8();
+            let declared =
+                self.suites.iter().any(|s| s.as_u8() == *k) || *k == self.anchor_suite.as_u8();
             if !declared {
-                return Err(IdentityError::Malformed("iks has an entry outside suites ∪ {anchor_suite}"));
+                return Err(IdentityError::Malformed(
+                    "iks has an entry outside suites ∪ {anchor_suite}",
+                ));
             }
         }
         // §18.4.1 key 13: retirement is unconditional — an object MUST NOT offer a signature under a
@@ -624,7 +689,9 @@ impl Identity {
         let anchor_separate = !self.suites.contains(&self.anchor_suite);
         let expected_sigs = self.suites.len() + usize::from(anchor_separate);
         if self.sig.len() != expected_sigs {
-            return Err(IdentityError::Malformed("sig count != suites (+ anchor when disjoint)"));
+            return Err(IdentityError::Malformed(
+                "sig count != suites (+ anchor when disjoint)",
+            ));
         }
         let signing_body = self.signing_body();
         for (i, suite) in self.suites.iter().enumerate() {
@@ -643,10 +710,12 @@ impl Identity {
         // anchor suite gains only the operational guarantee (the honest limit of §1.3), but the
         // reference IS anchor-capable for `0x01`/`0x04` (see `Suite::anchor_verifiable`).
         if anchor_separate && self.anchor_suite.anchor_verifiable() {
-            let anchor_key = self
-                .iks
-                .get(&self.anchor_suite.as_u8())
-                .ok_or(IdentityError::Malformed("iks lacks an entry for anchor_suite"))?;
+            let anchor_key =
+                self.iks
+                    .get(&self.anchor_suite.as_u8())
+                    .ok_or(IdentityError::Malformed(
+                        "iks lacks an entry for anchor_suite",
+                    ))?;
             // The anchor signature is the one appended after the `suites`-ordered signatures.
             let anchor_sig = self
                 .sig
@@ -662,7 +731,9 @@ impl Identity {
             let expected_ik = self
                 .iks
                 .get(&cert.suite.as_u8())
-                .ok_or(IdentityError::Malformed("device cert for a suite this identity lacks"))?;
+                .ok_or(IdentityError::Malformed(
+                    "device cert for a suite this identity lacks",
+                ))?;
             if cert.ik.as_slice() != expected_ik.as_slice() {
                 return Err(IdentityError::Malformed("device cert IK != identity IK"));
             }
@@ -695,7 +766,10 @@ pub enum RecoveryMethod {
     /// `DeviceMethod` (disc 2): a device signing key + label.
     Device { device_key: Vec<u8>, label: String },
     /// `SocialMethod` (disc 3): guardian keys + M-of-N threshold. Prefer FROST (RFC 9591).
-    Social { guardians: Vec<Vec<u8>>, threshold: u8 },
+    Social {
+        guardians: Vec<Vec<u8>>,
+        threshold: u8,
+    },
 }
 
 impl RecoveryMethod {
@@ -709,9 +783,15 @@ impl RecoveryMethod {
                 (1, Cv::Bytes(device_key.clone())),
                 (2, Cv::Text(label.clone())),
             ]),
-            RecoveryMethod::Social { guardians, threshold } => Cv::Map(vec![
+            RecoveryMethod::Social {
+                guardians,
+                threshold,
+            } => Cv::Map(vec![
                 (0, Cv::U64(3)),
-                (1, Cv::Array(guardians.iter().map(|g| Cv::Bytes(g.clone())).collect())),
+                (
+                    1,
+                    Cv::Array(guardians.iter().map(|g| Cv::Bytes(g.clone())).collect()),
+                ),
                 (2, Cv::U64(*threshold as u64)),
             ]),
         }
@@ -721,7 +801,9 @@ impl RecoveryMethod {
         let mut f = Fields::from_cv(cv)?;
         let disc = as_u64(f.req(0)?)?;
         let out = match disc {
-            1 => RecoveryMethod::Phrase { recovery_key: as_bytes(f.req(1)?)? },
+            1 => RecoveryMethod::Phrase {
+                recovery_key: as_bytes(f.req(1)?)?,
+            },
             2 => RecoveryMethod::Device {
                 device_key: as_bytes(f.req(1)?)?,
                 label: as_text(f.req(2)?)?,
@@ -749,7 +831,10 @@ pub struct Threshold {
 
 impl Threshold {
     fn to_cv(&self) -> Cv {
-        Cv::Map(vec![(1, Cv::Array(self.any_of.iter().map(MethodPredicate::to_cv).collect()))])
+        Cv::Map(vec![(
+            1,
+            Cv::Array(self.any_of.iter().map(MethodPredicate::to_cv).collect()),
+        )])
     }
 
     fn from_cv(cv: Cv) -> Result<Self, CborError> {
@@ -882,7 +967,10 @@ impl RecoveryPolicy {
             (1u64, Cv::U64(self.suite.as_u8() as u64)),
             (2, Cv::Bytes(self.ik.clone())),
             (3, Cv::U64(self.version)),
-            (4, Cv::Array(self.methods.iter().map(RecoveryMethod::to_cv).collect())),
+            (
+                4,
+                Cv::Array(self.methods.iter().map(RecoveryMethod::to_cv).collect()),
+            ),
             (5, self.recover_threshold.to_cv()),
             (6, self.rotate_threshold.to_cv()),
         ];
@@ -948,15 +1036,25 @@ impl RecoveryPolicy {
             return Err(IdentityError::UnsupportedSuite(self.suite.as_u8()));
         }
         if self.rotate_threshold.any_of.is_empty() {
-            return Err(IdentityError::Malformed("rotate_threshold must not be empty"));
+            return Err(IdentityError::Malformed(
+                "rotate_threshold must not be empty",
+            ));
         }
         // §1.4 rule 2, ERR_RECOVERY_THRESHOLD_INVALID (0x010C). Only the degenerate empty-rotate
         // case was checked before, because "rotate >= recover" was stated over a structure with no
         // total order and so could not be implemented; §1.4 now defines the comparison.
-        if !self.rotate_threshold.at_least_as_strong_as(&self.recover_threshold) {
+        if !self
+            .rotate_threshold
+            .at_least_as_strong_as(&self.recover_threshold)
+        {
             return Err(IdentityError::RecoveryThresholdInvalid);
         }
-        verify_domain(&self.ik, RECOVERY_POLICY_DS, &self.signing_body(), &self.sig)
+        verify_domain(
+            &self.ik,
+            RECOVERY_POLICY_DS,
+            &self.signing_body(),
+            &self.sig,
+        )
     }
 
     /// Rollback guard (§1.4): reject this policy if its `version` is at or below `last_pinned`.
@@ -1000,19 +1098,25 @@ pub enum RecoveryGuardError {
     /// A change that removes/weakens a recovery factor is signed by `IK` alone without satisfying
     /// `rotate_threshold` — the stolen-`IK` takeover defense (§1.4 rule 3).
     /// `ERR_RECOVERY_WEAKENING_UNQUORUMED` (`0x010E`), FAIL_CLOSED_BLOCK + HALT_ALERT.
-    #[error("recovery-weakening change lacks the rotate_threshold quorum — IK alone must not weaken \
-             recovery (ERR_RECOVERY_WEAKENING_UNQUORUMED, 0x010E)")]
+    #[error(
+        "recovery-weakening change lacks the rotate_threshold quorum — IK alone must not weaken \
+             recovery (ERR_RECOVERY_WEAKENING_UNQUORUMED, 0x010E)"
+    )]
     WeakeningUnquorumed,
     /// A factor-weakening change attempts to take effect before its 72 h veto/delay window elapses
     /// (§1.4 rule 4, §16.8). `ERR_RECOVERY_VETO_WINDOW` (`0x010F`), FAIL_CLOSED_BLOCK — hold until
     /// the window elapses.
-    #[error("recovery-weakening change is inside its 72h veto window \
-             (ERR_RECOVERY_VETO_WINDOW, 0x010F)")]
+    #[error(
+        "recovery-weakening change is inside its 72h veto window \
+             (ERR_RECOVERY_VETO_WINDOW, 0x010F)"
+    )]
     VetoWindowActive,
     /// A `rotate_threshold`-backed veto counter-signature aborted the change (§1.4 rule 4). Same
     /// wire code as the window hold: `ERR_RECOVERY_VETO_WINDOW` (`0x010F`).
-    #[error("recovery-weakening change was vetoed by a rotate_threshold-backed quorum \
-             (ERR_RECOVERY_VETO_WINDOW, 0x010F)")]
+    #[error(
+        "recovery-weakening change was vetoed by a rotate_threshold-backed quorum \
+             (ERR_RECOVERY_VETO_WINDOW, 0x010F)"
+    )]
     Vetoed,
     /// The supplied policy `history` is not a verifiable chain from genesis to the version `next`
     /// supersedes, so which factors were ever **evicted** cannot be determined.
@@ -1023,9 +1127,11 @@ pub enum RecoveryGuardError {
     /// alone, so accepting a one-element history would silently reinstate the very defect the
     /// history-aware check exists to close.
     /// `ERR_RECOVERY_WEAKENING_UNQUORUMED` (`0x010E`), FAIL_CLOSED_BLOCK.
-    #[error("recovery-policy history is not a complete chain from genesis — cannot determine what \
+    #[error(
+        "recovery-policy history is not a complete chain from genesis — cannot determine what \
              was evicted, so the change cannot be judged additive \
-             (ERR_RECOVERY_WEAKENING_UNQUORUMED, 0x010E)")]
+             (ERR_RECOVERY_WEAKENING_UNQUORUMED, 0x010E)"
+    )]
     IncompleteHistory,
     /// A `RecoveryPolicy` at or below the pinned version was presented as current — a replay of a
     /// superseded, still-validly-signed policy (§1.4: `version` is monotonic).
@@ -1035,8 +1141,10 @@ pub enum RecoveryGuardError {
     /// evicted factor back does not need to author a *change* at all — they can re-present the
     /// version that still contained it. Forward-change quorum gating is worth nothing if the
     /// past can simply be replayed. `ERR_STALE_ROLLBACK` (`0x0105`).
-    #[error("recovery policy version is at or below the pinned version — replay of a superseded \
-             policy (ERR_STALE_ROLLBACK, 0x0105)")]
+    #[error(
+        "recovery policy version is at or below the pinned version — replay of a superseded \
+             policy (ERR_STALE_ROLLBACK, 0x0105)"
+    )]
     StaleRollback,
 }
 
@@ -1090,7 +1198,10 @@ fn count_quorum(
 ) -> usize {
     let mut counted: Vec<&[u8]> = Vec::new();
     for s in sigs {
-        if !guardians.iter().any(|g| g.as_slice() == s.guardian.as_slice()) {
+        if !guardians
+            .iter()
+            .any(|g| g.as_slice() == s.guardian.as_slice())
+        {
             continue; // not a recognized guardian
         }
         if counted.contains(&s.guardian.as_slice()) {
@@ -1125,12 +1236,26 @@ fn method_at_least_as_strong(prev: &RecoveryMethod, cand: &RecoveryMethod) -> bo
         // like-for-like carry-over: a stolen-IK holder must not be able to swap a factor's
         // key to their own material silently. Compare the actual material, not just the label.
         (Phrase { recovery_key: a }, Phrase { recovery_key: b }) => a == b,
-        (Device { label: la, device_key: ka }, Device { label: lb, device_key: kb }) => {
-            la == lb && ka == kb
-        }
-        (Social { guardians: pg, threshold: pt }, Social { guardians: cg, threshold: ct }) => {
-            ct >= pt && pg.iter().all(|g| cg.contains(g))
-        }
+        (
+            Device {
+                label: la,
+                device_key: ka,
+            },
+            Device {
+                label: lb,
+                device_key: kb,
+            },
+        ) => la == lb && ka == kb,
+        (
+            Social {
+                guardians: pg,
+                threshold: pt,
+            },
+            Social {
+                guardians: cg,
+                threshold: ct,
+            },
+        ) => ct >= pt && pg.iter().all(|g| cg.contains(g)),
         _ => false,
     }
 }
@@ -1150,10 +1275,12 @@ fn method_at_least_as_strong(prev: &RecoveryMethod, cand: &RecoveryMethod) -> bo
 /// *cryptographic* re-key/resharing obligation (that a rotated-out secret is actually re-keyed) —
 /// that is a key-management concern outside this deterministic core; see the crate docs.
 pub fn recovery_change_is_weakening(prev: &RecoveryPolicy, next: &RecoveryPolicy) -> bool {
-    let methods_weakened = prev
-        .methods
-        .iter()
-        .any(|pm| !next.methods.iter().any(|nm| method_at_least_as_strong(pm, nm)));
+    let methods_weakened = prev.methods.iter().any(|pm| {
+        !next
+            .methods
+            .iter()
+            .any(|nm| method_at_least_as_strong(pm, nm))
+    });
     methods_weakened
         || threshold_min(&next.recover_threshold) < threshold_min(&prev.recover_threshold)
         || threshold_min(&next.rotate_threshold) < threshold_min(&prev.rotate_threshold)
@@ -1265,7 +1392,9 @@ pub fn authorize_recovery_change(
     // evicted, and "looks additive against the newest version I happen to hold" is precisely the
     // reasoning this guard exists to reject.
     verify_policy_chain(history)?;
-    let prev = history.last().ok_or(RecoveryGuardError::IncompleteHistory)?;
+    let prev = history
+        .last()
+        .ok_or(RecoveryGuardError::IncompleteHistory)?;
     if !recovery_change_is_weakening_vs_history(history, next) {
         return Ok(());
     }
@@ -1275,8 +1404,12 @@ pub fn authorize_recovery_change(
     // STRONGER of (a) a strict `> n/2` majority and (b) the user's own configured
     // `prev.rotate_threshold` minimum — a user who set a higher M-of-N must have that M enforced,
     // not silently downgraded to a bare majority. Fail closed on the max of the two.
-    let approve_q =
-        count_quorum(guardians, approvals, RECOVERY_APPROVAL_DS, preimage.as_bytes()) as u32;
+    let approve_q = count_quorum(
+        guardians,
+        approvals,
+        RECOVERY_APPROVAL_DS,
+        preimage.as_bytes(),
+    ) as u32;
     let majority_min = (n as u32) / 2 + 1; // strict `> n/2`
     let policy_min = threshold_min(&prev.rotate_threshold);
     let required = majority_min.max(policy_min);
@@ -1318,9 +1451,11 @@ pub enum KeyRotationError {
     /// the stolen-`IK` un-vetoable eviction and the `recover_threshold`-only-reconstruct-then-rotate
     /// takeover (`ERR_KEYROTATION_UNAUTHORIZED`, `0x0121`, §1.5, §18.4.5). FAIL_CLOSED_BLOCK: reject
     /// or hold; MUST NOT advance the pin to `new_ik`.
-    #[error("key rotation is signed by old_ik alone but the identity has a published RecoveryPolicy \
+    #[error(
+        "key rotation is signed by old_ik alone but the identity has a published RecoveryPolicy \
              — needs a rotate_threshold quorum or the elapsed veto window \
-             (ERR_KEYROTATION_UNAUTHORIZED, 0x0121)")]
+             (ERR_KEYROTATION_UNAUTHORIZED, 0x0121)"
+    )]
     Unauthorized,
 }
 
@@ -1413,7 +1548,16 @@ impl KeyRotation {
         let sig = as_bytes(f.req(7)?)?;
         let rotate_quorum = f.take(8).map(as_bytes).transpose()?;
         f.deny_unknown()?;
-        Ok(KeyRotation { suite, old_ik, new_ik, reason, ts, prev, sig, rotate_quorum })
+        Ok(KeyRotation {
+            suite,
+            old_ik,
+            new_ik,
+            reason,
+            ts,
+            prev,
+            sig,
+            rotate_quorum,
+        })
     }
 
     /// Sign the continuity signature (key 7) with `old_ik`. If a `rotate_quorum` (key 8) is to be
@@ -1429,7 +1573,12 @@ impl KeyRotation {
         if !self.suite.is_supported() {
             return Err(IdentityError::UnsupportedSuite(self.suite.as_u8()));
         }
-        verify_domain(&self.old_ik, KEY_ROTATION_DS, &self.signing_body(), &self.sig)
+        verify_domain(
+            &self.old_ik,
+            KEY_ROTATION_DS,
+            &self.signing_body(),
+            &self.sig,
+        )
     }
 
     /// Content address of this rotation record (`0x1e ‖ BLAKE3-256(det_cbor(rotation))`).
@@ -1440,7 +1589,10 @@ impl KeyRotation {
 
 /// Produce a guardian's **approval** co-signature for a quorum-backed rotation (path (a)), over the
 /// rotation body `det_cbor(KeyRotation ∖ {7,8})`.
-pub fn sign_key_rotation_approval(guardian: &IdentityKey, rotation: &KeyRotation) -> GuardianApproval {
+pub fn sign_key_rotation_approval(
+    guardian: &IdentityKey,
+    rotation: &KeyRotation,
+) -> GuardianApproval {
     GuardianApproval {
         guardian: guardian.public(),
         sig: guardian.sign_domain(KEY_ROTATION_QUORUM_DS, &rotation.quorum_body()),
@@ -1486,7 +1638,12 @@ pub fn key_rotation_is_quorum_backed(
         return false;
     }
     let guardians = policy_guardians(policy);
-    let q = count_quorum(&guardians, approvals, KEY_ROTATION_QUORUM_DS, &rotation.quorum_body());
+    let q = count_quorum(
+        &guardians,
+        approvals,
+        KEY_ROTATION_QUORUM_DS,
+        &rotation.quorum_body(),
+    );
     (q as u32) >= required_rotate_quorum(policy, guardians.len())
 }
 
@@ -1525,7 +1682,12 @@ pub fn authorize_key_rotation(
     // route; a rotate_threshold-backed veto aborts it, and the window must have fully elapsed.
     if rotation.rotate_quorum.is_none() {
         let guardians = policy_guardians(policy);
-        let veto_q = count_quorum(&guardians, vetoes, KEY_ROTATION_VETO_DS, &rotation.quorum_body());
+        let veto_q = count_quorum(
+            &guardians,
+            vetoes,
+            KEY_ROTATION_VETO_DS,
+            &rotation.quorum_body(),
+        );
         let vetoed = veto_q * 2 > guardians.len(); // strict `> n/2` rotate_threshold-backed veto
         if !vetoed && now >= announced_at.saturating_add(RECOVERY_VETO_WINDOW_MS) {
             return Ok(());
@@ -1609,7 +1771,15 @@ impl MoveRecord {
         let prev = f.take(6).map(as_bytes).transpose()?.map(ContentId);
         let sig = as_bytes(f.req(7)?)?;
         f.deny_unknown()?;
-        Ok(MoveRecord { suite, ik, from, to, ts, prev, sig })
+        Ok(MoveRecord {
+            suite,
+            ik,
+            from,
+            to,
+            ts,
+            prev,
+            sig,
+        })
     }
 
     /// Create a signed MoveRecord (spec §1.6, §18.9.3).
@@ -1667,7 +1837,10 @@ mod tests {
             None,
             1_700_000_000_000,
         );
-        assert!(id.verify(None).is_ok(), "a freshly signed identity must verify");
+        assert!(
+            id.verify(None).is_ok(),
+            "a freshly signed identity must verify"
+        );
         // Canonical round-trip preserves everything and re-encodes byte-identically.
         let bytes = id.det_cbor();
         let back = Identity::from_det_cbor(&bytes).unwrap();
@@ -1699,9 +1872,16 @@ mod tests {
             vec![],
         );
         // Correctly anchor-signed: sig = operational signature PLUS the appended anchor one.
-        assert!(id.verify(None).is_ok(), "a correctly anchor-signed identity must verify");
+        assert!(
+            id.verify(None).is_ok(),
+            "a correctly anchor-signed identity must verify"
+        );
         assert_eq!(id.sig.len(), 2, "operational + appended anchor signature");
-        assert_eq!(id, Identity::from_det_cbor(&id.det_cbor()).unwrap(), "round-trips with keys 12/13");
+        assert_eq!(
+            id,
+            Identity::from_det_cbor(&id.det_cbor()).unwrap(),
+            "round-trips with keys 12/13"
+        );
 
         // (a) A forger who broke only the operational suite drops the anchor sig and re-signs `0x01`:
         //     the missing anchor signature is rejected (the chain is untouched, so this isolates the
@@ -1766,7 +1946,12 @@ mod tests {
         for n in 0..valid.len() {
             mutants.push(valid[..n].to_vec());
         }
-        for junk in [vec![0x00u8], vec![0xff, 0xff], vec![0xa1, 0x00, 0x00], vec![0x9f; 8]] {
+        for junk in [
+            vec![0x00u8],
+            vec![0xff, 0xff],
+            vec![0xa1, 0x00, 0x00],
+            vec![0x9f; 8],
+        ] {
             let mut m = valid.clone();
             m.extend_from_slice(&junk);
             mutants.push(m);
@@ -1791,7 +1976,8 @@ mod tests {
     fn device_cert_decode_is_panic_free_and_strictly_canonical() {
         let ik = IdentityKey::generate();
         let device = IdentityKey::generate();
-        let valid = DeviceCert::issue(&ik, device.public(), "phone", 1, None, vec![Cap::Send]).det_cbor();
+        let valid =
+            DeviceCert::issue(&ik, device.public(), "phone", 1, None, vec![Cap::Send]).det_cbor();
         let mut mutants: Vec<Vec<u8>> = Vec::new();
         for i in 0..valid.len() {
             for bit in [0x01u8, 0x08, 0x80, 0xff] {
@@ -1810,7 +1996,11 @@ mod tests {
         }
         for m in &mutants {
             if let Ok(o) = DeviceCert::from_det_cbor(m) {
-                assert_eq!(&o.det_cbor(), m, "DeviceCert decoder accepted a non-canonical encoding");
+                assert_eq!(
+                    &o.det_cbor(),
+                    m,
+                    "DeviceCert decoder accepted a non-canonical encoding"
+                );
             }
         }
     }
@@ -1833,11 +2023,21 @@ mod tests {
             None,
             1,
         );
-        assert!(id.verify(None).is_ok(), "identity with a valid device cert verifies");
+        assert!(
+            id.verify(None).is_ok(),
+            "identity with a valid device cert verifies"
+        );
 
         // (a) A device cert bound to a DIFFERENT identity's IK must be rejected.
         let attacker = IdentityKey::generate();
-        let foreign_cert = DeviceCert::issue(&attacker, device.public(), "phone", 1, None, vec![Cap::Send]);
+        let foreign_cert = DeviceCert::issue(
+            &attacker,
+            device.public(),
+            "phone",
+            1,
+            None,
+            vec![Cap::Send],
+        );
         let id_foreign = Identity::create_classical(
             &ik,
             0,
@@ -1848,7 +2048,10 @@ mod tests {
             None,
             1,
         );
-        assert!(id_foreign.verify(None).is_err(), "device cert bound to another IK must fail");
+        assert!(
+            id_foreign.verify(None).is_err(),
+            "device cert bound to another IK must fail"
+        );
 
         // (b) A device cert whose own signature is corrupted must be rejected.
         let mut bad_cert = good_cert;
@@ -1924,7 +2127,10 @@ mod tests {
         // Canonical CBOR round-trip: integer-keyed, byte-identical re-encode.
         let buf = cert.det_cbor();
         assert_eq!(buf[0] & 0xe0, 0xa0, "cert is a CBOR map");
-        assert_eq!(buf[1], 0x01, "first key is integer 1 (suite), not a text key");
+        assert_eq!(
+            buf[1], 0x01,
+            "first key is integer 1 (suite), not a text key"
+        );
         let back = DeviceCert::from_det_cbor(&buf).unwrap();
         assert_eq!(cert, back);
         assert!(back.verify().is_ok());
@@ -1947,8 +2153,12 @@ mod tests {
             suite: Suite::Classical,
             ik: ik.public(),
             version: 1,
-            methods: vec![RecoveryMethod::Phrase { recovery_key: vec![1, 2, 3] }],
-            recover_threshold: Threshold { any_of: vec![MethodPredicate::Phrase] },
+            methods: vec![RecoveryMethod::Phrase {
+                recovery_key: vec![1, 2, 3],
+            }],
+            recover_threshold: Threshold {
+                any_of: vec![MethodPredicate::Phrase],
+            },
             rotate_threshold: Threshold {
                 any_of: vec![MethodPredicate::Ik, MethodPredicate::Guardians(2)],
             },
@@ -1976,7 +2186,11 @@ mod tests {
         }
         for m in &mutants {
             if let Ok(o) = RecoveryPolicy::from_det_cbor(m) {
-                assert_eq!(&o.det_cbor(), m, "RecoveryPolicy decoder accepted a non-canonical encoding");
+                assert_eq!(
+                    &o.det_cbor(),
+                    m,
+                    "RecoveryPolicy decoder accepted a non-canonical encoding"
+                );
             }
         }
     }
@@ -1988,8 +2202,12 @@ mod tests {
             suite: Suite::Classical,
             ik: ik.public(),
             version: 1,
-            methods: vec![RecoveryMethod::Phrase { recovery_key: vec![1, 2, 3] }],
-            recover_threshold: Threshold { any_of: vec![MethodPredicate::Phrase] },
+            methods: vec![RecoveryMethod::Phrase {
+                recovery_key: vec![1, 2, 3],
+            }],
+            recover_threshold: Threshold {
+                any_of: vec![MethodPredicate::Phrase],
+            },
             rotate_threshold: Threshold {
                 any_of: vec![MethodPredicate::Ik, MethodPredicate::Guardians(2)],
             },
@@ -1999,7 +2217,10 @@ mod tests {
         };
         policy.sign(&ik);
         assert!(policy.verify().is_ok());
-        assert_eq!(RecoveryPolicy::from_det_cbor(&policy.det_cbor()).unwrap(), policy);
+        assert_eq!(
+            RecoveryPolicy::from_det_cbor(&policy.det_cbor()).unwrap(),
+            policy
+        );
 
         let mv = MoveRecord::create(&ik, "a@old.com", "a@new.com", 2, None);
         assert!(mv.verify().is_ok());
@@ -2009,7 +2230,13 @@ mod tests {
         assert_eq!(forged.verify(), Err(IdentityError::BadSignature));
     }
 
-    fn policy(ik: &IdentityKey, methods: Vec<RecoveryMethod>, recover: Threshold, rotate: Threshold, ver: u64) -> RecoveryPolicy {
+    fn policy(
+        ik: &IdentityKey,
+        methods: Vec<RecoveryMethod>,
+        recover: Threshold,
+        rotate: Threshold,
+        ver: u64,
+    ) -> RecoveryPolicy {
         let mut p = RecoveryPolicy {
             suite: Suite::Classical,
             ik: ik.public(),
@@ -2030,41 +2257,71 @@ mod tests {
         let ik = IdentityKey::generate();
         let prev = policy(
             &ik,
-            vec![RecoveryMethod::Phrase { recovery_key: vec![1] }],
-            Threshold { any_of: vec![MethodPredicate::Phrase] },
-            Threshold { any_of: vec![MethodPredicate::Ik, MethodPredicate::Guardians(2)] },
+            vec![RecoveryMethod::Phrase {
+                recovery_key: vec![1],
+            }],
+            Threshold {
+                any_of: vec![MethodPredicate::Phrase],
+            },
+            Threshold {
+                any_of: vec![MethodPredicate::Ik, MethodPredicate::Guardians(2)],
+            },
             1,
         );
         // Adds a redundant device method — strictly additive, not a weakening.
         let next = policy(
             &ik,
             vec![
-                RecoveryMethod::Phrase { recovery_key: vec![1] },
-                RecoveryMethod::Device { device_key: vec![9; 32], label: "phone".into() },
+                RecoveryMethod::Phrase {
+                    recovery_key: vec![1],
+                },
+                RecoveryMethod::Device {
+                    device_key: vec![9; 32],
+                    label: "phone".into(),
+                },
             ],
-            Threshold { any_of: vec![MethodPredicate::Phrase] },
-            Threshold { any_of: vec![MethodPredicate::Ik, MethodPredicate::Guardians(2)] },
+            Threshold {
+                any_of: vec![MethodPredicate::Phrase],
+            },
+            Threshold {
+                any_of: vec![MethodPredicate::Ik, MethodPredicate::Guardians(2)],
+            },
             2,
         );
         assert!(!recovery_change_is_weakening(&prev, &next));
         // Even with no guardians, no approvals, and now == announced (window not elapsed): OK.
-        assert!(authorize_recovery_change(std::slice::from_ref(&prev), &next, &[], &[], &[], 0, 0).is_ok());
+        assert!(
+            authorize_recovery_change(std::slice::from_ref(&prev), &next, &[], &[], &[], 0, 0)
+                .is_ok()
+        );
     }
 
     #[test]
     fn guardian_set_swap_and_threshold_drop_are_weakening_but_additions_are_not() {
         let ik = IdentityKey::generate();
-        let g: Vec<Vec<u8>> = (0..4u8).map(|s| IdentityKey::from_seed(&[s; 32]).public()).collect();
+        let g: Vec<Vec<u8>> = (0..4u8)
+            .map(|s| IdentityKey::from_seed(&[s; 32]).public())
+            .collect();
         let base = |social: RecoveryMethod, ver: u64| {
             policy(
                 &ik,
                 vec![social],
-                Threshold { any_of: vec![MethodPredicate::Guardians(2)] },
-                Threshold { any_of: vec![MethodPredicate::Guardians(2)] },
+                Threshold {
+                    any_of: vec![MethodPredicate::Guardians(2)],
+                },
+                Threshold {
+                    any_of: vec![MethodPredicate::Guardians(2)],
+                },
                 ver,
             )
         };
-        let prev = base(RecoveryMethod::Social { guardians: g[..3].to_vec(), threshold: 2 }, 1);
+        let prev = base(
+            RecoveryMethod::Social {
+                guardians: g[..3].to_vec(),
+                threshold: 2,
+            },
+            1,
+        );
 
         // Swap one guardian out for a fresh (possibly attacker-controlled) key at the SAME 2-of-3
         // count: still a weakening — an evicted guardian is a removed factor.
@@ -2075,16 +2332,37 @@ mod tests {
             },
             2,
         );
-        assert!(recovery_change_is_weakening(&prev, &swapped), "guardian swap must be weakening");
+        assert!(
+            recovery_change_is_weakening(&prev, &swapped),
+            "guardian swap must be weakening"
+        );
 
         // Lower the M-of-N threshold on the same guardian set: weakening.
-        let lowered = base(RecoveryMethod::Social { guardians: g[..3].to_vec(), threshold: 1 }, 3);
-        assert!(recovery_change_is_weakening(&prev, &lowered), "threshold drop must be weakening");
+        let lowered = base(
+            RecoveryMethod::Social {
+                guardians: g[..3].to_vec(),
+                threshold: 1,
+            },
+            3,
+        );
+        assert!(
+            recovery_change_is_weakening(&prev, &lowered),
+            "threshold drop must be weakening"
+        );
 
         // Add a guardian while keeping the 2-of-N count (2-of-3 → 2-of-4): purely additive, the
         // collusion bar M is unchanged — must NOT be flagged (no false positive on hardening).
-        let widened = base(RecoveryMethod::Social { guardians: g[..4].to_vec(), threshold: 2 }, 4);
-        assert!(!recovery_change_is_weakening(&prev, &widened), "adding a guardian is not weakening");
+        let widened = base(
+            RecoveryMethod::Social {
+                guardians: g[..4].to_vec(),
+                threshold: 2,
+            },
+            4,
+        );
+        assert!(
+            !recovery_change_is_weakening(&prev, &widened),
+            "adding a guardian is not weakening"
+        );
     }
 
     #[test]
@@ -2094,8 +2372,12 @@ mod tests {
             policy(
                 &ik,
                 vec![method],
-                Threshold { any_of: vec![MethodPredicate::Phrase] },
-                Threshold { any_of: vec![MethodPredicate::Ik] },
+                Threshold {
+                    any_of: vec![MethodPredicate::Phrase],
+                },
+                Threshold {
+                    any_of: vec![MethodPredicate::Ik],
+                },
                 ver,
             )
         };
@@ -2103,42 +2385,93 @@ mod tests {
         // --- Phrase: swapping the recovery_key to attacker material is a removal ⇒ weakening.
         // A stolen-IK holder must NOT be able to re-point a Phrase factor to their own mnemonic
         // silently (no guardian quorum, no 72 h veto). Compare the MATERIAL, not "Phrase == Phrase".
-        let prev_phrase = one(RecoveryMethod::Phrase { recovery_key: vec![0xAA; 32] }, 1);
-        let swapped_phrase = one(RecoveryMethod::Phrase { recovery_key: vec![0xBB; 32] }, 2);
+        let prev_phrase = one(
+            RecoveryMethod::Phrase {
+                recovery_key: vec![0xAA; 32],
+            },
+            1,
+        );
+        let swapped_phrase = one(
+            RecoveryMethod::Phrase {
+                recovery_key: vec![0xBB; 32],
+            },
+            2,
+        );
         assert!(
             recovery_change_is_weakening(&prev_phrase, &swapped_phrase),
             "swapping a Phrase recovery_key must be weakening"
         );
         // A weakening change is gated: IK alone (no guardians/approvals) is refused.
         assert!(matches!(
-            authorize_recovery_change(std::slice::from_ref(&prev_phrase), &swapped_phrase, &[], &[], &[], 0, 0),
+            authorize_recovery_change(
+                std::slice::from_ref(&prev_phrase),
+                &swapped_phrase,
+                &[],
+                &[],
+                &[],
+                0,
+                0
+            ),
             Err(RecoveryGuardError::WeakeningUnquorumed)
         ));
         // Identical key material is NOT a change ⇒ not weakening (benign re-sign / version bump).
-        let same_phrase = one(RecoveryMethod::Phrase { recovery_key: vec![0xAA; 32] }, 3);
+        let same_phrase = one(
+            RecoveryMethod::Phrase {
+                recovery_key: vec![0xAA; 32],
+            },
+            3,
+        );
         assert!(!recovery_change_is_weakening(&prev_phrase, &same_phrase));
 
         // --- Device: swapping device_key at the SAME label is a removal ⇒ weakening. The label
         // alone must not carry a factor over a key change (attacker re-binds "phone" to their key).
-        let prev_dev = one(RecoveryMethod::Device { device_key: vec![0x11; 32], label: "phone".into() }, 4);
-        let swapped_dev = one(RecoveryMethod::Device { device_key: vec![0x22; 32], label: "phone".into() }, 5);
+        let prev_dev = one(
+            RecoveryMethod::Device {
+                device_key: vec![0x11; 32],
+                label: "phone".into(),
+            },
+            4,
+        );
+        let swapped_dev = one(
+            RecoveryMethod::Device {
+                device_key: vec![0x22; 32],
+                label: "phone".into(),
+            },
+            5,
+        );
         assert!(
             recovery_change_is_weakening(&prev_dev, &swapped_dev),
             "swapping a Device device_key at the same label must be weakening"
         );
         // Same label AND same key ⇒ not weakening.
-        let same_dev = one(RecoveryMethod::Device { device_key: vec![0x11; 32], label: "phone".into() }, 6);
+        let same_dev = one(
+            RecoveryMethod::Device {
+                device_key: vec![0x11; 32],
+                label: "phone".into(),
+            },
+            6,
+        );
         assert!(!recovery_change_is_weakening(&prev_dev, &same_dev));
 
         // Adding a second, distinct Device (keeping the original) is purely additive ⇒ not weakening.
         let added = policy(
             &ik,
             vec![
-                RecoveryMethod::Device { device_key: vec![0x11; 32], label: "phone".into() },
-                RecoveryMethod::Device { device_key: vec![0x33; 32], label: "laptop".into() },
+                RecoveryMethod::Device {
+                    device_key: vec![0x11; 32],
+                    label: "phone".into(),
+                },
+                RecoveryMethod::Device {
+                    device_key: vec![0x33; 32],
+                    label: "laptop".into(),
+                },
             ],
-            Threshold { any_of: vec![MethodPredicate::Phrase] },
-            Threshold { any_of: vec![MethodPredicate::Ik] },
+            Threshold {
+                any_of: vec![MethodPredicate::Phrase],
+            },
+            Threshold {
+                any_of: vec![MethodPredicate::Ik],
+            },
             7,
         );
         assert!(!recovery_change_is_weakening(&prev_dev, &added));
@@ -2147,25 +2480,41 @@ mod tests {
     #[test]
     fn weakening_change_is_gated_by_quorum_veto_and_window() {
         let ik = IdentityKey::generate();
-        let guardian_keys: Vec<IdentityKey> = (0..5).map(|s| IdentityKey::from_seed(&[s; 32])).collect();
+        let guardian_keys: Vec<IdentityKey> =
+            (0..5).map(|s| IdentityKey::from_seed(&[s; 32])).collect();
         let guardians: Vec<Vec<u8>> = guardian_keys.iter().map(|g| g.public()).collect();
 
         let prev = policy(
             &ik,
             vec![
-                RecoveryMethod::Phrase { recovery_key: vec![1] },
-                RecoveryMethod::Device { device_key: vec![9; 32], label: "phone".into() },
+                RecoveryMethod::Phrase {
+                    recovery_key: vec![1],
+                },
+                RecoveryMethod::Device {
+                    device_key: vec![9; 32],
+                    label: "phone".into(),
+                },
             ],
-            Threshold { any_of: vec![MethodPredicate::Guardians(3)] },
-            Threshold { any_of: vec![MethodPredicate::Guardians(3)] },
+            Threshold {
+                any_of: vec![MethodPredicate::Guardians(3)],
+            },
+            Threshold {
+                any_of: vec![MethodPredicate::Guardians(3)],
+            },
             1,
         );
         // Weakening: drops the device method AND lowers both thresholds to Guardians(1).
         let next = policy(
             &ik,
-            vec![RecoveryMethod::Phrase { recovery_key: vec![1] }],
-            Threshold { any_of: vec![MethodPredicate::Guardians(1)] },
-            Threshold { any_of: vec![MethodPredicate::Guardians(1)] },
+            vec![RecoveryMethod::Phrase {
+                recovery_key: vec![1],
+            }],
+            Threshold {
+                any_of: vec![MethodPredicate::Guardians(1)],
+            },
+            Threshold {
+                any_of: vec![MethodPredicate::Guardians(1)],
+            },
             2,
         );
         assert!(recovery_change_is_weakening(&prev, &next));
@@ -2174,38 +2523,95 @@ mod tests {
         let after_window = announced + RECOVERY_VETO_WINDOW_MS;
 
         // (a) No quorum — even past the window — fails closed 0x010E.
-        let e = authorize_recovery_change(std::slice::from_ref(&prev), &next, &guardians, &[], &[], announced, after_window).unwrap_err();
+        let e = authorize_recovery_change(
+            std::slice::from_ref(&prev),
+            &next,
+            &guardians,
+            &[],
+            &[],
+            announced,
+            after_window,
+        )
+        .unwrap_err();
         assert_eq!(e, RecoveryGuardError::WeakeningUnquorumed);
         assert_eq!(e.code(), 0x010E);
 
         // A strict majority (3 of 5) of guardians approve.
-        let approvals: Vec<GuardianApproval> =
-            guardian_keys[..3].iter().map(|g| sign_recovery_approval(g, &next)).collect();
+        let approvals: Vec<GuardianApproval> = guardian_keys[..3]
+            .iter()
+            .map(|g| sign_recovery_approval(g, &next))
+            .collect();
 
         // (b) Quorum met but still inside the 72h window — hold, 0x010F.
-        let e = authorize_recovery_change(std::slice::from_ref(&prev), &next, &guardians, &approvals, &[], announced, announced + 1).unwrap_err();
+        let e = authorize_recovery_change(
+            std::slice::from_ref(&prev),
+            &next,
+            &guardians,
+            &approvals,
+            &[],
+            announced,
+            announced + 1,
+        )
+        .unwrap_err();
         assert_eq!(e, RecoveryGuardError::VetoWindowActive);
         assert_eq!(e.code(), 0x010F);
 
         // (c) Quorum met + a rotate_threshold-backed veto (3 of 5) — aborted, 0x010F.
-        let vetoes: Vec<GuardianApproval> =
-            guardian_keys[..3].iter().map(|g| sign_recovery_veto(g, &next)).collect();
-        let e = authorize_recovery_change(std::slice::from_ref(&prev), &next, &guardians, &approvals, &vetoes, announced, after_window).unwrap_err();
+        let vetoes: Vec<GuardianApproval> = guardian_keys[..3]
+            .iter()
+            .map(|g| sign_recovery_veto(g, &next))
+            .collect();
+        let e = authorize_recovery_change(
+            std::slice::from_ref(&prev),
+            &next,
+            &guardians,
+            &approvals,
+            &vetoes,
+            announced,
+            after_window,
+        )
+        .unwrap_err();
         assert_eq!(e, RecoveryGuardError::Vetoed);
 
         // (d) A single-guardian veto is NOT a quorum veto and cannot block (asymmetric veto).
         let lone_veto = vec![sign_recovery_veto(&guardian_keys[0], &next)];
-        assert!(authorize_recovery_change(std::slice::from_ref(&prev), &next, &guardians, &approvals, &lone_veto, announced, after_window).is_ok());
+        assert!(authorize_recovery_change(
+            std::slice::from_ref(&prev),
+            &next,
+            &guardians,
+            &approvals,
+            &lone_veto,
+            announced,
+            after_window
+        )
+        .is_ok());
 
         // (e) Quorum met, no veto, window elapsed — the change is finally authorized.
-        assert!(authorize_recovery_change(std::slice::from_ref(&prev), &next, &guardians, &approvals, &[], announced, after_window).is_ok());
+        assert!(authorize_recovery_change(
+            std::slice::from_ref(&prev),
+            &next,
+            &guardians,
+            &approvals,
+            &[],
+            announced,
+            after_window
+        )
+        .is_ok());
 
         // Forged approvals from non-guardians do not count toward quorum.
         let outsiders: Vec<GuardianApproval> = (100..103u8)
             .map(|s| sign_recovery_approval(&IdentityKey::from_seed(&[s; 32]), &next))
             .collect();
         assert_eq!(
-            authorize_recovery_change(std::slice::from_ref(&prev), &next, &guardians, &outsiders, &[], announced, after_window),
+            authorize_recovery_change(
+                std::slice::from_ref(&prev),
+                &next,
+                &guardians,
+                &outsiders,
+                &[],
+                announced,
+                after_window
+            ),
             Err(RecoveryGuardError::WeakeningUnquorumed)
         );
     }
@@ -2217,26 +2623,40 @@ mod tests {
     #[test]
     fn weakening_respects_configured_rotate_threshold_above_majority() {
         let ik = IdentityKey::generate();
-        let guardian_keys: Vec<IdentityKey> = (0..5).map(|s| IdentityKey::from_seed(&[s; 32])).collect();
+        let guardian_keys: Vec<IdentityKey> =
+            (0..5).map(|s| IdentityKey::from_seed(&[s; 32])).collect();
         let guardians: Vec<Vec<u8>> = guardian_keys.iter().map(|g| g.public()).collect();
 
         // rotate_threshold = Guardians(4): a deliberately-higher-than-majority bar.
-        let strong = Threshold { any_of: vec![MethodPredicate::Guardians(4)] };
+        let strong = Threshold {
+            any_of: vec![MethodPredicate::Guardians(4)],
+        };
         let prev = policy(
             &ik,
             vec![
-                RecoveryMethod::Phrase { recovery_key: vec![1] },
-                RecoveryMethod::Device { device_key: vec![9; 32], label: "phone".into() },
+                RecoveryMethod::Phrase {
+                    recovery_key: vec![1],
+                },
+                RecoveryMethod::Device {
+                    device_key: vec![9; 32],
+                    label: "phone".into(),
+                },
             ],
-            Threshold { any_of: vec![MethodPredicate::Guardians(1)] },
+            Threshold {
+                any_of: vec![MethodPredicate::Guardians(1)],
+            },
             strong.clone(),
             1,
         );
         // Weakening (drops the device method), thresholds unchanged so the bar stays Guardians(4).
         let next = policy(
             &ik,
-            vec![RecoveryMethod::Phrase { recovery_key: vec![1] }],
-            Threshold { any_of: vec![MethodPredicate::Guardians(1)] },
+            vec![RecoveryMethod::Phrase {
+                recovery_key: vec![1],
+            }],
+            Threshold {
+                any_of: vec![MethodPredicate::Guardians(1)],
+            },
             strong,
             2,
         );
@@ -2247,17 +2667,38 @@ mod tests {
 
         // A bare majority (3 of 5) is a strict majority but BELOW the configured Guardians(4) bar —
         // must be rejected as un-quorumed.
-        let three: Vec<GuardianApproval> =
-            guardian_keys[..3].iter().map(|g| sign_recovery_approval(g, &next)).collect();
+        let three: Vec<GuardianApproval> = guardian_keys[..3]
+            .iter()
+            .map(|g| sign_recovery_approval(g, &next))
+            .collect();
         assert_eq!(
-            authorize_recovery_change(std::slice::from_ref(&prev), &next, &guardians, &three, &[], announced, after_window),
+            authorize_recovery_change(
+                std::slice::from_ref(&prev),
+                &next,
+                &guardians,
+                &three,
+                &[],
+                announced,
+                after_window
+            ),
             Err(RecoveryGuardError::WeakeningUnquorumed)
         );
 
         // Meeting the configured M-of-N (4 of 5), no veto, past the window — authorized.
-        let four: Vec<GuardianApproval> =
-            guardian_keys[..4].iter().map(|g| sign_recovery_approval(g, &next)).collect();
-        assert!(authorize_recovery_change(std::slice::from_ref(&prev), &next, &guardians, &four, &[], announced, after_window).is_ok());
+        let four: Vec<GuardianApproval> = guardian_keys[..4]
+            .iter()
+            .map(|g| sign_recovery_approval(g, &next))
+            .collect();
+        assert!(authorize_recovery_change(
+            std::slice::from_ref(&prev),
+            &next,
+            &guardians,
+            &four,
+            &[],
+            announced,
+            after_window
+        )
+        .is_ok());
     }
 
     // --- Key rotation (§1.5, §18.4.5) authorization ----------------------------------------
@@ -2267,14 +2708,25 @@ mod tests {
     fn social_policy(ik: &IdentityKey, guardians: &[Vec<u8>], m: u8, ver: u64) -> RecoveryPolicy {
         policy(
             ik,
-            vec![RecoveryMethod::Social { guardians: guardians.to_vec(), threshold: m }],
-            Threshold { any_of: vec![MethodPredicate::Guardians(m)] },
-            Threshold { any_of: vec![MethodPredicate::Guardians(m)] },
+            vec![RecoveryMethod::Social {
+                guardians: guardians.to_vec(),
+                threshold: m,
+            }],
+            Threshold {
+                any_of: vec![MethodPredicate::Guardians(m)],
+            },
+            Threshold {
+                any_of: vec![MethodPredicate::Guardians(m)],
+            },
             ver,
         )
     }
 
-    fn make_rotation(old_ik: &IdentityKey, new_ik: &IdentityKey, quorum: Option<Vec<u8>>) -> KeyRotation {
+    fn make_rotation(
+        old_ik: &IdentityKey,
+        new_ik: &IdentityKey,
+        quorum: Option<Vec<u8>>,
+    ) -> KeyRotation {
         let mut r = KeyRotation {
             suite: Suite::Classical,
             old_ik: old_ik.public(),
@@ -2300,7 +2752,10 @@ mod tests {
         // With a rotate_quorum (key 8 present) — still continuity-valid, and key 7 covers key 8.
         let quorum = make_rotation(&old, &new, Some(vec![0xAB; 8]));
         assert!(quorum.verify().is_ok());
-        assert_eq!(KeyRotation::from_det_cbor(&quorum.det_cbor()).unwrap(), quorum);
+        assert_eq!(
+            KeyRotation::from_det_cbor(&quorum.det_cbor()).unwrap(),
+            quorum
+        );
         // Tampering old_ik's continuity signature fails closed.
         let mut forged = bare.clone();
         forged.new_ik = IdentityKey::generate().public();
@@ -2320,13 +2775,16 @@ mod tests {
     fn old_ik_alone_rotation_rejected_when_recovery_policy_present() {
         let old = IdentityKey::generate();
         let new = IdentityKey::generate();
-        let guardians: Vec<Vec<u8>> = (0..3u8).map(|s| IdentityKey::from_seed(&[s; 32]).public()).collect();
+        let guardians: Vec<Vec<u8>> = (0..3u8)
+            .map(|s| IdentityKey::from_seed(&[s; 32]).public())
+            .collect();
         let pol = social_policy(&old, &guardians, 2, 1);
         let bare = make_rotation(&old, &new, None); // old_ik alone, no rotate_quorum
 
         let announced = 1_000_000u64;
         // Inside the veto window (path (b) not yet satisfied), no quorum ⇒ 0x0121, held/rejected.
-        let err = authorize_key_rotation(&bare, Some(&pol), &[], &[], announced, announced).unwrap_err();
+        let err =
+            authorize_key_rotation(&bare, Some(&pol), &[], &[], announced, announced).unwrap_err();
         assert_eq!(err, KeyRotationError::Unauthorized);
         assert_eq!(err.code(), 0x0121);
         assert!(!key_rotation_is_quorum_backed(&bare, &pol, &[]));
@@ -2336,14 +2794,17 @@ mod tests {
     fn quorum_backed_rotation_is_accepted_immediately() {
         let old = IdentityKey::generate();
         let new = IdentityKey::generate();
-        let guardian_keys: Vec<IdentityKey> = (0..3u8).map(|s| IdentityKey::from_seed(&[s; 32])).collect();
+        let guardian_keys: Vec<IdentityKey> =
+            (0..3u8).map(|s| IdentityKey::from_seed(&[s; 32])).collect();
         let guardians: Vec<Vec<u8>> = guardian_keys.iter().map(|g| g.public()).collect();
         let pol = social_policy(&old, &guardians, 2, 1);
 
         // A 2-of-3 rotate_threshold quorum co-signs the rotation body; key 8 carries the proof.
         let rot = make_rotation(&old, &new, Some(vec![0x01; 8]));
-        let approvals: Vec<GuardianApproval> =
-            guardian_keys[..2].iter().map(|g| sign_key_rotation_approval(g, &rot)).collect();
+        let approvals: Vec<GuardianApproval> = guardian_keys[..2]
+            .iter()
+            .map(|g| sign_key_rotation_approval(g, &rot))
+            .collect();
 
         assert!(key_rotation_is_quorum_backed(&rot, &pol, &approvals));
         // Immediate effect — announced_at/now irrelevant on path (a).
@@ -2362,7 +2823,8 @@ mod tests {
     fn published_and_delayed_path_b_authorizes_after_window() {
         let old = IdentityKey::generate();
         let new = IdentityKey::generate();
-        let guardian_keys: Vec<IdentityKey> = (0..3u8).map(|s| IdentityKey::from_seed(&[s; 32])).collect();
+        let guardian_keys: Vec<IdentityKey> =
+            (0..3u8).map(|s| IdentityKey::from_seed(&[s; 32])).collect();
         let guardians: Vec<Vec<u8>> = guardian_keys.iter().map(|g| g.public()).collect();
         let pol = social_policy(&old, &guardians, 2, 1);
         let bare = make_rotation(&old, &new, None); // old_ik-alone, published (path b)
@@ -2373,8 +2835,10 @@ mod tests {
         assert!(authorize_key_rotation(&bare, Some(&pol), &[], &[], announced, after).is_ok());
 
         // A rotate_threshold-backed veto (2 of 3) aborts it even past the window ⇒ 0x0121.
-        let vetoes: Vec<GuardianApproval> =
-            guardian_keys[..2].iter().map(|g| sign_key_rotation_veto(g, &bare)).collect();
+        let vetoes: Vec<GuardianApproval> = guardian_keys[..2]
+            .iter()
+            .map(|g| sign_key_rotation_veto(g, &bare))
+            .collect();
         assert_eq!(
             authorize_key_rotation(&bare, Some(&pol), &[], &vetoes, announced, after),
             Err(KeyRotationError::Unauthorized)
@@ -2386,7 +2850,8 @@ mod tests {
         let old = IdentityKey::generate();
         let honest_new = IdentityKey::generate();
         let attacker_new = IdentityKey::generate();
-        let guardian_keys: Vec<IdentityKey> = (0..3u8).map(|s| IdentityKey::from_seed(&[s; 32])).collect();
+        let guardian_keys: Vec<IdentityKey> =
+            (0..3u8).map(|s| IdentityKey::from_seed(&[s; 32])).collect();
         let guardians: Vec<Vec<u8>> = guardian_keys.iter().map(|g| g.public()).collect();
         let pol = social_policy(&old, &guardians, 2, 1);
 
@@ -2394,8 +2859,10 @@ mod tests {
         let attacker_branch = make_rotation(&old, &attacker_new, None);
         // Branch B: the owner's genuine rotate_threshold-backed rotation.
         let honest_branch = make_rotation(&old, &honest_new, Some(vec![0x02; 8]));
-        let approvals: Vec<GuardianApproval> =
-            guardian_keys[..2].iter().map(|g| sign_key_rotation_approval(g, &honest_branch)).collect();
+        let approvals: Vec<GuardianApproval> = guardian_keys[..2]
+            .iter()
+            .map(|g| sign_key_rotation_approval(g, &honest_branch))
+            .collect();
 
         let a_backed = key_rotation_is_quorum_backed(&attacker_branch, &pol, &[]);
         let b_backed = key_rotation_is_quorum_backed(&honest_branch, &pol, &approvals);
@@ -2403,7 +2870,11 @@ mod tests {
 
         let winner =
             prefer_rotation_fork(&attacker_branch, a_backed, &honest_branch, b_backed).unwrap();
-        assert_eq!(winner.new_ik, honest_new.public(), "quorum branch must win over old_ik-alone");
+        assert_eq!(
+            winner.new_ik,
+            honest_new.public(),
+            "quorum branch must win over old_ik-alone"
+        );
 
         // Two competing old_ik-alone branches at the same position ⇒ HALT_ALERT (chain broken).
         assert_eq!(
@@ -2456,11 +2927,11 @@ mod recovery_threshold_order_tests {
     /// A mixed policy fails if ANY shared kind is weaker on the rotate side.
     #[test]
     fn one_weak_kind_fails_the_whole_policy() {
-        assert!(!th(vec![MethodPredicate::Devices(1), MethodPredicate::Ik])
-            .at_least_as_strong_as(&th(vec![
-                MethodPredicate::Devices(2),
-                MethodPredicate::Phrase
-            ])));
+        assert!(
+            !th(vec![MethodPredicate::Devices(1), MethodPredicate::Ik]).at_least_as_strong_as(&th(
+                vec![MethodPredicate::Devices(2), MethodPredicate::Phrase]
+            ))
+        );
     }
 
     /// End to end: verify() now raises the §21 code that was registered but unreachable.
@@ -2493,8 +2964,12 @@ mod eviction_durability_tests {
             ik: ik.public().to_vec(),
             version,
             methods,
-            recover_threshold: Threshold { any_of: vec![MethodPredicate::Guardians(2)] },
-            rotate_threshold: Threshold { any_of: vec![MethodPredicate::Guardians(2)] },
+            recover_threshold: Threshold {
+                any_of: vec![MethodPredicate::Guardians(2)],
+            },
+            rotate_threshold: Threshold {
+                any_of: vec![MethodPredicate::Guardians(2)],
+            },
             prev: None,
             ts: 1_700_000_000_000,
             sig: vec![],
@@ -2505,11 +2980,20 @@ mod eviction_durability_tests {
     #[test]
     fn eviction_is_weakening() {
         let ik = IdentityKey::generate();
-        let a = RecoveryMethod::Device { device_key: vec![0xAA; 32], label: "a".into() };
-        let b = RecoveryMethod::Device { device_key: vec![0xBB; 32], label: "b".into() };
+        let a = RecoveryMethod::Device {
+            device_key: vec![0xAA; 32],
+            label: "a".into(),
+        };
+        let b = RecoveryMethod::Device {
+            device_key: vec![0xBB; 32],
+            label: "b".into(),
+        };
         let v1 = pol(&ik, 1, vec![a.clone(), b.clone()]);
         let v2 = pol(&ik, 2, vec![b.clone()]); // a evicted
-        assert!(recovery_change_is_weakening(&v1, &v2), "evicting a factor must be weakening");
+        assert!(
+            recovery_change_is_weakening(&v1, &v2),
+            "evicting a factor must be weakening"
+        );
     }
 
     /// FINDING: re-adding a PREVIOUSLY EVICTED factor reads as purely additive against the
@@ -2519,9 +3003,15 @@ mod eviction_durability_tests {
     #[test]
     fn readding_an_evicted_factor_is_not_caught_against_prev_alone() {
         let ik = IdentityKey::generate();
-        let a = RecoveryMethod::Device { device_key: vec![0xAA; 32], label: "a".into() };
-        let b = RecoveryMethod::Device { device_key: vec![0xBB; 32], label: "b".into() };
-        let v2 = pol(&ik, 2, vec![b.clone()]);            // a already evicted
+        let a = RecoveryMethod::Device {
+            device_key: vec![0xAA; 32],
+            label: "a".into(),
+        };
+        let b = RecoveryMethod::Device {
+            device_key: vec![0xBB; 32],
+            label: "b".into(),
+        };
+        let v2 = pol(&ik, 2, vec![b.clone()]); // a already evicted
         let v3 = pol(&ik, 3, vec![b.clone(), a.clone()]); // a re-added
         assert!(
             !recovery_change_is_weakening(&v2, &v3),
@@ -2534,8 +3024,14 @@ mod eviction_durability_tests {
     #[test]
     fn readding_an_evicted_factor_is_weakening_against_history() {
         let ik = IdentityKey::generate();
-        let a = RecoveryMethod::Device { device_key: vec![0xAA; 32], label: "a".into() };
-        let b = RecoveryMethod::Device { device_key: vec![0xBB; 32], label: "b".into() };
+        let a = RecoveryMethod::Device {
+            device_key: vec![0xAA; 32],
+            label: "a".into(),
+        };
+        let b = RecoveryMethod::Device {
+            device_key: vec![0xBB; 32],
+            label: "b".into(),
+        };
         let v1 = pol(&ik, 1, vec![a.clone(), b.clone()]);
         let v2 = pol(&ik, 2, vec![b.clone()]);
         let v3 = pol(&ik, 3, vec![b.clone(), a.clone()]);
@@ -2547,8 +3043,14 @@ mod eviction_durability_tests {
     #[test]
     fn adding_a_never_evicted_factor_stays_additive() {
         let ik = IdentityKey::generate();
-        let b = RecoveryMethod::Device { device_key: vec![0xBB; 32], label: "b".into() };
-        let c = RecoveryMethod::Device { device_key: vec![0xCC; 32], label: "c".into() };
+        let b = RecoveryMethod::Device {
+            device_key: vec![0xBB; 32],
+            label: "b".into(),
+        };
+        let c = RecoveryMethod::Device {
+            device_key: vec![0xCC; 32],
+            label: "c".into(),
+        };
         let v1 = pol(&ik, 1, vec![b.clone()]);
         let v2 = pol(&ik, 2, vec![b.clone(), c.clone()]);
         assert!(!recovery_change_is_weakening_vs_history(&[v1], &v2));
